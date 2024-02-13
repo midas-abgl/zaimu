@@ -1,0 +1,78 @@
+* {
+    margin: 0;
+    padding: 0;
+    outline: 0;
+    box-sizing: border-box;
+}
+
+html {
+    // color-scheme: dark;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+
+    min-height: 100vh;
+    // background-color: #000;
+}
+
+body,
+input,
+select,
+button {
+    color: #ffffff;
+    // font-family: "Roboto Flex", sans-serif;
+    font-size: 1rem;
+    -webkit-font-smoothing: antialiased;
+}
+
+option {
+    text-align-last: center;
+}
+
+b,
+i,
+p,
+span {
+    hyphens: auto;
+}
+
+a {
+    text-decoration: none;
+}
+
+button,
+fieldset,
+input {
+    border: none;
+}
+
+button {
+    background: none;
+    cursor: pointer;
+
+    &:disabled {
+        cursor: default;
+    }
+}
+
+input,
+select {
+    background: transparent;
+    -moz-appearance: textfield;
+
+    &::-webkit-outer-spin-button,
+    &::-webkit-inner-spin-button {
+        appearance: none;
+    }
+}
+
+option {
+    // background: #000;
+    border-bottom: none;
+}
+
+label {
+    cursor: text;
+}
