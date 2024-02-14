@@ -1,7 +1,6 @@
 **/dist
 **/node_modules
 **/tmp
-**/.vscode
 !/.vscode/launch.json
 !.gitkeep
 *.log
