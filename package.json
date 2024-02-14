@@ -1,5 +1,5 @@
 {
-	"name": "maple-simulator",
+	"name": "zaimu",
 	"private": true,
 	"scripts": {
 		"build": "next build",
