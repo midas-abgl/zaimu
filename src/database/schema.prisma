@@ -1,8 +1,18 @@
 generator client {
-    provider = "prisma-client-js"
+    provider = "prisma-kysely"
+    output = "./"
+    fileName = "types.ts"
 }
 
 datasource db {
     provider  = "postgresql"
     url       = env("DATABASE_URL")
+}
+
+model Expense {
+    id        String   @db.Uuid @default(uuid()) @id
+    amount    Decimal  @db.Decimal(8, 3)
+    date      DateTime @db.Timestamptz()
+    createdAt DateTime @default(now())
+    updatedAt DateTime @default(now()) @updatedAt
 }
