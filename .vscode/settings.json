@@ -1,6 +1,9 @@
 {
-    "editor.codeActionsOnSave": {
-        "source.organizeImports": "always"
-    },
-    "typescript.tsdk": "node_modules/typescript/lib"
+	"[javascript][javascriptreact][json][jsonc][typescript][typescriptreact]": {
+		"editor.codeActionsOnSave": {
+			"source.organizeImports.biome": "always"
+		},
+		"editor.defaultFormatter": "biomejs.biome"
+	},
+	"typescript.tsdk": "node_modules/typescript/lib"
 }

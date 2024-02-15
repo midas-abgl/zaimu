@@ -13,7 +13,7 @@
 		"start": "next start"
 	},
 	"lint-staged": {
-		"**/*.(js|jsx|ts|tsx)": ["biome format --write"]
+		"**/*.(js|jsx|json|ts|tsx)": ["biome check --apply"]
 	},
 	"prisma": {
 		"schema": "src/database/schema.prisma"
