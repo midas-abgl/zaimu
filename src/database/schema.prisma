@@ -16,3 +16,10 @@ model Expense {
     createdAt DateTime @default(now())
     updatedAt DateTime @default(now()) @updatedAt
 }
+
+model Account{
+    id        String   @db.Uuid @default(dbgenerated("gen_random_uuid()")) @id
+    name      String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @default(now()) @updatedAt
+}

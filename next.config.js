@@ -16,7 +16,6 @@ module.exports = async (phase, { defaultConfig }) => {
 				},
 			},
 		},
-		output: "export",
 		productionBrowserSourceMaps: true,
 		reactStrictMode: true,
 		sassOptions: {
