@@ -10,7 +10,7 @@ datasource db {
 }
 
 model Expense {
-    id        String   @db.Uuid @default(uuid()) @id
+    id        String   @db.Uuid @default(dbgenerated("gen_random_uuid()")) @id
     amount    Decimal  @db.Decimal(8, 3)
     date      DateTime @db.Timestamptz()
     createdAt DateTime @default(now())

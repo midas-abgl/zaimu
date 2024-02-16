@@ -5,7 +5,7 @@ export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
 export type Expense = {
-	id: string;
+	id: Generated<string>;
 	amount: string;
 	date: Timestamp;
 	createdAt: Generated<Timestamp>;
