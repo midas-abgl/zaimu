@@ -1,4 +1,4 @@
-import { PropsWithChildren } from "react";
+import type { PropsWithChildren } from "react";
 import "./_global.scss";
 import WebVitals from "./components/WebVitals";
 

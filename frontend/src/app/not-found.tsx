@@ -1,4 +1,4 @@
-import { Metadata } from "next";
+import type { Metadata } from "next";
 import { IoMdCloseCircleOutline } from "react-icons/io";
 import styles from "./styles.module.scss";
 

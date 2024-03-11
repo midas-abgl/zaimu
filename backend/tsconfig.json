@@ -1,0 +1,27 @@
+{
+	"compilerOptions": {
+		"allowSyntheticDefaultImports": true,
+		"baseUrl": "./src",
+		"declaration": true,
+		"emitDecoratorMetadata": true,
+		"experimentalDecorators": true,
+		"forceConsistentCasingInFileNames": true,
+		"incremental": true,
+		"module": "commonjs",
+		"noFallthroughCasesInSwitch": true,
+		"noImplicitAny": true,
+		"removeComments": true,
+		"resolveJsonModule": true,
+		"outDir": "./dist",
+		"paths": {
+			"@database/*": ["database/*"],
+			"@modules/*": ["modules/*"]
+		},
+		"skipLibCheck": true,
+		"sourceMap": true,
+		"strict": true,
+		"strictBindCallApply": true,
+		"strictNullChecks": true,
+		"target": "ESNext"
+	}
+}
