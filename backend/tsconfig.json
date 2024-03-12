@@ -2,12 +2,11 @@
 	"compilerOptions": {
 		"allowSyntheticDefaultImports": true,
 		"baseUrl": "./src",
-		"declaration": true,
 		"emitDecoratorMetadata": true,
 		"experimentalDecorators": true,
 		"forceConsistentCasingInFileNames": true,
 		"incremental": true,
-		"module": "commonjs",
+		"module": "CommonJS",
 		"noFallthroughCasesInSwitch": true,
 		"noImplicitAny": true,
 		"removeComments": true,
@@ -18,7 +17,6 @@
 			"@modules/*": ["modules/*"]
 		},
 		"skipLibCheck": true,
-		"sourceMap": true,
 		"strict": true,
 		"strictBindCallApply": true,
 		"strictNullChecks": true,

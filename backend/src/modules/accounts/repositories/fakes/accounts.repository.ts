@@ -2,10 +2,10 @@ import { randomUUID } from "node:crypto";
 import type { Account } from "@database/types";
 import type { CreateAccountDTO } from "@modules/accounts/dtos/CreateAccount.dto";
 import { Injectable } from "@nestjs/common";
-import type AccountsRepository from "../accounts.repository";
+import type { AccountsRepository } from "../accounts.repository";
 
 @Injectable()
-export default class FakeAccountsRepository implements AccountsRepository {
+export class FakeAccountsRepository implements AccountsRepository {
 	private accounts: Account[] = [];
 
 	public async create(data: CreateAccountDTO): Promise<Account> {

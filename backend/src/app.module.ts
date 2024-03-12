@@ -1,4 +1,4 @@
-import AccountsModule from "@modules/accounts/accounts.module";
+import { AccountsModule } from "@modules/accounts/accounts.module";
 import { Module } from "@nestjs/common";
 import { PostgresDialect } from "kysely";
 import { KyselyModule } from "nestjs-kysely";

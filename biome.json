@@ -28,6 +28,7 @@
 			"style": {
 				"noNonNullAssertion": "off",
 				"noParameterAssign": "warn",
+				"useImportType": "off",
 				"useSingleVarDeclarator": "off"
 			},
 			"suspicious": {
