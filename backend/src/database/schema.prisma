@@ -20,6 +20,18 @@ model Expense {
 model Account{
     id        String   @db.Uuid @default(dbgenerated("gen_random_uuid()")) @id
     name      String
+    transactionsOut Transaction[]  @relation("Transaction_originAccount") 
+    transactionsIn Transaction[]  @relation("Transaction_destinationAccount")
     createdAt DateTime @default(now())
     updatedAt DateTime @default(now()) @updatedAt
+}
+
+model Transaction {
+    id              String   @db.Uuid @default(dbgenerated("gen_random_uuid()")) @id
+    originId        String @db.Uuid
+    origin          Account  @relation("Transaction_originAccount", fields: [originId], references: [id])
+    destinationId   String @db.Uuid
+    destination     Account  @relation("Transaction_destinationAccount",fields: [destinationId], references: [id]) 
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @default(now()) @updatedAt
 }
