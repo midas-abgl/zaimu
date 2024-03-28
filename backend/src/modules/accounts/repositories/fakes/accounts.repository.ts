@@ -20,5 +20,4 @@ export class FakeAccountsRepository implements AccountsRepository {
 
 		return account;
 	}
-
 }

@@ -1,6 +1,7 @@
 import type { Transaction } from "@database/types";
 import type { AddTransactionDTO } from "@modules/accounts/dtos/AddTransaction.dto";
-import {AddTransaction} from "@modules/accounts/services/AddTransaction.service";
+// biome-ignore lint/style/useImportType: Breaks NestJS
+import { AddTransaction } from "@modules/accounts/services/AddTransaction.service";
 import { Body, Controller, Post } from "@nestjs/common";
 
 @Controller("transactions")

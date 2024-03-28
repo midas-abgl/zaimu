@@ -3,12 +3,12 @@ import { IsNotEmpty, IsNumber, IsString, IsUUID } from "class-validator/types/de
 export class AddTransactionDTO {
 	@IsNotEmpty()
 	@IsString()
-    @IsUUID()
+	@IsUUID()
 	originId!: string;
 
 	@IsNotEmpty()
 	@IsString()
-    @IsUUID()
+	@IsUUID()
 	destinationId!: string;
 
 	@IsNotEmpty()
