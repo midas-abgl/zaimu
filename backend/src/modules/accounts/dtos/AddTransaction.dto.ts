@@ -1,6 +1,8 @@
-import { IsNotEmpty, IsNumber, IsString, IsUUID } from "class-validator/types/decorator/decorators";
+import type { Transaction } from "@database/types";
+import { IsNotEmpty, IsNumber, IsString, IsUUID } from "class-validator";
+import type { Insertable } from "kysely";
 
-export class AddTransactionDTO {
+export class AddTransactionDTO implements Insertable<Transaction> {
 	@IsNotEmpty()
 	@IsString()
 	@IsUUID()

@@ -1,9 +1,10 @@
 import type { Account, Transaction } from "@database/types";
+import type { Selectable } from "kysely";
 import type { CreateAccountDTO } from "../dtos/CreateAccount.dto";
 import type { AddTransactionDTO } from "./../dtos/AddTransaction.dto";
 
 export abstract class AccountsRepository {
-	abstract addTransaction(data: AddTransactionDTO): Promise<Transaction>;
-	abstract create(data: CreateAccountDTO): Promise<Account>;
-	abstract findById(id: string): Promise<Account | null>;
+	abstract addTransaction(data: AddTransactionDTO): Promise<Selectable<Transaction>>;
+	abstract create(data: CreateAccountDTO): Promise<Selectable<Account>>;
+	abstract findById(id: string): Promise<Selectable<Account> | undefined>;
 }
