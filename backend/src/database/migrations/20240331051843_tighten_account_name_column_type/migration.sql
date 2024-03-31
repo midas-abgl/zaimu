@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Account" ALTER COLUMN "name" SET DATA TYPE VARCHAR;
