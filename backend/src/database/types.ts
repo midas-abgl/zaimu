@@ -6,7 +6,8 @@ export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
 export type Account = {
 	id: Generated<string>;
-	name: string;
+	company: string;
+	type: string;
 	createdAt: Generated<Timestamp>;
 	updatedAt: Generated<Timestamp>;
 };

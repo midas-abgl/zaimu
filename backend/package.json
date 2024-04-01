@@ -6,8 +6,9 @@
 		"debug": "nest build && nest start --debug --watch",
 		"dev": "nest start --watch",
 		"prisma:generate": "prisma generate",
-		"prisma:migrate": "prisma migrate dev",
+		"prisma:migrate": "prisma migrate dev --create-only",
 		"prisma:migrate_deploy": "prisma migrate deploy",
+		"prisma:migrate_dev": "prisma migrate dev",
 		"prepare": "prisma generate",
 		"start": "nest start"
 	},

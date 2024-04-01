@@ -1,0 +1,17 @@
+CREATE
+OR REPLACE FUNCTION updated_at() RETURNS TRIGGER AS $$ BEGIN
+	NEW."updatedAt" = CURRENT_TIMESTAMP;
+
+RETURN NEW;
+
+END;
+
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER account_updated_at BEFORE
+UPDATE
+	ON "Account" FOR EACH ROW EXECUTE FUNCTION updated_at();
+
+CREATE TRIGGER transaction_updated_at BEFORE
+UPDATE
+	ON "Transaction" FOR EACH ROW EXECUTE FUNCTION updated_at();

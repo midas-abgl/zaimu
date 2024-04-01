@@ -1,8 +1,8 @@
 import type { Account } from "@database/types";
 import { IsNotEmpty, IsString, MaxLength } from "class-validator";
-import type { Insertable } from "kysely";
+import type { Selectable } from "kysely";
 
-export class CreateAccountDTO implements Insertable<Account> {
+export class FindAccountDTO implements Pick<Selectable<Account>, "company" | "type"> {
 	@IsNotEmpty()
 	@IsString()
 	@MaxLength(70)
