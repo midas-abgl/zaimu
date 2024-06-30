@@ -1,0 +1,112 @@
+.sidebar {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 8rem;
+	height: 100vh;
+	background-color: #fff;
+	padding: 1.25rem;
+	transition: width 0.3s ease, box-shadow 0.3s ease;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	z-index: 1000;
+	border-radius: 0 8px 8px 0;
+
+	&.expanded {
+		box-shadow: rgba(50, 50, 93, 0.25) 0px 50px 100px -20px, rgba(0, 0, 0, 0.3) 0px 30px 60px -30px;
+	}
+
+	&.collapsed {
+		width: 5rem;
+		box-shadow: none;
+	}
+}
+
+.title {
+	margin-bottom: 20px;
+	font-size: 1.5em;
+}
+
+.menu {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	margin-top: 1rem;
+
+	hr {
+		width: 1.9rem;
+		border: 0.099rem solid;
+		border-radius: 1rem;
+		color: #565DDF;
+	}
+}
+
+.menuItem {
+	padding-bottom: 2rem;
+	gap: 1rem;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	position: relative;
+
+	a {
+		text-decoration: none;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+
+		&:visited {
+			color: #565DDF;
+		}
+
+		&:hover {
+			text-decoration: none;
+		}
+
+		p {
+			margin-top: 1rem;
+			display: none;
+		}
+	}
+
+	// &.active a::before {
+	//   content: '';
+	//   position: absolute;
+	//   top: -8px;
+	//   left: -10px;
+	//   width: 65px;
+	//   height: 65px;
+	//   background: url('../../../../public/iconClicked.png') no-repeat center center;
+	//   background-size: cover;
+	// }
+}
+
+.toggleButton {
+	margin-top: 1rem;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	background: none;
+	border: none;
+	color: #fff;
+	font-size: 1em;
+	cursor: pointer;
+	margin-bottom: 20px;
+
+	&:focus {
+		outline: none;
+	}
+}
+
+.hrSpacing {
+	margin: 0.5rem;
+}
+
+.expanded .menuItem a p {
+	display: block;
+}
