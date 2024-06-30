@@ -6,12 +6,12 @@
 		"prepare": "git config --local core.hooksPath .githooks"
 	},
 	"lint-staged": {
-		"**/*.(js|jsx|json|jsonc|ts|tsx)": ["biome check --apply"]
+		"**/*.(js|jsx|json|jsonc|ts|tsx)": ["biome check --write"]
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^1.6.0",
-		"@types/bun": "^1.0.8",
-		"lint-staged": "^15.2.2",
-		"typescript": "^5.4.2"
+		"@biomejs/biome": "^1.8.3",
+		"bun-types": "latest",
+		"lint-staged": "^15.2.7",
+		"typescript": "latest"
 	}
 }
