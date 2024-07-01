@@ -1,8 +1,16 @@
 "use client";
-import { Coins, type IconWeight, SquaresFour, TextAlignJustify, Wallet } from "@phosphor-icons/react";
+import {
+	Coins,
+	type IconWeight,
+	SignOut,
+	SquaresFour,
+	TextAlignJustify,
+	Wallet,
+} from "@phosphor-icons/react";
 import Image from "next/image";
 import { useState } from "react";
 import petZaimu from "../../../../public/pet-zaimu.png";
+import Avatar from "../avatar/Avatar";
 import styles from "./Sidebar.module.scss";
 
 export default function Sidebar() {
@@ -48,12 +56,19 @@ export default function Sidebar() {
 						onClick={() => handleItemClick(index)}
 					>
 						{/* biome-ignore lint/a11y/useValidAnchor: <explanation> */}
-						<a href="#">
+						<a href="#" className={styles.iconsMap}>
 							<item.icon size={32} weight={item.weight} />
-							<p>{item.name}</p>
+							<p className={styles.itemName}>{item.name}</p>
 						</a>
 					</li>
 				))}
+				<div className={styles.avatar}>
+					<Avatar src="/pet-zaimu.png" />
+				</div>
+				{/* biome-ignore lint/a11y/useValidAnchor: <explanation> */}
+				<a href="" className={`${styles.menuItem} ${styles.linksignout}`}>
+					<SignOut size={32} weight="light" className={styles.signout} />
+				</a>
 			</ul>
 		</div>
 	);

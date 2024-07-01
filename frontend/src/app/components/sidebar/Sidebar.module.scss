@@ -16,12 +16,73 @@
 
 	&.expanded {
 		box-shadow: rgba(50, 50, 93, 0.25) 0px 50px 100px -20px, rgba(0, 0, 0, 0.3) 0px 30px 60px -30px;
+
+		li,
+		p,
+		.avatar {
+			@keyframes slidein {
+				from {
+					transform: translateY(-5%);
+				}
+
+				to {
+					transform: translateY(0);
+				}
+			}
+
+			animation: slidein 0.5s ease-in-out;
+		}
+
+		@keyframes emotion {
+			from {
+				transform: translateY(-5%);
+				opacity: 0;
+			}
+
+			to {
+				transform: translateY(0);
+				opacity: 1;
+			}
+		}
+
+		p {
+			animation: emotion 0.5s ease-in-out;
+		}
 	}
 
 	&.collapsed {
+
+		li {
+			.iconsMap {
+				transform: scale(0.8);
+
+				p {
+					transform: scale(0.8);
+				}
+			}
+		}
+
+		.avatar {
+			transform: scale(0.8);
+		}
+
 		width: 5rem;
 		box-shadow: none;
+
+		&.signout {
+			margin-top: auto;
+		}
+
 	}
+}
+
+
+.iconsMap {
+	transition: transform 0.5s ease;
+}
+
+.itemName {
+	transition: all .2s ease-in-out;
 }
 
 .title {
@@ -30,6 +91,7 @@
 }
 
 .menu {
+	flex: 1;
 	list-style: none;
 	padding: 0;
 	margin: 0;
@@ -43,6 +105,12 @@
 		border: 0.099rem solid;
 		border-radius: 1rem;
 		color: #565DDF;
+	}
+
+	li {
+		display: flex;
+		justify-content: center;
+		width: 100%;
 	}
 }
 
@@ -74,16 +142,6 @@
 		}
 	}
 
-	// &.active a::before {
-	//   content: '';
-	//   position: absolute;
-	//   top: -8px;
-	//   left: -10px;
-	//   width: 65px;
-	//   height: 65px;
-	//   background: url('../../../../public/iconClicked.png') no-repeat center center;
-	//   background-size: cover;
-	// }
 }
 
 .toggleButton {
@@ -109,4 +167,13 @@
 
 .expanded .menuItem a p {
 	display: block;
+}
+
+
+.signout {
+	color: #565DDF;
+}
+
+.linksignout {
+	margin-top: auto;
 }
