@@ -1,7 +1,7 @@
 {
 	"name": "zaimu",
 	"private": true,
-	"workspaces": ["backend/*", "frontend"],
+	"workspaces": ["backend/*", "frontend", "mobile"],
 	"scripts": {
 		"prepare": "git config --local core.hooksPath .githooks"
 	},

@@ -1,0 +1,35 @@
+{
+	"expo": {
+		"android": {
+			"adaptiveIcon": {
+				"backgroundColor": "#ffffff",
+				"foregroundImage": "./src/assets/adaptive-icon.png"
+			},
+			"package": "com.midas.zaimu"
+		},
+		"assetBundlePatterns": ["**/*"],
+		"experiments": {
+			"typedRoutes": true
+		},
+		"icon": "./src/assets/icon.png",
+		"ios": {
+			"bundleIdentifier": "com.midas.zaimu",
+			"supportsTablet": true
+		},
+		"name": "Zaimu",
+		"orientation": "portrait",
+		"platforms": ["android", "ios"],
+		"plugins": ["expo-router"],
+		"runtimeVersion": {
+			"policy": "sdkVersion"
+		},
+		"scheme": "zaimu",
+		"slug": "Zaimu",
+		"splash": {
+			"backgroundColor": "#ffffff",
+			"image": "./src/assets/splash.png",
+			"resizeMode": "contain"
+		},
+		"version": "1.0.0"
+	}
+}

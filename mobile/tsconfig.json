@@ -1,0 +1,16 @@
+{
+	"extends": "expo/tsconfig.base",
+	"compilerOptions": {
+		"baseUrl": "./src",
+		"module": "ESNext",
+		"paths": {
+			"@assets/*": ["assets/*"],
+			"@components/*": ["components/*"],
+			"@context/*": ["context/*"],
+			"@hooks/*": ["hooks/*"],
+			"@i18n": ["i18n"],
+			"@theme": ["themes/main"]
+		}
+	},
+	"include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
+}
