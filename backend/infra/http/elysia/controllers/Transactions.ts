@@ -20,8 +20,8 @@ export const TransactionsController = new Elysia()
 					amount: t.Number({ minimum: 0 }),
 					date: t.Date(),
 					description: t.Optional(t.String({ maxLength: 1000 })),
-					destinationId: t.String({ pattern: uuidRegex.source }),
-					originId: t.String({ pattern: uuidRegex.source }),
+					destinationId: t.Optional(t.String({ pattern: uuidRegex.source })),
+					originId: t.Optional(t.String({ pattern: uuidRegex.source })),
 				}),
 				response: t.Object({
 					id: t.String(),

@@ -16,8 +16,8 @@ export type Transaction = {
 	amount: number;
 	date: Timestamp;
 	description: string | null;
-	originId: string;
-	destinationId: string;
+	originId: string | null;
+	destinationId: string | null;
 	createdAt: Generated<Timestamp>;
 	updatedAt: Generated<Timestamp>;
 };

@@ -4,6 +4,6 @@ export interface AddTransactionDTO {
 	amount: string;
 	date: string;
 	description?: string;
-	destinationId: UUID;
-	originId: UUID;
+	destinationId?: UUID;
+	originId?: UUID;
 }

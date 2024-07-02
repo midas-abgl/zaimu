@@ -24,13 +24,13 @@ model Account {
 
 model Transaction {
     id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-    amount        Decimal  @db.Decimal(8, 3)
+    amount        Decimal  @db.Decimal(8, 2)
     date          DateTime @db.Timestamptz()
     description   String?  @db.VarChar(1000)
-    originId      String   @db.Uuid
-    origin        Account  @relation("Transaction_origin", fields: [originId], references: [id], onDelete: Cascade)
-    destinationId String   @db.Uuid
-    destination   Account  @relation("Transaction_destination", fields: [destinationId], references: [id], onDelete: Cascade)
+    originId      String?  @db.Uuid
+    origin        Account? @relation("Transaction_origin", fields: [originId], references: [id], onDelete: Cascade)
+    destinationId String?  @db.Uuid
+    destination   Account? @relation("Transaction_destination", fields: [destinationId], references: [id], onDelete: Cascade)
     createdAt     DateTime @default(now())
     updatedAt     DateTime @default(now())
 }
