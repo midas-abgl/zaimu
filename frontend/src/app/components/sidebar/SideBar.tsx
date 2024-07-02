@@ -17,10 +17,10 @@ export default function Sidebar() {
 	const [isCollapsed, setIsCollapsed] = useState(false);
 	const [activeIndex, setActiveIndex] = useState(0);
 	const [menuItems, setMenuItems] = useState([
-		{ icon: TextAlignJustify, name: "Menu", weight: "light" as IconWeight },
-		{ icon: Wallet, name: "Expenses", weight: "light" as IconWeight },
-		{ icon: SquaresFour, name: "Dashboard", weight: "light" as IconWeight },
-		{ icon: Coins, name: "Income", weight: "light" as IconWeight },
+		{ icon: TextAlignJustify, name: "Menu", weight: "light" as IconWeight, url: "/" },
+		{ icon: Wallet, name: "Expenses", weight: "light" as IconWeight, url: "/wallet" },
+		{ icon: SquaresFour, name: "Dashboard", weight: "light" as IconWeight, url: "/dashboard" },
+		{ icon: Coins, name: "Income", weight: "light" as IconWeight, url: "/coins" },
 	]);
 
 	const toggleSidebar = () => {
@@ -55,8 +55,7 @@ export default function Sidebar() {
 						className={`${styles.menuItem} ${activeIndex === index ? styles.active : ""}`}
 						onClick={() => handleItemClick(index)}
 					>
-						{/* biome-ignore lint/a11y/useValidAnchor: <explanation> */}
-						<a href="#" className={styles.iconsMap}>
+						<a href={item.url} className={styles.iconsMap}>
 							<item.icon size={32} weight={item.weight} />
 							<p className={styles.itemName}>{item.name}</p>
 						</a>
@@ -65,8 +64,8 @@ export default function Sidebar() {
 				<div className={styles.avatar}>
 					<Avatar src="/pet-zaimu.png" />
 				</div>
-				{/* biome-ignore lint/a11y/useValidAnchor: <explanation> */}
-				<a href="" className={`${styles.menuItem} ${styles.linksignout}`}>
+
+				<a href="/" className={`${styles.menuItem} ${styles.linksignout}`}>
 					<SignOut size={32} weight="light" className={styles.signout} />
 				</a>
 			</ul>

@@ -1,0 +1,45 @@
+.header {
+	width: 100%;
+	display: flex;
+	justify-content: flex-end; // Alinha os itens ao final da página
+	padding: 1rem; // Adiciona preenchimento ao redor do cabeçalho
+  }
+
+  .headerContent {
+	display: flex;
+	align-items: center; // Centraliza verticalmente os itens
+	gap: 2rem;
+  }
+
+  .buttonPremium {
+	border: 2px solid #565DDF;
+	border-radius: 0.6rem;
+	padding: 0.3rem;
+	display: flex;
+	gap: 0.5rem;
+	width: 8rem;
+	justify-content: center;
+	font-size: small;
+	color: #565DDF;
+	font-weight: 700;
+	height: auto;
+  }
+
+  .buttonNotification {
+	position: relative;
+	color: #565DDF;
+  }
+
+  .notificationDot {
+	position: absolute;
+	top: -5px;
+	right: -5px;
+	width: 8px;
+	height: 8px;
+	background-color: red;
+	border-radius: 50%;
+  }
+
+  .buttonMore {
+	color: #565DDF;
+  }
