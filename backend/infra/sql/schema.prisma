@@ -27,6 +27,7 @@ model Transaction {
     amount        Decimal  @db.Decimal(8, 2)
     date          DateTime @db.Timestamptz()
     description   String?  @db.VarChar(1000)
+    categories    String[] @db.VarChar(50)
     originId      String?  @db.Uuid
     origin        Account? @relation("Transaction_origin", fields: [originId], references: [id], onDelete: Cascade)
     destinationId String?  @db.Uuid
