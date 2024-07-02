@@ -1,0 +1,8 @@
+{
+	"name": "@zaimu/domain",
+	"private": true,
+	"main": "main.ts",
+	"dependencies": {
+		"@zaimu/infra": "workspace:*"
+	}
+}

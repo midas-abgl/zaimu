@@ -1,7 +1,7 @@
 {
 	"name": "zaimu",
 	"private": true,
-	"workspaces": ["backend", "frontend"],
+	"workspaces": ["backend/*", "frontend"],
 	"scripts": {
 		"prepare": "git config --local core.hooksPath .githooks"
 	},
@@ -10,6 +10,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.8.3",
+		"@types/node": "latest",
 		"bun-types": "latest",
 		"lint-staged": "^15.2.7",
 		"typescript": "latest"
