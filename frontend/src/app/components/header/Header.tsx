@@ -2,13 +2,18 @@
 
 import { Bell, CrownSimple, DotsThreeVertical } from "@phosphor-icons/react";
 import React from "react";
+import ZaimuIcon from "../../../../public/zaimu-icon.svg";
 import styles from "./Header.module.scss";
+interface HeaderProps {
+	zaimu?: boolean;
+}
 
-export default function Header() {
+export default function Header({ zaimu }: HeaderProps) {
 	const hasNotification = true;
 
 	return (
 		<header className={styles.header}>
+			<div className={styles.zaimuParamter}>{zaimu && <ZaimuIcon />}</div>
 			<div className={styles.headerContent}>
 				<button type="submit" className={styles.buttonPremium}>
 					<CrownSimple size={16} weight="bold" />

@@ -18,7 +18,7 @@ export default function Sidebar() {
 	const [activeIndex, setActiveIndex] = useState(0);
 	const [menuItems, setMenuItems] = useState([
 		{ icon: TextAlignJustify, name: "Menu", weight: "light" as IconWeight, url: "/" },
-		{ icon: Wallet, name: "Expenses", weight: "light" as IconWeight, url: "/wallet" },
+		{ icon: Wallet, name: "Expenses", weight: "light" as IconWeight, url: "/expenses" },
 		{ icon: SquaresFour, name: "Dashboard", weight: "light" as IconWeight, url: "/dashboard" },
 		{ icon: Coins, name: "Income", weight: "light" as IconWeight, url: "/coins" },
 	]);
