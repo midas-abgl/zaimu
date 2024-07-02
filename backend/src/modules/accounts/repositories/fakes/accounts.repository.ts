@@ -1,20 +1,19 @@
 import { randomUUID } from "node:crypto";
 import type { Account } from "@database/types";
 import type { CreateAccountDTO } from "@modules/accounts/dtos/CreateAccount.dto";
-import { Injectable } from "@nestjs/common";
+import type { Selectable } from "kysely";
 import type { AccountsRepository } from "../accounts.repository";
 
-@Injectable()
 export class FakeAccountsRepository implements AccountsRepository {
-	private accounts: Account[] = [];
+	private accounts: Selectable<Account>[] = [];
 
-	public async create(data: CreateAccountDTO): Promise<Account> {
+	public async create(data: CreateAccountDTO): Promise<Selectable<Account>> {
 		const account = {
 			...data,
 			id: randomUUID(),
 			createdAt: new Date(),
 			updatedAt: new Date(),
-		} as unknown as Account;
+		};
 
 		this.accounts.push(account);
 

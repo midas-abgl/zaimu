@@ -13,7 +13,9 @@
 		"resolveJsonModule": true,
 		"outDir": "./dist",
 		"paths": {
+			"@database": ["database/index"],
 			"@database/*": ["database/*"],
+			"@shared/*": ["shared/*"],
 			"@modules/*": ["modules/*"]
 		},
 		"skipLibCheck": true,
