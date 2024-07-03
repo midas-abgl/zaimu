@@ -1,17 +1,39 @@
+
+.container {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+}
+
+.headerContainer {
+	align-self: flex-end;
+	width: 100%;
+	display: flex;
+	justify-content: flex-end;
+	overflow: hidden;
+
+}
+
 .notFound {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	height: 100vh;
 
-    svg {
-        color: #f00;
-        width: auto;
-        height: 20%;
-    }
+	svg {
+		color: #f00;
+		width: auto;
+		height: 20%;
+	}
 
-    span {
-        font-size: 2em;
-    }
+	span {
+		font-size: 2em;
+	}
+}
+
+.image{
+	margin-top: 4rem;
+	overflow: hidden;
 }

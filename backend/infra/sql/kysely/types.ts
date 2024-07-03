@@ -16,6 +16,7 @@ export type Transaction = {
 	amount: number;
 	date: Timestamp;
 	description: string | null;
+	categories: string[];
 	originId: string | null;
 	destinationId: string | null;
 	createdAt: Generated<Timestamp>;

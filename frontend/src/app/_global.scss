@@ -1,28 +1,48 @@
+@font-face {
+    font-family: "CircularStd";
+    font-weight: 900;
+    font-display: swap;
+    font-style: normal;
+    src: url("../assets/fonts/CircularStd-Black.woff2") format("woff2");
+  }
+
+  @font-face {
+    font-family: "CircularStd";
+    src: url('../assets/fonts/CircularStd-Bold.woff2') format("woff2");
+    font-weight: 700;
+    font-display: swap;
+    font-style: normal;
+    font-named-instance:"Regular"
+  }
+
+  @font-face {
+    font-family: "CircularStd";
+    src: url('../assets/fonts/CircularStd-Book.woff2') format("woff2");
+    font-weight: 450;
+    font-display: swap;
+    font-style: normal;
+    font-named-instance:"Regular"
+  }
 * {
     margin: 0;
     padding: 0;
     outline: 0;
     box-sizing: border-box;
-}
-
-html {
-    // color-scheme: dark;
+    font-family: 'CircularStd';
 }
 
 body {
     display: flex;
     flex-direction: column;
-
     min-height: 100vh;
-    // background-color: #000;
+    background-color: #E4E4F1;
+    margin-left: 5rem;
 }
 
 body,
 input,
 select,
 button {
-    color: #ffffff;
-    // font-family: "Roboto Flex", sans-serif;
     font-size: 1rem;
     -webkit-font-smoothing: antialiased;
 }
@@ -60,8 +80,6 @@ button {
 input,
 select {
     background: transparent;
-    -moz-appearance: textfield;
-
     &::-webkit-outer-spin-button,
     &::-webkit-inner-spin-button {
         appearance: none;
@@ -69,7 +87,6 @@ select {
 }
 
 option {
-    // background: #000;
     border-bottom: none;
 }
 

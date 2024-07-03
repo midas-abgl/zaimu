@@ -1,0 +1,35 @@
+.footerContainer {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 1rem;
+	width: 100%;
+	position: relative;
+  }
+
+  .buttonContainer {
+	position: absolute;
+	left: 50%;
+	transform: translateX(-50%);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+  }
+
+  .arrowButton {
+	color: white;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+  }
+
+  .tm {
+	margin-left: auto;
+  }
+
+  .tmp{
+	font-family: 'CircularStd', sans-serif;
+	font-size: 400;
+	line-height: 30px;
+	color: #5B5B5B;
+  }

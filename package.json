@@ -6,7 +6,7 @@
 		"prepare": "git config --local core.hooksPath .githooks"
 	},
 	"lint-staged": {
-		"**/*.(js|jsx|json|jsonc|ts|tsx)": ["biome check --write"]
+		"**/*.(js|jsx|json|jsonc|ts|tsx)": ["biome check --apply"]
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.8.3",

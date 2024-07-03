@@ -1,0 +1,19 @@
+.avatar {
+	border-radius: 50%;
+	cursor: pointer;
+
+}
+
+.container {
+	position: relative;
+}
+
+.input {
+	position: absolute;
+	width: 40%;
+	height: 8%;
+	appearance: none;
+	z-index: 2;
+	opacity: 0;
+	cursor: pointer;
+}
