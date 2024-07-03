@@ -1,0 +1,9 @@
+{
+	"name": "@zaimu/application",
+	"private": true,
+	"main": "main.ts",
+	"dependencies": {
+		"@zaimu/domain": "workspace:*",
+		"http-status-codes": "^2.3.0"
+	}
+}

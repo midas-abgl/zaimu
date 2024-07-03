@@ -1,0 +1,37 @@
+generator kysely {
+    provider            = "prisma-kysely"
+    output              = "./kysely"
+    fileName            = "types.ts"
+    decimalTypeOverride = "number"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model Account {
+    id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    company         String        @db.VarChar(70)
+    type            String        @db.VarChar(30)
+    transactionsIn  Transaction[] @relation("Transaction_destination")
+    transactionsOut Transaction[] @relation("Transaction_origin")
+    createdAt       DateTime      @default(now())
+    updatedAt       DateTime      @default(now())
+
+    @@unique([company, type])
+}
+
+model Transaction {
+    id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    amount        Decimal  @db.Decimal(8, 2)
+    date          DateTime @db.Timestamptz()
+    description   String?  @db.VarChar(1000)
+    categories    String[] @db.VarChar(50)
+    originId      String?  @db.Uuid
+    origin        Account? @relation("Transaction_origin", fields: [originId], references: [id], onDelete: Cascade)
+    destinationId String?  @db.Uuid
+    destination   Account? @relation("Transaction_destination", fields: [destinationId], references: [id], onDelete: Cascade)
+    createdAt     DateTime @default(now())
+    updatedAt     DateTime @default(now())
+}

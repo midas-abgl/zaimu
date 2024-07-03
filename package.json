@@ -1,7 +1,7 @@
 {
 	"name": "zaimu",
 	"private": true,
-	"workspaces": ["backend", "frontend"],
+	"workspaces": ["backend/*", "frontend", "mobile"],
 	"scripts": {
 		"prepare": "git config --local core.hooksPath .githooks"
 	},
@@ -9,9 +9,10 @@
 		"**/*.(js|jsx|json|jsonc|ts|tsx)": ["biome check --apply"]
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^1.6.0",
-		"@types/bun": "^1.0.8",
-		"lint-staged": "^15.2.2",
-		"typescript": "^5.4.2"
+		"@biomejs/biome": "^1.8.3",
+		"@types/node": "latest",
+		"bun-types": "latest",
+		"lint-staged": "^15.2.7",
+		"typescript": "latest"
 	}
 }
