@@ -36,7 +36,7 @@ export const TransactionsController = new Elysia()
 					description: t.Nullable(t.String()),
 					categories: t.Array(t.String()),
 					recurrence: t.Nullable(t.String()),
-					repeactCount: t.Nullable(t.Number()),
+					repeatCount: t.Nullable(t.Number()),
 					destinationId: t.Nullable(t.String()),
 					originId: t.Nullable(t.String()),
 					createdAt: t.Date(),

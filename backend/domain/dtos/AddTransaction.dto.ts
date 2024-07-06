@@ -1,12 +1,10 @@
-import type { UUID } from "node:crypto";
-
 export interface AddTransactionDTO {
 	amount: number;
 	categories?: string[];
-	date: string;
+	date: Date;
 	description?: string;
-	destinationId?: UUID;
-	originId?: UUID;
+	destinationId?: string;
+	originId?: string;
 	recurrence?: string;
 	repeatCount?: number;
 }
