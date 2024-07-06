@@ -17,6 +17,8 @@ export type Transaction = {
 	date: Timestamp;
 	description: string | null;
 	categories: string[];
+	recurrence: string | null;
+	repeatCount: number | null;
 	originId: string | null;
 	destinationId: string | null;
 	createdAt: Generated<Timestamp>;

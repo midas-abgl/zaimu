@@ -28,6 +28,8 @@ model Transaction {
     date          DateTime @db.Timestamptz()
     description   String?  @db.VarChar(1000)
     categories    String[] @db.VarChar(50)
+    recurrence    String?  @db.VarChar(26)
+    repeatCount   Int?     @db.SmallInt
     originId      String?  @db.Uuid
     origin        Account? @relation("Transaction_origin", fields: [originId], references: [id], onDelete: Cascade)
     destinationId String?  @db.Uuid
