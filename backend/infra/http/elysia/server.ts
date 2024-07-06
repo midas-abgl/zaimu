@@ -1,3 +1,4 @@
+import swagger from "@elysiajs/swagger";
 import { HttpException } from "@zaimu/domain";
 import { Elysia } from "elysia";
 import { AccountsController, TransactionsController } from "./controllers";
@@ -11,6 +12,34 @@ const app = new Elysia()
 				return error.message;
 		}
 	})
+	.use(
+		swagger({
+			documentation: {
+				info: {
+					title: "Zaimu API",
+					description: "",
+					version: "1.0.0",
+					contact: {
+						email: "zaimu@midas-abgl.com",
+						name: "Midas Group",
+						url: "https://midas-abgl.com",
+					},
+				},
+				tags: [
+					{
+						name: "Accounts",
+						description: "Anything sends/receives transactions.",
+					},
+					{
+						name: "Transactions",
+						description: "Money transfers between different accounts.",
+					},
+				],
+			},
+			path: "/docs",
+			exclude: ["/docs", "/docs/json"],
+		}),
+	)
 	.use(AccountsController)
 	.use(TransactionsController)
 	.listen(process.env.PORT || 3333);

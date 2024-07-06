@@ -15,6 +15,9 @@ export const AccountsController = new Elysia()
 				createAccount: new CreateAccount(accountsRepository),
 			})
 			.post("/", ({ body, createAccount }) => createAccount.execute(body), {
+				detail: {
+					tags: ["Accounts"],
+				},
 				body: t.Object({
 					company: t.String({ maxLength: 70 }),
 					type: t.String({ maxLength: 30 }),

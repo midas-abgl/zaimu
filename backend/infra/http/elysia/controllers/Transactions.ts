@@ -16,6 +16,9 @@ export const TransactionsController = new Elysia()
 				addTransaction: new AddTransaction(accountsRepository),
 			})
 			.post("/", ({ body, addTransaction }) => addTransaction.execute(body), {
+				detail: {
+					tags: ["Transactions"],
+				},
 				body: t.Object({
 					amount: t.Number({ minimum: 0 }),
 					categories: t.Optional(t.Array(t.String({ maxLength: 50 }))),
