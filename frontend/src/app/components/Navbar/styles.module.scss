@@ -1,0 +1,156 @@
+@keyframes slide-in {
+	from {
+		transform: translateY(-5%);
+	}
+
+	to {
+		transform: translateY(0);
+	}
+}
+
+@keyframes slide-in-opacity {
+	from {
+		transform: translateY(-5%);
+		opacity: 0;
+	}
+
+	to {
+		transform: translateY(0);
+		opacity: 1;
+	}
+}
+
+$expand-duration: 1s;
+
+.navbar {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	position: fixed;
+	z-index: 10;
+	top: 0;
+	left: 0;
+
+	height: 100vh;
+	background-color: #fff;
+	padding: 1.5rem;
+	transition: padding $expand-duration, box-shadow $expand-duration;
+	border-radius: 0 12px 12px 0;
+
+	&.expanded {
+		box-shadow: rgba(50, 50, 93, 0.25) 0px 50px 100px -20px,
+			rgba(0, 0, 0, 0.3) 0px 30px 60px -30px;
+
+		padding: 1.5rem 3rem;
+	}
+
+	> * {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		position: relative;
+		gap: 1rem;
+
+		width: 100%;
+
+		padding-bottom: 2rem;
+
+		a {
+			text-decoration: none;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+
+			&:visited {
+				color: #565ddf;
+			}
+
+			&:hover {
+				text-decoration: none;
+			}
+
+			p {
+				margin-top: 1rem;
+				display: none;
+			}
+		}
+	}
+}
+
+.navbarButton {
+	color: #565ddf;
+
+	p {
+		font-size: 0;
+		opacity: 0;
+
+		transition: font-size $expand-duration, opacity $expand-duration;
+
+		&.expanded {
+			font-size: 1rem;
+			opacity: 1;
+		}
+	}
+}
+
+.menu {
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.itemName {
+	transition: all 0.2s ease-in-out;
+}
+
+.title {
+	margin-bottom: 20px;
+	font-size: 1.5em;
+}
+
+.toggleButton {
+	margin-top: 1rem;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	background: none;
+	border: none;
+	color: #fff;
+	font-size: 1em;
+	cursor: pointer;
+	margin-bottom: 20px;
+
+	&:focus {
+		outline: none;
+	}
+}
+
+.hrSpacing {
+	margin: 0.5rem;
+}
+
+.avatar {
+	border-radius: 50%;
+	cursor: pointer;
+}
+
+.container {
+	position: relative;
+}
+
+.input {
+	position: absolute;
+	width: 40%;
+	height: 8%;
+	appearance: none;
+	z-index: 2;
+	opacity: 0;
+	cursor: pointer;
+}
+
+.bottomIcons {
+	margin-top: auto;
+}

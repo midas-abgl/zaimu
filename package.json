@@ -3,6 +3,7 @@
 	"private": true,
 	"workspaces": ["backend/*", "frontend", "mobile"],
 	"scripts": {
+		"dev": "bun --filter infra dev ",
 		"prepare": "git config --local core.hooksPath .githooks"
 	},
 	"lint-staged": {
@@ -14,5 +15,6 @@
 		"bun-types": "latest",
 		"lint-staged": "^15.2.7",
 		"typescript": "latest"
-	}
+	},
+	"packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }
