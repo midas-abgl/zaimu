@@ -37,4 +37,16 @@ export class KyselyAccountsRepository implements AccountsRepository {
 
 		return account;
 	}
+
+	public async findAllTransactionCategories(): Promise<string[]> {
+		const recentTransactionCategories = await this.db
+			.selectFrom("Transaction")
+			.distinctOn("categories")
+			.orderBy("categories")
+			.select(["categories", "updatedAt"])
+			.orderBy("updatedAt", "desc")
+			.execute();
+
+		return recentTransactionCategories.flatMap(({ categories }) => categories);
+	}
 }
