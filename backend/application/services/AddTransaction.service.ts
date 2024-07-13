@@ -3,12 +3,16 @@ import {
 	type AddTransactionDTO,
 	HttpException,
 	type Transaction,
+	type TransactionsRepository,
 } from "@zaimu/domain";
 import cron from "cron-validate";
 import { StatusCodes } from "http-status-codes";
 
 export class AddTransaction {
-	constructor(private accountsRepository: AccountsRepository) {}
+	constructor(
+		private accountsRepository: AccountsRepository,
+		private transactionsRepository: TransactionsRepository,
+	) {}
 
 	public async execute({
 		destinationId,
@@ -58,7 +62,7 @@ export class AddTransaction {
 			}
 		}
 
-		const transaction = await this.accountsRepository.addTransaction({ destinationId, originId, ...data });
+		const transaction = await this.transactionsRepository.create({ destinationId, originId, ...data });
 
 		return transaction;
 	}

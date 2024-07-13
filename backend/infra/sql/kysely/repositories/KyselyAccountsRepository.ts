@@ -1,19 +1,9 @@
-import type { AccountsRepository, AddTransactionDTO, CreateAccountDTO, FindAccountDTO } from "@zaimu/domain";
-import { type Kysely, type Selectable, sql } from "kysely";
-import type { Account, DB, Transaction } from "../types";
+import type { AccountsRepository, CreateAccountDTO, FindAccountDTO } from "@zaimu/domain";
+import type { Kysely, Selectable } from "kysely";
+import type { Account, DB } from "../types";
 
 export class KyselyAccountsRepository implements AccountsRepository {
 	constructor(private readonly db: Kysely<DB>) {}
-
-	public async addTransaction(data: AddTransactionDTO): Promise<Selectable<Transaction>> {
-		const transaction = await this.db
-			.insertInto("Transaction")
-			.values(data)
-			.returningAll()
-			.executeTakeFirstOrThrow();
-
-		return transaction;
-	}
 
 	public async create(data: CreateAccountDTO): Promise<Selectable<Account>> {
 		const account = await this.db.insertInto("Account").values(data).returningAll().executeTakeFirstOrThrow();
@@ -36,16 +26,5 @@ export class KyselyAccountsRepository implements AccountsRepository {
 		const account = await this.db.selectFrom("Account").selectAll().where("id", "=", id).executeTakeFirst();
 
 		return account;
-	}
-
-	public async findTransactionCategoriesByLastUsed(): Promise<string[]> {
-		const transactionCategories = await this.db
-			.selectFrom(["Transaction", sql`unnest(categories)`.as("category")])
-			// @ts-ignore
-			.select("category")
-			.distinct()
-			.execute();
-
-		return transactionCategories.reverse().map(({ category }) => category);
 	}
 }

@@ -1,10 +1,10 @@
-import type { AccountsRepository } from "@zaimu/domain";
+import type { TransactionsRepository } from "@zaimu/domain";
 
 export class ListTransactionCategories {
-	constructor(private accountsRepository: AccountsRepository) {}
+	constructor(private transactionsRepository: TransactionsRepository) {}
 
 	public async execute(): Promise<string[]> {
-		const categories = await this.accountsRepository.findTransactionCategoriesByLastUsed();
+		const categories = await this.transactionsRepository.findCategoriesByLastUsed();
 
 		return categories;
 	}

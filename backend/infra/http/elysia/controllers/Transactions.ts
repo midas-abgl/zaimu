@@ -1,19 +1,20 @@
 import { AddTransaction, ListTransactionCategories } from "@zaimu/application";
 import Elysia, { t } from "elysia";
 import { database } from "~/sql/kysely";
-import { KyselyAccountsRepository } from "~/sql/kysely/repositories/KyselyAccountsRepository";
+import { KyselyAccountsRepository, KyselyTransactionsRepository } from "~/sql/kysely/repositories";
 import { uuidRegex } from "~/utils";
 
 export const TransactionsController = new Elysia()
 	.decorate({
 		accountsRepository: new KyselyAccountsRepository(database),
+		transactionsRepository: new KyselyTransactionsRepository(database),
 	})
 	.group("/transactions", app => {
-		const { accountsRepository } = app.decorator;
+		const { accountsRepository, transactionsRepository } = app.decorator;
 
 		return app
 			.decorate({
-				addTransaction: new AddTransaction(accountsRepository),
+				addTransaction: new AddTransaction(accountsRepository, transactionsRepository),
 			})
 			.post("/", ({ body, addTransaction }) => addTransaction.execute(body), {
 				detail: {
@@ -46,7 +47,7 @@ export const TransactionsController = new Elysia()
 			.group("/categories", app => {
 				return app
 					.decorate({
-						listTransactionCategories: new ListTransactionCategories(accountsRepository),
+						listTransactionCategories: new ListTransactionCategories(transactionsRepository),
 					})
 					.get("/", ({ listTransactionCategories }) => listTransactionCategories.execute(), {
 						detail: {
