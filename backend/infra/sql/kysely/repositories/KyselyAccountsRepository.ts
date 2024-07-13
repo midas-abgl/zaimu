@@ -1,5 +1,5 @@
 import type { AccountsRepository, AddTransactionDTO, CreateAccountDTO, FindAccountDTO } from "@zaimu/domain";
-import type { Kysely, Selectable } from "kysely";
+import { type Kysely, type Selectable, sql } from "kysely";
 import type { Account, DB, Transaction } from "../types";
 
 export class KyselyAccountsRepository implements AccountsRepository {
@@ -36,5 +36,16 @@ export class KyselyAccountsRepository implements AccountsRepository {
 		const account = await this.db.selectFrom("Account").selectAll().where("id", "=", id).executeTakeFirst();
 
 		return account;
+	}
+
+	public async findTransactionCategoriesByLastUsed(): Promise<string[]> {
+		const transactionCategories = await this.db
+			.selectFrom(["Transaction", sql`unnest(categories)`.as("category")])
+			// @ts-ignore
+			.select("category")
+			.distinct()
+			.execute();
+
+		return transactionCategories.reverse().map(({ category }) => category);
 	}
 }
