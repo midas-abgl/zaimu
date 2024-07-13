@@ -1,9 +1,10 @@
 {
-	"extends": "tsconfig.json",
 	"compilerOptions": {
+		"baseUrl": ".",
 		"paths": {
 			"~/*": ["./*"]
 		},
+		"rootDir": "../",
 		"strict": true
 	}
 }
