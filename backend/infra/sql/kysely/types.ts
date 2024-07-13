@@ -11,6 +11,16 @@ export type Account = {
 	createdAt: Generated<Timestamp>;
 	updatedAt: Generated<Timestamp>;
 };
+export type Event = {
+	id: Generated<string>;
+	type: string;
+	amount: number;
+	date: Timestamp;
+	description: string | null;
+	details: unknown;
+	createdAt: Generated<Timestamp>;
+	updatedAt: Generated<Timestamp>;
+};
 export type Transaction = {
 	id: Generated<string>;
 	amount: number;
@@ -26,5 +36,6 @@ export type Transaction = {
 };
 export type DB = {
 	Account: Account;
+	Event: Event;
 	Transaction: Transaction;
 };
