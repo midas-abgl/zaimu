@@ -10,8 +10,8 @@ import { StatusCodes } from "http-status-codes";
 
 export class AddTransaction {
 	constructor(
-		private accountsRepository: AccountsRepository,
-		private transactionsRepository: TransactionsRepository,
+		private readonly accountsRepository: AccountsRepository,
+		private readonly transactionsRepository: TransactionsRepository,
 	) {}
 
 	public async execute({
