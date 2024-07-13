@@ -4,7 +4,8 @@ export class ListTransactionCategories {
 	constructor(private accountsRepository: AccountsRepository) {}
 
 	public async execute(): Promise<string[]> {
-		const categories = await this.accountsRepository.findAllTransactionCategories();
+		const categories = await this.accountsRepository.findTransactionCategoriesByLastUsed();
+
 		return categories;
 	}
 }
