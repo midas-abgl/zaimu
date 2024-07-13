@@ -1,3 +1,4 @@
+import cors from "@elysiajs/cors";
 import swagger from "@elysiajs/swagger";
 import { HttpException } from "@zaimu/domain";
 import { Elysia } from "elysia";
@@ -12,6 +13,7 @@ const app = new Elysia()
 				return error.message;
 		}
 	})
+	.use(cors())
 	.use(
 		swagger({
 			documentation: {
