@@ -1,6 +1,6 @@
 export interface AddTransactionDTO {
 	amount: number;
-	categories?: string[];
+	categories: string[];
 	date: Date;
 	description?: string;
 	destinationId?: string;

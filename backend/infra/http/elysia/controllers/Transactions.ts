@@ -21,7 +21,7 @@ export const TransactionsController = new Elysia()
 				},
 				body: t.Object({
 					amount: t.Number({ minimum: 0 }),
-					categories: t.Optional(t.Array(t.String({ maxLength: 50 }))),
+					categories: t.Array(t.String({ maxLength: 50 })),
 					date: t.Date(),
 					description: t.Optional(t.String({ maxLength: 1000 })),
 					destinationId: t.Optional(t.String({ pattern: uuidRegex.source })),
