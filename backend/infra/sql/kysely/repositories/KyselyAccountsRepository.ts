@@ -11,6 +11,10 @@ export class KyselyAccountsRepository implements AccountsRepository {
 		return account;
 	}
 
+	public async delete({ company, type }: FindAccountDTO): Promise<void> {
+		await this.db.deleteFrom("Account").where("company", "=", company).where("type", "=", type).execute();
+	}
+
 	public async find({ company, type }: FindAccountDTO): Promise<Selectable<Account> | undefined> {
 		const account = await this.db
 			.selectFrom("Account")
