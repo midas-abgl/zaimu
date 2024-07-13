@@ -14,6 +14,7 @@ model Account {
     id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
     company         String        @db.VarChar(70)
     type            String        @db.VarChar(30)
+    events          Event[]
     transactionsIn  Transaction[] @relation("Transaction_destination")
     transactionsOut Transaction[] @relation("Transaction_origin")
     createdAt       DateTime      @default(now())
@@ -24,7 +25,9 @@ model Account {
 
 model Event {
     id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-    type        String   @db.VarChar(50)
+    type        String   @db.VarChar(15)
+    accountId   String   @db.Uuid
+    account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
     amount      Decimal  @db.Decimal(8, 2)
     date        DateTime @db.Timestamptz()
     description String?  @db.VarChar(1000)

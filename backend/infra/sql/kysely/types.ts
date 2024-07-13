@@ -14,6 +14,7 @@ export type Account = {
 export type Event = {
 	id: Generated<string>;
 	type: string;
+	accountId: string;
 	amount: number;
 	date: Timestamp;
 	description: string | null;
