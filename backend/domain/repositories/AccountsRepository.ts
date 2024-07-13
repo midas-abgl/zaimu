@@ -1,6 +1,4 @@
-import type { DeleteAccountDTO } from "~/dtos";
-import type { CreateAccountDTO } from "~/dtos/CreateAccount.dto";
-import type { FindAccountDTO } from "~/dtos/FindAccount.dto";
+import type { CreateAccountDTO, DeleteAccountDTO, FindAccountDTO } from "~/dtos";
 import type { Account } from "~/entities";
 
 export abstract class AccountsRepository {

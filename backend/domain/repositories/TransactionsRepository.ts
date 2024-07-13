@@ -1,4 +1,4 @@
-import type { AddTransactionDTO } from "~/dtos/AddTransaction.dto";
+import type { AddTransactionDTO } from "~/dtos";
 import type { Transaction } from "~/entities";
 
 export abstract class TransactionsRepository {

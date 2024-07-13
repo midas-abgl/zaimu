@@ -1,7 +1,6 @@
 **/dist
 **/node_modules
 **/tmp
-!/.vscode/launch.json
 !.gitkeep
 *.log
 public/cwr.js

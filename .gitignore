@@ -2,8 +2,10 @@
 **/node_modules
 **/static
 **/tmp
-**/.vscode
+/.vscode
+!/.vscode/extensions.json
 !/.vscode/launch.json
+!/.vscode/settings.json
 !.gitkeep
 *.log
 
@@ -18,4 +20,3 @@
 *.tsbuildinfo
 next-env.d.ts
 
-  

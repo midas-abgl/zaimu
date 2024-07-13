@@ -1,8 +1,6 @@
 .env
 *.log
 **/tmp
-.vscode
-!.vscode/launch.json
 
 # dependencies
 node_modules/

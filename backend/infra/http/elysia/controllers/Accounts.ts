@@ -1,7 +1,6 @@
 import { CreateAccount, DeleteAccount } from "@zaimu/application";
 import Elysia, { t } from "elysia";
-import { database } from "~/sql/kysely";
-import { KyselyAccountsRepository } from "~/sql/kysely/repositories";
+import { KyselyAccountsRepository, database } from "~/sql/kysely";
 
 export const AccountsController = new Elysia()
 	.decorate({

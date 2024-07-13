@@ -7,7 +7,7 @@ export class CreateAccount {
 	public async execute(data: CreateAccountDTO): Promise<Account> {
 		const existingAccount = await this.accountsRepository.find(data);
 		if (existingAccount) {
-			throw new HttpException("A conta de origem não foi encontrada.", StatusCodes.CONFLICT);
+			throw new HttpException("Esta conta já existe", StatusCodes.CONFLICT);
 		}
 
 		const account = await this.accountsRepository.create(data);

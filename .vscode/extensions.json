@@ -1,9 +1,3 @@
 {
-	"recommendations": [
-		"biomejs.biome",
-		"ms-azuretools.vscode-docker",
-		"mtxr.sqltools",
-		"prisma.prisma",
-		"rangav.vscode-thunder-client"
-	]
+	"recommendations": ["biomejs.biome", "ms-azuretools.vscode-docker", "prisma.prisma"]
 }

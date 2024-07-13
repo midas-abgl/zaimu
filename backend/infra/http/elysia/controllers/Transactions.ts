@@ -1,7 +1,6 @@
 import { AddTransaction, ListTransactionCategories } from "@zaimu/application";
 import Elysia, { t } from "elysia";
-import { database } from "~/sql/kysely";
-import { KyselyAccountsRepository, KyselyTransactionsRepository } from "~/sql/kysely/repositories";
+import { KyselyAccountsRepository, KyselyTransactionsRepository, database } from "~/sql/kysely";
 import { uuidRegex } from "~/utils";
 
 export const TransactionsController = new Elysia()
