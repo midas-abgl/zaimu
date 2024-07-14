@@ -1,3 +1,2 @@
-export * from "./AddTransaction.dto";
-export * from "./CreateAccount.dto";
-export * from "./DeleteAccount.dto";
+export * from "./accounts";
+export * from "./transactions";
