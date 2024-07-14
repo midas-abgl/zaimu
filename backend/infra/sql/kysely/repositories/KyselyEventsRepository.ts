@@ -11,4 +11,18 @@ export class KyselyEventsRepository implements EventsRepository {
 
 		return event;
 	}
+
+	public async findById(id: string): Promise<EventSelectable | undefined> {
+		const event = await this.db
+			.selectFrom("Event")
+			.selectAll()
+			.where("id", "=", id)
+			.executeTakeFirstOrThrow();
+
+		return event;
+	}
+
+	public async delete(id: string): Promise<void> {
+		await this.db.deleteFrom("Event").where("id", "=", id).execute();
+	}
 }

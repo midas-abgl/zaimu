@@ -1,4 +1,4 @@
-import { RegisterEvent } from "@zaimu/application";
+import { DeleteEvent, RegisterEvent } from "@zaimu/application";
 import Elysia, { t } from "elysia";
 import { KyselyAccountsRepository, database } from "~/sql/kysely";
 import { KyselyEventsRepository } from "~/sql/kysely/repositories/KyselyEventsRepository";
@@ -13,6 +13,7 @@ export const EventsController = new Elysia()
 
 		return app
 			.decorate({
+				deleteEvent: new DeleteEvent(eventsRepository),
 				registerEvent: new RegisterEvent(accountsRepository, eventsRepository),
 			})
 			.post("/", ({ body, registerEvent }) => registerEvent.execute(body), {
@@ -38,5 +39,14 @@ export const EventsController = new Elysia()
 					createdAt: t.Date(),
 					updatedAt: t.Date(),
 				}),
+			})
+			.delete("/", ({ query, deleteEvent }) => deleteEvent.execute(query), {
+				detail: {
+					tags: ["Events"],
+				},
+				query: t.Object({
+					eventId: t.String({ format: "uuid" }),
+				}),
+				response: t.Void(),
 			});
 	});
