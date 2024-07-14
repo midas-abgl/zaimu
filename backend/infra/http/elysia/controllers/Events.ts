@@ -1,4 +1,4 @@
-import { DeleteEvent, RegisterEvent } from "@zaimu/application";
+import { DeleteEvent, EditEvent, RegisterEvent } from "@zaimu/application";
 import Elysia, { t } from "elysia";
 import { KyselyAccountsRepository, database } from "~/sql/kysely";
 import { KyselyEventsRepository } from "~/sql/kysely/repositories/KyselyEventsRepository";
@@ -14,6 +14,7 @@ export const EventsController = new Elysia()
 		return app
 			.decorate({
 				deleteEvent: new DeleteEvent(eventsRepository),
+				editEvent: new EditEvent(eventsRepository),
 				registerEvent: new RegisterEvent(accountsRepository, eventsRepository),
 			})
 			.post("/", ({ body, registerEvent }) => registerEvent.execute(body), {
@@ -40,6 +41,34 @@ export const EventsController = new Elysia()
 					updatedAt: t.Date(),
 				}),
 			})
+			.patch(
+				"/:eventId",
+				({ body, params: { eventId }, editEvent }) => editEvent.execute({ ...body, eventId }),
+				{
+					detail: {
+						tags: ["Events"],
+					},
+					body: t.Object({
+						accountId: t.Optional(t.String({ format: "uuid" })),
+						amount: t.Optional(t.Number()),
+						date: t.Optional(t.Date()),
+						description: t.Optional(t.Optional(t.String({ maxLength: 1000 }))),
+						details: t.Optional(t.Object({})),
+						type: t.Optional(t.String({ maxLength: 15 })),
+					}),
+					response: t.Object({
+						id: t.String(),
+						type: t.String(),
+						accountId: t.String(),
+						amount: t.Number(),
+						date: t.Date(),
+						description: t.Nullable(t.String()),
+						details: t.Object({}),
+						createdAt: t.Date(),
+						updatedAt: t.Date(),
+					}),
+				},
+			)
 			.delete("/", ({ query, deleteEvent }) => deleteEvent.execute(query), {
 				detail: {
 					tags: ["Events"],

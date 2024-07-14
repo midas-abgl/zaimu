@@ -1,4 +1,4 @@
-import type { EventsRepository, RegisterEventDTO } from "@zaimu/domain";
+import type { EditEventDTO, EventsRepository, RegisterEventDTO } from "@zaimu/domain";
 import { type Kysely, sql } from "kysely";
 import type { EventSelectable } from "../entities";
 import type { DB } from "../types";
@@ -24,5 +24,16 @@ export class KyselyEventsRepository implements EventsRepository {
 
 	public async delete(id: string): Promise<void> {
 		await this.db.deleteFrom("Event").where("id", "=", id).execute();
+	}
+
+	public async update(id: string, data: Omit<EditEventDTO, "eventId">): Promise<EventSelectable | undefined> {
+		const event = await this.db
+			.updateTable("Event")
+			.set(data)
+			.where("id", "=", id)
+			.returningAll()
+			.executeTakeFirst();
+
+		return event;
 	}
 }
