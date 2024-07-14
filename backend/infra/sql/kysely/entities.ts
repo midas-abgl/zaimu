@@ -1,7 +1,9 @@
 import type { Insertable, Selectable } from "kysely";
-import type { Account, Transaction } from "./types";
+import type { Account, Event, Transaction } from "./types";
 
 export type AccountInsertable = Insertable<Account>;
 export type AccountSelectable = Selectable<Account>;
+export type EventInsertable = Insertable<Event>;
+export type EventSelectable = Selectable<Event>;
 export type TransactionInsertable = Insertable<Transaction>;
 export type TransactionSelectable = Selectable<Transaction>;

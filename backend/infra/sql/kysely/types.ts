@@ -18,7 +18,7 @@ export type Event = {
 	amount: number;
 	date: Timestamp;
 	description: string | null;
-	details: unknown;
+	details: Record<string, any>;
 	createdAt: Generated<Timestamp>;
 	updatedAt: Generated<Timestamp>;
 };

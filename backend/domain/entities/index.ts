@@ -1,13 +1,3 @@
-import type {
-	AccountInsertable,
-	AccountSelectable,
-	TransactionInsertable,
-	TransactionSelectable,
-} from "@zaimu/infra";
+import type { AccountSelectable, EventSelectable, TransactionSelectable } from "@zaimu/infra";
 
-export type {
-	AccountInsertable,
-	AccountSelectable as Account,
-	TransactionInsertable,
-	TransactionSelectable as Transaction,
-};
+export type { AccountSelectable as Account, EventSelectable as Event, TransactionSelectable as Transaction };

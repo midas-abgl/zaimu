@@ -3,6 +3,7 @@ generator kysely {
     output              = "./kysely"
     fileName            = "types.ts"
     decimalTypeOverride = "number"
+    jsonTypeOverride    = "Record<string,any>"
 }
 
 datasource db {

@@ -18,7 +18,16 @@ export class KyselyAccountsRepository implements AccountsRepository {
 			.execute();
 	}
 
-	public async find({ company, userEmail }: FindAccountDTO): Promise<Selectable<Account> | undefined> {
+	public async findById(id: string): Promise<Selectable<Account> | undefined> {
+		const account = await this.db.selectFrom("Account").selectAll().where("id", "=", id).executeTakeFirst();
+
+		return account;
+	}
+
+	public async findExisting({
+		company,
+		userEmail,
+	}: FindAccountDTO): Promise<Selectable<Account> | undefined> {
 		const account = await this.db
 			.selectFrom("Account")
 			.selectAll()

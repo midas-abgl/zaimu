@@ -15,13 +15,13 @@ export class AddTransaction {
 	) {}
 
 	public async execute({
-		destination,
-		origin,
+		destinationId,
+		originId,
 		recurrence,
 		repeatCount,
 		...data
 	}: AddTransactionDTO): Promise<Transaction> {
-		if (!destination && !origin) {
+		if (!destinationId && !originId) {
 			throw new HttpException(
 				"Envie uma conta de origem ou destino para esta transação.",
 				StatusCodes.BAD_REQUEST,
@@ -48,21 +48,21 @@ export class AddTransaction {
 			);
 		}
 
-		if (origin) {
-			const foundOrigin = await this.accountsRepository.find(origin);
+		if (originId) {
+			const foundOrigin = await this.accountsRepository.findById(originId);
 			if (!foundOrigin) {
 				throw new HttpException("A conta de origem não foi encontrada.", StatusCodes.NOT_FOUND);
 			}
 		}
 
-		if (destination) {
-			const foundDestination = await this.accountsRepository.find(destination);
+		if (destinationId) {
+			const foundDestination = await this.accountsRepository.findById(destinationId);
 			if (!foundDestination) {
 				throw new HttpException("A conta de destino não foi encontrada.", StatusCodes.NOT_FOUND);
 			}
 		}
 
-		const transaction = await this.transactionsRepository.create({ destination, origin, ...data });
+		const transaction = await this.transactionsRepository.create({ destinationId, originId, ...data });
 
 		return transaction;
 	}

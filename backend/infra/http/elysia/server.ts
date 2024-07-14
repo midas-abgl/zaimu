@@ -2,7 +2,7 @@ import cors from "@elysiajs/cors";
 import swagger from "@elysiajs/swagger";
 import { HttpException } from "@zaimu/domain";
 import { Elysia } from "elysia";
-import { AccountsController, TransactionsController } from "./controllers";
+import { AccountsController, EventsController, TransactionsController } from "./controllers";
 
 const app = new Elysia()
 	.error({ HttpException })
@@ -33,6 +33,10 @@ const app = new Elysia()
 						description: "Anything sends/receives transactions.",
 					},
 					{
+						name: "Events",
+						description: "Events that will alter your total balance, like a loan or credit card statements.",
+					},
+					{
 						name: "Transactions",
 						description: "Money transfers between different accounts.",
 					},
@@ -43,6 +47,7 @@ const app = new Elysia()
 		}),
 	)
 	.use(AccountsController)
+	.use(EventsController)
 	.use(TransactionsController)
 	.listen(process.env.PORT || 3333);
 
