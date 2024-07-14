@@ -1,4 +1,4 @@
-import { AddTransaction, ListTransactionCategories } from "@zaimu/application";
+import { AddTransaction, DeleteTransaction, ListTransactionCategories } from "@zaimu/application";
 import Elysia, { t } from "elysia";
 import { KyselyAccountsRepository, KyselyTransactionsRepository, database } from "~/sql/kysely";
 
@@ -13,6 +13,7 @@ export const TransactionsController = new Elysia()
 		return app
 			.decorate({
 				addTransaction: new AddTransaction(accountsRepository, transactionsRepository),
+				deleteTransaction: new DeleteTransaction(transactionsRepository),
 			})
 			.post("/", ({ body, addTransaction }) => addTransaction.execute(body), {
 				detail: {
@@ -41,6 +42,15 @@ export const TransactionsController = new Elysia()
 					createdAt: t.Date(),
 					updatedAt: t.Date(),
 				}),
+			})
+			.delete("/", ({ query, deleteTransaction }) => deleteTransaction.execute(query), {
+				detail: {
+					tags: ["Transactions"],
+				},
+				query: t.Object({
+					transactionId: t.String({ format: "uuid" }),
+				}),
+				response: t.Void(),
 			})
 			.group("/categories", app => {
 				return app
