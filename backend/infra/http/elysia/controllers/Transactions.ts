@@ -1,7 +1,6 @@
 import { AddTransaction, ListTransactionCategories } from "@zaimu/application";
 import Elysia, { t } from "elysia";
 import { KyselyAccountsRepository, KyselyTransactionsRepository, database } from "~/sql/kysely";
-import { uuidRegex } from "~/utils";
 
 export const TransactionsController = new Elysia()
 	.decorate({
@@ -24,8 +23,8 @@ export const TransactionsController = new Elysia()
 					categories: t.Array(t.String({ maxLength: 50 })),
 					date: t.Date(),
 					description: t.Optional(t.String({ maxLength: 1000 })),
-					destination: t.Optional(t.String({ pattern: uuidRegex.source })),
-					origin: t.Optional(t.String({ pattern: uuidRegex.source })),
+					destinationId: t.Optional(t.String({ format: "uuid" })),
+					originId: t.Optional(t.String({ format: "uuid" })),
 					recurrence: t.Optional(t.String({ maxLength: 26 })),
 					repeatCount: t.Optional(t.Number({ min: 2 })),
 				}),
@@ -37,8 +36,8 @@ export const TransactionsController = new Elysia()
 					categories: t.Array(t.String()),
 					recurrence: t.Nullable(t.String()),
 					repeatCount: t.Nullable(t.Number()),
-					destination: t.Nullable(t.String()),
-					origin: t.Nullable(t.String()),
+					destinationId: t.Nullable(t.String()),
+					originId: t.Nullable(t.String()),
 					createdAt: t.Date(),
 					updatedAt: t.Date(),
 				}),

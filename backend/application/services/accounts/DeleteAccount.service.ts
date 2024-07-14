@@ -1,15 +1,15 @@
-import { type Account, type AccountsRepository, type DeleteAccountDTO, HttpException } from "@zaimu/domain";
+import { type AccountsRepository, type DeleteAccountDTO, HttpException } from "@zaimu/domain";
 import { StatusCodes } from "http-status-codes";
 
 export class DeleteAccount {
 	constructor(private readonly accountsRepository: AccountsRepository) {}
 
-	public async execute({ company }: DeleteAccountDTO): Promise<void> {
-		const existingAccount = await this.accountsRepository.find(company);
+	public async execute(data: DeleteAccountDTO): Promise<void> {
+		const existingAccount = await this.accountsRepository.find(data);
 		if (!existingAccount) {
 			throw new HttpException("Esta conta não existe.", StatusCodes.NOT_FOUND);
 		}
 
-		await this.accountsRepository.delete(company);
+		await this.accountsRepository.delete(data);
 	}
 }
