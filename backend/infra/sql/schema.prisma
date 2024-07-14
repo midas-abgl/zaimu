@@ -47,3 +47,10 @@ model Transaction {
     createdAt          DateTime @default(now())
     updatedAt          DateTime @default(now())
 }
+
+model User {
+    email     String   @id @db.VarChar(320)
+    password  String   @db.VarChar(128)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @default(now())
+}

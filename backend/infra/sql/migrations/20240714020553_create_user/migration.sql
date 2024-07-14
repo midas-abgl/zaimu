@@ -1,0 +1,13 @@
+-- CreateTable
+CREATE TABLE "User" (
+    "email" VARCHAR(320) NOT NULL,
+    "password" VARCHAR(128) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "User_pkey" PRIMARY KEY ("email")
+);
+
+CREATE TRIGGER user_updated_at BEFORE
+UPDATE
+	ON "User" FOR EACH ROW EXECUTE FUNCTION updated_at();

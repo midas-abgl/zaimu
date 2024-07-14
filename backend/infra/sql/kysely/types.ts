@@ -33,8 +33,15 @@ export type Transaction = {
 	createdAt: Generated<Timestamp>;
 	updatedAt: Generated<Timestamp>;
 };
+export type User = {
+	email: string;
+	password: string;
+	createdAt: Generated<Timestamp>;
+	updatedAt: Generated<Timestamp>;
+};
 export type DB = {
 	Account: Account;
 	Event: Event;
 	Transaction: Transaction;
+	User: User;
 };
