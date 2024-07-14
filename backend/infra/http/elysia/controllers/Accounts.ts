@@ -20,12 +20,9 @@ export const AccountsController = new Elysia()
 				},
 				body: t.Object({
 					company: t.String({ maxLength: 70 }),
-					type: t.String({ maxLength: 30 }),
 				}),
 				response: t.Object({
-					id: t.String(),
 					company: t.String(),
-					type: t.String(),
 					createdAt: t.Date(),
 					updatedAt: t.Date(),
 				}),
@@ -36,7 +33,6 @@ export const AccountsController = new Elysia()
 				},
 				body: t.Object({
 					company: t.String({ maxLength: 70 }),
-					type: t.String({ maxLength: 30 }),
 				}),
 			});
 	});

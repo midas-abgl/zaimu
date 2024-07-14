@@ -5,16 +5,14 @@ export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
 export type Account = {
-	id: Generated<string>;
 	company: string;
-	type: string;
 	createdAt: Generated<Timestamp>;
 	updatedAt: Generated<Timestamp>;
 };
 export type Event = {
 	id: Generated<string>;
 	type: string;
-	accountId: string;
+	account: string;
 	amount: number;
 	date: Timestamp;
 	description: string | null;
@@ -30,8 +28,8 @@ export type Transaction = {
 	categories: string[];
 	recurrence: string | null;
 	repeatCount: number | null;
-	originId: string | null;
-	destinationId: string | null;
+	origin: string | null;
+	destination: string | null;
 	createdAt: Generated<Timestamp>;
 	updatedAt: Generated<Timestamp>;
 };

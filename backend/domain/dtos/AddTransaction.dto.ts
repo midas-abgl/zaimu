@@ -3,8 +3,8 @@ export interface AddTransactionDTO {
 	categories: string[];
 	date: Date;
 	description?: string;
-	destinationId?: string;
-	originId?: string;
+	destination?: string;
+	origin?: string;
 	recurrence?: string;
 	repeatCount?: number;
 }

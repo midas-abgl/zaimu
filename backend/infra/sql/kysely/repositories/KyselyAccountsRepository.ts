@@ -1,4 +1,4 @@
-import type { AccountsRepository, CreateAccountDTO, FindAccountDTO } from "@zaimu/domain";
+import type { AccountsRepository, CreateAccountDTO } from "@zaimu/domain";
 import type { Kysely, Selectable } from "kysely";
 import type { Account, DB } from "../types";
 
@@ -11,23 +11,16 @@ export class KyselyAccountsRepository implements AccountsRepository {
 		return account;
 	}
 
-	public async delete({ company, type }: FindAccountDTO): Promise<void> {
-		await this.db.deleteFrom("Account").where("company", "=", company).where("type", "=", type).execute();
+	public async delete(company: string): Promise<void> {
+		await this.db.deleteFrom("Account").where("company", "=", company).execute();
 	}
 
-	public async find({ company, type }: FindAccountDTO): Promise<Selectable<Account> | undefined> {
+	public async find(company: string): Promise<Selectable<Account> | undefined> {
 		const account = await this.db
 			.selectFrom("Account")
 			.selectAll()
 			.where("company", "=", company)
-			.where("type", "=", type)
 			.executeTakeFirst();
-
-		return account;
-	}
-
-	public async findById(id: string): Promise<Selectable<Account> | undefined> {
-		const account = await this.db.selectFrom("Account").selectAll().where("id", "=", id).executeTakeFirst();
 
 		return account;
 	}
