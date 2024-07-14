@@ -30,13 +30,12 @@ export const AccountsController = new Elysia()
 					updatedAt: t.Date(),
 				}),
 			})
-			.delete("/", ({ body, deleteAccount }) => deleteAccount.execute(body), {
+			.delete("/", ({ deleteAccount, query }) => deleteAccount.execute(query), {
 				detail: {
 					tags: ["Accounts"],
 				},
-				body: t.Object({
-					company: t.String({ maxLength: 70 }),
-					userEmail: t.String({ format: "email" }),
+				query: t.Object({
+					accountId: t.String({ format: "uuid" }),
 				}),
 			});
 	});
