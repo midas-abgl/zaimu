@@ -4,7 +4,7 @@ import { HttpException } from "@zaimu/domain";
 import { Elysia } from "elysia";
 import { AccountsController, EventsController, TransactionsController } from "./controllers";
 
-const app = new Elysia()
+export const app = new Elysia()
 	.error({ HttpException })
 	.onError(({ code, error, set }) => {
 		switch (code) {
@@ -48,7 +48,4 @@ const app = new Elysia()
 	)
 	.use(AccountsController)
 	.use(EventsController)
-	.use(TransactionsController)
-	.listen(process.env.PORT || 3333);
-
-console.log(`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`);
+	.use(TransactionsController);

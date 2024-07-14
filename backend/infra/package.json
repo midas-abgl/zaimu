@@ -5,7 +5,7 @@
 	"main": "main.ts",
 	"scripts": {
 		"build": "bun build ./main.ts",
-		"dev": "bun --watch ./main.ts",
+		"dev": "bun run ./main.ts",
 		"prisma:migrate": "prisma migrate dev --create-only",
 		"prisma:migrate_deploy": "prisma migrate deploy",
 		"prisma:migrate_dev": "prisma migrate dev",
