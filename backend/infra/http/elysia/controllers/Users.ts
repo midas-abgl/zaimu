@@ -1,5 +1,5 @@
 import { type HashProviderKeys, hashProviders } from "@hyoretsu/providers";
-import { CreateUser } from "@zaimu/application";
+import { CreateUser, EditUser } from "@zaimu/application";
 import { Elysia, t } from "elysia";
 import { KyselyUsersRepository, database } from "~/sql/kysely";
 
@@ -14,8 +14,24 @@ export const UsersController = new Elysia()
 		return app
 			.decorate({
 				createUser: new CreateUser(hashProvider, usersRepository),
+				editUser: new EditUser(hashProvider, usersRepository),
 			})
 			.post("/", ({ body, createUser }) => createUser.execute(body), {
+				detail: {
+					tags: ["Users"],
+				},
+				body: t.Object({
+					email: t.String({ format: "email" }),
+					password: t.String(),
+				}),
+				response: t.Object({
+					email: t.String(),
+					password: t.String(),
+					createdAt: t.Date(),
+					updatedAt: t.Date(),
+				}),
+			})
+			.patch("/", ({ body, editUser }) => editUser.execute(body), {
 				detail: {
 					tags: ["Users"],
 				},
