@@ -71,7 +71,7 @@ export const EventsController = new Elysia()
 						accountId: t.Optional(t.String({ format: "uuid" })),
 						amount: t.Optional(t.Number()),
 						date: t.Optional(t.Date()),
-						description: t.Optional(t.Optional(t.String({ maxLength: 1000 }))),
+						description: t.Optional(t.String({ maxLength: 1000 })),
 						details: t.Optional(t.Object({})),
 						type: t.Optional(t.String({ maxLength: 15 })),
 					}),

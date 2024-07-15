@@ -1,4 +1,4 @@
-import { CreateAccount, DeleteAccount, ListAccounts } from "@zaimu/application";
+import { CreateAccount, DeleteAccount, EditAccount, ListAccounts } from "@zaimu/application";
 import Elysia, { t } from "elysia";
 import { KyselyAccountsRepository, database } from "~/sql/kysely";
 
@@ -13,6 +13,7 @@ export const AccountsController = new Elysia()
 			.decorate({
 				createAccount: new CreateAccount(accountsRepository),
 				deleteAccount: new DeleteAccount(accountsRepository),
+				editAccount: new EditAccount(accountsRepository),
 				listAccounts: new ListAccounts(accountsRepository),
 			})
 			.get("/", ({ listAccounts }) => listAccounts.execute(), {
@@ -45,6 +46,25 @@ export const AccountsController = new Elysia()
 					updatedAt: t.Date(),
 				}),
 			})
+			.patch(
+				"/:accountId",
+				({ body, editAccount, params: { accountId } }) => editAccount.execute({ accountId, ...body }),
+				{
+					detail: {
+						tags: ["Accounts"],
+					},
+					body: t.Object({
+						company: t.Optional(t.String({ maxLength: 70 })),
+					}),
+					response: t.Object({
+						id: t.String(),
+						company: t.String(),
+						userEmail: t.String(),
+						createdAt: t.Date(),
+						updatedAt: t.Date(),
+					}),
+				},
+			)
 			.delete("/", ({ deleteAccount, query }) => deleteAccount.execute(query), {
 				detail: {
 					tags: ["Accounts"],

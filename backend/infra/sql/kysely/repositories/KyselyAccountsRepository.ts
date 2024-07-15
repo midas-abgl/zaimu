@@ -1,4 +1,4 @@
-import type { AccountsRepository, CreateAccountDTO, FindAccountDTO } from "@zaimu/domain";
+import type { AccountsRepository, CreateAccountDTO, EditAccountDTO, FindAccountDTO } from "@zaimu/domain";
 import type { Kysely } from "kysely";
 import type { AccountSelectable } from "../entities";
 import type { DB } from "../types";
@@ -36,5 +36,16 @@ export class KyselyAccountsRepository implements AccountsRepository {
 			.executeTakeFirst();
 
 		return account;
+	}
+
+	public async update(id: string, data: Omit<EditAccountDTO, "accountId">): Promise<AccountSelectable> {
+		const event = await this.db
+			.updateTable("Account")
+			.set(data)
+			.where("id", "=", id)
+			.returningAll()
+			.executeTakeFirst();
+
+		return event!;
 	}
 }

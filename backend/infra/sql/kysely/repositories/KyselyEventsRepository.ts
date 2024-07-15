@@ -32,7 +32,7 @@ export class KyselyEventsRepository implements EventsRepository {
 		await this.db.deleteFrom("Event").where("id", "=", id).execute();
 	}
 
-	public async update(id: string, data: Omit<EditEventDTO, "eventId">): Promise<EventSelectable | undefined> {
+	public async update(id: string, data: Omit<EditEventDTO, "eventId">): Promise<EventSelectable> {
 		const event = await this.db
 			.updateTable("Event")
 			.set(data)
@@ -40,6 +40,6 @@ export class KyselyEventsRepository implements EventsRepository {
 			.returningAll()
 			.executeTakeFirst();
 
-		return event;
+		return event!;
 	}
 }
