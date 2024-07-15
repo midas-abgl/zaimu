@@ -48,4 +48,7 @@ export const app = new Elysia()
 	)
 	.use(AccountsController)
 	.use(EventsController)
-	.use(TransactionsController);
+	.use(TransactionsController)
+	.listen(process.env.PORT || 3333);
+
+console.log(`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`);
