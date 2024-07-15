@@ -20,6 +20,12 @@ export class KyselyTransactionsRepository implements TransactionsRepository {
 		await this.db.deleteFrom("Transaction").where("id", "=", id).execute();
 	}
 
+	public async findAllByDate(): Promise<TransactionSelectable[]> {
+		const transactions = await this.db.selectFrom("Transaction").selectAll().orderBy("date desc").execute();
+
+		return transactions;
+	}
+
 	public async findById(id: string): Promise<TransactionSelectable | undefined> {
 		const transaction = await this.db
 			.selectFrom("Transaction")

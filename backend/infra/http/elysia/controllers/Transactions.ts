@@ -1,4 +1,9 @@
-import { AddTransaction, DeleteTransaction, ListTransactionCategories } from "@zaimu/application";
+import {
+	AddTransaction,
+	DeleteTransaction,
+	ListTransactionCategories,
+	ListTransactions,
+} from "@zaimu/application";
 import Elysia, { t } from "elysia";
 import { KyselyAccountsRepository, KyselyTransactionsRepository, database } from "~/sql/kysely";
 
@@ -14,6 +19,27 @@ export const TransactionsController = new Elysia()
 			.decorate({
 				addTransaction: new AddTransaction(accountsRepository, transactionsRepository),
 				deleteTransaction: new DeleteTransaction(transactionsRepository),
+				listTransactions: new ListTransactions(transactionsRepository),
+			})
+			.get("/", ({ listTransactions }) => listTransactions.execute(), {
+				detail: {
+					tags: ["Transactions"],
+				},
+				response: t.Array(
+					t.Object({
+						id: t.String(),
+						amount: t.Number(),
+						date: t.Date(),
+						description: t.Nullable(t.String()),
+						categories: t.Nullable(t.Array(t.String())),
+						recurrence: t.Nullable(t.String()),
+						repeatCount: t.Nullable(t.Number()),
+						destinationId: t.Nullable(t.String()),
+						originId: t.Nullable(t.String()),
+						createdAt: t.Date(),
+						updatedAt: t.Date(),
+					}),
+				),
 			})
 			.post("/", ({ body, addTransaction }) => addTransaction.execute(body), {
 				detail: {
@@ -34,7 +60,7 @@ export const TransactionsController = new Elysia()
 					amount: t.Number(),
 					date: t.Date(),
 					description: t.Nullable(t.String()),
-					categories: t.Array(t.String()),
+					categories: t.Nullable(t.Array(t.String())),
 					recurrence: t.Nullable(t.String()),
 					repeatCount: t.Nullable(t.Number()),
 					destinationId: t.Nullable(t.String()),
