@@ -1,4 +1,4 @@
-import { DeleteEvent, EditEvent, RegisterEvent } from "@zaimu/application";
+import { DeleteEvent, EditEvent, ListEvents, RegisterEvent } from "@zaimu/application";
 import Elysia, { t } from "elysia";
 import { KyselyAccountsRepository, database } from "~/sql/kysely";
 import { KyselyEventsRepository } from "~/sql/kysely/repositories/KyselyEventsRepository";
@@ -15,7 +15,26 @@ export const EventsController = new Elysia()
 			.decorate({
 				deleteEvent: new DeleteEvent(eventsRepository),
 				editEvent: new EditEvent(eventsRepository),
+				listEvents: new ListEvents(eventsRepository),
 				registerEvent: new RegisterEvent(accountsRepository, eventsRepository),
+			})
+			.get("/", ({ listEvents }) => listEvents.execute(), {
+				detail: {
+					tags: ["Events"],
+				},
+				response: t.Array(
+					t.Object({
+						id: t.String(),
+						type: t.String(),
+						accountId: t.String(),
+						amount: t.Number(),
+						date: t.Date(),
+						description: t.Nullable(t.String()),
+						details: t.Object({}),
+						createdAt: t.Date(),
+						updatedAt: t.Date(),
+					}),
+				),
 			})
 			.post("/", ({ body, registerEvent }) => registerEvent.execute(body), {
 				detail: {

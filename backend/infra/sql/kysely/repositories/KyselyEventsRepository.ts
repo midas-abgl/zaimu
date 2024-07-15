@@ -12,6 +12,12 @@ export class KyselyEventsRepository implements EventsRepository {
 		return event;
 	}
 
+	public async findAllByDate(): Promise<EventSelectable[]> {
+		const transactions = await this.db.selectFrom("Event").selectAll().orderBy("date desc").execute();
+
+		return transactions;
+	}
+
 	public async findById(id: string): Promise<EventSelectable | undefined> {
 		const event = await this.db
 			.selectFrom("Event")
