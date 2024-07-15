@@ -1,6 +1,7 @@
 import {
 	AddTransaction,
 	DeleteTransaction,
+	EditTransaction,
 	ListTransactionCategories,
 	ListTransactions,
 } from "@zaimu/application";
@@ -19,6 +20,7 @@ export const TransactionsController = new Elysia()
 			.decorate({
 				addTransaction: new AddTransaction(accountsRepository, transactionsRepository),
 				deleteTransaction: new DeleteTransaction(transactionsRepository),
+				editTransaction: new EditTransaction(transactionsRepository),
 				listTransactions: new ListTransactions(transactionsRepository),
 			})
 			.get("/", ({ listTransactions }) => listTransactions.execute(), {
@@ -69,6 +71,39 @@ export const TransactionsController = new Elysia()
 					updatedAt: t.Date(),
 				}),
 			})
+			.patch(
+				"/:transactionId",
+				({ body, editTransaction, params: { transactionId } }) =>
+					editTransaction.execute({ transactionId, ...body }),
+				{
+					detail: {
+						tags: ["Transactions"],
+					},
+					body: t.Object({
+						amount: t.Optional(t.Number({ minimum: 0 })),
+						categories: t.Optional(t.Array(t.String({ maxLength: 50 }))),
+						date: t.Optional(t.Date()),
+						description: t.Optional(t.String({ maxLength: 1000 })),
+						destinationId: t.Optional(t.String({ format: "uuid" })),
+						originId: t.Optional(t.String({ format: "uuid" })),
+						recurrence: t.Optional(t.String({ maxLength: 26 })),
+						repeatCount: t.Optional(t.Number({ min: 2 })),
+					}),
+					response: t.Object({
+						id: t.String(),
+						amount: t.Number(),
+						date: t.Date(),
+						description: t.Nullable(t.String()),
+						categories: t.Nullable(t.Array(t.String())),
+						recurrence: t.Nullable(t.String()),
+						repeatCount: t.Nullable(t.Number()),
+						destinationId: t.Nullable(t.String()),
+						originId: t.Nullable(t.String()),
+						createdAt: t.Date(),
+						updatedAt: t.Date(),
+					}),
+				},
+			)
 			.delete("/", ({ query, deleteTransaction }) => deleteTransaction.execute(query), {
 				detail: {
 					tags: ["Transactions"],

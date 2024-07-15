@@ -1,4 +1,4 @@
-import type { AddTransactionDTO, TransactionsRepository } from "@zaimu/domain";
+import type { AddTransactionDTO, EditTransactionDTO, TransactionsRepository } from "@zaimu/domain";
 import { type Kysely, type Selectable, sql } from "kysely";
 import type { TransactionSelectable } from "../entities";
 import type { DB } from "../types";
@@ -45,5 +45,19 @@ export class KyselyTransactionsRepository implements TransactionsRepository {
 			.execute();
 
 		return transactionCategories.reverse().map(({ category }) => category);
+	}
+
+	public async update(
+		id: string,
+		data: Omit<EditTransactionDTO, "transactionId">,
+	): Promise<TransactionSelectable> {
+		const event = await this.db
+			.updateTable("Transaction")
+			.set(data)
+			.where("id", "=", id)
+			.returningAll()
+			.executeTakeFirst();
+
+		return event!;
 	}
 }
