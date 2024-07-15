@@ -61,8 +61,8 @@ export const EventsController = new Elysia()
 				}),
 			})
 			.patch(
-				"/:eventId",
-				({ body, params: { eventId }, editEvent }) => editEvent.execute({ ...body, eventId }),
+				"/:id",
+				({ body, params: { id: eventId }, editEvent }) => editEvent.execute({ ...body, eventId }),
 				{
 					detail: {
 						tags: ["Events"],

@@ -47,8 +47,8 @@ export const AccountsController = new Elysia()
 				}),
 			})
 			.patch(
-				"/:accountId",
-				({ body, editAccount, params: { accountId } }) => editAccount.execute({ accountId, ...body }),
+				"/:id",
+				({ body, editAccount, params: { id: accountId } }) => editAccount.execute({ accountId, ...body }),
 				{
 					detail: {
 						tags: ["Accounts"],

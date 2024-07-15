@@ -72,8 +72,8 @@ export const TransactionsController = new Elysia()
 				}),
 			})
 			.patch(
-				"/:transactionId",
-				({ body, editTransaction, params: { transactionId } }) =>
+				"/:id",
+				({ body, editTransaction, params: { id: transactionId } }) =>
 					editTransaction.execute({ transactionId, ...body }),
 				{
 					detail: {
