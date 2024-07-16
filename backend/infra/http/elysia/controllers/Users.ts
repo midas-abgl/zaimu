@@ -1,4 +1,9 @@
-import { type HashProviderKeys, hashProviders } from "@hyoretsu/providers";
+import {
+	type HashProviderKeys,
+	type JwtProviderKeys,
+	hashProviders,
+	jwtProviders,
+} from "@hyoretsu/providers";
 import { AuthenticateUser, CreateUser, EditUser } from "@zaimu/application";
 import { Elysia, t } from "elysia";
 import { KyselyUsersRepository, database } from "~/sql/kysely";
@@ -6,16 +11,17 @@ import { KyselyUsersRepository, database } from "~/sql/kysely";
 export const UsersController = new Elysia()
 	.decorate({
 		hashProvider: new hashProviders[process.env.HASH_DRIVER as HashProviderKeys](),
+		jwtProvider: new jwtProviders[process.env.JWT_DRIVER as JwtProviderKeys](),
 		usersRepository: new KyselyUsersRepository(database),
 	})
 	.group("/users", app => {
-		const { hashProvider, usersRepository } = app.decorator;
+		const { hashProvider, jwtProvider, usersRepository } = app.decorator;
 
 		return app
 			.decorate({
 				createUser: new CreateUser(hashProvider, usersRepository),
 				editUser: new EditUser(hashProvider, usersRepository),
-				authenticateUser: new AuthenticateUser(hashProvider, usersRepository),
+				authenticateUser: new AuthenticateUser(hashProvider, jwtProvider, usersRepository),
 			})
 			.post("/", ({ body, createUser }) => createUser.execute(body), {
 				detail: {

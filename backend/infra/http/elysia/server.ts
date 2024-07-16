@@ -1,5 +1,4 @@
 import cors from "@elysiajs/cors";
-import { jwt } from "@elysiajs/jwt";
 import swagger from "@elysiajs/swagger";
 import { HttpException } from "@zaimu/domain";
 import { Elysia } from "elysia";
@@ -15,12 +14,6 @@ export const app = new Elysia()
 		}
 	})
 	.use(cors())
-	.use(
-		jwt({
-			name: "jwt",
-			secret: process.env.JWT_SECRET!,
-		}),
-	)
 	.use(
 		swagger({
 			documentation: {

@@ -1,10 +1,11 @@
-import type { HashProvider } from "@hyoretsu/providers";
-import { type AuthenticateUserDTO, HttpException, type User, type UsersRepository } from "@zaimu/domain";
+import type { HashProvider, JwtProvider } from "@hyoretsu/providers";
+import { type AuthenticateUserDTO, HttpException, type UsersRepository } from "@zaimu/domain";
 import { StatusCodes } from "http-status-codes";
 
 export class AuthenticateUser {
 	constructor(
 		private readonly hashProvider: HashProvider,
+		private readonly jwtProvider: JwtProvider,
 		private readonly usersRepository: UsersRepository,
 	) {}
 
@@ -19,6 +20,8 @@ export class AuthenticateUser {
 			throw new HttpException("Senha incorreta", StatusCodes.FORBIDDEN);
 		}
 
-		return "jwt";
+		const jwt = await this.jwtProvider.sign({ subject: email });
+
+		return jwt;
 	}
 }
