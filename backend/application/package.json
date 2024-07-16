@@ -4,7 +4,10 @@
 	"main": "main.ts",
 	"dependencies": {
 		"@zaimu/domain": "workspace:*",
-		"cron-validate": "^1.4.5",
+		"cron-validate": "^1.4.5"
+	},
+	"devDependencies": {
+		"@hyoretsu/providers": "^1.2.3",
 		"http-status-codes": "^2.3.0"
 	}
 }
