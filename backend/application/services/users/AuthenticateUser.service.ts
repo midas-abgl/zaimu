@@ -10,8 +10,8 @@ export class AuthenticateUser {
 
 	public async execute({ email, password }: AuthenticateUserDTO): Promise<string> {
 		const existingUser = await this.usersRepository.findByEmail(email);
-		if (existingUser) {
-			throw new HttpException("Este usuário já existe", StatusCodes.CONFLICT);
+		if (!existingUser) {
+			throw new HttpException("Este usuário não existe", StatusCodes.CONFLICT);
 		}
 
 		const passwordMatches = await this.hashProvider.compareHash(password, existingUser.password);
