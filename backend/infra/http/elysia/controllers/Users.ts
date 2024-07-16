@@ -55,6 +55,7 @@ export const UsersController = new Elysia()
 					auth.set({
 						value: jwt,
 						httpOnly: true,
+						secure: true,
 						maxAge: 7 * 86400,
 					});
 				},
@@ -66,7 +67,7 @@ export const UsersController = new Elysia()
 						email: t.String({ format: "email" }),
 						password: t.String(),
 					}),
-					response: t.Never(),
+					response: t.Void(),
 				},
 			);
 	});
