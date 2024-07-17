@@ -1,6 +1,5 @@
 "use client";
 import { Link } from "@hyoretsu/react-components";
-import { Coins, SignOut, SquaresFour, TextAlignJustify, Wallet } from "@phosphor-icons/react";
 import Image from "next/image";
 import { useState } from "react";
 import Avatar from "./components/Avatar";
@@ -15,7 +14,7 @@ export default function Navbar() {
 			<button type="button" onClick={() => setIsExpanded(old => !old)}>
 				<Image
 					className={styles.toggleSidebar}
-					src="/pet-zaimu.png"
+					src="/petZaimu.svg"
 					alt="Toggle Sidebar"
 					width={50}
 					height={50}
@@ -24,27 +23,27 @@ export default function Navbar() {
 
 			<div>
 				<NavbarItem name="Menu" url="/" expanded={isExpanded}>
-					<TextAlignJustify />
+					<Image src="/iconMenu.svg" alt="Menu" width={25} height={25} />
 				</NavbarItem>
 
 				<NavbarItem name="Expenses" url="/expenses" expanded={isExpanded}>
-					<Wallet />
+					<Image src="/iconWallet.svg" alt="Expenses" width={25} height={25} />
 				</NavbarItem>
 
 				<NavbarItem name="Dashboard" url="/dashboard" expanded={isExpanded}>
-					<SquaresFour />
+					<Image src="/iconSquare.svg" alt="Dashboard" width={25} height={25} />
 				</NavbarItem>
 
 				<NavbarItem name="Income" url="/income" expanded={isExpanded}>
-					<Coins />
+					<Image src="/iconIncome.svg" alt="Income" width={25} height={25} />
 				</NavbarItem>
 			</div>
 
 			<div className={styles.bottomIcons}>
-				<Avatar src="/pet-zaimu.png" />
+				<Avatar src="/petZaimu.svg" />
 
 				<Link href="/" className={styles.navbarButton}>
-					<SignOut size={32} weight="light" />
+					<Image src="/iconExit.svg" alt="Expenses" width={25} height={25} />
 				</Link>
 			</div>
 		</nav>

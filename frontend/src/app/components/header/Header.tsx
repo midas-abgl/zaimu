@@ -1,6 +1,7 @@
 "use client";
 
-import { Bell, CrownSimple, DotsThreeVertical } from "@phosphor-icons/react";
+import { Bell, DotsThreeVertical } from "@phosphor-icons/react";
+import Image from "next/image";
 import React from "react";
 import ZaimuIcon from "../../../../public/zaimu-icon.svg";
 import styles from "./Header.module.scss";
@@ -16,8 +17,8 @@ export default function Header({ zaimu }: HeaderProps) {
 			<div className={styles.zaimuParamter}>{zaimu && <ZaimuIcon />}</div>
 			<div className={styles.headerContent}>
 				<button type="submit" className={styles.buttonPremium}>
-					<CrownSimple size={16} weight="bold" />
-					PREMIUM
+					<Image src="/crown.svg" alt="Zaimu" width={20} height={20} />
+					<span className={styles.premiumSpan}>PREMIUM</span>
 				</button>
 
 				{/* biome-ignore lint/a11y/useButtonType: <explanation> */}

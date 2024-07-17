@@ -20,7 +20,7 @@
 	}
 }
 
-$expand-duration: 1s;
+$expand-duration: 0.5s;
 
 .navbar {
 	display: flex;
@@ -33,7 +33,7 @@ $expand-duration: 1s;
 
 	height: 100vh;
 	background-color: #fff;
-	padding: 1.5rem;
+	padding: 1.3rem;
 	transition: padding $expand-duration, box-shadow $expand-duration;
 	border-radius: 0 12px 12px 0;
 
@@ -41,16 +41,16 @@ $expand-duration: 1s;
 		box-shadow: rgba(50, 50, 93, 0.25) 0px 50px 100px -20px,
 			rgba(0, 0, 0, 0.3) 0px 30px 60px -30px;
 
-		padding: 1.5rem 3rem;
+		padding: 1.5rem 2rem;
 	}
 
-	> * {
+	>* {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
 		position: relative;
-		gap: 1rem;
+		gap: 2rem;
 
 		width: 100%;
 
