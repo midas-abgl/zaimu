@@ -22,6 +22,7 @@ export const DashboardController = new Elysia()
 				}),
 				response: t.Object({
 					balance: t.Number(),
+					expectedIncome: t.Number(),
 				}),
 			});
 	});

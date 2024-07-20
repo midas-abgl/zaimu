@@ -3,6 +3,7 @@ import type {
 	CreateAccountDTO,
 	EditAccountDTO,
 	FindAccountDTO,
+	IncomeSource,
 	TransactionsAndEvents,
 } from "@zaimu/domain";
 import type { Kysely } from "kysely";
@@ -44,7 +45,7 @@ export class KyselyAccountsRepository implements AccountsRepository {
 					eb.or([eb("t.destinationId", "=", eb.ref("a.id")), eb("t.originId", "=", eb.ref("a.id"))]),
 				),
 			)
-			.select(["t.id", "t.amount", "t.originId", "t.destinationId", "a.income"])
+			.select(["t.id", "t.date", "t.amount", "t.originId", "t.destinationId", "a.income"])
 			.distinct()
 			.execute();
 
@@ -68,6 +69,16 @@ export class KyselyAccountsRepository implements AccountsRepository {
 			.executeTakeFirst();
 
 		return account;
+	}
+
+	public async findIncomeSources(email: string): Promise<IncomeSource[]> {
+		const accounts = await this.db
+			.selectFrom("Account")
+			.select(["id", "income"])
+			.where(eb => eb.and([eb("userEmail", "=", email), eb("income", "is not", null)]))
+			.execute();
+
+		return accounts;
 	}
 
 	public async update(id: string, data: Omit<EditAccountDTO, "accountId">): Promise<AccountSelectable> {

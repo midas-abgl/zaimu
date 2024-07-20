@@ -2,10 +2,16 @@ import type { CreateAccountDTO, DeleteAccountDTO, EditAccountDTO } from "~/dtos"
 import type { FindAccountDTO } from "~/dtos/accounts/FindAccount.dto";
 import type { Account } from "~/entities";
 
+export interface IncomeSource {
+	id: string;
+	income: Record<string, any> | null;
+}
+
 export interface TransactionsAndEvents {
 	events: { amount: number }[];
 	transactions: {
 		amount: number;
+		date: Date;
 		destinationId: string | null;
 		id: string;
 		income: Record<string, any> | null;
@@ -20,5 +26,6 @@ export abstract class AccountsRepository {
 	abstract findAllTransactionsAndEvents(email: string): Promise<TransactionsAndEvents>;
 	abstract findById(id: string): Promise<Account | undefined>;
 	abstract findExisting(data: FindAccountDTO): Promise<Account | undefined>;
+	abstract findIncomeSources(email: string): Promise<IncomeSource[]>;
 	abstract update(id: string, data: Omit<EditAccountDTO, "accountId">): Promise<Account>;
 }
