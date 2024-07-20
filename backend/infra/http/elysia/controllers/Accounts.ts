@@ -36,11 +36,21 @@ export const AccountsController = new Elysia()
 				},
 				body: t.Object({
 					company: t.String({ maxLength: 70 }),
+					income: t.Object({
+						amount: t.Number({ minimum: 0 }),
+						frequency: t.String({ maxLength: 7 }),
+					}),
 					userEmail: t.String({ format: "email" }),
 				}),
 				response: t.Object({
 					id: t.String(),
 					company: t.String(),
+					income: t.Nullable(
+						t.Object({
+							amount: t.Number(),
+							frequency: t.String(),
+						}),
+					),
 					userEmail: t.String(),
 					createdAt: t.Date(),
 					updatedAt: t.Date(),
