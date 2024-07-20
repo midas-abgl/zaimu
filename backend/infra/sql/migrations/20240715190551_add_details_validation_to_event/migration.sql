@@ -8,8 +8,9 @@ BEGIN
 			'{
 				"type": "object",
 				"properties": {
-					"fee": {
-						"type": "number"
+					"dueDate": {
+						"format": "date",
+						"type": "string"
 					},
 					"interestRate": {
 						"type": "number"
@@ -18,7 +19,7 @@ BEGIN
 						"type": "integer"
 					},
 				},
-				"required": ["interestRate", "months"],
+				"required": ["dueDate", "interestRate", "months"],
 				"additionalProperties": false
 			}',
 			NEW."details"
@@ -33,7 +34,7 @@ BEGIN
 				"type": "object",
 				"properties": {
 					"dueDate": {
-						"format": "date-time",
+						"format": "date",
 						"type": "string"
 					}
 				},
