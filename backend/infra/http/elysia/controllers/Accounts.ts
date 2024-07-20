@@ -45,12 +45,7 @@ export const AccountsController = new Elysia()
 				response: t.Object({
 					id: t.String(),
 					company: t.String(),
-					income: t.Nullable(
-						t.Object({
-							amount: t.Number(),
-							frequency: t.String(),
-						}),
-					),
+					income: t.Nullable(t.Object({})),
 					userEmail: t.String(),
 					createdAt: t.Date(),
 					updatedAt: t.Date(),
