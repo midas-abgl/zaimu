@@ -16,6 +16,7 @@ model Account {
     userEmail       String        @db.VarChar(320)
     user            User          @relation(fields: [userEmail], references: [email])
     company         String        @db.VarChar(70)
+    isIncome        Boolean       @default(false) @db.Boolean
     events          Event[]
     transactionsIn  Transaction[] @relation("Transaction_destination")
     transactionsOut Transaction[] @relation("Transaction_origin")

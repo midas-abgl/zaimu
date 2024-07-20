@@ -8,6 +8,7 @@ export type Account = {
 	id: Generated<string>;
 	userEmail: string;
 	company: string;
+	isIncome: Generated<boolean>;
 	createdAt: Generated<Timestamp>;
 	updatedAt: Generated<Timestamp>;
 };
