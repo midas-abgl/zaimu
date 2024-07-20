@@ -31,7 +31,7 @@ model Event {
     accountId   String   @db.Uuid
     account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
     amount      Decimal  @db.Decimal(8, 2)
-    date        DateTime @db.Timestamptz()
+    date        DateTime @db.Date()
     description String?  @db.VarChar(1000)
     details     Json     @db.JsonB
     createdAt   DateTime @default(now())
@@ -41,7 +41,7 @@ model Event {
 model Transaction {
     id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
     amount        Decimal  @db.Decimal(8, 2)
-    date          DateTime @db.Timestamptz()
+    date          DateTime @db.Date()
     description   String?  @db.VarChar(1000)
     categories    String[] @db.VarChar(50)
     recurrence    String?  @db.VarChar(26)
