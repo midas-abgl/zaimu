@@ -1,5 +1,12 @@
 import type { AccountsRepository, DashboardInfo, GetDashboardInfoDTO } from "@zaimu/domain";
-import { differenceInCalendarWeeks, getWeeksInMonth, isAfter, isSameMonth, previousSunday } from "date-fns";
+import {
+	addMonths,
+	differenceInCalendarWeeks,
+	getWeeksInMonth,
+	isAfter,
+	isSameMonth,
+	previousSunday,
+} from "date-fns";
 
 export class GetDashboardInfo {
 	constructor(private readonly accountsRepository: AccountsRepository) {}
@@ -61,7 +68,10 @@ export class GetDashboardInfo {
 		const firstDayOfMonth = new Date(today);
 		firstDayOfMonth.setDate(1);
 
-		let expectedIncome = 0;
+		const expectedIncome = {
+			current: 0,
+			next: 0,
+		};
 		for (const { id, income } of incomeSources) {
 			const { amount, frequency } = income!;
 
@@ -75,15 +85,18 @@ export class GetDashboardInfo {
 						times -= 1;
 					}
 
-					expectedIncome += amount * times;
+					expectedIncome.current += amount * times;
+					expectedIncome.next += amount * getWeeksInMonth(addMonths(today, 1));
+
 					break;
 				}
 				case "monthly": {
 					// if the user hasn't received this month's paycheck
 					if (incomeTransactions.length === 0) {
-						expectedIncome += amount;
+						expectedIncome.current += amount;
 					}
 
+					expectedIncome.next += amount;
 					break;
 				}
 			}
@@ -91,8 +104,8 @@ export class GetDashboardInfo {
 
 		return {
 			balance,
-			expectedIncome,
 			expenses,
+			income: expectedIncome,
 		};
 	}
 }
