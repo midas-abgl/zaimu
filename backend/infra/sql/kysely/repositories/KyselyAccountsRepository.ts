@@ -6,7 +6,7 @@ import type {
 	IncomeSource,
 	TransactionsAndEvents,
 } from "@zaimu/domain";
-import type { Kysely } from "kysely";
+import { type Kysely, sql } from "kysely";
 import type { AccountSelectable } from "../entities";
 import type { DB } from "../types";
 
@@ -31,10 +31,17 @@ export class KyselyAccountsRepository implements AccountsRepository {
 
 	public async findAllTransactionsAndEvents(email: string): Promise<TransactionsAndEvents> {
 		const events = await this.db
-			.selectFrom(["Account as a", "Event as e"])
-			.select("e.amount")
+			.selectFrom("Account as a")
 			.where("a.userEmail", "=", email)
-			.whereRef("e.accountId", "=", "a.id")
+			.innerJoin("Event as e", "e.accountId", "a.id")
+			// .leftJoin("Transaction as t", "t.eventId", "e.id")
+			.select([
+				"e.id",
+				"e.amount as amountToPay",
+				"e.details",
+				// sql<number>`COALESCE(SUM(t.amount), 0)`.as("paidAmount"),
+			])
+			// .groupBy(["e.id", "amountToPay", "e.details"])
 			.execute();
 
 		const transactions = await this.db
@@ -42,10 +49,13 @@ export class KyselyAccountsRepository implements AccountsRepository {
 			.where("a.userEmail", "=", email)
 			.innerJoin("Transaction as t", join =>
 				join.on(eb =>
-					eb.or([eb("t.destinationId", "=", eb.ref("a.id")), eb("t.originId", "=", eb.ref("a.id"))]),
+					eb.and([
+						eb.or([eb("t.destinationId", "=", eb.ref("a.id")), eb("t.originId", "=", eb.ref("a.id"))]),
+						eb("t.eventId", "is", null),
+					]),
 				),
 			)
-			.select(["t.id", "t.date", "t.amount", "t.originId", "t.destinationId", "a.income"])
+			.select(["t.id", "t.date", "t.amount", "t.eventId", "t.originId", "t.destinationId", "a.income"])
 			.distinct()
 			.execute();
 

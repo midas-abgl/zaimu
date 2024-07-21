@@ -31,6 +31,7 @@ export type Transaction = {
 	categories: string[];
 	recurrence: string | null;
 	repeatCount: number | null;
+	eventId: string | null;
 	originId: string | null;
 	destinationId: string | null;
 	createdAt: Generated<Timestamp>;

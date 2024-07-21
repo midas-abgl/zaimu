@@ -27,16 +27,17 @@ model Account {
 }
 
 model Event {
-    id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-    type        String   @db.VarChar(15)
-    accountId   String   @db.Uuid
-    account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-    amount      Decimal  @db.Decimal(8, 2)
-    date        DateTime @db.Date()
-    description String?  @db.VarChar(1000)
-    details     Json     @db.JsonB
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @default(now())
+    id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    type        String        @db.VarChar(15)
+    accountId   String        @db.Uuid
+    account     Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+    amount      Decimal       @db.Decimal(8, 2)
+    date        DateTime      @db.Date()
+    description String?       @db.VarChar(1000)
+    details     Json          @db.JsonB
+    payments    Transaction[]
+    createdAt   DateTime      @default(now())
+    updatedAt   DateTime      @default(now())
 }
 
 model Transaction {
@@ -47,6 +48,8 @@ model Transaction {
     categories    String[] @db.VarChar(50)
     recurrence    String?  @db.VarChar(26)
     repeatCount   Int?     @db.SmallInt
+    eventId       String?  @db.Uuid
+    event         Event?   @relation(fields: [eventId], references: [id])
     originId      String?  @db.Uuid
     origin        Account? @relation("Transaction_origin", fields: [originId], references: [id], onDelete: Cascade)
     destinationId String?  @db.Uuid

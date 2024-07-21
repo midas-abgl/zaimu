@@ -1,5 +1,5 @@
 import type { AccountsRepository, DashboardInfo, GetDashboardInfoDTO } from "@zaimu/domain";
-import { differenceInCalendarWeeks, getWeeksInMonth, previousSunday } from "date-fns";
+import { differenceInCalendarWeeks, getWeeksInMonth, isAfter, isSameMonth, previousSunday } from "date-fns";
 
 export class GetDashboardInfo {
 	constructor(private readonly accountsRepository: AccountsRepository) {}
@@ -9,20 +9,42 @@ export class GetDashboardInfo {
 		const { events, transactions } = await this.accountsRepository.findAllTransactionsAndEvents(userEmail);
 
 		let balance = 0;
+		let expectedExpenses = 0;
+		const today = new Date();
 
-		for (const { amount } of events) {
-			balance -= amount;
-		}
-
-		for (const { amount, destinationId, income, originId } of transactions) {
-			if (destinationId) {
-				balance += amount;
-			} else if (originId && !income) {
-				balance -= amount;
+		for (const {
+			amountToPay,
+			id,
+			details: { dueDate, installment },
+		} of events) {
+			if (
+				isSameMonth(dueDate, today) &&
+				!transactions.find(({ date, eventId }) => eventId === id && !isAfter(date, today))
+			) {
+				expectedExpenses += installment || amountToPay;
 			}
 		}
 
-		const today = new Date();
+		for (const { amount, date, destinationId, eventId, income, originId } of transactions) {
+			if (destinationId) {
+				balance += amount;
+				continue;
+			}
+
+			if (originId && !income) {
+				// Past transaction
+				if (!isAfter(date, today)) {
+					balance -= amount;
+					continue;
+				}
+
+				// Planned transaction not related to an event
+				if (!eventId) {
+					expectedExpenses += amount;
+				}
+			}
+		}
+
 		const firstDayOfMonth = new Date(today);
 		firstDayOfMonth.setDate(1);
 
@@ -56,6 +78,7 @@ export class GetDashboardInfo {
 
 		return {
 			balance,
+			expectedExpenses,
 			expectedIncome,
 		};
 	}

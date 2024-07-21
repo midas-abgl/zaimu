@@ -8,11 +8,17 @@ export interface IncomeSource {
 }
 
 export interface TransactionsAndEvents {
-	events: { amount: number }[];
+	events: {
+		id: string;
+		amountToPay: number;
+		details: Record<string, any>;
+		// paidAmount: number;
+	}[];
 	transactions: {
 		amount: number;
 		date: Date;
 		destinationId: string | null;
+		eventId: string | null;
 		id: string;
 		income: Record<string, any> | null;
 		originId: string | null;
