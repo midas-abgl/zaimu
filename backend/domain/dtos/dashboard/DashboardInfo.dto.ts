@@ -1,5 +1,8 @@
 export interface DashboardInfo {
 	balance: number;
-	expectedExpenses: number;
 	expectedIncome: number;
+	expenses: {
+		current: number;
+		next: number;
+	};
 }

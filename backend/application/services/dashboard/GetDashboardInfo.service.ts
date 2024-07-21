@@ -9,7 +9,10 @@ export class GetDashboardInfo {
 		const { events, transactions } = await this.accountsRepository.findAllTransactionsAndEvents(userEmail);
 
 		let balance = 0;
-		let expectedExpenses = 0;
+		const expenses = {
+			current: 0,
+			next: 0,
+		};
 		const today = new Date();
 
 		for (const {
@@ -17,11 +20,17 @@ export class GetDashboardInfo {
 			id,
 			details: { dueDate, installment },
 		} of events) {
-			if (
-				isSameMonth(dueDate, today) &&
-				!transactions.find(({ date, eventId }) => eventId === id && !isAfter(date, today))
-			) {
-				expectedExpenses += installment || amountToPay;
+			const amount = installment || amountToPay;
+			const paymentTransaction = transactions.find(
+				({ date, eventId }) => eventId === id && !isAfter(date, today),
+			);
+
+			if (!paymentTransaction) {
+				if (isSameMonth(dueDate, today)) {
+					expenses.current += amount;
+				} else {
+					expenses.next += amount;
+				}
 			}
 		}
 
@@ -40,7 +49,11 @@ export class GetDashboardInfo {
 
 				// Planned transaction not related to an event
 				if (!eventId) {
-					expectedExpenses += amount;
+					if (isSameMonth(date, today)) {
+						expenses.current += amount;
+					} else {
+						expenses.next += amount;
+					}
 				}
 			}
 		}
@@ -78,8 +91,8 @@ export class GetDashboardInfo {
 
 		return {
 			balance,
-			expectedExpenses,
 			expectedIncome,
+			expenses,
 		};
 	}
 }
