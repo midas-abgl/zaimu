@@ -5,7 +5,9 @@ import {
 	getWeeksInMonth,
 	isAfter,
 	isSameMonth,
+	isSunday,
 	previousSunday,
+	setDate,
 } from "date-fns";
 
 export class GetDashboardInfo {
@@ -65,8 +67,8 @@ export class GetDashboardInfo {
 			}
 		}
 
-		const firstDayOfMonth = new Date(today);
-		firstDayOfMonth.setDate(1);
+		const firstDayOfMonth = setDate(today, 1);
+		const nextMonth = addMonths(today, 1);
 
 		const expectedIncome = {
 			current: 0,
@@ -81,12 +83,15 @@ export class GetDashboardInfo {
 					let times = getWeeksInMonth(today) - differenceInCalendarWeeks(today, firstDayOfMonth);
 
 					// If the user already received this week's paycheck
-					if (incomeTransactions.at(-1)!.date.getDate() >= previousSunday(today).getDate()) {
+					if (
+						incomeTransactions.at(-1)!.date.getDate() >=
+						(isSunday(today) ? today.getDate() : previousSunday(today).getDate())
+					) {
 						times -= 1;
 					}
 
 					expectedIncome.current += amount * times;
-					expectedIncome.next += amount * getWeeksInMonth(addMonths(today, 1));
+					expectedIncome.next += amount * (getWeeksInMonth(nextMonth) - 1);
 
 					break;
 				}
