@@ -84,6 +84,62 @@ export class KyselyAccountsRepository implements AccountsRepository {
 		return accounts;
 	}
 
+	public async findRelevantTransactionsAndEvents(email: string): Promise<TransactionsAndEvents> {
+		const startOfCurrentMonth = sql<Date>`date_trunc('month', CURRENT_DATE)`;
+		const endOfNextMonth = sql<Date>`date_trunc('month', CURRENT_DATE) + INTERVAL '2 months' - INTERVAL '1 day'`;
+
+		const events = await this.db
+			.selectFrom("Account as a")
+			.where("a.userEmail", "=", email)
+			.innerJoin("Event as e", "e.accountId", "a.id")
+			.innerJoin("LoanPayment as lp", join =>
+				join.on(eb =>
+					eb.and([eb("lp.date", ">=", startOfCurrentMonth), eb("lp.date", "<=", endOfNextMonth)]),
+				),
+			)
+			.where(eb => eb.or([eb("lp.loanId", "is", null), eb("lp.loanId", "=", eb.ref("e.id"))]))
+			.select(["e.id", "e.amount as amountToPay", "e.details", "e.type"])
+			.groupBy("e.id")
+			.execute();
+
+		console.log(
+			this.db
+				.selectFrom("Account as a")
+				.where("a.userEmail", "=", email)
+				.innerJoin("Event as e", "e.accountId", "a.id")
+				.innerJoin("LoanPayment as lp", join =>
+					join.on(eb =>
+						eb.and([eb("lp.date", ">=", startOfCurrentMonth), eb("lp.date", "<=", endOfNextMonth)]),
+					),
+				)
+				.where(eb => eb.or([eb("lp.loanId", "is", null), eb("lp.loanId", "=", eb.ref("e.id"))]))
+				.select(["e.id", "e.amount as amountToPay", "e.details", "e.type"])
+				.groupBy("e.id")
+				.compile().sql,
+		);
+
+		const transactions = await this.db
+			.selectFrom("Account as a")
+			.where("a.userEmail", "=", email)
+			.innerJoin("Transaction as t", join =>
+				join.on(eb =>
+					eb.and([
+						eb.or([eb("t.destinationId", "=", eb.ref("a.id")), eb("t.originId", "=", eb.ref("a.id"))]),
+						eb("t.eventId", "is", null),
+					]),
+				),
+			)
+			.where(eb => eb.and([eb("t.date", ">=", startOfCurrentMonth), eb("t.date", "<=", endOfNextMonth)]))
+			.select(["t.id", "t.date", "t.amount", "t.eventId", "t.originId", "t.destinationId", "a.income"])
+			.distinct()
+			.execute();
+
+		return {
+			events,
+			transactions,
+		};
+	}
+
 	public async update(id: string, data: Omit<EditAccountDTO, "accountId">): Promise<AccountSelectable> {
 		const event = await this.db
 			.updateTable("Account")
