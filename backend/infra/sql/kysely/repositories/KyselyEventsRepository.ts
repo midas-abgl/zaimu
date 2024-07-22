@@ -1,6 +1,6 @@
 import type { EditEventDTO, EventsRepository, RegisterEventDTO } from "@zaimu/domain";
-import { type Kysely, sql } from "kysely";
-import type { EventSelectable } from "../entities";
+import type { Kysely } from "kysely";
+import type { EventSelectable, LoanPaymentSelectable } from "../entities";
 import type { DB } from "../types";
 
 export class KyselyEventsRepository implements EventsRepository {
@@ -26,6 +26,17 @@ export class KyselyEventsRepository implements EventsRepository {
 			.executeTakeFirstOrThrow();
 
 		return event;
+	}
+
+	public async findLoanPayments(id: string): Promise<LoanPaymentSelectable[]> {
+		const payments = await this.db
+			.selectFrom("LoanPayment")
+			.selectAll()
+			.where("loanId", "=", id)
+			.orderBy("date asc")
+			.execute();
+
+		return payments;
 	}
 
 	public async delete(id: string): Promise<void> {

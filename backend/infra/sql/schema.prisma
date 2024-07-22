@@ -27,17 +27,28 @@ model Account {
 }
 
 model Event {
-    id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-    type        String        @db.VarChar(15)
-    accountId   String        @db.Uuid
-    account     Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
-    amount      Decimal       @db.Decimal(8, 2)
-    date        DateTime      @db.Date()
-    description String?       @db.VarChar(1000)
-    details     Json          @db.JsonB
-    payments    Transaction[]
-    createdAt   DateTime      @default(now())
-    updatedAt   DateTime      @default(now())
+    id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    type         String        @db.VarChar(15)
+    accountId    String        @db.Uuid
+    account      Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+    amount       Decimal       @db.Decimal(8, 2)
+    date         DateTime      @db.Date()
+    description  String?       @db.VarChar(1000)
+    details      Json          @db.JsonB
+    payments     Transaction[]
+    loanPayments LoanPayment[]
+    createdAt    DateTime      @default(now())
+    updatedAt    DateTime      @default(now())
+}
+
+model LoanPayment {
+    id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    amount    Decimal  @db.Decimal(8, 2)
+    date      DateTime @db.Date()
+    loanId    String   @db.Uuid
+    loan      Event    @relation(fields: [loanId], references: [id])
+    createdAt DateTime @default(now())
+    updatedAt DateTime @default(now())
 }
 
 model Transaction {
