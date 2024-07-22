@@ -1,6 +1,7 @@
-import type { AccountsRepository, DashboardInfo, GetDashboardInfoDTO } from "@zaimu/domain";
+import type { AccountsRepository, DashboardInfo, EventsRepository, GetDashboardInfoDTO } from "@zaimu/domain";
 import {
 	addMonths,
+	differenceInCalendarMonths,
 	differenceInCalendarWeeks,
 	getWeeksInMonth,
 	isAfter,
@@ -11,11 +12,25 @@ import {
 } from "date-fns";
 
 export class GetDashboardInfo {
-	constructor(private readonly accountsRepository: AccountsRepository) {}
+	constructor(
+		private readonly accountsRepository: AccountsRepository,
+		private readonly eventsRepository: EventsRepository,
+	) {}
 
 	public async execute({ userEmail }: GetDashboardInfoDTO): Promise<DashboardInfo> {
 		const incomeSources = await this.accountsRepository.findIncomeSources(userEmail);
 		const { events, transactions } = await this.accountsRepository.findAllTransactionsAndEvents(userEmail);
+
+		const loans = [],
+			statements = [];
+
+		for (const event of events) {
+			if (event.type === "loan") {
+				loans.push(event);
+			} else if (event.type === "statement") {
+				statements.push(event);
+			}
+		}
 
 		let balance = 0;
 		const expenses = {
@@ -24,21 +39,38 @@ export class GetDashboardInfo {
 		};
 		const today = new Date();
 
+		for (const { id } of loans) {
+			const loanPayments = await this.eventsRepository.findLoanPayments(id);
+			const payments = loanPayments.filter(payment => {
+				const monthsDifference = differenceInCalendarMonths(payment.date, today);
+
+				return monthsDifference >= 0 && monthsDifference <= 1;
+			});
+
+			if (isAfter(payments[0].date, today)) {
+				expenses.current += payments[0].amount;
+			}
+
+			const nextPayment = payments.find(payment => differenceInCalendarMonths(payment.date, today) === 1);
+			if (nextPayment) {
+				expenses.next += nextPayment.amount;
+			}
+		}
+
 		for (const {
 			amountToPay,
 			id,
-			details: { dueDate, installment },
-		} of events) {
-			const amount = installment || amountToPay;
+			details: { dueDate },
+		} of statements) {
 			const paymentTransaction = transactions.find(
 				({ date, eventId }) => eventId === id && !isAfter(date, today),
 			);
 
 			if (!paymentTransaction) {
 				if (isSameMonth(dueDate, today)) {
-					expenses.current += amount;
+					expenses.current += amountToPay;
 				} else {
-					expenses.next += amount;
+					expenses.next += amountToPay;
 				}
 			}
 		}

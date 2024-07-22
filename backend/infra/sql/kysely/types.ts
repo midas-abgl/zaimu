@@ -23,6 +23,14 @@ export type Event = {
 	createdAt: Generated<Timestamp>;
 	updatedAt: Generated<Timestamp>;
 };
+export type LoanPayment = {
+	id: Generated<string>;
+	amount: number;
+	date: Timestamp;
+	loanId: string | null;
+	createdAt: Generated<Timestamp>;
+	updatedAt: Generated<Timestamp>;
+};
 export type Transaction = {
 	id: Generated<string>;
 	amount: number;
@@ -46,6 +54,7 @@ export type User = {
 export type DB = {
 	Account: Account;
 	Event: Event;
+	LoanPayment: LoanPayment;
 	Transaction: Transaction;
 	User: User;
 };

@@ -34,14 +34,7 @@ export class KyselyAccountsRepository implements AccountsRepository {
 			.selectFrom("Account as a")
 			.where("a.userEmail", "=", email)
 			.innerJoin("Event as e", "e.accountId", "a.id")
-			// .leftJoin("Transaction as t", "t.eventId", "e.id")
-			.select([
-				"e.id",
-				"e.amount as amountToPay",
-				"e.details",
-				// sql<number>`COALESCE(SUM(t.amount), 0)`.as("paidAmount"),
-			])
-			// .groupBy(["e.id", "amountToPay", "e.details"])
+			.select(["e.id", "e.amount as amountToPay", "e.details", "e.type"])
 			.execute();
 
 		const transactions = await this.db

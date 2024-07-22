@@ -12,7 +12,7 @@ export interface TransactionsAndEvents {
 		id: string;
 		amountToPay: number;
 		details: Record<string, any>;
-		// paidAmount: number;
+		type: string;
 	}[];
 	transactions: {
 		amount: number;
