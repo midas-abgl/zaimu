@@ -33,5 +33,6 @@ export abstract class AccountsRepository {
 	abstract findById(id: string): Promise<Account | undefined>;
 	abstract findExisting(data: FindAccountDTO): Promise<Account | undefined>;
 	abstract findIncomeSources(email: string): Promise<IncomeSource[]>;
+	abstract findRelevantTransactionsAndEvents(email: string): Promise<TransactionsAndEvents>;
 	abstract update(id: string, data: Omit<EditAccountDTO, "accountId">): Promise<Account>;
 }

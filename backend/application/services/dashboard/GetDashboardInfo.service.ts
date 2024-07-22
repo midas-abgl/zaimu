@@ -19,7 +19,8 @@ export class GetDashboardInfo {
 
 	public async execute({ userEmail }: GetDashboardInfoDTO): Promise<DashboardInfo> {
 		const incomeSources = await this.accountsRepository.findIncomeSources(userEmail);
-		const { events, transactions } = await this.accountsRepository.findAllTransactionsAndEvents(userEmail);
+		const { events, transactions } =
+			await this.accountsRepository.findRelevantTransactionsAndEvents(userEmail);
 
 		const loans = [],
 			statements = [];
