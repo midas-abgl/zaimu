@@ -51,6 +51,16 @@ model LoanPayment {
     updatedAt DateTime @default(now())
 }
 
+model Portfolio {
+    id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    name      String   @db.VarChar(50)
+    stocks    Json     @db.JsonB
+    userEmail String   @db.VarChar(320)
+    user      User     @relation(fields: [userEmail], references: [email])
+    createdAt DateTime @default(now())
+    updatedAt DateTime @default(now())
+}
+
 model Transaction {
     id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
     amount        Decimal  @db.Decimal(8, 2)
@@ -70,9 +80,10 @@ model Transaction {
 }
 
 model User {
-    email     String    @id @db.VarChar(320)
-    password  String    @db.VarChar(128)
-    accounts  Account[]
-    createdAt DateTime  @default(now())
-    updatedAt DateTime  @default(now())
+    email      String      @id @db.VarChar(320)
+    password   String      @db.VarChar(128)
+    accounts   Account[]
+    portfolios Portfolio[]
+    createdAt  DateTime    @default(now())
+    updatedAt  DateTime    @default(now())
 }
