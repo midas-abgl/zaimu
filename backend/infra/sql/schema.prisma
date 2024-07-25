@@ -46,7 +46,7 @@ model LoanPayment {
     amount    Decimal  @db.Decimal(8, 2)
     date      DateTime @db.Date()
     loanId    String   @db.Uuid
-    loan      Event    @relation(fields: [loanId], references: [id])
+    loan      Event    @relation(fields: [loanId], references: [id], onDelete: Cascade)
     createdAt DateTime @default(now())
     updatedAt DateTime @default(now())
 }

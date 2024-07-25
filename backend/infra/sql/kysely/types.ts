@@ -27,7 +27,7 @@ export type LoanPayment = {
 	id: Generated<string>;
 	amount: number;
 	date: Timestamp;
-	loanId: string | null;
+	loanId: string;
 	createdAt: Generated<Timestamp>;
 	updatedAt: Generated<Timestamp>;
 };
