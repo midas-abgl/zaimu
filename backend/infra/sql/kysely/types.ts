@@ -31,6 +31,26 @@ export type LoanPayment = {
 	createdAt: Generated<Timestamp>;
 	updatedAt: Generated<Timestamp>;
 };
+export type Portfolio = {
+	id: Generated<string>;
+	name: string;
+	userEmail: string;
+	createdAt: Generated<Timestamp>;
+	updatedAt: Generated<Timestamp>;
+};
+export type PortfolioStock = {
+	portfolioId: string;
+	ticker: string;
+	allocation: number;
+	createdAt: Generated<Timestamp>;
+	updatedAt: Generated<Timestamp>;
+};
+export type Stock = {
+	ticker: string;
+	pastTickers: string[];
+	createdAt: Generated<Timestamp>;
+	updatedAt: Generated<Timestamp>;
+};
 export type Transaction = {
 	id: Generated<string>;
 	amount: number;
@@ -55,6 +75,9 @@ export type DB = {
 	Account: Account;
 	Event: Event;
 	LoanPayment: LoanPayment;
+	Portfolio: Portfolio;
+	PortfolioStock: PortfolioStock;
+	Stock: Stock;
 	Transaction: Transaction;
 	User: User;
 };
