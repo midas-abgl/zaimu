@@ -52,13 +52,14 @@ model LoanPayment {
 }
 
 model Portfolio {
-    id        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-    name      String           @db.VarChar(50)
-    stocks    PortfolioStock[]
-    userEmail String           @db.VarChar(320)
-    user      User             @relation(fields: [userEmail], references: [email])
-    createdAt DateTime         @default(now())
-    updatedAt DateTime         @default(now())
+    id           String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    name         String                 @db.VarChar(50)
+    stocks       PortfolioStock[]
+    transactions PortfolioTransaction[]
+    userEmail    String                 @db.VarChar(320)
+    user         User                   @relation(fields: [userEmail], references: [email])
+    createdAt    DateTime               @default(now())
+    updatedAt    DateTime               @default(now())
 }
 
 model PortfolioStock {
@@ -70,6 +71,19 @@ model PortfolioStock {
     updatedAt   DateTime  @default(now())
 
     @@id([portfolioId, ticker])
+}
+
+model PortfolioTransaction {
+    id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    ticker      String    @db.VarChar(7)
+    price       Decimal   @db.Decimal(6, 2)
+    quantity    Int       @db.SmallInt
+    totalFees   Decimal   @db.Decimal(7, 2)
+    date        DateTime  @db.Date
+    portfolioId String    @db.Uuid
+    portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @default(now())
 }
 
 model Stock {
