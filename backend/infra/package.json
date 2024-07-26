@@ -4,7 +4,7 @@
 	"private": true,
 	"main": "main.ts",
 	"scripts": {
-		"build": "bun build ./main.ts",
+		"build": "bun build --minify --outdir=../build --target bun ./main.ts",
 		"dev": "cd .. && bun run --watch ./infra/main.ts",
 		"prisma:migrate": "prisma migrate dev --create-only",
 		"prisma:migrate_deploy": "prisma migrate deploy",
