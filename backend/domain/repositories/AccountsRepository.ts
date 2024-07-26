@@ -7,22 +7,26 @@ export interface IncomeSource {
 	income: Record<string, any> | null;
 }
 
+export type DashboardEvent = {
+	id: string;
+	amountToPay: number;
+	details: Record<string, any>;
+	type: string;
+};
+
+export type DashboardTransaction = {
+	amount: number;
+	date: Date;
+	destinationId: string | null;
+	eventId: string | null;
+	id: string;
+	income: Record<string, any> | null;
+	originId: string | null;
+};
+
 export interface TransactionsAndEvents {
-	events: {
-		id: string;
-		amountToPay: number;
-		details: Record<string, any>;
-		type: string;
-	}[];
-	transactions: {
-		amount: number;
-		date: Date;
-		destinationId: string | null;
-		eventId: string | null;
-		id: string;
-		income: Record<string, any> | null;
-		originId: string | null;
-	}[];
+	events: DashboardEvent[];
+	transactions: DashboardTransaction[];
 }
 
 export abstract class AccountsRepository {

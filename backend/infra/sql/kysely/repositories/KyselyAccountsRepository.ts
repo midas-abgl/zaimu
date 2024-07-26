@@ -42,9 +42,12 @@ export class KyselyAccountsRepository implements AccountsRepository {
 			.where("a.userEmail", "=", email)
 			.innerJoin("Transaction as t", join =>
 				join.on(eb =>
-					eb.and([
-						eb.or([eb("t.destinationId", "=", eb.ref("a.id")), eb("t.originId", "=", eb.ref("a.id"))]),
-						eb("t.eventId", "is", null),
+					eb.or([
+						eb("t.eventId", "is not", null),
+						eb.and([
+							eb.or([eb("t.destinationId", "=", eb.ref("a.id")), eb("t.originId", "=", eb.ref("a.id"))]),
+							eb("t.eventId", "is", null),
+						]),
 					]),
 				),
 			)
@@ -113,9 +116,12 @@ export class KyselyAccountsRepository implements AccountsRepository {
 			.where("a.userEmail", "=", email)
 			.innerJoin("Transaction as t", join =>
 				join.on(eb =>
-					eb.and([
-						eb.or([eb("t.destinationId", "=", eb.ref("a.id")), eb("t.originId", "=", eb.ref("a.id"))]),
-						eb("t.eventId", "is", null),
+					eb.or([
+						eb("t.eventId", "is not", null),
+						eb.and([
+							eb.or([eb("t.destinationId", "=", eb.ref("a.id")), eb("t.originId", "=", eb.ref("a.id"))]),
+							eb("t.eventId", "is", null),
+						]),
 					]),
 				),
 			)

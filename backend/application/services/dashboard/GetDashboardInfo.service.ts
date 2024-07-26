@@ -1,4 +1,10 @@
-import type { AccountsRepository, DashboardInfo, EventsRepository, GetDashboardInfoDTO } from "@zaimu/domain";
+import type {
+	AccountsRepository,
+	DashboardEvent,
+	DashboardInfo,
+	EventsRepository,
+	GetDashboardInfoDTO,
+} from "@zaimu/domain";
 import {
 	addMonths,
 	differenceInCalendarMonths,
@@ -22,8 +28,8 @@ export class GetDashboardInfo {
 		const { events, transactions } =
 			await this.accountsRepository.findRelevantTransactionsAndEvents(userEmail);
 
-		const loans = [],
-			statements = [];
+		const loans: DashboardEvent[] = [],
+			statements: DashboardEvent[] = [];
 
 		for (const event of events) {
 			if (event.type === "loan") {
