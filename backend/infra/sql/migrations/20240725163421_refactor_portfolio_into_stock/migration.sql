@@ -1,11 +1,6 @@
-/*
-  Warnings:
-
-  - You are about to drop the column `stocks` on the `Portfolio` table. All the data in the column will be lost.
-
-*/
--- AlterTable
 ALTER TABLE "Portfolio" DROP COLUMN "stocks";
+DROP TRIGGER stocks_validation ON "Portfolio";
+DROP FUNCTION portfolio_stocks_validation;
 
 -- CreateTable
 CREATE TABLE "PortfolioStock" (

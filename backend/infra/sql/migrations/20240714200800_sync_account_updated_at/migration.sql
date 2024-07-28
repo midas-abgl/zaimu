@@ -34,13 +34,8 @@ AFTER DELETE ON "Event"
 FOR EACH ROW
 EXECUTE FUNCTION update_account_event_del();
 
-CREATE TRIGGER event_account_sync_ins
-AFTER INSERT ON "Event"
-FOR EACH ROW
-EXECUTE FUNCTION update_account_event();
-
-CREATE TRIGGER event_account_sync_up
-AFTER UPDATE ON "Event"
+CREATE TRIGGER event_account_sync
+AFTER INSERT OR UPDATE ON "Event"
 FOR EACH ROW
 EXECUTE FUNCTION update_account_event();
 
@@ -79,12 +74,7 @@ AFTER DELETE ON "Transaction"
 FOR EACH ROW
 EXECUTE FUNCTION update_account_transaction_del();
 
-CREATE TRIGGER transaction_account_sync_ins
-AFTER INSERT ON "Transaction"
-FOR EACH ROW
-EXECUTE FUNCTION update_account_transaction();
-
-CREATE TRIGGER transaction_account_sync_up
-AFTER UPDATE ON "Transaction"
+CREATE TRIGGER transaction_account_sync
+AFTER INSERT OR UPDATE ON "Transaction"
 FOR EACH ROW
 EXECUTE FUNCTION update_account_transaction();
