@@ -16,7 +16,9 @@ model Account {
     userEmail       String        @db.VarChar(320)
     user            User          @relation(fields: [userEmail], references: [email])
     company         String        @db.VarChar(70)
-    income          Json?         @db.JsonB
+    income          Json?         @db.JsonB // { "amount": "number", "frequency": "string" }
+    creditCard      Json?         @db.JsonB // { "limit": "number", "statementDate": "number" }
+    creditLine      Int?          @db.Integer
     events          Event[]
     transactionsIn  Transaction[] @relation("Transaction_destination")
     transactionsOut Transaction[] @relation("Transaction_origin")
