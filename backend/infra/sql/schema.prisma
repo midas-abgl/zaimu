@@ -31,7 +31,6 @@ model Account {
 
 model CreditCardStatement {
     id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-    type          String        @db.VarChar(15)
     description   String?       @db.VarChar(1000)
     accountId     String        @db.Uuid
     account       Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -83,6 +82,7 @@ model PortfolioStock {
     portfolioId String    @db.Uuid
     portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
     ticker      String    @db.VarChar(7)
+    stock       Stock     @relation(fields: [ticker], references: [ticker])
     allocation  Decimal   @db.Decimal(5, 2)
     createdAt   DateTime  @default(now())
     updatedAt   DateTime  @default(now())
@@ -93,10 +93,11 @@ model PortfolioStock {
 model PortfolioTransaction {
     id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
     ticker      String    @db.VarChar(7)
-    price       Decimal   @db.Decimal(6, 2)
+    stock       Stock     @relation(fields: [ticker], references: [ticker])
     quantity    Int       @db.SmallInt
+    price       Decimal   @db.Decimal(6, 2)
     totalFees   Decimal   @db.Decimal(7, 2)
-    date        DateTime  @db.Date
+    date        DateTime  @default(now()) @db.Date
     portfolioId String    @db.Uuid
     portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
     createdAt   DateTime  @default(now())
@@ -104,10 +105,12 @@ model PortfolioTransaction {
 }
 
 model Stock {
-    ticker      String   @id @db.VarChar(7)
-    pastTickers String[] @db.VarChar(7)
-    createdAt   DateTime @default(now())
-    updatedAt   DateTime @default(now())
+    ticker       String                 @id @db.VarChar(7)
+    pastTickers  String[]               @db.VarChar(7)
+    transactions PortfolioTransaction[]
+    allocations  PortfolioStock[]
+    createdAt    DateTime               @default(now())
+    updatedAt    DateTime               @default(now())
 }
 
 model Transaction {
