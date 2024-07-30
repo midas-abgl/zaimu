@@ -96,7 +96,7 @@ model PortfolioTransaction {
     stock       Stock     @relation(fields: [ticker], references: [ticker])
     quantity    Int       @db.SmallInt
     price       Decimal   @db.Decimal(6, 2)
-    totalFees   Decimal   @db.Decimal(7, 2)
+    totalFees   Decimal   @default(0) @db.Decimal(7, 2)
     date        DateTime  @default(now()) @db.Date
     portfolioId String    @db.Uuid
     portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
