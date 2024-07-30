@@ -17,7 +17,7 @@ model Account {
     user                 User                  @relation(fields: [userEmail], references: [email])
     company              String                @db.VarChar(70)
     income               Json?                 @db.JsonB // { "amount": "number", "frequency": "string" }
-    creditCard           Json?                 @db.JsonB // { "limit": "number", "statementDate": "number" }
+    creditCard           Json?                 @db.JsonB // { "limit": "number", "statementDate": "number", "workingDueDate": "boolean" }
     creditLine           Int?                  @db.Integer
     loans                Loan[]
     creditCardStatements CreditCardStatement[]
@@ -39,7 +39,6 @@ model Broker {
 
 model CreditCardStatement {
     id            String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-    description   String?          @db.VarChar(1000)
     accountId     String           @db.Uuid
     account       Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
     statementDate DateTime         @db.Date
