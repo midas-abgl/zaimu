@@ -29,6 +29,14 @@ model Account {
     @@unique([userEmail, company])
 }
 
+model Broker {
+    id           String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    name         String
+    transactions PortfolioTransaction[]
+    createdAt    DateTime               @default(now())
+    updatedAt    DateTime               @default(now())
+}
+
 model CreditCardStatement {
     id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
     description   String?       @db.VarChar(1000)
@@ -98,6 +106,8 @@ model PortfolioTransaction {
     price       Decimal   @db.Decimal(6, 2)
     totalFees   Decimal   @default(0) @db.Decimal(7, 2)
     date        DateTime  @default(now()) @db.Date
+    brokerId    String    @db.Uuid
+    broker      Broker    @relation(fields: [brokerId], references: [id])
     portfolioId String    @db.Uuid
     portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
     createdAt   DateTime  @default(now())
