@@ -42,8 +42,8 @@ model CreditCardStatement {
     description   String?          @db.VarChar(1000)
     accountId     String           @db.Uuid
     account       Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
-    statementDate DateTime         @db.Date()
-    dueDate       DateTime         @db.Date()
+    statementDate DateTime         @db.Date
+    dueDate       DateTime         @db.Date
     purchases     CreditPurchase[]
     payments      Transaction[]
     createdAt     DateTime         @default(now())
@@ -56,7 +56,7 @@ model CreditPurchase {
     id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
     description String?             @db.VarChar(1000)
     value       Decimal             @db.Decimal(7, 2)
-    date        DateTime?           @db.Date()
+    date        DateTime?           @db.Date
     categories  String[]            @db.VarChar(50)
     statementId String              @db.Uuid
     statement   CreditCardStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
@@ -68,7 +68,7 @@ model Loan {
     id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
     accountId   String        @db.Uuid
     account     Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
-    date        DateTime      @db.Date()
+    date        DateTime      @db.Date
     amount      Decimal       @db.Decimal(8, 2)
     installment Decimal       @db.Decimal(8, 2)
     months      Int           @db.SmallInt
@@ -82,7 +82,7 @@ model Loan {
 model LoanPayment {
     id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
     amount    Decimal  @db.Decimal(8, 2)
-    date      DateTime @db.Date()
+    date      DateTime @db.Date
     loanId    String   @db.Uuid
     loan      Loan     @relation(fields: [loanId], references: [id], onDelete: Cascade)
     createdAt DateTime @default(now())
@@ -140,7 +140,7 @@ model Stock {
 model Transaction {
     id            String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
     amount        Decimal              @db.Decimal(8, 2)
-    date          DateTime             @db.Date()
+    date          DateTime             @db.Date
     description   String?              @db.VarChar(1000)
     categories    String[]             @db.VarChar(50)
     recurrence    String?              @db.VarChar(26)
