@@ -8,6 +8,7 @@ types.setTypeParser(types.builtins.NUMERIC, val => Number(val));
 const dialect = new PostgresDialect({
 	pool: new Pool({
 		connectionString: process.env.DATABASE_URL,
+		ssl: process.env.DATABASE_URL?.includes("localhost") ? false : { rejectUnauthorized: false },
 		max: 25,
 	}),
 });

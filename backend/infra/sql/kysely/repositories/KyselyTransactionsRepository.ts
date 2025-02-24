@@ -1,5 +1,10 @@
-import type { AddTransactionDTO, EditTransactionDTO, TransactionsRepository } from "@zaimu/domain";
-import { type Kysely, type Selectable, sql } from "kysely";
+import type {
+	AddTransactionDTO,
+	EditTransactionDTO,
+	PresentableTransaction,
+	TransactionsRepository,
+} from "@zaimu/domain";
+import { type Kysely, sql } from "kysely";
 import type { TransactionSelectable } from "../entities";
 import type { DB } from "../types";
 
@@ -20,8 +25,18 @@ export class KyselyTransactionsRepository implements TransactionsRepository {
 		await this.db.deleteFrom("Transaction").where("id", "=", id).execute();
 	}
 
-	public async findAllByDate(): Promise<TransactionSelectable[]> {
-		const transactions = await this.db.selectFrom("Transaction").selectAll().orderBy("date desc").execute();
+	public async findAllByDate(userEmail: string): Promise<PresentableTransaction[]> {
+		const transactions = await this.db
+			.selectFrom("Account as a")
+			.innerJoin("Transaction as t", join =>
+				join.on(eb =>
+					eb.or([eb("t.destinationId", "=", eb.ref("a.id")), eb("t.originId", "=", eb.ref("a.id"))]),
+				),
+			)
+			.where("a.userEmail", "=", userEmail)
+			.select(["t.description", "t.date", "t.categories", "t.amount"])
+			.orderBy("date desc")
+			.execute();
 
 		return transactions;
 	}

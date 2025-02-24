@@ -5,6 +5,7 @@
 		"maxSize": 10485760
 	},
 	"formatter": {
+		"formatWithErrors": true,
 		"lineWidth": 110
 	},
 	"javascript": {

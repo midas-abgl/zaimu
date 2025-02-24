@@ -11,6 +11,7 @@ import { KyselyAccountsRepository, KyselyTransactionsRepository, database } from
 export const TransactionsController = new Elysia()
 	.decorate({
 		accountsRepository: new KyselyAccountsRepository(database),
+		// jwtProvider: new jwtProviders[process.env.JWT_DRIVER as JwtProviderKeys](),
 		transactionsRepository: new KyselyTransactionsRepository(database),
 	})
 	.group("/transactions", app => {
@@ -23,26 +24,31 @@ export const TransactionsController = new Elysia()
 				editTransaction: new EditTransaction(transactionsRepository),
 				listTransactions: new ListTransactions(transactionsRepository),
 			})
-			.get("/", ({ listTransactions }) => listTransactions.execute(), {
-				detail: {
-					tags: ["Transactions"],
+			.get(
+				"/",
+				async ({ listTransactions, user }) => {
+					// const { sub: userEmail } = await jwtProvider.verify({
+					// 	jwt: cookie.auth?.value!,
+					// });
+
+					return listTransactions.execute({
+						userEmail: user.email,
+					});
 				},
-				response: t.Array(
-					t.Object({
-						id: t.String(),
-						amount: t.Number(),
-						date: t.Date(),
-						description: t.Nullable(t.String()),
-						categories: t.Nullable(t.Array(t.String())),
-						recurrence: t.Nullable(t.String()),
-						repeatCount: t.Nullable(t.Number()),
-						destinationId: t.Nullable(t.String()),
-						originId: t.Nullable(t.String()),
-						createdAt: t.Date(),
-						updatedAt: t.Date(),
-					}),
-				),
-			})
+				{
+					detail: {
+						tags: ["Transactions"],
+					},
+					response: t.Array(
+						t.Object({
+							amount: t.Number(),
+							date: t.Date(),
+							description: t.Nullable(t.String()),
+							categories: t.Nullable(t.Array(t.String())),
+						}),
+					),
+				},
+			)
 			.post("/", ({ body, addTransaction }) => addTransaction.execute(body), {
 				detail: {
 					tags: ["Transactions"],
