@@ -1,0 +1,26 @@
+model Account {
+    id                   String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    userEmail            String                @db.VarChar(320)
+    user                 User                  @relation(fields: [userEmail], references: [email])
+    company              String                @db.VarChar(70)
+    income               Json?                 @db.JsonB // { "amount": "number", "frequency": "string" }
+    creditCard           Json?                 @db.JsonB // { "limit": "number", "statementDate": "number", "workingDueDate": "boolean" }
+    creditLine           Int?                  @db.Integer
+    loans                Loan[]
+    creditCardStatements CreditCardStatement[]
+    transactionsIn       Transaction[]         @relation("Transaction_destination")
+    transactionsOut      Transaction[]         @relation("Transaction_origin")
+    createdAt            DateTime              @default(now())
+    updatedAt            DateTime              @default(now())
+
+    @@unique([userEmail, company])
+}
+
+model User {
+    email      String      @id @db.VarChar(320)
+    password   String      @db.VarChar(128)
+    accounts   Account[]
+    portfolios Portfolio[]
+    createdAt  DateTime    @default(now())
+    updatedAt  DateTime    @default(now())
+}

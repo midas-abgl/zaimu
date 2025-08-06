@@ -5,5 +5,14 @@
 		},
 		"editor.defaultFormatter": "biomejs.biome"
 	},
+	"emeraldwalk.runonsave": {
+		"commands": [
+			{
+				"match": "\\.sql$",
+				"cmd": "sqlformat --indent_width 4 --keywords 'upper' --reindent --use_space_around_operators ${file} -o ${file}"
+			}
+		]
+	},
+	"i18n-ally.localesPaths": ["../frontend/locales"],
 	"typescript.tsdk": "node_modules/typescript/lib"
 }

@@ -1,9 +1,9 @@
 {
 	"name": "zaimu",
 	"private": true,
-	"workspaces": ["backend/*", "frontend", "mobile"],
+	"workspaces": ["backend/*", "frontend"],
 	"scripts": {
-		"dev": "bun --filter @zaimu/infra dev ",
+		"dev": "bun -F backend dev & bun -F frontend td",
 		"prepare": "git config --local core.hooksPath .githooks"
 	},
 	"lint-staged": {
@@ -11,6 +11,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.8.3",
+		"@types/bun": "^1.2.19",
 		"@types/node": "latest",
 		"bun-types": "latest",
 		"lint-staged": "^15.2.7",

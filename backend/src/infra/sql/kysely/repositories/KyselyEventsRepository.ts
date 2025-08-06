@@ -1,0 +1,56 @@
+import type { EditEventDTO, EventsRepository, RegisterEventDTO } from "@domain";
+import type { Kysely } from "kysely";
+import type { EventSelectable, LoanPaymentSelectable } from "../entities";
+import type { DB } from "../types";
+
+export class KyselyEventsRepository implements EventsRepository {
+	constructor(private readonly db: Kysely<DB>) {}
+
+	public async create(data: RegisterEventDTO): Promise<EventSelectable> {
+		const event = await this.db.insertInto("Event").values(data).returningAll().executeTakeFirstOrThrow();
+
+		return event;
+	}
+
+	public async findAllByDate(): Promise<EventSelectable[]> {
+		const transactions = await this.db.selectFrom("Event").selectAll().orderBy("date desc").execute();
+
+		return transactions;
+	}
+
+	public async findById(id: string): Promise<EventSelectable | undefined> {
+		const event = await this.db
+			.selectFrom("Event")
+			.selectAll()
+			.where("id", "=", id)
+			.executeTakeFirstOrThrow();
+
+		return event;
+	}
+
+	public async findLoanPayments(id: string): Promise<LoanPaymentSelectable[]> {
+		const payments = await this.db
+			.selectFrom("LoanPayment")
+			.selectAll()
+			.where("loanId", "=", id)
+			.orderBy("date asc")
+			.execute();
+
+		return payments;
+	}
+
+	public async delete(id: string): Promise<void> {
+		await this.db.deleteFrom("Event").where("id", "=", id).execute();
+	}
+
+	public async update(id: string, data: Omit<EditEventDTO, "eventId">): Promise<EventSelectable> {
+		const event = await this.db
+			.updateTable("Event")
+			.set(data)
+			.where("id", "=", id)
+			.returningAll()
+			.executeTakeFirst();
+
+		return event!;
+	}
+}

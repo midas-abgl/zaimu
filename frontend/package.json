@@ -18,12 +18,14 @@
 		"@nextui-org/system": "^2.2.2",
 		"@nextui-org/theme": "^2.2.6",
 		"@phosphor-icons/react": "^2.1.7",
+		"@tauri-apps/cli": "^2.5.0",
 		"add": "^2.0.6",
 		"avatar": "^0.1.0",
 		"badge": "^1.0.3",
 		"framer-motion": "^11.2.12",
 		"kysely": "^0.27.2",
 		"next": "^14.1.0",
+		"next-intl": "^4.1.0",
 		"nextui-cli": "^0.3.2",
 		"react": "18.2.0",
 		"react-dom": "18.2.0",
@@ -37,5 +39,6 @@
 		"@tsconfig/next": "^2.0.1",
 		"@types/react": "^18.2.55",
 		"@types/react-dom": "^18.2.19"
-	}
+	},
+	"trustedDependencies": ["@parcel/watcher"]
 }

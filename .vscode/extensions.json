@@ -1,3 +1,9 @@
 {
-	"recommendations": ["biomejs.biome", "ms-azuretools.vscode-docker", "prisma.prisma"]
+	"recommendations": [
+		"biomejs.biome",
+		"emeraldwalk.runonsave",
+		"lokalise.i18n-ally",
+		"ms-azuretools.vscode-docker",
+		"prisma.prisma"
+	]
 }

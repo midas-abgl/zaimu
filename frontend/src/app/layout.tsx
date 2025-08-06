@@ -1,8 +1,9 @@
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale } from "next-intl/server";
 import type { PropsWithChildren } from "react";
+import "./_global.scss";
 import Navbar from "./components/Navbar";
 import WebVitals from "./components/WebVitals";
-
-import "./_global.scss";
 
 const siteName = "Zaimu";
 const url = "https://zaimu.me";
@@ -38,9 +39,11 @@ export const viewport = {
 	themeColor: "#4F53B7",
 };
 
-export default function RootLayout({ children }: PropsWithChildren) {
+export default async function RootLayout({ children }: PropsWithChildren) {
+	const locale = await getLocale();
+
 	return (
-		<html lang="en" suppressHydrationWarning>
+		<html lang={locale}>
 			<head>
 				<link rel="icon" type="image/svg+xml" href="favicon.svg" />
 				<link rel="icon" type="image/png" href="favicon.png" />
@@ -48,11 +51,13 @@ export default function RootLayout({ children }: PropsWithChildren) {
 				<meta name="theme-color" content={viewport.themeColor} />
 			</head>
 			<body>
-				<aside>
-					<Navbar />
-				</aside>
+				<NextIntlClientProvider>
+					<aside>
+						<Navbar />
+					</aside>
 
-				<main style={{ flex: 1, padding: "20px" }}>{children}</main>
+					<main style={{ flex: 1, padding: "20px" }}>{children}</main>
+				</NextIntlClientProvider>
 
 				{process.env.NODE_ENV === "production" && <WebVitals />}
 			</body>

@@ -1,0 +1,15 @@
+{
+	"extends": "@hyoretsu/tsconfig/backend",
+	"compilerOptions": {
+		"paths": {
+			"@application": ["./src/application"],
+			"@application/*": ["./src/application/*"],
+			"@domain": ["./src/domain"],
+			"@domain/*": ["./src/domain/*"],
+			"@generated/*": ["./src/generated/*"],
+			"@infra": ["./src/infra"],
+			"@infra/*": ["./src/infra/*"],
+			"~/*": ["./src/*"]
+		}
+	}
+}
