@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "skills": {
+    "Backend Models Standards": {
+      "source": "microck/ordinary-claude-skills",
+      "sourceType": "github",
+      "computedHash": "7d74985f675bad1398cd5514fc17f8f4320c8f8716411919d32e4758820a8935"
+    },
+    "Playwright Browser Automation": {
+      "source": "microck/ordinary-claude-skills",
+      "sourceType": "github",
+      "computedHash": "bddb99022f6d31b768b76abe584756304c380703d2d3ff325e3bf188b5c44ccd"
+    },
+    "architecture-patterns": {
+      "source": "microck/ordinary-claude-skills",
+      "sourceType": "github",
+      "computedHash": "273be93f76c0209c144069b361ae973dc6f17b25f89669ea7d2f52c6a7306287"
+    },
+    "agent-md-refactor": {
+      "source": "softaworks/agent-toolkit",
+      "sourceType": "github",
+      "computedHash": "51c53259bba830ebad6741b2ab69d213d5a4d02835f7f27925a0e4e93515fc22"
+    },
+    "backend-dev-guidelines": {
+      "source": "microck/ordinary-claude-skills",
+      "sourceType": "github",
+      "computedHash": "62371c46ac6f75faeda93499edc181a252772ca15a2245d7554362b06f41b1e8"
+    },
+    "backend-to-frontend-handoff-docs": {
+      "source": "softaworks/agent-toolkit",
+      "sourceType": "github",
+      "computedHash": "d8c8af8cf6219c60b8cfc6da908dbe70e8aa7c387cef13bb490118ac493b5efd"
+    },
+    "better-auth": {
+      "source": "microck/ordinary-claude-skills",
+      "sourceType": "github",
+      "computedHash": "b7ac2178428bf40593d3bb7eb35410a16c730f1b2fb7b58a6ecb2829589afffa"
+    },
+    "commit-work": {
+      "source": "softaworks/agent-toolkit",
+      "sourceType": "github",
+      "computedHash": "88cec816d028de357ae7ede3ace36a2bc235a225e3e7d2bb18cdb5190ab6c482"
+    },
+    "crafting-effective-readmes": {
+      "source": "softaworks/agent-toolkit",
+      "sourceType": "github",
+      "computedHash": "c931a8c22160e8925400778fcb2266b5d1df762f3052edba65f72479f79f2d6c"
+    },
+    "database-schema-designer": {
+      "source": "softaworks/agent-toolkit",
+      "sourceType": "github",
+      "computedHash": "6a26ca15216bb4bfee66ebf813edcb1e31a8002f3f641f16f550df814b522217"
+    },
+    "dependency-updater": {
+      "source": "softaworks/agent-toolkit",
+      "sourceType": "github",
+      "computedHash": "dc7f34bfa7a1371852fa6f640e14364c52f11fa8303d301ceeb2920623e92157"
+    },
+    "design-system-starter": {
+      "source": "softaworks/agent-toolkit",
+      "sourceType": "github",
+      "computedHash": "926f0a57017277d6c016f6067b40204c86826af0d9f7f9f7e7712857e4f4783b"
+    },
+    "difficult-workplace-conversations": {
+      "source": "softaworks/agent-toolkit",
+      "sourceType": "github",
+      "computedHash": "08b4833493e79d09c048d388d837bb7b4bde0fc545f656ff22539f3a4aa0c40a"
+    },
+    "draw-io": {
+      "source": "softaworks/agent-toolkit",
+      "sourceType": "github",
+      "computedHash": "ff19cab2266a29cbfd39defe0ced1999e9eaeddb1a23dc4fb418f9665646abd7"
+    },
+    "elysiajs": {
+      "source": "elysiajs/skills",
+      "sourceType": "github",
+      "computedHash": "55268e69a2c766ed67e56a0db57544f60cc52dba0c7f024a974baf965e525e1b"
+    },
+    "feedback-mastery": {
+      "source": "softaworks/agent-toolkit",
+      "sourceType": "github",
+      "computedHash": "d21080a65800d23edac34b85fcbff6db8a95f86c72695ee2c597fed101ec905b"
+    },
+    "frontend-to-backend-requirements": {
+      "source": "softaworks/agent-toolkit",
+      "sourceType": "github",
+      "computedHash": "77cacde5178740272b622df1aaafb388821a555c7b591ca194084091195a73c4"
+    },
+    "game-changing-features": {
+      "source": "softaworks/agent-toolkit",
+      "sourceType": "github",
+      "computedHash": "aa6f4b25f60cbad65bd0826f09e0eded14e588da06172995277511e9a86ee2d7"
+    },
+    "gepetto": {
+      "source": "softaworks/agent-toolkit",
+      "sourceType": "github",
+      "computedHash": "ba7fd99fce9cb2ae4e1b8b670b977c035e62d6d5a0c3dda3e22ae3cb04c7ea05"
+    },
+    "lesson-learned": {
+      "source": "softaworks/agent-toolkit",
+      "sourceType": "github",
+      "computedHash": "2bdf72af18ccc97c8c5580f252769610d2c0d814c36433ea7dd3f25c822ff6b7"
+    },
+    "migrate-to-vinext": {
+      "source": "cloudflare/vinext",
+      "sourceType": "github",
+      "computedHash": "660f2e78a96c76792fd8a74b0ce714c69a67fed95de8698df4b32186b3cec097"
+    },
+    "monorepo-management": {
+        "computedHash": "2a6357663aeebb229c0f3770452835081b8cb5b5dfe227ba49c31a89b7a46710",
+        "source": "microck/ordinary-claude-skills",
+        "sourceType": "github"
+    },
+    "qa-test-planner": {
+      "source": "softaworks/agent-toolkit",
+      "sourceType": "github",
+      "computedHash": "c7a27e535b0a21a9ed22578ca0e37a00a00f43b775efe791a2d4be849ce8ffa9"
+    },
+    "react-dev": {
+      "source": "softaworks/agent-toolkit",
+      "sourceType": "github",
+      "computedHash": "4ce3a30e2ad46fdb79f01e0e44701f961c055da7f25f9418af0283a7ad54b791"
+    },
+    "react-useeffect": {
+      "source": "softaworks/agent-toolkit",
+      "sourceType": "github",
+      "computedHash": "8c24990b50f431a570f3ad1f60632dee154431861547103047f6ce80092ca734"
+    },
+    "rsc-data-optimizer": {
+        "computedHash": "f77111f3bd0fa50071948c8f98a7613474d0c64e9cc734ee1cb47f784966573c",
+        "source": "microck/ordinary-claude-skills",
+        "sourceType": "github"
+    },
+    "tauri": {
+        "computedHash": "f82b76eeabce7af9f2a8133874995c3f31110231cb379bbf422e39713c088b23",
+        "source": "microck/ordinary-claude-skills",
+        "sourceType": "github"
+    },
+    "typescript-advanced-types": {
+        "computedHash": "b515da8683a246a2a29d9d34e360538a051c6a3d2b8025828d191d3a701c624b",
+        "source": "microck/ordinary-claude-skills",
+        "sourceType": "github"
+    },
+    "ui-styling": {
+        "computedHash": "d27c5625a9348064febf51d5f5167050af2fa807e12bcd451fb75e27d6dceb9f",
+        "source": "microck/ordinary-claude-skills",
+        "sourceType": "github"
+    }
+  }
+}

@@ -1,20 +1,39 @@
 {
 	"name": "zaimu",
+	"version": "1.0.0",
 	"private": true,
-	"workspaces": ["backend/*", "frontend"],
+	"type": "module",
+	"packageManager": "bun@1.3.12",
+	"workspaces": [
+		"backend",
+		"frontend"
+	],
 	"scripts": {
-		"dev": "bun -F backend dev & bun -F frontend td",
-		"prepare": "git config --local core.hooksPath .githooks"
-	},
-	"lint-staged": {
-		"**/*.(js|jsx|json|jsonc|ts|tsx)": ["biome check --apply"]
+		"build": "turbo build",
+		"commit": "git add . && bun committier ai",
+		"dev": "turbo dev",
+		"dev:frontend": "bun -F frontend tauri dev",
+		"format": "bun format:biome . && bun format:eslint .",
+		"format:biome": "bunx biome check --diagnostic-level=error --write --unsafe",
+		"format:eslint": "bunx eslint --quiet --fix",
+		"prepare": "bun run ./prepare.ts || true",
+		"start": "turbo start"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^1.8.3",
-		"@types/bun": "^1.2.19",
-		"@types/node": "latest",
-		"bun-types": "latest",
-		"lint-staged": "^15.2.7",
-		"typescript": "latest"
+		"@biomejs/biome": "^2.4.12",
+		"@commitlint/cli": "^20.5.0",
+		"@commitlint/config-conventional": "^20.5.0",
+		"@commitlint/types": "^20.5.0",
+		"@eslint/js": "^10.0.1",
+		"@hyoretsu/configs": "^1.2.31",
+		"@types/bun": "^1.3.12",
+		"@types/node": "^25.6.0",
+		"committier": "^0.2.3",
+		"eslint": "^10.2.0",
+		"eslint-config-biome": "^2.1.3",
+		"lint-staged": "^16.4.0",
+		"turbo": "^2.9.6",
+		"typescript": "^6.0.2",
+		"typescript-eslint": "^8.58.1"
 	}
 }

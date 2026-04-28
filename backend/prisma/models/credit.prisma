@@ -1,0 +1,132 @@
+model CreditCard {
+    id             String   @id @default(dbgenerated("cuid2()")) @db.VarChar(24)
+    accountId      String   @unique @db.VarChar(24)
+    account        Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+    creditLimit    Decimal  @db.Decimal(12, 2)
+    statementDay   Int      @db.SmallInt
+    dueDay         Int      @db.SmallInt
+    workingDueDate Boolean  @default(false)
+    createdAt      DateTime @default(now())
+    updatedAt      DateTime @default(now()) @updatedAt
+
+    statements CreditCardStatement[]
+    history    CreditCardHistory[]
+}
+
+model CreditCardHistory {
+    id           String     @id @default(dbgenerated("cuid2()")) @db.VarChar(24)
+    creditCardId String     @db.VarChar(24)
+    creditCard   CreditCard @relation(fields: [creditCardId], references: [id], onDelete: Cascade)
+    field        String     @db.VarChar(50)
+    oldValue     String?
+    newValue     String?
+    changedAt    DateTime   @default(now())
+}
+
+model CreditCardStatement {
+    id            String           @id @default(dbgenerated("cuid2()")) @db.VarChar(24)
+    creditCardId  String           @db.VarChar(24)
+    creditCard    CreditCard       @relation(fields: [creditCardId], references: [id], onDelete: Cascade)
+    statementDate DateTime         @db.Date
+    dueDate       DateTime         @db.Date
+    totalAmount   Decimal          @default(0) @db.Decimal(12, 2)
+    paidAmount    Decimal          @default(0) @db.Decimal(12, 2)
+    isPaid        Boolean          @default(false)
+    createdAt     DateTime         @default(now())
+    updatedAt     DateTime         @default(now()) @updatedAt
+
+    purchases CreditPurchase[]
+
+    @@unique([creditCardId, statementDate])
+}
+
+model CreditPurchase {
+    id                 String              @id @default(dbgenerated("cuid2()")) @db.VarChar(24)
+    statementId        String              @db.VarChar(24)
+    statement          CreditCardStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+    description        String              @db.VarChar(500)
+    totalAmount        Decimal             @db.Decimal(12, 2)
+    installments       Int                 @default(1) @db.SmallInt
+    currentInstallment Int                 @default(1) @db.SmallInt
+    installmentAmount  Decimal             @db.Decimal(12, 2)
+    purchaseDate       DateTime            @db.Date
+    categoryId         String?             @db.VarChar(24)
+    category           Category?           @relation(fields: [categoryId], references: [id])
+    parentId           String?             @db.VarChar(24)
+    parent             CreditPurchase?     @relation("InstallmentChain", fields: [parentId], references: [id])
+    children           CreditPurchase[]    @relation("InstallmentChain")
+    createdAt          DateTime            @default(now())
+    updatedAt          DateTime            @default(now()) @updatedAt
+
+    history CreditPurchaseHistory[]
+}
+
+model CreditPurchaseHistory {
+    id               String         @id @default(dbgenerated("cuid2()")) @db.VarChar(24)
+    creditPurchaseId String         @db.VarChar(24)
+    creditPurchase   CreditPurchase @relation(fields: [creditPurchaseId], references: [id], onDelete: Cascade)
+    field            String         @db.VarChar(50)
+    oldValue         String?
+    newValue         String?
+    changedAt        DateTime       @default(now())
+}
+
+model Loan {
+    id                String           @id @default(dbgenerated("cuid2()")) @db.VarChar(24)
+    userId            String           @db.VarChar(24)
+    user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+    lender            String           @db.VarChar(100)
+    principalAmount   Decimal          @db.Decimal(12, 2)
+    interestRate      Decimal          @db.Decimal(5, 4)
+    totalInstallments Int              @db.SmallInt
+    installmentAmount Decimal          @db.Decimal(12, 2)
+    dueDay            Int              @db.SmallInt
+    startDate         DateTime         @db.Date
+    firstDueDate      DateTime         @db.Date
+    description       String?          @db.VarChar(500)
+    amortization      AmortizationType @default(PRICE)
+    createdAt         DateTime         @default(now())
+    updatedAt         DateTime         @default(now()) @updatedAt
+
+    payments LoanPayment[]
+    history  LoanHistory[]
+}
+
+enum AmortizationType {
+    PRICE
+    SAC
+    SACRE
+}
+
+model LoanPayment {
+    id                String       @id @default(dbgenerated("cuid2()")) @db.VarChar(24)
+    loanId            String       @db.VarChar(24)
+    loan              Loan         @relation(fields: [loanId], references: [id], onDelete: Cascade)
+    accountId         String?      @db.VarChar(24)
+    account           Account?     @relation(fields: [accountId], references: [id])
+    installmentNumber Int          @db.SmallInt
+    principalPaid     Decimal      @db.Decimal(12, 2)
+    interestPaid      Decimal      @db.Decimal(12, 2)
+    totalPaid         Decimal      @db.Decimal(12, 2)
+    dueDate           DateTime     @db.Date
+    paidDate          DateTime?    @db.Date
+    isAdvanced        Boolean      @default(false)
+    advanceType       AdvanceType?
+    createdAt         DateTime     @default(now())
+    updatedAt         DateTime     @default(now()) @updatedAt
+}
+
+enum AdvanceType {
+    FRONT
+    BACK
+}
+
+model LoanHistory {
+    id        String   @id @default(dbgenerated("cuid2()")) @db.VarChar(24)
+    loanId    String   @db.VarChar(24)
+    loan      Loan     @relation(fields: [loanId], references: [id], onDelete: Cascade)
+    field     String   @db.VarChar(50)
+    oldValue  String?
+    newValue  String?
+    changedAt DateTime @default(now())
+}

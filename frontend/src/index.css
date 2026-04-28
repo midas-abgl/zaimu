@@ -1,0 +1,516 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+	:root {
+		/* Primary colors from Figma - Light mode */
+		--color-primary-50: 240 241 255;
+		--color-primary-100: 228 229 242;
+		--color-primary-200: 197 199 232;
+		--color-primary-300: 154 158 212;
+		--color-primary-400: 110 116 237;
+		--color-primary-500: 86 94 246;
+		--color-primary-600: 86 93 223;
+		--color-primary-700: 78 86 223;
+		--color-primary-800: 60 64 141;
+		--color-primary-900: 30 33 95;
+
+		/* Accent yellow from Figma */
+		--color-accent-300: 255 216 102;
+		--color-accent-400: 244 208 107;
+		--color-accent-500: 233 199 112;
+
+		/* Light mode backgrounds */
+		--color-bg: 251 251 253;
+		--color-bg-secondary: 252 252 254;
+		--color-bg-card: 228 228 242;
+		--color-bg-elevated: 255 255 255;
+
+		/* Light mode text */
+		--color-text: 36 36 36;
+		--color-text-secondary: 103 103 103;
+		--color-text-tertiary: 171 171 171;
+
+		/* Light mode borders */
+		--color-border: 228 229 242;
+		--color-border-light: 241 241 245;
+
+		/* Semantic colors */
+		--color-success: 34 197 94;
+		--color-danger: 239 68 68;
+		--color-warning: 245 158 11;
+
+		/* Shadows */
+		--shadow-card: 0 4px 20px rgba(30, 33, 95, 0.08);
+		--shadow-card-hover: 0 8px 30px rgba(30, 33, 95, 0.12);
+		--shadow-soft: 0 2px 10px rgba(30, 33, 95, 0.05);
+		--shadow-modal: 0 -4px 32px rgba(30, 33, 95, 0.15);
+	}
+
+	.dark {
+		/* Dark mode - Deep navy from Figma */
+		--color-bg: 30 33 95;
+		--color-bg-secondary: 42 46 127;
+		--color-bg-card: 60 64 141;
+		--color-bg-elevated: 59 63 137;
+
+		/* Dark mode text */
+		--color-text: 255 255 255;
+		--color-text-secondary: 197 199 232;
+		--color-text-tertiary: 154 158 212;
+
+		/* Dark mode borders */
+		--color-border: 60 64 141;
+		--color-border-light: 59 62 137;
+
+		/* Adjusted shadows for dark mode */
+		--shadow-card: 0 4px 20px rgba(0, 0, 0, 0.3);
+		--shadow-card-hover: 0 8px 30px rgba(0, 0, 0, 0.4);
+		--shadow-soft: 0 2px 10px rgba(0, 0, 0, 0.2);
+		--shadow-modal: 0 -4px 32px rgba(0, 0, 0, 0.5);
+	}
+
+	* {
+		box-sizing: border-box;
+		padding: 0;
+		margin: 0;
+	}
+
+	html {
+		font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+	}
+
+	html,
+	body,
+	#root {
+		width: 100%;
+		height: 100%;
+	}
+
+	body {
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+		font-synthesis: none;
+		color: rgb(var(--color-text));
+		background-color: rgb(var(--color-bg));
+		text-rendering: optimizeLegibility;
+		transition:
+			background-color 0.3s ease,
+			color 0.3s ease;
+	}
+
+	/* Safe area handling */
+	body {
+		padding-top: env(safe-area-inset-top);
+		padding-right: env(safe-area-inset-right);
+		padding-bottom: env(safe-area-inset-bottom);
+		padding-left: env(safe-area-inset-left);
+	}
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+	width: 4px;
+	height: 4px;
+}
+
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+	background: rgb(var(--color-primary-300));
+	border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: rgb(var(--color-primary-500));
+}
+
+/* Utility classes */
+@layer components {
+	/* Gradient backgrounds */
+	.gradient-primary {
+		background: linear-gradient(135deg, rgb(var(--color-primary-900)) 0%, rgb(var(--color-primary-800)) 100%);
+	}
+
+	.gradient-primary-vibrant {
+		background: linear-gradient(
+			135deg,
+			rgb(var(--color-primary-700)) 0%,
+			rgb(var(--color-primary-600)) 50%,
+			rgb(var(--color-primary-500)) 100%
+		);
+	}
+
+	.gradient-success {
+		background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+	}
+
+	.gradient-danger {
+		background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+	}
+
+	/* Glass effects */
+	.glass {
+		background: rgba(255, 255, 255, 0.9);
+		-webkit-backdrop-filter: blur(20px);
+		backdrop-filter: blur(20px);
+	}
+
+	.dark .glass {
+		background: rgba(59, 63, 137, 0.9);
+	}
+
+	.glass-subtle {
+		background: rgba(255, 255, 255, 0.7);
+		-webkit-backdrop-filter: blur(10px);
+		backdrop-filter: blur(10px);
+	}
+
+	.dark .glass-subtle {
+		background: rgba(59, 63, 137, 0.7);
+	}
+
+	/* Alias for backward compatibility */
+	.card-glass {
+		@apply glass;
+	}
+
+	/* Card styles */
+	.card {
+		background: rgb(var(--color-bg-elevated));
+		border-radius: 1.25rem;
+		box-shadow: var(--shadow-card);
+		transition: all 0.2s ease-out;
+	}
+
+	.card-flat {
+		background: rgb(var(--color-bg-card));
+		border-radius: 1.25rem;
+		transition: all 0.2s ease-out;
+	}
+
+	.card-interactive {
+		@apply card cursor-pointer;
+	}
+
+	.card-interactive:hover {
+		box-shadow: var(--shadow-card-hover);
+		transform: translateY(-2px);
+	}
+
+	.card-interactive:active {
+		box-shadow: var(--shadow-soft);
+		transform: scale(0.99);
+	}
+
+	/* Button styles - Figma aligned */
+	.btn {
+		@apply inline-flex items-center justify-center gap-2 font-semibold transition-all duration-200;
+		@apply rounded-xl px-5 py-2.5;
+		@apply active:scale-[0.98];
+	}
+
+	.btn-primary {
+		color: white;
+		background: rgb(var(--color-primary-500));
+		@apply btn;
+	}
+
+	.btn-primary:hover {
+		background: rgb(var(--color-primary-600));
+		box-shadow: var(--shadow-card);
+	}
+
+	.btn-secondary {
+		color: rgb(var(--color-text));
+		background: rgb(var(--color-bg-card));
+		@apply btn;
+	}
+
+	.btn-secondary:hover {
+		background: rgb(var(--color-primary-100));
+	}
+
+	.dark .btn-secondary:hover {
+		background: rgb(var(--color-bg-elevated));
+	}
+
+	.btn-accent {
+		color: rgb(var(--color-primary-900));
+		background: rgb(var(--color-accent-300));
+		@apply btn;
+	}
+
+	.btn-accent:hover {
+		background: rgb(var(--color-accent-400));
+	}
+
+	.btn-ghost {
+		color: rgb(var(--color-text-secondary));
+		background: transparent;
+		@apply btn;
+	}
+
+	.btn-ghost:hover {
+		background: rgb(var(--color-bg-card));
+	}
+
+	.btn-danger {
+		color: rgb(var(--color-danger));
+		background: rgb(var(--color-danger) / 0.1);
+		@apply btn;
+	}
+
+	.btn-danger:hover {
+		background: rgb(var(--color-danger) / 0.2);
+	}
+
+	/* Input styles */
+	.input {
+		width: 100%;
+		padding: 0.875rem 1rem;
+		font-size: 1rem;
+		color: rgb(var(--color-text));
+		background: rgb(var(--color-bg-card));
+		border: none;
+		border-radius: 0.875rem;
+		transition: all 0.2s ease;
+	}
+
+	.input::placeholder {
+		color: rgb(var(--color-text-tertiary));
+	}
+
+	.input:focus {
+		outline: none;
+		background: rgb(var(--color-bg-secondary));
+		box-shadow: 0 0 0 2px rgb(var(--color-primary-500) / 0.3);
+	}
+
+	/* Input field with icon support */
+	.input-field {
+		padding-right: 1rem;
+		@apply input;
+	}
+
+	/* Chip styles */
+	.chip {
+		transition: all 0.2s ease;
+		@apply inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium;
+	}
+
+	.chip-primary {
+		color: white;
+		background: rgb(var(--color-primary-500));
+		@apply chip;
+	}
+
+	.chip-secondary {
+		color: rgb(var(--color-text));
+		background: rgb(var(--color-bg-card));
+		@apply chip;
+	}
+
+	.chip-accent {
+		color: rgb(var(--color-primary-900));
+		background: rgb(var(--color-accent-300));
+		@apply chip;
+	}
+
+	/* Icon containers */
+	.icon-box {
+		width: 3rem;
+		height: 3rem;
+		@apply flex items-center justify-center rounded-2xl;
+	}
+
+	.icon-box-sm {
+		width: 2.5rem;
+		height: 2.5rem;
+		border-radius: 0.75rem;
+		@apply icon-box;
+	}
+
+	.icon-box-lg {
+		width: 4rem;
+		height: 4rem;
+		@apply icon-box;
+	}
+
+	/* Amount display */
+	.amount-positive {
+		font-weight: 600;
+		color: rgb(var(--color-success));
+	}
+
+	.amount-negative {
+		font-weight: 600;
+		color: rgb(var(--color-danger));
+	}
+
+	/* Toggle switch */
+	.toggle {
+		background: rgb(var(--color-bg-card));
+		@apply relative inline-flex h-7 w-12 cursor-pointer rounded-full transition-colors duration-200;
+	}
+
+	.toggle[data-checked="true"] {
+		background: rgb(var(--color-primary-500));
+	}
+
+	.toggle-thumb {
+		@apply absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow-md transition-transform duration-200;
+	}
+
+	.toggle[data-checked="true"] .toggle-thumb {
+		transform: translateX(1.25rem);
+	}
+
+	/* Modal overlay */
+	.modal-overlay {
+		background: rgb(var(--color-primary-900) / 0.5);
+		-webkit-backdrop-filter: blur(4px);
+		backdrop-filter: blur(4px);
+		@apply fixed inset-0 z-50;
+	}
+
+	/* Modal sheet */
+	.modal-sheet {
+		max-height: 90vh;
+		overflow-y: auto;
+		background: rgb(var(--color-bg-elevated));
+		box-shadow: var(--shadow-modal);
+		@apply fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl;
+	}
+
+	.modal-handle {
+		background: rgb(var(--color-border));
+		@apply absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full;
+	}
+
+	/* Section header */
+	.section-header {
+		color: rgb(var(--color-text-secondary));
+		@apply text-sm font-medium px-1 mb-2;
+	}
+
+	/* Divider */
+	.divider {
+		border-color: rgb(var(--color-border-light));
+		@apply border-t;
+	}
+
+	/* List item */
+	.list-item {
+		@apply flex items-center gap-4 p-4 transition-colors;
+	}
+
+	.list-item:hover {
+		background: rgb(var(--color-bg-card) / 0.5);
+	}
+
+	.list-item:active {
+		background: rgb(var(--color-bg-card));
+	}
+}
+
+/* Animations */
+@layer utilities {
+	.animate-fade-in {
+		animation: fadeIn 0.3s ease-out forwards;
+	}
+
+	.animate-slide-up {
+		animation: slideUp 0.35s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+	}
+
+	.animate-slide-down {
+		animation: slideDown 0.3s ease-out forwards;
+	}
+
+	.animate-scale-in {
+		animation: scaleIn 0.2s ease-out forwards;
+	}
+
+	.animate-bounce-in {
+		animation: bounceIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+	}
+}
+
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes slideUp {
+	from {
+		opacity: 0;
+		transform: translateY(100%);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes slideDown {
+	from {
+		opacity: 0;
+		transform: translateY(-20px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes scaleIn {
+	from {
+		opacity: 0;
+		transform: scale(0.9);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+
+@keyframes bounceIn {
+	from {
+		opacity: 0;
+		transform: scale(0.3);
+	}
+	50% {
+		opacity: 1;
+		transform: scale(1.05);
+	}
+	to {
+		transform: scale(1);
+	}
+}
+
+/* Prevent text selection on interactive elements */
+.no-select {
+	-webkit-user-select: none;
+	user-select: none;
+	-webkit-touch-callout: none;
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+	display: none;
+}

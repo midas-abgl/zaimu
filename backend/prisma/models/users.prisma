@@ -1,0 +1,42 @@
+model User {
+    id        String   @id @default(dbgenerated("cuid2()")) @db.VarChar(24)
+    email     String   @unique @db.VarChar(320)
+    password  String   @db.VarChar(128)
+    name      String?  @db.VarChar(100)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @default(now()) @updatedAt
+
+    accounts      Account[]
+    debts         Debt[]
+    loans         Loan[]
+    salaries      Salary[]
+    subscriptions Subscription[]
+    categories    Category[]
+}
+
+model Account {
+    id        String      @id @default(dbgenerated("cuid2()")) @db.VarChar(24)
+    userId    String      @db.VarChar(24)
+    user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+    name      String      @db.VarChar(70)
+    type      AccountType @default(CHECKING)
+    balance   Decimal     @default(0) @db.Decimal(12, 2)
+    createdAt DateTime    @default(now())
+    updatedAt DateTime    @default(now()) @updatedAt
+
+    creditCard       CreditCard?
+    transactionsFrom Transaction[] @relation("Transaction_origin")
+    transactionsTo   Transaction[] @relation("Transaction_destination")
+    loanPayments     LoanPayment[]
+    salaryPayments   SalaryPayment[]
+
+    @@unique([userId, name])
+}
+
+enum AccountType {
+    CHECKING
+    SAVINGS
+    INVESTMENT
+    CASH
+    CREDIT_CARD
+}
