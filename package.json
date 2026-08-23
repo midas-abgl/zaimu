@@ -1,33 +1,39 @@
 {
 	"name": "zaimu",
+	"version": "1.0.0",
 	"private": true,
+	"type": "module",
+	"packageManager": "bun@1.3.12",
+	"workspaces": [
+		"backend",
+		"frontend"
+	],
 	"scripts": {
-		"build": "next build",
-		"dev": "next dev",
-		"export": "next export",
-		"prepare": "husky",
-		"start": "next start"
-	},
-	"lint-staged": {
-		"**/*.(js|jsx|ts|tsx)": ["biome format --write"]
-	},
-	"dependencies": {
-		"next": "^14.1.0",
-		"react": "^18.2.0",
-		"react-dom": "^18.2.0",
-		"sass": "^1.70.0"
+		"build": "turbo build",
+		"commit": "git add . && bun committier ai",
+		"dev": "turbo dev",
+		"dev:frontend": "bun -F frontend tauri dev",
+		"format": "bun format:biome . && bun format:eslint .",
+		"format:biome": "bunx biome check --diagnostic-level=error --write --unsafe",
+		"format:eslint": "bunx eslint --quiet --fix",
+		"prepare": "bun run ./prepare.ts || true",
+		"start": "turbo start"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^1.5.3",
-		"@next/env": "^14.1.0",
-		"@svgr/webpack": "^8.1.0",
-		"@tsconfig/next": "^2.0.1",
-		"@types/node": "^20.11.17",
-		"@types/react": "^18.2.55",
-		"@types/react-dom": "^18.2.19",
-		"husky": "^9.0.10",
-		"lint-staged": "^15.2.2",
-		"typescript": "^5.3.3"
-	},
-	"packageManager": "bun@1.0.26"
+		"@biomejs/biome": "^2.5.3",
+		"@commitlint/cli": "^20.5.3",
+		"@commitlint/config-conventional": "^20.5.3",
+		"@commitlint/types": "^20.5.0",
+		"@eslint/js": "^10.0.1",
+		"@hyoretsu/configs": "^1.2.35",
+		"@types/bun": "^1.3.14",
+		"@types/node": "^25.9.5",
+		"committier": "^0.2.3",
+		"eslint": "^10.7.0",
+		"eslint-config-biome": "^2.1.3",
+		"lint-staged": "^16.4.0",
+		"turbo": "^2.10.4",
+		"typescript": "^6.0.3",
+		"typescript-eslint": "^8.63.0"
+	}
 }

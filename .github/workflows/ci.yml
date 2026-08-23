@@ -1,0 +1,143 @@
+name: CI
+
+on:
+  pull_request:
+
+jobs:
+  detect:
+    name: Detect affected
+    runs-on: ubuntu-latest
+    outputs:
+      deployable: ${{ github.base_ref == 'main' || github.base_ref == 'staging' }}
+      tasks: ${{ steps.affected.outputs.tasks }}
+      # Secrets can't be read in a job-level `if:`, so surface their presence as
+      # outputs and let DB-dependent jobs gate on them (skip rather than fail when unset).
+      has-test-db: ${{ steps.db-secrets.outputs.has-test-db }}
+      has-shadow-db: ${{ steps.db-secrets.outputs.has-shadow-db }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          # Need the base commit present to diff the PR against it.
+          fetch-depth: 0
+
+      - name: Detect available database secrets
+        id: db-secrets
+        # Only the boolean (true/false) is written — the secret values never reach the log.
+        run: |
+          {
+            echo "has-test-db=${{ secrets.DATABASE_TEST_URL != '' }}"
+            echo "has-shadow-db=${{ secrets.DATABASE_SHADOW_URL != '' }}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Compute affected packages
+        id: affected
+        uses: hyoretsu/gh-actions/detect-affected@main
+        with:
+          tasks: check-types build test:unit test:e2e migrate:deploy
+          base-sha: ${{ github.event.pull_request.base.sha }}
+
+  build:
+    name: "${{ matrix.package }} / Build"
+    needs: detect
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.detect.outputs.tasks)['build'] }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Build
+        uses: hyoretsu/gh-actions/build@main
+        with:
+          package: ${{ matrix.package }}
+
+  android:
+    name: "frontend / Android build"
+    needs: detect
+    if: contains(fromJSON(needs.detect.outputs.tasks)['build'], 'frontend')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Build Android app (debug, unsigned)
+        uses: hyoretsu/gh-actions/tauri-android-build@main
+        with:
+          args: --debug --apk
+
+  check-types:
+    name: "${{ matrix.package }} / Type-check"
+    needs: detect
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.detect.outputs.tasks)['check-types'] }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Check types
+        uses: hyoretsu/gh-actions/check-types@main
+        with:
+          package: ${{ matrix.package }}
+
+  migrate:
+    name: "${{ matrix.package }} / Migration check"
+    needs: detect
+    if: needs.detect.outputs.deployable == 'true' && needs.detect.outputs.has-shadow-db == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.detect.outputs.tasks)['migrate:deploy'] }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Apply pending migrations to disposable database
+        uses: hyoretsu/gh-actions/migrate@main
+        with:
+          check: "true"
+          package: ${{ matrix.package }}
+          database-url: ${{ secrets.DATABASE_SHADOW_URL }}
+
+  test_e2e:
+    name: "${{ matrix.package }} / E2E tests"
+    needs: detect
+    # Needs a real Postgres; skip (rather than fail) when DATABASE_TEST_URL isn't configured.
+    if: needs.detect.outputs.deployable == 'true' && needs.detect.outputs.has-test-db == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.detect.outputs.tasks)['test:e2e'] }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Run E2E tests
+        uses: hyoretsu/gh-actions/test-e2e@main
+        with:
+          package: ${{ matrix.package }}
+          database-url: ${{ secrets.DATABASE_TEST_URL }}
+
+  test_unit:
+    name: "${{ matrix.package }} / Unit tests"
+    needs: detect
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.detect.outputs.tasks)['test:unit'] }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Run unit tests
+        uses: hyoretsu/gh-actions/test-unit@main
+        with:
+          package: ${{ matrix.package }}

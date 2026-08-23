@@ -1,0 +1,185 @@
+name: CD
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  detect:
+    name: Detect affected
+    runs-on: ubuntu-latest
+    outputs:
+      # {"build":["backend","frontend",...]} — only packages with a build script are included.
+      # The web (GHCR) job fans out over this list; the Tauri jobs gate on whether
+      # "frontend" is in it. A push that touches neither builds nothing.
+      # An empty base-sha (workflow_dispatch / first push) plans every service.
+      tasks: ${{ steps.affected.outputs.tasks }}
+      # JSON array of variant keys from frontend/variants.json, e.g. ["default","demo-acai"]
+      variants: ${{ steps.variants.outputs.keys }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          # Need history present so Turbo's --affected can diff against the base.
+          fetch-depth: 0
+
+      - name: Compute affected services
+        id: affected
+        uses: hyoretsu/gh-actions/detect-affected@main
+        with:
+          tasks: build
+          base-sha: ${{ github.event.before }}
+
+      - name: Read variant keys
+        id: variants
+        run: |
+          keys=$(jq -c '[.[].key]' frontend/variants.json)
+          echo "keys=$keys" >> "$GITHUB_OUTPUT"
+
+  ghcr-backend:
+    name: Build and publish backend image
+    needs: detect
+    if: ${{ contains(fromJSON(needs.detect.outputs.tasks).build, 'backend') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Build and publish image
+        uses: hyoretsu/gh-actions/ghcr@main
+        with:
+          image: ghcr.io/${{ github.repository }}_backend
+          dockerfile: backend/Dockerfile
+          build-args: |
+            NODE_ENV=production
+          secrets: DATABASE_URL=${{ secrets.DATABASE_URL }}
+          cache-scope: backend
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+  ghcr-frontend:
+    name: Build and publish frontend image (${{ matrix.variant }})
+    needs: detect
+    if: ${{ contains(fromJSON(needs.detect.outputs.tasks).build, 'frontend') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: ${{ fromJSON(needs.detect.outputs.variants) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Inject variant
+        run: bun scripts/inject-variant.ts --key=${{ matrix.variant }}
+
+      - name: Build and publish image
+        uses: hyoretsu/gh-actions/ghcr@main
+        with:
+          # Each variant gets its own tagged image: frontend-default, frontend-demo-acai, …
+          image: ghcr.io/${{ github.repository }}_frontend-${{ matrix.variant }}
+          dockerfile: frontend/Dockerfile
+          build-args: |
+            NODE_ENV=production
+            VITE_API_URL=${{ vars.VITE_API_URL }}
+            VITE_APP_URL=${{ vars.VITE_APP_URL }}
+          cache-scope: frontend-${{ matrix.variant }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+  desktop:
+    name: Build & release ${{ matrix.label }} app
+    needs: detect
+    # Only the Tauri frontend produces these apps; skip when it isn't affected.
+    if: ${{ contains(fromJSON(needs.detect.outputs.tasks).build, 'frontend') }}
+    permissions:
+      # tauri-action creates the GitHub release / uploads the installers.
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            label: Windows
+          - platform: ubuntu-latest
+            label: Linux
+          - platform: macos-latest
+            label: macOS
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Build & release desktop app
+        uses: hyoretsu/gh-actions/tauri-build@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          release-name: Template App v__VERSION__
+
+  android:
+    name: Build & release Android app
+    needs: detect
+    if: ${{ contains(fromJSON(needs.detect.outputs.tasks).build, 'frontend') }}
+    runs-on: ubuntu-latest
+    permissions:
+      # softprops/action-gh-release creates the GitHub release / uploads the APK.
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Build Android app (APK + AAB)
+        id: build
+        uses: hyoretsu/gh-actions/tauri-android-build@main
+        with:
+          keystore-base64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          keystore-password: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          key-alias: ${{ secrets.ANDROID_KEY_ALIAS }}
+
+      - name: Publish APK to GitHub release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Same tag the desktop job uses; the action creates it once and appends assets.
+          tag_name: v${{ steps.build.outputs.version }}
+          name: Template App v${{ steps.build.outputs.version }}
+          draft: false
+          prerelease: false
+          # AAB goes to Play, not the release — only attach the signed APK(s).
+          files: ${{ steps.build.outputs.apk-glob }}
+
+      # Store uploads consume the single build above; add one step per store.
+      - name: Upload AAB to Google Play
+        if: vars.ANDROID_PACKAGE_NAME != ''
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ${{ vars.ANDROID_PACKAGE_NAME }}
+          releaseFiles: ${{ steps.build.outputs.aab-glob }}
+          track: production
+          status: completed
+
+  ios:
+    name: Build iOS app (stub)
+    needs: detect
+    if: ${{ contains(fromJSON(needs.detect.outputs.tasks).build, 'frontend') }}
+    # Stub slot: iOS shipping needs a macOS runner, an Apple Developer account and
+    # signing certs/provisioning profiles that aren't wired up yet. Kept as a
+    # placeholder so the platform is tracked; flip to a real build once those exist.
+    runs-on: ubuntu-latest
+    steps:
+      - name: iOS build not configured
+        run: |
+          echo "::notice title=iOS::iOS build is a stub."
+          echo "To enable: run on macos-latest, 'bun tauri ios init', then"
+          echo "'bun tauri ios build' with APPLE signing secrets and a provisioning profile."

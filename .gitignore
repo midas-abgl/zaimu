@@ -1,23 +1,27 @@
+**/build
 **/dist
 **/node_modules
+**/static
 **/tmp
-**/.vscode
+/.turbo
+/.vscode
+!/.vscode/extensions.json
 !/.vscode/launch.json
+!/.vscode/settings.json
 !.gitkeep
 *.log
-public/cwr.js
 
 # Env files
 **/.env
 **/.env*.local
 
-# Next.js
-.next
-out/
-
 # Test files
 **/coverage
 
+# Local agent settings
+/.claude/settings.local.json
+/.codex
+
 # TypeScript
-next-env.d.ts
 *.tsbuildinfo
+next-env.d.ts
