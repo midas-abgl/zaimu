@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { apiUrl } from "@/lib/auth-client";
 import { AuthAlert, AuthShell, PasswordField } from "./components";
 
-interface ResetSearch {
+export interface ResetSearch {
 	token?: string;
 }
 

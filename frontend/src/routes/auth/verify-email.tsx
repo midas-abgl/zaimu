@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { apiUrl } from "@/lib/auth-client";
 import { AuthAlert, AuthShell } from "./components";
 
-interface VerifySearch {
+export interface VerifySearch {
 	sent?: string;
 	token?: string;
 }
