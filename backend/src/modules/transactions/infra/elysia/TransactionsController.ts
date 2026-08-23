@@ -274,7 +274,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			}
 
 			if (historyEntries.length > 0) {
-				await executeStatement(db.sql.public.TransactionHistory.insert(historyEntries).build());
+				await executeStatement(db.sql.public.TransactionHistory.insert(historyEntries as never).build());
 			}
 
 			const transaction = await queryFirst(
@@ -285,7 +285,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					...(body.type && { type: body.type }),
 					...(body.categoryId !== undefined && { categoryId: body.categoryId }),
 					updatedAt: new Date(),
-				})
+				} as never)
 					.where((f, fn) => fn.eq(f.id, params.id))
 					.returning(...transactionColumns)
 					.build(),

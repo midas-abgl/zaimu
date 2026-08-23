@@ -249,7 +249,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			}
 
 			if (historyEntries.length > 0) {
-				await executeStatement(db.sql.public.DebtHistory.insert(historyEntries).build());
+				await executeStatement(db.sql.public.DebtHistory.insert(historyEntries as never).build());
 			}
 
 			const debt = await queryFirst(
@@ -264,7 +264,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 					...(body.isPaid !== undefined && { isPaid: body.isPaid }),
 					...(body.isPaid && { paidDate: new Date() }),
 					updatedAt: new Date(),
-				})
+				} as never)
 					.where((fields, functions) => functions.eq(fields.id, params.id))
 					.returning(...debtColumns)
 					.build(),

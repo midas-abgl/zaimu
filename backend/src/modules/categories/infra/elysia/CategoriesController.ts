@@ -130,7 +130,7 @@ export const CategoriesController = new Elysia({ prefix: "/categories" })
 					...(body.icon !== undefined && { icon: body.icon }),
 					...(body.parentId !== undefined && { parentId: body.parentId }),
 					updatedAt: new Date(),
-				})
+				} as never)
 					.where((fields, functions) => functions.eq(fields.id, params.id))
 					.returning("id", "userId", "name", "color", "icon", "parentId", "createdAt", "updatedAt")
 					.build(),

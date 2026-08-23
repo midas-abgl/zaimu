@@ -215,7 +215,7 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 			}
 
 			if (historyEntries.length > 0) {
-				await executeStatement(db.sql.public.SubscriptionHistory.insert(historyEntries).build());
+				await executeStatement(db.sql.public.SubscriptionHistory.insert(historyEntries as never).build());
 			}
 
 			const subscription = await queryFirst(
@@ -230,7 +230,7 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 					}),
 					...(body.isActive !== undefined && { isActive: body.isActive }),
 					updatedAt: new Date(),
-				})
+				} as never)
 					.where((fields, functions) => functions.eq(fields.id, params.id))
 					.returning(...subscriptionColumns)
 					.build(),

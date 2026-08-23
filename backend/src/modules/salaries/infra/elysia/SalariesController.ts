@@ -260,7 +260,7 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 			}
 
 			if (historyEntries.length > 0) {
-				await executeStatement(db.sql.public.SalaryHistory.insert(historyEntries).build());
+				await executeStatement(db.sql.public.SalaryHistory.insert(historyEntries as never).build());
 			}
 
 			const salary = await queryFirst(
@@ -275,7 +275,7 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 					}),
 					...(body.isActive !== undefined && { isActive: body.isActive }),
 					updatedAt: new Date(),
-				})
+				} as never)
 					.where((fields, functions) => functions.eq(fields.id, params.id))
 					.returning(...salaryColumns)
 					.build(),

@@ -199,7 +199,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 			}
 
 			if (historyEntries.length > 0) {
-				await executeStatement(db.sql.public.RecurringPaymentHistory.insert(historyEntries).build());
+				await executeStatement(db.sql.public.RecurringPaymentHistory.insert(historyEntries as never).build());
 			}
 
 			const payment = await queryFirst(
@@ -216,7 +216,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 					...(body.paymentMethod && { paymentMethod: body.paymentMethod }),
 					...(body.isActive !== undefined && { isActive: body.isActive }),
 					updatedAt: new Date(),
-				})
+				} as never)
 					.where((fields, functions) => functions.eq(fields.id, params.id))
 					.returning(...recurringColumns)
 					.build(),

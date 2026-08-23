@@ -185,11 +185,14 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 			};
 			if (existing)
 				await executeStatement(
-					db.sql.public.RecurringPayment.update(values)
+					db.sql.public.RecurringPayment.update(values as never)
 						.where((f, fn) => fn.and(fn.eq(f.id, id), fn.eq(f.userId, userId)))
 						.build(),
 				);
-			else await executeStatement(db.sql.public.RecurringPayment.insert([{ ...values, id, userId }]).build());
+			else
+				await executeStatement(
+					db.sql.public.RecurringPayment.insert([{ ...values, id, userId }] as never).build(),
+				);
 			recurringIds.add(id);
 		});
 
@@ -305,11 +308,11 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 			};
 			if (existing)
 				await executeStatement(
-					db.sql.public.Debt.update(values)
+					db.sql.public.Debt.update(values as never)
 						.where((f, fn) => fn.and(fn.eq(f.id, id), fn.eq(f.userId, userId)))
 						.build(),
 				);
-			else await executeStatement(db.sql.public.Debt.insert([{ ...values, id, userId }]).build());
+			else await executeStatement(db.sql.public.Debt.insert([{ ...values, id, userId }] as never).build());
 		});
 
 		await sync("loans", body.loans, async entity => {
@@ -367,11 +370,11 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 			};
 			if (existing)
 				await executeStatement(
-					db.sql.public.Salary.update(values)
+					db.sql.public.Salary.update(values as never)
 						.where((f, fn) => fn.and(fn.eq(f.id, id), fn.eq(f.userId, userId)))
 						.build(),
 				);
-			else await executeStatement(db.sql.public.Salary.insert([{ ...values, id, userId }]).build());
+			else await executeStatement(db.sql.public.Salary.insert([{ ...values, id, userId }] as never).build());
 		});
 
 		await sync("subscriptions", body.subscriptions, async entity => {
@@ -400,11 +403,14 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 			};
 			if (existing)
 				await executeStatement(
-					db.sql.public.Subscription.update(values)
+					db.sql.public.Subscription.update(values as never)
 						.where((f, fn) => fn.and(fn.eq(f.id, id), fn.eq(f.userId, userId)))
 						.build(),
 				);
-			else await executeStatement(db.sql.public.Subscription.insert([{ ...values, id, userId }]).build());
+			else
+				await executeStatement(
+					db.sql.public.Subscription.insert([{ ...values, id, userId }] as never).build(),
+				);
 		});
 
 		await sync("transactions", body.transactions, async entity => {

@@ -27,7 +27,9 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 		const getTransactionTotal = async (type: "INCOME" | "EXPENSE", start: Date, end: Date) => {
 			if (accountIds.length === 0) return { total: 0 };
 			return queryFirst(
-				db.sql.public.Transaction.select("total", (f, fn) => fn.sum(f.amount))
+				db.sql.public.Transaction.select("total", (f, fn) =>
+					fn.raw`COALESCE(SUM(${f.amount}), 0)`.returns("pg/numeric@1"),
+				)
 					.where((f, fn) =>
 						fn.and(
 							fn.eq(f.type, type),
@@ -101,7 +103,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 		const loansWithPayments = await Promise.all(
 			loans.map(async loan => {
 				const paidCount = await queryFirst(
-					db.sql.public.LoanPayment.select("count", (f, fn) => fn.count(f.id))
+					db.sql.public.LoanPayment.select("count", (f, fn) => fn.raw`COUNT(${f.id})`.returns("pg/int8@1"))
 						.where((f, fn) =>
 							fn.and(fn.eq(f.loanId, loan.id), fn.raw`${f.paidDate} IS NOT NULL`.returns("pg/bool@1")),
 						)

@@ -286,7 +286,11 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				);
 				if (!purchase) throw new HttpException("Purchase not created", 500);
 
-				createdPurchases.push(purchase);
+				createdPurchases.push({
+					...purchase,
+					installmentAmount: Number(purchase.installmentAmount),
+					totalAmount: Number(purchase.totalAmount),
+				});
 
 				// Update statement total
 				const amount = param(numeric<12, 2>(installmentAmount), { codecId: "pg/numeric@1" });

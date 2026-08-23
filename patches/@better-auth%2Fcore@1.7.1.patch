@@ -1,0 +1,12 @@
+diff --git a/package.json b/package.json
+index be462b5384548afd2e62a8f589d603afff9edf85..e2d65691326c5ef209dd36f25955ca347b3a45c3 100644
+--- a/package.json
++++ b/package.json
+@@ -179,7 +179,6 @@
+     "@opentelemetry/api": "^1.9.0",
+     "better-call": "1.4.0",
+     "jose": "^6.1.0",
+-    "kysely": "^0.28.5 || ^0.29.0",
+     "nanostores": "^1.0.1"
+   },
+   "peerDependenciesMeta": {

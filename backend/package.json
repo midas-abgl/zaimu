@@ -12,6 +12,7 @@
 		"test:unit": "bun test src"
 	},
 	"dependencies": {
+		"@better-auth/core": "1.7.1",
 		"@elysiajs/bearer": "^1.4.2",
 		"@elysiajs/cors": "^1.4.1",
 		"@elysiajs/jwt": "^1.4.0",

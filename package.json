@@ -37,5 +37,9 @@
 		"turbo": "^2.10.4",
 		"typescript": "^6.0.3",
 		"typescript-eslint": "^8.63.0"
+	},
+	"patchedDependencies": {
+		"better-auth@1.7.1": "patches/better-auth@1.7.1.patch",
+		"@better-auth/core@1.7.1": "patches/@better-auth%2Fcore@1.7.1.patch"
 	}
 }

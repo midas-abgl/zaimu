@@ -1,11 +1,12 @@
 export {
+	and,
 	type Contract,
 	closeDatabase,
 	db,
 	executeStatement,
 	numeric,
+	or,
 	param,
-	pool,
 	queryFirst,
 	queryRows,
 } from "sql";
