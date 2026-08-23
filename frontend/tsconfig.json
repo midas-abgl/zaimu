@@ -1,11 +1,11 @@
 {
 	"compilerOptions": {
-		"lib": ["ES2020", "DOM", "DOM.Iterable"],
 		"paths": {
 			"@/*": ["./src/*"]
 		},
-		"types": ["bun", "vite/client"]
+		"types": ["bun", "node", "vite/client"]
 	},
-	"extends": "@hyoretsu/configs/ts",
-	"include": ["src"]
+	"exclude": ["node_modules"],
+	"extends": "@hyoretsu/configs/ts-frontend",
+	"include": ["src/**/*.ts", "src/**/*.tsx", "src/**/.*/**/*"]
 }
