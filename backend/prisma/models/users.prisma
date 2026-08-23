@@ -1,0 +1,95 @@
+model User {
+    id            String    @id @default(dbgenerated("cuid2()")) @db.VarChar(36)
+    email         String    @unique @db.VarChar(320)
+    emailVerified Boolean   @default(false)
+    image         String?   @db.VarChar(2048)
+    name          String    @db.VarChar(100)
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @default(now()) @updatedAt
+
+    financialAccounts FinancialAccount[]
+    sessions          Session[]
+    authAccounts      AuthAccount[]
+    debts         Debt[]
+    loans         Loan[]
+    salaries      Salary[]
+    subscriptions Subscription[]
+    categories    Category[]
+
+    @@map("user")
+}
+
+model Session {
+    id        String   @id @default(dbgenerated("cuid2()")) @db.VarChar(36)
+    expiresAt DateTime
+    token     String   @unique @db.VarChar(512)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @default(now()) @updatedAt
+    ipAddress String?  @db.VarChar(64)
+    userAgent String?  @db.VarChar(1024)
+    userId    String   @db.VarChar(36)
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([userId])
+    @@map("session")
+}
+
+model AuthAccount {
+    id                    String    @id @default(dbgenerated("cuid2()")) @db.VarChar(36)
+    accountId             String    @db.VarChar(320)
+    providerId            String    @db.VarChar(100)
+    userId                String    @db.VarChar(36)
+    user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    accessToken           String?
+    refreshToken          String?
+    idToken               String?
+    accessTokenExpiresAt  DateTime?
+    refreshTokenExpiresAt DateTime?
+    scope                 String?
+    password              String?   @db.VarChar(255)
+    createdAt             DateTime  @default(now())
+    updatedAt             DateTime  @default(now()) @updatedAt
+
+    @@unique([providerId, accountId])
+    @@index([userId])
+    @@map("account")
+}
+
+model Verification {
+    id         String   @id @default(dbgenerated("cuid2()")) @db.VarChar(36)
+    identifier String   @db.VarChar(320)
+    value      String
+    expiresAt  DateTime
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @default(now()) @updatedAt
+
+    @@index([identifier])
+    @@map("verification")
+}
+
+model FinancialAccount {
+    id        String      @id @default(dbgenerated("cuid2()")) @db.VarChar(36)
+    userId    String      @db.VarChar(36)
+    user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+    name      String      @db.VarChar(70)
+    type      FinancialAccountType @default(CHECKING)
+    balance   Decimal     @default(0) @db.Decimal(12, 2)
+    createdAt DateTime    @default(now())
+    updatedAt DateTime    @default(now()) @updatedAt
+
+    creditCard       CreditCard?
+    transactionsFrom Transaction[] @relation("Transaction_origin")
+    transactionsTo   Transaction[] @relation("Transaction_destination")
+    loanPayments     LoanPayment[]
+    salaryPayments   SalaryPayment[]
+
+    @@unique([userId, name])
+}
+
+enum FinancialAccountType {
+    CHECKING
+    SAVINGS
+    INVESTMENT
+    CASH
+    CREDIT_CARD
+}

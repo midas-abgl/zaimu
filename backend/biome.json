@@ -1,0 +1,8 @@
+{
+	"$schema": "../node_modules/@biomejs/biome/configuration_schema.json",
+	"extends": ["@hyoretsu/configs/biome-elysia"],
+	"files": {
+		"includes": ["!db/types.ts", "!generated", "!src/generated"]
+	},
+	"root": false
+}

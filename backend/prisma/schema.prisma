@@ -1,0 +1,20 @@
+generator client {
+  provider        = "prisma-client"
+  moduleFormat    = "esm"
+  runtime         = "bun"
+  output          = "../generated/prisma"
+  previewFeatures = ["driverAdapters", "nativeDistinct", "postgresqlExtensions", "queryCompiler", "relationJoins", "strictUndefinedChecks", "views"]
+}
+
+generator kysely {
+  provider            = "prisma-kysely"
+  output              = "../db"
+  fileName            = "types.ts"
+  decimalTypeOverride = "number"
+  jsonTypeOverride    = "Record<string,any>"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
