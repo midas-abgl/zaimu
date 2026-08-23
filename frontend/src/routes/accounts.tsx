@@ -1,0 +1,107 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
+import { LuLandmark, LuWalletCards } from "react-icons/lu";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { dataService } from "@/lib/dataService";
+import { showToast, useAuthStore } from "@/stores";
+import { CreateFinancialAccountDialog, FinancialAccountCard } from "./accounts/components";
+
+const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
+
+function AccountsPage() {
+	const queryClient = useQueryClient();
+	const hasAccess = useAuthStore(state => state.isAuthenticated || state.isGuestMode);
+	const accounts = useQuery({
+		enabled: hasAccess,
+		queryFn: () => dataService.accounts.getAll(),
+		queryKey: ["financial-accounts"],
+	});
+	const createAccount = useMutation({
+		mutationFn: dataService.accounts.create,
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
+			await queryClient.invalidateQueries({ queryKey: ["credit-cards"] });
+			showToast("Conta cadastrada.", "positive");
+		},
+	});
+	const deleteAccount = useMutation({
+		mutationFn: dataService.accounts.delete,
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
+			showToast("Conta excluída.", "positive");
+		},
+	});
+	const totalBalance =
+		accounts.data
+			?.filter(account => account.type !== "CREDIT_CARD")
+			.reduce((sum, account) => sum + account.balance, 0) ?? 0;
+
+	return (
+		<div className="mx-auto grid w-full max-w-7xl gap-8 px-5 py-8 sm:px-8 lg:py-10">
+			<PageHeader
+				actions={
+					<CreateFinancialAccountDialog
+						onCreate={async data => {
+							await createAccount.mutateAsync(data);
+						}}
+						pending={createAccount.isPending}
+					/>
+				}
+				description="Organize bancos, dinheiro, investimentos e cartões sem misturar a tabela de autenticação."
+				eyebrow="Patrimônio"
+				title="Contas financeiras"
+			/>
+			<section className="grid gap-4 sm:grid-cols-2">
+				<div className="rounded-2xl bg-brand-indigo p-5 text-white shadow-card">
+					<p className="text-sm text-white/70">Saldo total</p>
+					<p className="mt-2 font-bold text-3xl">{currency.format(totalBalance)}</p>
+				</div>
+				<div className="rounded-2xl border bg-brand-yellow p-5 text-brand-ink shadow-card">
+					<p className="text-brand-ink/65 text-sm">Contas cadastradas</p>
+					<p className="mt-2 font-bold text-3xl">{accounts.data?.length ?? 0}</p>
+				</div>
+			</section>
+			{accounts.isPending ? (
+				<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+					{[1, 2, 3].map(item => (
+						<Skeleton className="h-44" key={item} />
+					))}
+				</div>
+			) : accounts.isError ? (
+				<EmptyState
+					description="Tente novamente em instantes."
+					icon={<LuLandmark className="size-6" />}
+					title="Não foi possível carregar suas contas"
+				/>
+			) : accounts.data?.length ? (
+				<section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+					{accounts.data.map(account => (
+						<FinancialAccountCard
+							account={account}
+							key={account.id}
+							onDelete={() => deleteAccount.mutateAsync(account.id)}
+						/>
+					))}
+				</section>
+			) : (
+				<EmptyState
+					action={
+						<CreateFinancialAccountDialog
+							onCreate={async data => {
+								await createAccount.mutateAsync(data);
+							}}
+							pending={createAccount.isPending}
+						/>
+					}
+					description="Comece com sua conta principal ou cadastre um cartão de crédito diretamente."
+					icon={<LuWalletCards className="size-7" />}
+					title="Nenhuma conta cadastrada"
+				/>
+			)}
+		</div>
+	);
+}
+
+export const Route = createFileRoute("/accounts")({ component: AccountsPage });

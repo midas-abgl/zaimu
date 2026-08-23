@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Zaimu">
+  <rect width="512" height="512" rx="128" fill="#4F53B7"/>
+  <circle cx="382" cy="130" r="78" fill="#FFD866"/>
+  <path d="M117 143h246v69L217 369h152v72H111v-69l146-157H117z" fill="#FFFFFF"/>
+</svg>

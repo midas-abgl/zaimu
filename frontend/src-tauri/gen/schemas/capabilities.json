@@ -1,0 +1,9 @@
+{
+	"default": {
+		"description": "Permissões da janela principal do Zaimu",
+		"identifier": "default",
+		"local": true,
+		"permissions": ["core:default", "deep-link:default"],
+		"windows": ["main"]
+	}
+}
