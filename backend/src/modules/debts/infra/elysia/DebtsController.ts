@@ -1,25 +1,46 @@
 import Elysia, { t } from "elysia";
 import { assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
-import { db } from "~/shared/infra/sql";
+import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
+
+const debtColumns = [
+	"id",
+	"userId",
+	"personName",
+	"amount",
+	"description",
+	"isOwedToMe",
+	"date",
+	"dueDate",
+	"isPaid",
+	"paidDate",
+	"createdAt",
+	"updatedAt",
+] as const;
 
 export const DebtsController = new Elysia({ prefix: "/debts" })
 	.get(
 		"/",
 		async ({ query, request }) => {
 			const userId = await requireUserId(request);
-			let queryBuilder = db.selectFrom("Debt").selectAll().where("userId", "=", userId);
+			let queryBuilder = db.sql.public.Debt.select(...debtColumns).where((fields, functions) =>
+				functions.eq(fields.userId, userId),
+			);
 			if (query.isOwedToMe !== undefined) {
-				queryBuilder = queryBuilder.where("isOwedToMe", "=", query.isOwedToMe);
+				queryBuilder = queryBuilder.where((fields, functions) =>
+					functions.eq(fields.isOwedToMe, query.isOwedToMe!),
+				);
 			}
 			if (query.isPaid !== undefined) {
-				queryBuilder = queryBuilder.where("isPaid", "=", query.isPaid);
+				queryBuilder = queryBuilder.where((fields, functions) => functions.eq(fields.isPaid, query.isPaid!));
 			}
 			if (query.personName) {
-				queryBuilder = queryBuilder.where("personName", "ilike", `%${query.personName}%`);
+				queryBuilder = queryBuilder.where((fields, functions) =>
+					functions.ilike(fields.personName, `%${query.personName}%`),
+				);
 			}
 
-			const debts = await queryBuilder.orderBy("date", "desc").execute();
+			const debts = await queryRows(queryBuilder.orderBy("date", { direction: "desc" }).build());
 
 			// Calculate totals
 			const totals = debts.reduce(
@@ -61,12 +82,13 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			const userId = await requireUserId(request);
 
 			// Group debts by person
-			const debts = await db
-				.selectFrom("Debt")
-				.where("userId", "=", userId)
-				.where("isPaid", "=", false)
-				.selectAll()
-				.execute();
+			const debts = await queryRows(
+				db.sql.public.Debt.select(...debtColumns)
+					.where((fields, functions) =>
+						functions.and(functions.eq(fields.userId, userId), functions.eq(fields.isPaid, false)),
+					)
+					.build(),
+			);
 
 			const byPerson = debts.reduce(
 				(acc, debt) => {
@@ -109,7 +131,12 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("Debt", params.id, userId);
-			const debt = await db.selectFrom("Debt").where("id", "=", params.id).selectAll().executeTakeFirst();
+			const debt = await queryFirst(
+				db.sql.public.Debt.select(...debtColumns)
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.limit(1)
+					.build(),
+			);
 
 			if (!debt) {
 				throw new HttpException("Debt not found", 404);
@@ -129,12 +156,12 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("Debt", params.id, userId);
-			const history = await db
-				.selectFrom("DebtHistory")
-				.where("debtId", "=", params.id)
-				.selectAll()
-				.orderBy("changedAt", "desc")
-				.execute();
+			const history = await queryRows(
+				db.sql.public.DebtHistory.select("id", "debtId", "field", "oldValue", "newValue", "changedAt")
+					.where((fields, functions) => functions.eq(fields.debtId, params.id))
+					.orderBy("changedAt", { direction: "desc" })
+					.build(),
+			);
 
 			return history;
 		},
@@ -149,19 +176,22 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 		"/",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
-			const debt = await db
-				.insertInto("Debt")
-				.values({
-					amount: body.amount,
-					date: new Date(body.date),
-					description: body.description,
-					dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
-					isOwedToMe: body.isOwedToMe ?? true,
-					personName: body.personName,
-					userId,
-				})
-				.returningAll()
-				.executeTakeFirstOrThrow();
+			const debt = await queryFirst(
+				db.sql.public.Debt.insert([
+					{
+						amount: String(body.amount),
+						date: new Date(body.date),
+						description: body.description,
+						dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
+						isOwedToMe: body.isOwedToMe ?? true,
+						personName: body.personName,
+						userId,
+					},
+				])
+					.returning(...debtColumns)
+					.build(),
+			);
+			if (!debt) throw new HttpException("Debt not created", 500);
 
 			return debt;
 		},
@@ -182,7 +212,12 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("Debt", params.id, userId);
-			const existing = await db.selectFrom("Debt").where("id", "=", params.id).selectAll().executeTakeFirst();
+			const existing = await queryFirst(
+				db.sql.public.Debt.select(...debtColumns)
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.limit(1)
+					.build(),
+			);
 
 			if (!existing) {
 				throw new HttpException("Debt not found", 404);
@@ -214,14 +249,13 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			}
 
 			if (historyEntries.length > 0) {
-				await db.insertInto("DebtHistory").values(historyEntries).execute();
+				await executeStatement(db.sql.public.DebtHistory.insert(historyEntries).build());
 			}
 
-			const debt = await db
-				.updateTable("Debt")
-				.set({
+			const debt = await queryFirst(
+				db.sql.public.Debt.update({
 					...(body.personName && { personName: body.personName }),
-					...(body.amount !== undefined && { amount: body.amount }),
+					...(body.amount !== undefined && { amount: String(body.amount) }),
 					...(body.description !== undefined && { description: body.description }),
 					...(body.isOwedToMe !== undefined && { isOwedToMe: body.isOwedToMe }),
 					...(body.dueDate !== undefined && {
@@ -231,9 +265,11 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 					...(body.isPaid && { paidDate: new Date() }),
 					updatedAt: new Date(),
 				})
-				.where("id", "=", params.id)
-				.returningAll()
-				.executeTakeFirstOrThrow();
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.returning(...debtColumns)
+					.build(),
+			);
+			if (!debt) throw new HttpException("Debt not found", 404);
 
 			return debt;
 		},
@@ -257,13 +293,22 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("Debt", params.id, userId);
-			const existing = await db.selectFrom("Debt").where("id", "=", params.id).selectAll().executeTakeFirst();
+			const existing = await queryFirst(
+				db.sql.public.Debt.select("id")
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.limit(1)
+					.build(),
+			);
 
 			if (!existing) {
 				throw new HttpException("Debt not found", 404);
 			}
 
-			await db.deleteFrom("Debt").where("id", "=", params.id).execute();
+			await executeStatement(
+				db.sql.public.Debt.delete()
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.build(),
+			);
 			return { success: true };
 		},
 		{

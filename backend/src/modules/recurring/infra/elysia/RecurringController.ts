@@ -1,7 +1,24 @@
 import Elysia, { t } from "elysia";
 import { assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
-import { db } from "~/shared/infra/sql";
+import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
+
+const recurringColumns = [
+	"id",
+	"userId",
+	"name",
+	"amount",
+	"frequency",
+	"dayOfMonth",
+	"dayOfWeek",
+	"startDate",
+	"endDate",
+	"categoryId",
+	"paymentMethod",
+	"isActive",
+	"createdAt",
+	"updatedAt",
+] as const;
 
 const RecurrenceFrequency = t.Union([
 	t.Literal("DAILY"),
@@ -25,12 +42,16 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 		"/",
 		async ({ query, request }) => {
 			const userId = await requireUserId(request);
-			let queryBuilder = db.selectFrom("RecurringPayment").selectAll().where("userId", "=", userId);
+			let queryBuilder = db.sql.public.RecurringPayment.select(...recurringColumns).where(
+				(fields, functions) => functions.eq(fields.userId, userId),
+			);
 			if (query.isActive !== undefined) {
-				queryBuilder = queryBuilder.where("isActive", "=", query.isActive);
+				queryBuilder = queryBuilder.where((fields, functions) =>
+					functions.eq(fields.isActive, query.isActive!),
+				);
 			}
 
-			const payments = await queryBuilder.orderBy("name", "asc").execute();
+			const payments = await queryRows(queryBuilder.orderBy("name", { direction: "asc" }).build());
 			return payments;
 		},
 		{
@@ -45,11 +66,12 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("RecurringPayment", params.id, userId);
-			const payment = await db
-				.selectFrom("RecurringPayment")
-				.where("id", "=", params.id)
-				.selectAll()
-				.executeTakeFirst();
+			const payment = await queryFirst(
+				db.sql.public.RecurringPayment.select(...recurringColumns)
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.limit(1)
+					.build(),
+			);
 
 			if (!payment) {
 				throw new HttpException("Recurring payment not found", 404);
@@ -69,12 +91,19 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("RecurringPayment", params.id, userId);
-			const history = await db
-				.selectFrom("RecurringPaymentHistory")
-				.where("recurringPaymentId", "=", params.id)
-				.selectAll()
-				.orderBy("changedAt", "desc")
-				.execute();
+			const history = await queryRows(
+				db.sql.public.RecurringPaymentHistory.select(
+					"id",
+					"recurringPaymentId",
+					"field",
+					"oldValue",
+					"newValue",
+					"changedAt",
+				)
+					.where((fields, functions) => functions.eq(fields.recurringPaymentId, params.id))
+					.orderBy("changedAt", { direction: "desc" })
+					.build(),
+			);
 
 			return history;
 		},
@@ -89,23 +118,26 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 		"/",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
-			const payment = await db
-				.insertInto("RecurringPayment")
-				.values({
-					amount: body.amount,
-					categoryId: body.categoryId,
-					dayOfMonth: body.dayOfMonth,
-					dayOfWeek: body.dayOfWeek,
-					endDate: body.endDate ? new Date(body.endDate) : undefined,
-					frequency: body.frequency,
-					isActive: body.isActive ?? true,
-					name: body.name,
-					paymentMethod: body.paymentMethod ?? "DEBIT",
-					startDate: new Date(body.startDate),
-					userId,
-				})
-				.returningAll()
-				.executeTakeFirstOrThrow();
+			const payment = await queryFirst(
+				db.sql.public.RecurringPayment.insert([
+					{
+						amount: String(body.amount),
+						categoryId: body.categoryId,
+						dayOfMonth: body.dayOfMonth,
+						dayOfWeek: body.dayOfWeek,
+						endDate: body.endDate ? new Date(body.endDate) : undefined,
+						frequency: body.frequency,
+						isActive: body.isActive ?? true,
+						name: body.name,
+						paymentMethod: body.paymentMethod ?? "DEBIT",
+						startDate: new Date(body.startDate),
+						userId,
+					},
+				])
+					.returning(...recurringColumns)
+					.build(),
+			);
+			if (!payment) throw new HttpException("Recurring payment not created", 500);
 
 			return payment;
 		},
@@ -130,11 +162,12 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("RecurringPayment", params.id, userId);
-			const existing = await db
-				.selectFrom("RecurringPayment")
-				.where("id", "=", params.id)
-				.selectAll()
-				.executeTakeFirst();
+			const existing = await queryFirst(
+				db.sql.public.RecurringPayment.select(...recurringColumns)
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.limit(1)
+					.build(),
+			);
 
 			if (!existing) {
 				throw new HttpException("Recurring payment not found", 404);
@@ -166,14 +199,13 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 			}
 
 			if (historyEntries.length > 0) {
-				await db.insertInto("RecurringPaymentHistory").values(historyEntries).execute();
+				await executeStatement(db.sql.public.RecurringPaymentHistory.insert(historyEntries).build());
 			}
 
-			const payment = await db
-				.updateTable("RecurringPayment")
-				.set({
+			const payment = await queryFirst(
+				db.sql.public.RecurringPayment.update({
 					...(body.name && { name: body.name }),
-					...(body.amount !== undefined && { amount: body.amount }),
+					...(body.amount !== undefined && { amount: String(body.amount) }),
 					...(body.frequency && { frequency: body.frequency }),
 					...(body.dayOfMonth !== undefined && { dayOfMonth: body.dayOfMonth }),
 					...(body.dayOfWeek !== undefined && { dayOfWeek: body.dayOfWeek }),
@@ -185,9 +217,11 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 					...(body.isActive !== undefined && { isActive: body.isActive }),
 					updatedAt: new Date(),
 				})
-				.where("id", "=", params.id)
-				.returningAll()
-				.executeTakeFirstOrThrow();
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.returning(...recurringColumns)
+					.build(),
+			);
+			if (!payment) throw new HttpException("Recurring payment not found", 404);
 
 			return payment;
 		},
@@ -214,17 +248,22 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("RecurringPayment", params.id, userId);
-			const existing = await db
-				.selectFrom("RecurringPayment")
-				.where("id", "=", params.id)
-				.selectAll()
-				.executeTakeFirst();
+			const existing = await queryFirst(
+				db.sql.public.RecurringPayment.select("id")
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.limit(1)
+					.build(),
+			);
 
 			if (!existing) {
 				throw new HttpException("Recurring payment not found", 404);
 			}
 
-			await db.deleteFrom("RecurringPayment").where("id", "=", params.id).execute();
+			await executeStatement(
+				db.sql.public.RecurringPayment.delete()
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.build(),
+			);
 			return { success: true };
 		},
 		{

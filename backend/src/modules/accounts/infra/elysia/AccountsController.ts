@@ -1,7 +1,7 @@
 import Elysia, { t } from "elysia";
 import { assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
-import { db } from "~/shared/infra/sql";
+import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 
 const Id = t.String({ maxLength: 36, minLength: 1 });
 const FinancialAccountType = t.Union([
@@ -17,12 +17,20 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 		"/",
 		async ({ request }) => {
 			const userId = await requireUserId(request);
-			const accounts = await db
-				.selectFrom("FinancialAccount")
-				.selectAll()
-				.where("userId", "=", userId)
-				.orderBy("name", "asc")
-				.execute();
+			const accounts = await queryRows(
+				db.sql.public.FinancialAccount.select(
+					"id",
+					"userId",
+					"name",
+					"type",
+					"balance",
+					"createdAt",
+					"updatedAt",
+				)
+					.where((fields, functions) => functions.eq(fields.userId, userId))
+					.orderBy("name", { direction: "asc" })
+					.build(),
+			);
 			return accounts;
 		},
 		{
@@ -33,12 +41,22 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 		"/:id",
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
-			const account = await db
-				.selectFrom("FinancialAccount")
-				.where("id", "=", params.id)
-				.where("userId", "=", userId)
-				.selectAll()
-				.executeTakeFirst();
+			const account = await queryFirst(
+				db.sql.public.FinancialAccount.select(
+					"id",
+					"userId",
+					"name",
+					"type",
+					"balance",
+					"createdAt",
+					"updatedAt",
+				)
+					.where((fields, functions) =>
+						functions.and(functions.eq(fields.id, params.id), functions.eq(fields.userId, userId)),
+					)
+					.limit(1)
+					.build(),
+			);
 
 			if (!account) {
 				throw new HttpException("FinancialAccount not found", 404);
@@ -46,11 +64,21 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 
 			// If it's a credit card, get the credit card details
 			if (account.type === "CREDIT_CARD") {
-				const creditCard = await db
-					.selectFrom("CreditCard")
-					.where("financialAccountId", "=", account.id)
-					.selectAll()
-					.executeTakeFirst();
+				const creditCard = await queryFirst(
+					db.sql.public.CreditCard.select(
+						"id",
+						"financialAccountId",
+						"creditLimit",
+						"statementDay",
+						"dueDay",
+						"workingDueDate",
+						"createdAt",
+						"updatedAt",
+					)
+						.where((fields, functions) => functions.eq(fields.financialAccountId, account.id))
+						.limit(1)
+						.build(),
+				);
 
 				return { ...account, creditCard };
 			}
@@ -68,41 +96,58 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 		"/",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
-			const existing = await db
-				.selectFrom("FinancialAccount")
-				.where("userId", "=", userId)
-				.where("name", "=", body.name)
-				.selectAll()
-				.executeTakeFirst();
+			const existing = await queryFirst(
+				db.sql.public.FinancialAccount.select("id")
+					.where((fields, functions) =>
+						functions.and(functions.eq(fields.userId, userId), functions.eq(fields.name, body.name)),
+					)
+					.limit(1)
+					.build(),
+			);
 
 			if (existing) {
 				throw new HttpException("FinancialAccount with this name already exists", 409);
 			}
 
-			const account = await db
-				.insertInto("FinancialAccount")
-				.values({
-					balance: body.balance ?? 0,
-					name: body.name,
-					type: body.type ?? "CHECKING",
-					userId,
-				})
-				.returningAll()
-				.executeTakeFirstOrThrow();
+			const account = await queryFirst(
+				db.sql.public.FinancialAccount.insert([
+					{
+						balance: String(body.balance ?? 0),
+						name: body.name,
+						type: body.type ?? "CHECKING",
+						userId,
+					},
+				])
+					.returning("id", "userId", "name", "type", "balance", "createdAt", "updatedAt")
+					.build(),
+			);
+			if (!account) throw new HttpException("FinancialAccount not created", 500);
 
 			// If it's a credit card, create the credit card details
 			if (body.type === "CREDIT_CARD" && body.creditCard) {
-				const creditCard = await db
-					.insertInto("CreditCard")
-					.values({
-						creditLimit: body.creditCard.creditLimit,
-						dueDay: body.creditCard.dueDay,
-						financialAccountId: account.id,
-						statementDay: body.creditCard.statementDay,
-						workingDueDate: body.creditCard.workingDueDate ?? false,
-					})
-					.returningAll()
-					.executeTakeFirstOrThrow();
+				const creditCard = await queryFirst(
+					db.sql.public.CreditCard.insert([
+						{
+							creditLimit: String(body.creditCard.creditLimit),
+							dueDay: body.creditCard.dueDay,
+							financialAccountId: account.id,
+							statementDay: body.creditCard.statementDay,
+							workingDueDate: body.creditCard.workingDueDate ?? false,
+						},
+					])
+						.returning(
+							"id",
+							"financialAccountId",
+							"creditLimit",
+							"statementDay",
+							"dueDay",
+							"workingDueDate",
+							"createdAt",
+							"updatedAt",
+						)
+						.build(),
+				);
+				if (!creditCard) throw new HttpException("CreditCard not created", 500);
 
 				return { ...account, creditCard };
 			}
@@ -131,34 +176,35 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("FinancialAccount", params.id, userId);
-			const existing = await db
-				.selectFrom("FinancialAccount")
-				.where("id", "=", params.id)
-				.selectAll()
-				.executeTakeFirst();
+			const existing = await queryFirst(
+				db.sql.public.FinancialAccount.select("id", "type")
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.limit(1)
+					.build(),
+			);
 
 			if (!existing) {
 				throw new HttpException("FinancialAccount not found", 404);
 			}
 
-			const account = await db
-				.updateTable("FinancialAccount")
-				.set({
+			const account = await queryFirst(
+				db.sql.public.FinancialAccount.update({
 					...(body.name && { name: body.name }),
-					...(body.balance !== undefined && { balance: body.balance }),
+					...(body.balance !== undefined && { balance: String(body.balance) }),
 					updatedAt: new Date(),
 				})
-				.where("id", "=", params.id)
-				.returningAll()
-				.executeTakeFirstOrThrow();
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.returning("id", "userId", "name", "type", "balance", "createdAt", "updatedAt")
+					.build(),
+			);
+			if (!account) throw new HttpException("FinancialAccount not found", 404);
 
 			// Update credit card if provided
 			if (body.creditCard && existing.type === "CREDIT_CARD") {
-				const creditCard = await db
-					.updateTable("CreditCard")
-					.set({
+				const creditCard = await queryFirst(
+					db.sql.public.CreditCard.update({
 						...(body.creditCard.creditLimit !== undefined && {
-							creditLimit: body.creditCard.creditLimit,
+							creditLimit: String(body.creditCard.creditLimit),
 						}),
 						...(body.creditCard.statementDay !== undefined && {
 							statementDay: body.creditCard.statementDay,
@@ -171,9 +217,20 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						}),
 						updatedAt: new Date(),
 					})
-					.where("financialAccountId", "=", params.id)
-					.returningAll()
-					.executeTakeFirstOrThrow();
+						.where((fields, functions) => functions.eq(fields.financialAccountId, params.id))
+						.returning(
+							"id",
+							"financialAccountId",
+							"creditLimit",
+							"statementDay",
+							"dueDay",
+							"workingDueDate",
+							"createdAt",
+							"updatedAt",
+						)
+						.build(),
+				);
+				if (!creditCard) throw new HttpException("CreditCard not found", 404);
 
 				return { ...account, creditCard };
 			}
@@ -204,17 +261,22 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("FinancialAccount", params.id, userId);
-			const existing = await db
-				.selectFrom("FinancialAccount")
-				.where("id", "=", params.id)
-				.selectAll()
-				.executeTakeFirst();
+			const existing = await queryFirst(
+				db.sql.public.FinancialAccount.select("id")
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.limit(1)
+					.build(),
+			);
 
 			if (!existing) {
 				throw new HttpException("FinancialAccount not found", 404);
 			}
 
-			await db.deleteFrom("FinancialAccount").where("id", "=", params.id).execute();
+			await executeStatement(
+				db.sql.public.FinancialAccount.delete()
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.build(),
+			);
 			return { success: true };
 		},
 		{

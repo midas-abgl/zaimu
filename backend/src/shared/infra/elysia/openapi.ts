@@ -26,7 +26,7 @@ export const OpenAPI = new Elysia().use(
 				{ name: "Dashboard" },
 			],
 		},
-		exclude: [docsPath, `${docsPath}/json`],
+		exclude: { paths: [docsPath, `${docsPath}/json`] },
 		path: docsPath,
 	}),
 );

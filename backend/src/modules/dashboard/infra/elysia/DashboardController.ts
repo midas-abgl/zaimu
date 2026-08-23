@@ -1,7 +1,7 @@
 import { endOfMonth, startOfMonth, subMonths } from "date-fns";
 import Elysia from "elysia";
 import { requireUserId } from "~/modules/auth";
-import { db } from "~/shared/infra/sql";
+import { db, queryFirst, queryRows } from "~/shared/infra/sql";
 
 export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 	"/",
@@ -14,147 +14,99 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 		const lastMonthEnd = endOfMonth(subMonths(now, 1));
 
 		// Get accounts summary
-		const accounts = await db
-			.selectFrom("FinancialAccount")
-			.where("userId", "=", userId)
-			.select(["id", "name", "type", "balance"])
-			.execute();
+		const accounts = await queryRows(
+			db.sql.public.FinancialAccount.select("id", "name", "type", "balance")
+				.where((f, fn) => fn.eq(f.userId, userId))
+				.build(),
+		);
+		const accountIds = accounts.map(account => account.id);
 
 		const totalBalance = accounts.reduce((sum, a) => sum + Number(a.balance), 0);
 
 		// Get current month income
-		const currentMonthIncome = await db
-			.selectFrom("Transaction")
-			.where("type", "=", "INCOME")
-			.where("date", ">=", currentMonthStart)
-			.where("date", "<=", currentMonthEnd)
-			.where(eb =>
-				eb.or([
-					eb(
-						"destinationFinancialAccountId",
-						"in",
-						accounts.map(a => a.id),
-					),
-					eb(
-						"originFinancialAccountId",
-						"in",
-						accounts.map(a => a.id),
-					),
-				]),
-			)
-			.select(eb => eb.fn.sum("amount").as("total"))
-			.executeTakeFirst();
-
-		// Get current month expenses
-		const currentMonthExpenses = await db
-			.selectFrom("Transaction")
-			.where("type", "=", "EXPENSE")
-			.where("date", ">=", currentMonthStart)
-			.where("date", "<=", currentMonthEnd)
-			.where(eb =>
-				eb.or([
-					eb(
-						"destinationFinancialAccountId",
-						"in",
-						accounts.map(a => a.id),
-					),
-					eb(
-						"originFinancialAccountId",
-						"in",
-						accounts.map(a => a.id),
-					),
-				]),
-			)
-			.select(eb => eb.fn.sum("amount").as("total"))
-			.executeTakeFirst();
-
-		// Get last month totals for comparison
-		const lastMonthIncome = await db
-			.selectFrom("Transaction")
-			.where("type", "=", "INCOME")
-			.where("date", ">=", lastMonthStart)
-			.where("date", "<=", lastMonthEnd)
-			.where(eb =>
-				eb.or([
-					eb(
-						"destinationFinancialAccountId",
-						"in",
-						accounts.map(a => a.id),
-					),
-					eb(
-						"originFinancialAccountId",
-						"in",
-						accounts.map(a => a.id),
-					),
-				]),
-			)
-			.select(eb => eb.fn.sum("amount").as("total"))
-			.executeTakeFirst();
-
-		const lastMonthExpenses = await db
-			.selectFrom("Transaction")
-			.where("type", "=", "EXPENSE")
-			.where("date", ">=", lastMonthStart)
-			.where("date", "<=", lastMonthEnd)
-			.where(eb =>
-				eb.or([
-					eb(
-						"destinationFinancialAccountId",
-						"in",
-						accounts.map(a => a.id),
-					),
-					eb(
-						"originFinancialAccountId",
-						"in",
-						accounts.map(a => a.id),
-					),
-				]),
-			)
-			.select(eb => eb.fn.sum("amount").as("total"))
-			.executeTakeFirst();
+		const getTransactionTotal = async (type: "INCOME" | "EXPENSE", start: Date, end: Date) => {
+			if (accountIds.length === 0) return { total: 0 };
+			return queryFirst(
+				db.sql.public.Transaction.select("total", (f, fn) => fn.sum(f.amount))
+					.where((f, fn) =>
+						fn.and(
+							fn.eq(f.type, type),
+							fn.gte(f.date, start),
+							fn.lte(f.date, end),
+							fn.or(
+								fn.in(f.destinationFinancialAccountId, accountIds),
+								fn.in(f.originFinancialAccountId, accountIds),
+							),
+						),
+					)
+					.build(),
+			);
+		};
+		const [currentMonthIncome, currentMonthExpenses, lastMonthIncome, lastMonthExpenses] = await Promise.all([
+			getTransactionTotal("INCOME", currentMonthStart, currentMonthEnd),
+			getTransactionTotal("EXPENSE", currentMonthStart, currentMonthEnd),
+			getTransactionTotal("INCOME", lastMonthStart, lastMonthEnd),
+			getTransactionTotal("EXPENSE", lastMonthStart, lastMonthEnd),
+		]);
 
 		// Get upcoming bills (subscriptions due this month)
-		const subscriptions = await db
-			.selectFrom("Subscription")
-			.where("userId", "=", userId)
-			.where("isActive", "=", true)
-			.selectAll()
-			.execute();
+		const subscriptions = await queryRows(
+			db.sql.public.Subscription.select("id", "name", "amount", "billingDay", "isActive")
+				.where((f, fn) => fn.and(fn.eq(f.userId, userId), fn.eq(f.isActive, true)))
+				.build(),
+		);
 
 		const upcomingBills = subscriptions.filter(s => s.billingDay >= now.getDate());
 
 		// Get pending credit card statements
-		const creditCards = await db
-			.selectFrom("CreditCard")
-			.innerJoin("FinancialAccount", "FinancialAccount.id", "CreditCard.financialAccountId")
-			.where("FinancialAccount.userId", "=", userId)
-			.select(["CreditCard.id", "FinancialAccount.name"])
-			.execute();
-
-		const pendingStatements = await db
-			.selectFrom("CreditCardStatement")
-			.where(
-				"creditCardId",
-				"in",
-				creditCards.map(c => c.id),
+		const creditCards = await queryRows(
+			db.sql.public.CreditCard.innerJoin(db.sql.public.FinancialAccount, (f, fn) =>
+				fn.eq(f.CreditCard.financialAccountId, f.FinancialAccount.id),
 			)
-			.where("isPaid", "=", false)
-			.where("dueDate", ">=", now)
-			.selectAll()
-			.orderBy("dueDate", "asc")
-			.execute();
+				.select(f => ({ id: f.CreditCard.id, name: f.FinancialAccount.name }))
+				.where((f, fn) => fn.eq(f.FinancialAccount.userId, userId))
+				.build(),
+		);
+
+		const cardIds = creditCards.map(card => card.id);
+		const pendingStatements =
+			cardIds.length === 0
+				? []
+				: await queryRows(
+						db.sql.public.CreditCardStatement.select(
+							"id",
+							"creditCardId",
+							"statementDate",
+							"dueDate",
+							"totalAmount",
+							"paidAmount",
+							"isPaid",
+							"createdAt",
+							"updatedAt",
+						)
+							.where((f, fn) =>
+								fn.and(fn.in(f.creditCardId, cardIds), fn.eq(f.isPaid, false), fn.gte(f.dueDate, now)),
+							)
+							.orderBy("dueDate", { direction: "asc" })
+							.build(),
+					);
 
 		// Get active loans summary
-		const loans = await db.selectFrom("Loan").where("userId", "=", userId).selectAll().execute();
+		const loans = await queryRows(
+			db.sql.public.Loan.select("id", "lender", "totalInstallments", "installmentAmount")
+				.where((f, fn) => fn.eq(f.userId, userId))
+				.build(),
+		);
 
 		const loansWithPayments = await Promise.all(
 			loans.map(async loan => {
-				const paidCount = await db
-					.selectFrom("LoanPayment")
-					.where("loanId", "=", loan.id)
-					.where("paidDate", "is not", null)
-					.select(eb => eb.fn.count("id").as("count"))
-					.executeTakeFirst();
+				const paidCount = await queryFirst(
+					db.sql.public.LoanPayment.select("count", (f, fn) => fn.count(f.id))
+						.where((f, fn) =>
+							fn.and(fn.eq(f.loanId, loan.id), fn.raw`${f.paidDate} IS NOT NULL`.returns("pg/bool@1")),
+						)
+						.build(),
+				);
 
 				const remainingInstallments = loan.totalInstallments - Number(paidCount?.count ?? 0);
 				const remainingAmount = remainingInstallments * Number(loan.installmentAmount);
@@ -172,12 +124,11 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 		const activeLoans = loansWithPayments.filter(l => l.remainingInstallments > 0);
 
 		// Get debts summary
-		const debts = await db
-			.selectFrom("Debt")
-			.where("userId", "=", userId)
-			.where("isPaid", "=", false)
-			.selectAll()
-			.execute();
+		const debts = await queryRows(
+			db.sql.public.Debt.select("amount", "isOwedToMe")
+				.where((f, fn) => fn.and(fn.eq(f.userId, userId), fn.eq(f.isPaid, false)))
+				.build(),
+		);
 
 		const debtsSummary = debts.reduce(
 			(acc, debt) => {
@@ -193,36 +144,33 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 		);
 
 		// Recent transactions
-		const recentTransactions = await db
-			.selectFrom("Transaction")
-			.leftJoin("Category", "Category.id", "Transaction.categoryId")
-			.where(eb =>
-				eb.or([
-					eb(
-						"Transaction.destinationFinancialAccountId",
-						"in",
-						accounts.map(a => a.id),
-					),
-					eb(
-						"Transaction.originFinancialAccountId",
-						"in",
-						accounts.map(a => a.id),
-					),
-				]),
-			)
-			.select([
-				"Transaction.id",
-				"Transaction.amount",
-				"Transaction.date",
-				"Transaction.description",
-				"Transaction.type",
-				"Category.name as categoryName",
-				"Category.color as categoryColor",
-			])
-			.orderBy("Transaction.date", "desc")
-			.orderBy("Transaction.createdAt", "desc")
-			.limit(10)
-			.execute();
+		const recentTransactions =
+			accountIds.length === 0
+				? []
+				: await queryRows(
+						db.sql.public.Transaction.outerLeftJoin(db.sql.public.Category, (f, fn) =>
+							fn.eq(f.Transaction.categoryId, f.Category.id),
+						)
+							.select(f => ({
+								amount: f.Transaction.amount,
+								categoryColor: f.Category.color,
+								categoryName: f.Category.name,
+								date: f.Transaction.date,
+								description: f.Transaction.description,
+								id: f.Transaction.id,
+								type: f.Transaction.type,
+							}))
+							.where((f, fn) =>
+								fn.or(
+									fn.in(f.Transaction.destinationFinancialAccountId, accountIds),
+									fn.in(f.Transaction.originFinancialAccountId, accountIds),
+								),
+							)
+							.orderBy(f => f.Transaction.date, { direction: "desc" })
+							.orderBy(f => f.Transaction.createdAt, { direction: "desc" })
+							.limit(10)
+							.build(),
+					);
 
 		return {
 			accounts: accounts.map(a => ({

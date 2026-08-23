@@ -1,5 +1,5 @@
 import { HttpException } from "~/shared/errors";
-import { db } from "~/shared/infra/sql";
+import { db, queryFirst } from "~/shared/infra/sql";
 
 type DirectlyOwnedTable =
 	| "Category"
@@ -11,48 +11,89 @@ type DirectlyOwnedTable =
 	| "Subscription";
 
 export const assertDirectOwnership = async (table: DirectlyOwnedTable, id: string, userId: string) => {
-	const resource = await db
-		.selectFrom(table)
-		.select("id")
-		.where("id", "=", id)
-		.where("userId", "=", userId)
-		.executeTakeFirst();
+	const owns = async (owner: typeof db.sql.public.Category) =>
+		queryFirst(
+			owner
+				.select("id")
+				.where((fields, functions) =>
+					functions.and(functions.eq(fields.id, id), functions.eq(fields.userId, userId)),
+				)
+				.limit(1)
+				.build(),
+		);
+	let resource: { id: string } | undefined;
+	switch (table) {
+		case "Category":
+			resource = await owns(db.sql.public.Category);
+			break;
+		case "Debt":
+			resource = await owns(db.sql.public.Debt as unknown as typeof db.sql.public.Category);
+			break;
+		case "FinancialAccount":
+			resource = await owns(db.sql.public.FinancialAccount as unknown as typeof db.sql.public.Category);
+			break;
+		case "Loan":
+			resource = await owns(db.sql.public.Loan as unknown as typeof db.sql.public.Category);
+			break;
+		case "RecurringPayment":
+			resource = await owns(db.sql.public.RecurringPayment as unknown as typeof db.sql.public.Category);
+			break;
+		case "Salary":
+			resource = await owns(db.sql.public.Salary as unknown as typeof db.sql.public.Category);
+			break;
+		case "Subscription":
+			resource = await owns(db.sql.public.Subscription as unknown as typeof db.sql.public.Category);
+	}
 
 	if (!resource) throw new HttpException("Recurso não encontrado", 404);
 };
 
 export const assertCreditCardOwnership = async (creditCardId: string, userId: string) => {
-	const card = await db
-		.selectFrom("CreditCard")
-		.innerJoin("FinancialAccount", "FinancialAccount.id", "CreditCard.financialAccountId")
-		.select("CreditCard.id")
-		.where("CreditCard.id", "=", creditCardId)
-		.where("FinancialAccount.userId", "=", userId)
-		.executeTakeFirst();
+	const card = await queryFirst(
+		db.sql.public.CreditCard.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
+			functions.eq(fields.CreditCard.financialAccountId, fields.FinancialAccount.id),
+		)
+			.select(fields => ({ id: fields.CreditCard.id }))
+			.where((fields, functions) =>
+				functions.and(
+					functions.eq(fields.CreditCard.id, creditCardId),
+					functions.eq(fields.FinancialAccount.userId, userId),
+				),
+			)
+			.limit(1)
+			.build(),
+	);
 
 	if (!card) throw new HttpException("Cartão não encontrado", 404);
 };
 
 export const assertTransactionOwnership = async (transactionId: string, userId: string) => {
-	const transaction = await db
-		.selectFrom("Transaction")
-		.leftJoin("FinancialAccount as origin", "origin.id", "Transaction.originFinancialAccountId")
-		.leftJoin(
-			"FinancialAccount as destination",
-			"destination.id",
-			"Transaction.destinationFinancialAccountId",
+	const origin = db.sql.public.FinancialAccount.select("id", "userId").as("origin");
+	const destination = db.sql.public.FinancialAccount.select("id", "userId").as("destination");
+	const transaction = await queryFirst(
+		db.sql.public.Transaction.outerLeftJoin(origin, (fields, functions) =>
+			functions.eq(fields.Transaction.originFinancialAccountId, fields.origin.id),
 		)
-		.leftJoin("RecurringPayment", "RecurringPayment.id", "Transaction.recurrenceId")
-		.select("Transaction.id")
-		.where("Transaction.id", "=", transactionId)
-		.where(eb =>
-			eb.or([
-				eb("origin.userId", "=", userId),
-				eb("destination.userId", "=", userId),
-				eb("RecurringPayment.userId", "=", userId),
-			]),
-		)
-		.executeTakeFirst();
+			.outerLeftJoin(destination, (fields, functions) =>
+				functions.eq(fields.Transaction.destinationFinancialAccountId, fields.destination.id),
+			)
+			.outerLeftJoin(db.sql.public.RecurringPayment, (fields, functions) =>
+				functions.eq(fields.Transaction.recurrenceId, fields.RecurringPayment.id),
+			)
+			.select(fields => ({ id: fields.Transaction.id }))
+			.where((fields, functions) =>
+				functions.and(
+					functions.eq(fields.Transaction.id, transactionId),
+					functions.or(
+						functions.eq(fields.origin.userId, userId),
+						functions.eq(fields.destination.userId, userId),
+						functions.eq(fields.RecurringPayment.userId, userId),
+					),
+				),
+			)
+			.limit(1)
+			.build(),
+	);
 
 	if (!transaction) throw new HttpException("Transação não encontrada", 404);
 };

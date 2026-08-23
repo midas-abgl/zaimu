@@ -2,7 +2,39 @@ import { addMonths, differenceInMonths } from "date-fns";
 import Elysia, { t } from "elysia";
 import { assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
-import { db } from "~/shared/infra/sql";
+import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
+
+const loanColumns = [
+	"id",
+	"userId",
+	"lender",
+	"principalAmount",
+	"interestRate",
+	"totalInstallments",
+	"installmentAmount",
+	"dueDay",
+	"startDate",
+	"firstDueDate",
+	"description",
+	"amortization",
+	"createdAt",
+	"updatedAt",
+] as const;
+const loanPaymentColumns = [
+	"id",
+	"loanId",
+	"financialAccountId",
+	"installmentNumber",
+	"principalPaid",
+	"interestPaid",
+	"totalPaid",
+	"dueDate",
+	"paidDate",
+	"isAdvanced",
+	"advanceType",
+	"createdAt",
+	"updatedAt",
+] as const;
 
 const AmortizationType = t.Union([t.Literal("PRICE"), t.Literal("SAC"), t.Literal("SACRE")]);
 const AdvanceType = t.Union([t.Literal("FRONT"), t.Literal("BACK")]);
@@ -140,19 +172,26 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 		"/",
 		async ({ request }) => {
 			const userId = await requireUserId(request);
-			const queryBuilder = db.selectFrom("Loan").selectAll().where("userId", "=", userId);
-
-			const loans = await queryBuilder.orderBy("startDate", "desc").execute();
+			const loans = await queryRows(
+				db.sql.public.Loan.select(...loanColumns)
+					.where((fields, functions) => functions.eq(fields.userId, userId))
+					.orderBy("startDate", { direction: "desc" })
+					.build(),
+			);
 
 			// Get payment info for each loan
 			const loansWithPayments = await Promise.all(
 				loans.map(async loan => {
-					const payments = await db
-						.selectFrom("LoanPayment")
-						.where("loanId", "=", loan.id)
-						.where("paidDate", "is not", null)
-						.selectAll()
-						.execute();
+					const payments = await queryRows(
+						db.sql.public.LoanPayment.select(...loanPaymentColumns)
+							.where((fields, functions) =>
+								functions.and(
+									functions.eq(fields.loanId, loan.id),
+									functions.raw`${fields.paidDate} IS NOT NULL`.returns("pg/bool@1"),
+								),
+							)
+							.build(),
+					);
 
 					const paidInstallments = payments.length;
 					const remainingInstallments = loan.totalInstallments - paidInstallments;
@@ -179,18 +218,23 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("Loan", params.id, userId);
-			const loan = await db.selectFrom("Loan").where("id", "=", params.id).selectAll().executeTakeFirst();
+			const loan = await queryFirst(
+				db.sql.public.Loan.select(...loanColumns)
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.limit(1)
+					.build(),
+			);
 
 			if (!loan) {
 				throw new HttpException("Loan not found", 404);
 			}
 
-			const payments = await db
-				.selectFrom("LoanPayment")
-				.where("loanId", "=", params.id)
-				.selectAll()
-				.orderBy("installmentNumber", "asc")
-				.execute();
+			const payments = await queryRows(
+				db.sql.public.LoanPayment.select(...loanPaymentColumns)
+					.where((fields, functions) => functions.eq(fields.loanId, params.id))
+					.orderBy("installmentNumber", { direction: "asc" })
+					.build(),
+			);
 
 			// Generate full schedule
 			const schedule = calculateLoanSchedule(
@@ -220,18 +264,27 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 		async ({ params, query, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("Loan", params.id, userId);
-			const loan = await db.selectFrom("Loan").where("id", "=", params.id).selectAll().executeTakeFirst();
+			const loan = await queryFirst(
+				db.sql.public.Loan.select(...loanColumns)
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.limit(1)
+					.build(),
+			);
 
 			if (!loan) {
 				throw new HttpException("Loan not found", 404);
 			}
 
-			const paidPayments = await db
-				.selectFrom("LoanPayment")
-				.where("loanId", "=", params.id)
-				.where("paidDate", "is not", null)
-				.selectAll()
-				.execute();
+			const paidPayments = await queryRows(
+				db.sql.public.LoanPayment.select(...loanPaymentColumns)
+					.where((fields, functions) =>
+						functions.and(
+							functions.eq(fields.loanId, params.id),
+							functions.raw`${fields.paidDate} IS NOT NULL`.returns("pg/bool@1"),
+						),
+					)
+					.build(),
+			);
 
 			const targetDate = query.targetDate ? new Date(query.targetDate) : new Date();
 			const advanceType = query.advanceType ?? "BACK";
@@ -290,23 +343,26 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 				}
 			}
 
-			const loan = await db
-				.insertInto("Loan")
-				.values({
-					amortization: body.amortization ?? "PRICE",
-					description: body.description,
-					dueDay: body.dueDay,
-					firstDueDate: new Date(body.firstDueDate),
-					installmentAmount,
-					interestRate: body.interestRate,
-					lender: body.lender,
-					principalAmount: body.principalAmount,
-					startDate: new Date(body.startDate),
-					totalInstallments: body.totalInstallments,
-					userId,
-				})
-				.returningAll()
-				.executeTakeFirstOrThrow();
+			const loan = await queryFirst(
+				db.sql.public.Loan.insert([
+					{
+						amortization: body.amortization ?? "PRICE",
+						description: body.description,
+						dueDay: body.dueDay,
+						firstDueDate: new Date(body.firstDueDate),
+						installmentAmount: String(installmentAmount),
+						interestRate: String(body.interestRate),
+						lender: body.lender,
+						principalAmount: String(body.principalAmount),
+						startDate: new Date(body.startDate),
+						totalInstallments: body.totalInstallments,
+						userId,
+					},
+				])
+					.returning(...loanColumns)
+					.build(),
+			);
+			if (!loan) throw new HttpException("Loan not created", 500);
 
 			// Create payment schedule entries
 			const schedule = calculateLoanSchedule(
@@ -321,13 +377,14 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 			const paymentEntries = schedule.map(inst => ({
 				dueDate: inst.dueDate,
 				installmentNumber: inst.installmentNumber,
-				interestPaid: inst.interest,
+				interestPaid: String(inst.interest),
 				loanId: loan.id,
-				principalPaid: inst.principal,
-				totalPaid: inst.total,
+				principalPaid: String(inst.principal),
+				totalPaid: String(inst.total),
 			}));
 
-			await db.insertInto("LoanPayment").values(paymentEntries).execute();
+			if (paymentEntries.length > 0)
+				await executeStatement(db.sql.public.LoanPayment.insert(paymentEntries).build());
 
 			return loan;
 		},
@@ -354,12 +411,17 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 			await assertDirectOwnership("Loan", params.id, userId);
 			if (body.financialAccountId)
 				await assertDirectOwnership("FinancialAccount", body.financialAccountId, userId);
-			const payment = await db
-				.selectFrom("LoanPayment")
-				.where("loanId", "=", params.id)
-				.where("installmentNumber", "=", Number(params.installmentNumber))
-				.selectAll()
-				.executeTakeFirst();
+			const payment = await queryFirst(
+				db.sql.public.LoanPayment.select(...loanPaymentColumns)
+					.where((fields, functions) =>
+						functions.and(
+							functions.eq(fields.loanId, params.id),
+							functions.eq(fields.installmentNumber, Number(params.installmentNumber)),
+						),
+					)
+					.limit(1)
+					.build(),
+			);
 
 			if (!payment) {
 				throw new HttpException("Payment not found", 404);
@@ -369,29 +431,31 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 				throw new HttpException("Payment already made", 400);
 			}
 
-			const updatedPayment = await db
-				.updateTable("LoanPayment")
-				.set({
+			const updatedPayment = await queryFirst(
+				db.sql.public.LoanPayment.update({
 					advanceType: body.advanceType,
 					financialAccountId: body.financialAccountId,
 					isAdvanced: body.isAdvanced ?? false,
 					paidDate: body.paidDate ? new Date(body.paidDate) : new Date(),
 					updatedAt: new Date(),
 				})
-				.where("id", "=", payment.id)
-				.returningAll()
-				.executeTakeFirstOrThrow();
+					.where((fields, functions) => functions.eq(fields.id, payment.id))
+					.returning(...loanPaymentColumns)
+					.build(),
+			);
+			if (!updatedPayment) throw new HttpException("Payment not found", 404);
 
 			// Update account balance if provided
 			if (body.financialAccountId) {
-				await db
-					.updateTable("FinancialAccount")
-					.set(eb => ({
-						balance: eb("balance", "-", Number(payment.totalPaid)),
-						updatedAt: new Date(),
+				const amount = param(numeric<12, 2>(payment.totalPaid), { codecId: "pg/numeric@1" });
+				await executeStatement(
+					db.sql.public.FinancialAccount.update((fields, functions) => ({
+						balance: functions.raw`${fields.balance} - ${amount}`.returns("pg/numeric@1"),
+						updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
 					}))
-					.where("id", "=", body.financialAccountId)
-					.execute();
+						.where((fields, functions) => functions.eq(fields.id, body.financialAccountId!))
+						.build(),
+				);
 			}
 
 			return updatedPayment;
@@ -417,21 +481,30 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 			await assertDirectOwnership("Loan", params.id, userId);
 			if (body.financialAccountId)
 				await assertDirectOwnership("FinancialAccount", body.financialAccountId, userId);
-			const loan = await db.selectFrom("Loan").where("id", "=", params.id).selectAll().executeTakeFirst();
+			const loan = await queryFirst(
+				db.sql.public.Loan.select("id")
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.limit(1)
+					.build(),
+			);
 
 			if (!loan) {
 				throw new HttpException("Loan not found", 404);
 			}
 
 			// Get unpaid installments
-			const unpaidPayments = await db
-				.selectFrom("LoanPayment")
-				.where("loanId", "=", params.id)
-				.where("paidDate", "is", null)
-				.selectAll()
-				.orderBy("installmentNumber", body.advanceType === "FRONT" ? "asc" : "desc")
-				.limit(body.installmentsToAdvance)
-				.execute();
+			const unpaidPayments = await queryRows(
+				db.sql.public.LoanPayment.select(...loanPaymentColumns)
+					.where((fields, functions) =>
+						functions.and(
+							functions.eq(fields.loanId, params.id),
+							functions.raw`${fields.paidDate} IS NULL`.returns("pg/bool@1"),
+						),
+					)
+					.orderBy("installmentNumber", { direction: body.advanceType === "FRONT" ? "asc" : "desc" })
+					.limit(body.installmentsToAdvance)
+					.build(),
+			);
 
 			if (unpaidPayments.length === 0) {
 				throw new HttpException("No unpaid installments to advance", 400);
@@ -441,17 +514,17 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 			const paidDate = body.paidDate ? new Date(body.paidDate) : new Date();
 
 			for (const payment of unpaidPayments) {
-				await db
-					.updateTable("LoanPayment")
-					.set({
+				await executeStatement(
+					db.sql.public.LoanPayment.update({
 						advanceType: body.advanceType,
 						financialAccountId: body.financialAccountId,
 						isAdvanced: true,
 						paidDate,
 						updatedAt: new Date(),
 					})
-					.where("id", "=", payment.id)
-					.execute();
+						.where((fields, functions) => functions.eq(fields.id, payment.id))
+						.build(),
+				);
 			}
 
 			// Calculate total paid
@@ -459,14 +532,15 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 
 			// Update account balance if provided
 			if (body.financialAccountId) {
-				await db
-					.updateTable("FinancialAccount")
-					.set(eb => ({
-						balance: eb("balance", "-", totalPaid),
-						updatedAt: new Date(),
+				const amount = param(numeric<12, 2>(totalPaid), { codecId: "pg/numeric@1" });
+				await executeStatement(
+					db.sql.public.FinancialAccount.update((fields, functions) => ({
+						balance: functions.raw`${fields.balance} - ${amount}`.returns("pg/numeric@1"),
+						updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
 					}))
-					.where("id", "=", body.financialAccountId)
-					.execute();
+						.where((fields, functions) => functions.eq(fields.id, body.financialAccountId!))
+						.build(),
+				);
 			}
 
 			return {
@@ -493,12 +567,12 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("Loan", params.id, userId);
-			const history = await db
-				.selectFrom("LoanHistory")
-				.where("loanId", "=", params.id)
-				.selectAll()
-				.orderBy("changedAt", "desc")
-				.execute();
+			const history = await queryRows(
+				db.sql.public.LoanHistory.select("id", "loanId", "field", "oldValue", "newValue", "changedAt")
+					.where((fields, functions) => functions.eq(fields.loanId, params.id))
+					.orderBy("changedAt", { direction: "desc" })
+					.build(),
+			);
 
 			return history;
 		},

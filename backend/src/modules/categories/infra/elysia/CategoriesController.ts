@@ -1,19 +1,28 @@
 import Elysia, { t } from "elysia";
 import { assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
-import { db } from "~/shared/infra/sql";
+import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 
 export const CategoriesController = new Elysia({ prefix: "/categories" })
 	.get(
 		"/",
 		async ({ request }) => {
 			const userId = await requireUserId(request);
-			const categories = await db
-				.selectFrom("Category")
-				.selectAll()
-				.where("userId", "=", userId)
-				.orderBy("name", "asc")
-				.execute();
+			const categories = await queryRows(
+				db.sql.public.Category.select(
+					"id",
+					"userId",
+					"name",
+					"color",
+					"icon",
+					"parentId",
+					"createdAt",
+					"updatedAt",
+				)
+					.where((fields, functions) => functions.eq(fields.userId, userId))
+					.orderBy("name", { direction: "asc" })
+					.build(),
+			);
 			return categories;
 		},
 		{
@@ -25,11 +34,21 @@ export const CategoriesController = new Elysia({ prefix: "/categories" })
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("Category", params.id, userId);
-			const category = await db
-				.selectFrom("Category")
-				.where("id", "=", params.id)
-				.selectAll()
-				.executeTakeFirst();
+			const category = await queryFirst(
+				db.sql.public.Category.select(
+					"id",
+					"userId",
+					"name",
+					"color",
+					"icon",
+					"parentId",
+					"createdAt",
+					"updatedAt",
+				)
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.limit(1)
+					.build(),
+			);
 
 			if (!category) {
 				throw new HttpException("Category not found", 404);
@@ -48,28 +67,33 @@ export const CategoriesController = new Elysia({ prefix: "/categories" })
 		"/",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
-			const existing = await db
-				.selectFrom("Category")
-				.where("userId", "=", userId)
-				.where("name", "=", body.name)
-				.selectAll()
-				.executeTakeFirst();
+			const existing = await queryFirst(
+				db.sql.public.Category.select("id")
+					.where((fields, functions) =>
+						functions.and(functions.eq(fields.userId, userId), functions.eq(fields.name, body.name)),
+					)
+					.limit(1)
+					.build(),
+			);
 
 			if (existing) {
 				throw new HttpException("Category with this name already exists", 409);
 			}
 
-			const category = await db
-				.insertInto("Category")
-				.values({
-					color: body.color,
-					icon: body.icon,
-					name: body.name,
-					parentId: body.parentId,
-					userId,
-				})
-				.returningAll()
-				.executeTakeFirstOrThrow();
+			const category = await queryFirst(
+				db.sql.public.Category.insert([
+					{
+						color: body.color,
+						icon: body.icon,
+						name: body.name,
+						parentId: body.parentId,
+						userId,
+					},
+				])
+					.returning("id", "userId", "name", "color", "icon", "parentId", "createdAt", "updatedAt")
+					.build(),
+			);
+			if (!category) throw new HttpException("Category not created", 500);
 
 			return category;
 		},
@@ -88,28 +112,30 @@ export const CategoriesController = new Elysia({ prefix: "/categories" })
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("Category", params.id, userId);
-			const existing = await db
-				.selectFrom("Category")
-				.where("id", "=", params.id)
-				.selectAll()
-				.executeTakeFirst();
+			const existing = await queryFirst(
+				db.sql.public.Category.select("id")
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.limit(1)
+					.build(),
+			);
 
 			if (!existing) {
 				throw new HttpException("Category not found", 404);
 			}
 
-			const category = await db
-				.updateTable("Category")
-				.set({
+			const category = await queryFirst(
+				db.sql.public.Category.update({
 					...(body.name && { name: body.name }),
 					...(body.color !== undefined && { color: body.color }),
 					...(body.icon !== undefined && { icon: body.icon }),
 					...(body.parentId !== undefined && { parentId: body.parentId }),
 					updatedAt: new Date(),
 				})
-				.where("id", "=", params.id)
-				.returningAll()
-				.executeTakeFirstOrThrow();
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.returning("id", "userId", "name", "color", "icon", "parentId", "createdAt", "updatedAt")
+					.build(),
+			);
+			if (!category) throw new HttpException("Category not found", 404);
 
 			return category;
 		},
@@ -131,17 +157,22 @@ export const CategoriesController = new Elysia({ prefix: "/categories" })
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("Category", params.id, userId);
-			const existing = await db
-				.selectFrom("Category")
-				.where("id", "=", params.id)
-				.selectAll()
-				.executeTakeFirst();
+			const existing = await queryFirst(
+				db.sql.public.Category.select("id")
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.limit(1)
+					.build(),
+			);
 
 			if (!existing) {
 				throw new HttpException("Category not found", 404);
 			}
 
-			await db.deleteFrom("Category").where("id", "=", params.id).execute();
+			await executeStatement(
+				db.sql.public.Category.delete()
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.build(),
+			);
 			return { success: true };
 		},
 		{

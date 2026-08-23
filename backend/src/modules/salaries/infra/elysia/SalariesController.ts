@@ -1,7 +1,31 @@
 import Elysia, { t } from "elysia";
 import { assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
-import { db } from "~/shared/infra/sql";
+import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
+
+const salaryColumns = [
+	"id",
+	"userId",
+	"source",
+	"grossAmount",
+	"netAmount",
+	"frequency",
+	"payDay",
+	"startDate",
+	"endDate",
+	"isActive",
+	"createdAt",
+	"updatedAt",
+] as const;
+const salaryPaymentColumns = [
+	"id",
+	"salaryId",
+	"financialAccountId",
+	"amount",
+	"date",
+	"notes",
+	"createdAt",
+] as const;
 
 const RecurrenceFrequency = t.Union([
 	t.Literal("DAILY"),
@@ -16,12 +40,16 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 		"/",
 		async ({ query, request }) => {
 			const userId = await requireUserId(request);
-			let queryBuilder = db.selectFrom("Salary").selectAll().where("userId", "=", userId);
+			let queryBuilder = db.sql.public.Salary.select(...salaryColumns).where((fields, functions) =>
+				functions.eq(fields.userId, userId),
+			);
 			if (query.isActive !== undefined) {
-				queryBuilder = queryBuilder.where("isActive", "=", query.isActive);
+				queryBuilder = queryBuilder.where((fields, functions) =>
+					functions.eq(fields.isActive, query.isActive!),
+				);
 			}
 
-			const salaries = await queryBuilder.orderBy("startDate", "desc").execute();
+			const salaries = await queryRows(queryBuilder.orderBy("startDate", { direction: "desc" }).build());
 			return salaries;
 		},
 		{
@@ -36,19 +64,24 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("Salary", params.id, userId);
-			const salary = await db.selectFrom("Salary").where("id", "=", params.id).selectAll().executeTakeFirst();
+			const salary = await queryFirst(
+				db.sql.public.Salary.select(...salaryColumns)
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.limit(1)
+					.build(),
+			);
 
 			if (!salary) {
 				throw new HttpException("Salary not found", 404);
 			}
 
 			// Get payment history
-			const payments = await db
-				.selectFrom("SalaryPayment")
-				.where("salaryId", "=", params.id)
-				.selectAll()
-				.orderBy("date", "desc")
-				.execute();
+			const payments = await queryRows(
+				db.sql.public.SalaryPayment.select(...salaryPaymentColumns)
+					.where((fields, functions) => functions.eq(fields.salaryId, params.id))
+					.orderBy("date", { direction: "desc" })
+					.build(),
+			);
 
 			return { ...salary, payments };
 		},
@@ -64,12 +97,12 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("Salary", params.id, userId);
-			const history = await db
-				.selectFrom("SalaryHistory")
-				.where("salaryId", "=", params.id)
-				.selectAll()
-				.orderBy("changedAt", "desc")
-				.execute();
+			const history = await queryRows(
+				db.sql.public.SalaryHistory.select("id", "salaryId", "field", "oldValue", "newValue", "changedAt")
+					.where((fields, functions) => functions.eq(fields.salaryId, params.id))
+					.orderBy("changedAt", { direction: "desc" })
+					.build(),
+			);
 
 			return history;
 		},
@@ -84,21 +117,24 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 		"/",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
-			const salary = await db
-				.insertInto("Salary")
-				.values({
-					endDate: body.endDate ? new Date(body.endDate) : undefined,
-					frequency: body.frequency ?? "MONTHLY",
-					grossAmount: body.grossAmount,
-					isActive: body.isActive ?? true,
-					netAmount: body.netAmount,
-					payDay: body.payDay,
-					source: body.source,
-					startDate: new Date(body.startDate),
-					userId,
-				})
-				.returningAll()
-				.executeTakeFirstOrThrow();
+			const salary = await queryFirst(
+				db.sql.public.Salary.insert([
+					{
+						endDate: body.endDate ? new Date(body.endDate) : undefined,
+						frequency: body.frequency ?? "MONTHLY",
+						grossAmount: String(body.grossAmount),
+						isActive: body.isActive ?? true,
+						netAmount: String(body.netAmount),
+						payDay: body.payDay,
+						source: body.source,
+						startDate: new Date(body.startDate),
+						userId,
+					},
+				])
+					.returning(...salaryColumns)
+					.build(),
+			);
+			if (!salary) throw new HttpException("Salary not created", 500);
 
 			return salary;
 		},
@@ -122,33 +158,42 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("Salary", params.id, userId);
 			await assertDirectOwnership("FinancialAccount", body.financialAccountId, userId);
-			const salary = await db.selectFrom("Salary").where("id", "=", params.id).selectAll().executeTakeFirst();
+			const salary = await queryFirst(
+				db.sql.public.Salary.select("id")
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.limit(1)
+					.build(),
+			);
 
 			if (!salary) {
 				throw new HttpException("Salary not found", 404);
 			}
 
-			const payment = await db
-				.insertInto("SalaryPayment")
-				.values({
-					amount: body.amount,
-					date: new Date(body.date),
-					financialAccountId: body.financialAccountId,
-					notes: body.notes,
-					salaryId: params.id,
-				})
-				.returningAll()
-				.executeTakeFirstOrThrow();
+			const payment = await queryFirst(
+				db.sql.public.SalaryPayment.insert([
+					{
+						amount: String(body.amount),
+						date: new Date(body.date),
+						financialAccountId: body.financialAccountId,
+						notes: body.notes,
+						salaryId: params.id,
+					},
+				])
+					.returning(...salaryPaymentColumns)
+					.build(),
+			);
+			if (!payment) throw new HttpException("Salary payment not created", 500);
 
 			// Update account balance
-			await db
-				.updateTable("FinancialAccount")
-				.set(eb => ({
-					balance: eb("balance", "+", body.amount),
-					updatedAt: new Date(),
+			const amount = param(numeric<12, 2>(body.amount), { codecId: "pg/numeric@1" });
+			await executeStatement(
+				db.sql.public.FinancialAccount.update((fields, functions) => ({
+					balance: functions.raw`${fields.balance} + ${amount}`.returns("pg/numeric@1"),
+					updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
 				}))
-				.where("id", "=", body.financialAccountId)
-				.execute();
+					.where((fields, functions) => functions.eq(fields.id, body.financialAccountId))
+					.build(),
+			);
 
 			return payment;
 		},
@@ -170,11 +215,12 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("Salary", params.id, userId);
-			const existing = await db
-				.selectFrom("Salary")
-				.where("id", "=", params.id)
-				.selectAll()
-				.executeTakeFirst();
+			const existing = await queryFirst(
+				db.sql.public.Salary.select(...salaryColumns)
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.limit(1)
+					.build(),
+			);
 
 			if (!existing) {
 				throw new HttpException("Salary not found", 404);
@@ -214,15 +260,14 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 			}
 
 			if (historyEntries.length > 0) {
-				await db.insertInto("SalaryHistory").values(historyEntries).execute();
+				await executeStatement(db.sql.public.SalaryHistory.insert(historyEntries).build());
 			}
 
-			const salary = await db
-				.updateTable("Salary")
-				.set({
+			const salary = await queryFirst(
+				db.sql.public.Salary.update({
 					...(body.source && { source: body.source }),
-					...(body.grossAmount !== undefined && { grossAmount: body.grossAmount }),
-					...(body.netAmount !== undefined && { netAmount: body.netAmount }),
+					...(body.grossAmount !== undefined && { grossAmount: String(body.grossAmount) }),
+					...(body.netAmount !== undefined && { netAmount: String(body.netAmount) }),
 					...(body.frequency && { frequency: body.frequency }),
 					...(body.payDay !== undefined && { payDay: body.payDay }),
 					...(body.endDate !== undefined && {
@@ -231,9 +276,11 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 					...(body.isActive !== undefined && { isActive: body.isActive }),
 					updatedAt: new Date(),
 				})
-				.where("id", "=", params.id)
-				.returningAll()
-				.executeTakeFirstOrThrow();
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.returning(...salaryColumns)
+					.build(),
+			);
+			if (!salary) throw new HttpException("Salary not found", 404);
 
 			return salary;
 		},
@@ -258,17 +305,22 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("Salary", params.id, userId);
-			const existing = await db
-				.selectFrom("Salary")
-				.where("id", "=", params.id)
-				.selectAll()
-				.executeTakeFirst();
+			const existing = await queryFirst(
+				db.sql.public.Salary.select("id")
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.limit(1)
+					.build(),
+			);
 
 			if (!existing) {
 				throw new HttpException("Salary not found", 404);
 			}
 
-			await db.deleteFrom("Salary").where("id", "=", params.id).execute();
+			await executeStatement(
+				db.sql.public.Salary.delete()
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.build(),
+			);
 			return { success: true };
 		},
 		{
