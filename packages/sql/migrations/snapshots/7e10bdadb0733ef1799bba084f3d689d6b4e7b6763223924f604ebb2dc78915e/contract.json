@@ -30,19 +30,14 @@
 						"fields": {
 							"accessToken": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/text@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/text@1", "kind": "scalar" }
 							},
 							"accessTokenExpiresAt": {
 								"nullable": true,
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"accountId": {
@@ -50,9 +45,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 320
-									}
+									"typeParams": { "length": 320 }
 								}
 							},
 							"createdAt": {
@@ -60,9 +53,7 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"id": {
@@ -70,26 +61,19 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"idToken": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/text@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/text@1", "kind": "scalar" }
 							},
 							"issuer": {
 								"nullable": false,
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 320
-									}
+									"typeParams": { "length": 320 }
 								}
 							},
 							"password": {
@@ -97,9 +81,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 255
-									}
+									"typeParams": { "length": 255 }
 								}
 							},
 							"providerId": {
@@ -107,43 +89,31 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 100
-									}
+									"typeParams": { "length": 100 }
 								}
 							},
 							"refreshToken": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/text@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/text@1", "kind": "scalar" }
 							},
 							"refreshTokenExpiresAt": {
 								"nullable": true,
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"scope": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/text@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/text@1", "kind": "scalar" }
 							},
 							"updatedAt": {
 								"nullable": false,
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"userId": {
@@ -151,69 +121,33 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							}
 						},
 						"relations": {
 							"user": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["userId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "User",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["userId"], "targetFields": ["id"] },
+								"to": { "model": "User", "namespace": "public" }
 							}
 						},
 						"storage": {
 							"fields": {
-								"accessToken": {
-									"column": "accessToken"
-								},
-								"accessTokenExpiresAt": {
-									"column": "accessTokenExpiresAt"
-								},
-								"accountId": {
-									"column": "accountId"
-								},
-								"createdAt": {
-									"column": "createdAt"
-								},
-								"id": {
-									"column": "id"
-								},
-								"idToken": {
-									"column": "idToken"
-								},
-								"issuer": {
-									"column": "issuer"
-								},
-								"password": {
-									"column": "password"
-								},
-								"providerId": {
-									"column": "providerId"
-								},
-								"refreshToken": {
-									"column": "refreshToken"
-								},
-								"refreshTokenExpiresAt": {
-									"column": "refreshTokenExpiresAt"
-								},
-								"scope": {
-									"column": "scope"
-								},
-								"updatedAt": {
-									"column": "updatedAt"
-								},
-								"userId": {
-									"column": "userId"
-								}
+								"accessToken": { "column": "accessToken" },
+								"accessTokenExpiresAt": { "column": "accessTokenExpiresAt" },
+								"accountId": { "column": "accountId" },
+								"createdAt": { "column": "createdAt" },
+								"id": { "column": "id" },
+								"idToken": { "column": "idToken" },
+								"issuer": { "column": "issuer" },
+								"password": { "column": "password" },
+								"providerId": { "column": "providerId" },
+								"refreshToken": { "column": "refreshToken" },
+								"refreshTokenExpiresAt": { "column": "refreshTokenExpiresAt" },
+								"scope": { "column": "scope" },
+								"updatedAt": { "column": "updatedAt" },
+								"userId": { "column": "userId" }
 							},
 							"namespaceId": "public",
 							"table": "account"
@@ -226,9 +160,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 7
-									}
+									"typeParams": { "length": 7 }
 								}
 							},
 							"createdAt": {
@@ -236,9 +168,7 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"icon": {
@@ -246,9 +176,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 50
-									}
+									"typeParams": { "length": 50 }
 								}
 							},
 							"id": {
@@ -256,9 +184,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"name": {
@@ -266,9 +192,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 50
-									}
+									"typeParams": { "length": 50 }
 								}
 							},
 							"parentId": {
@@ -276,9 +200,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"updatedAt": {
@@ -286,9 +208,7 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"userId": {
@@ -296,106 +216,52 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							}
 						},
 						"relations": {
 							"categories": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["parentId"]
-								},
-								"to": {
-									"model": "Category",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["parentId"] },
+								"to": { "model": "Category", "namespace": "public" }
 							},
 							"creditPurchases": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["categoryId"]
-								},
-								"to": {
-									"model": "CreditPurchase",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["categoryId"] },
+								"to": { "model": "CreditPurchase", "namespace": "public" }
 							},
 							"parent": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["parentId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "Category",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["parentId"], "targetFields": ["id"] },
+								"to": { "model": "Category", "namespace": "public" }
 							},
 							"recurringPayments": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["categoryId"]
-								},
-								"to": {
-									"model": "RecurringPayment",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["categoryId"] },
+								"to": { "model": "RecurringPayment", "namespace": "public" }
 							},
 							"transactions": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["categoryId"]
-								},
-								"to": {
-									"model": "Transaction",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["categoryId"] },
+								"to": { "model": "Transaction", "namespace": "public" }
 							},
 							"user": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["userId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "User",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["userId"], "targetFields": ["id"] },
+								"to": { "model": "User", "namespace": "public" }
 							}
 						},
 						"storage": {
 							"fields": {
-								"color": {
-									"column": "color"
-								},
-								"createdAt": {
-									"column": "createdAt"
-								},
-								"icon": {
-									"column": "icon"
-								},
-								"id": {
-									"column": "id"
-								},
-								"name": {
-									"column": "name"
-								},
-								"parentId": {
-									"column": "parentId"
-								},
-								"updatedAt": {
-									"column": "updatedAt"
-								},
-								"userId": {
-									"column": "userId"
-								}
+								"color": { "column": "color" },
+								"createdAt": { "column": "createdAt" },
+								"icon": { "column": "icon" },
+								"id": { "column": "id" },
+								"name": { "column": "name" },
+								"parentId": { "column": "parentId" },
+								"updatedAt": { "column": "updatedAt" },
+								"userId": { "column": "userId" }
 							},
 							"namespaceId": "public",
 							"table": "Category"
@@ -408,9 +274,7 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"creditLimit": {
@@ -418,27 +282,19 @@
 								"type": {
 									"codecId": "pg/numeric@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								}
 							},
 							"dueDay": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/int2@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/int2@1", "kind": "scalar" }
 							},
 							"financialAccountId": {
 								"nullable": false,
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"id": {
@@ -446,97 +302,53 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"statementDay": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/int2@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/int2@1", "kind": "scalar" }
 							},
 							"updatedAt": {
 								"nullable": false,
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"workingDueDate": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/bool@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/bool@1", "kind": "scalar" }
 							}
 						},
 						"relations": {
 							"creditCardHistories": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["creditCardId"]
-								},
-								"to": {
-									"model": "CreditCardHistory",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["creditCardId"] },
+								"to": { "model": "CreditCardHistory", "namespace": "public" }
 							},
 							"creditCardStatements": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["creditCardId"]
-								},
-								"to": {
-									"model": "CreditCardStatement",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["creditCardId"] },
+								"to": { "model": "CreditCardStatement", "namespace": "public" }
 							},
 							"financialAccount": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["financialAccountId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "FinancialAccount",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["financialAccountId"], "targetFields": ["id"] },
+								"to": { "model": "FinancialAccount", "namespace": "public" }
 							}
 						},
 						"storage": {
 							"fields": {
-								"createdAt": {
-									"column": "createdAt"
-								},
-								"creditLimit": {
-									"column": "creditLimit"
-								},
-								"dueDay": {
-									"column": "dueDay"
-								},
-								"financialAccountId": {
-									"column": "financialAccountId"
-								},
-								"id": {
-									"column": "id"
-								},
-								"statementDay": {
-									"column": "statementDay"
-								},
-								"updatedAt": {
-									"column": "updatedAt"
-								},
-								"workingDueDate": {
-									"column": "workingDueDate"
-								}
+								"createdAt": { "column": "createdAt" },
+								"creditLimit": { "column": "creditLimit" },
+								"dueDay": { "column": "dueDay" },
+								"financialAccountId": { "column": "financialAccountId" },
+								"id": { "column": "id" },
+								"statementDay": { "column": "statementDay" },
+								"updatedAt": { "column": "updatedAt" },
+								"workingDueDate": { "column": "workingDueDate" }
 							},
 							"namespaceId": "public",
 							"table": "CreditCard"
@@ -549,9 +361,7 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"creditCardId": {
@@ -559,9 +369,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"field": {
@@ -569,9 +377,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 50
-									}
+									"typeParams": { "length": 50 }
 								}
 							},
 							"id": {
@@ -579,59 +385,33 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"newValue": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/text@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/text@1", "kind": "scalar" }
 							},
 							"oldValue": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/text@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/text@1", "kind": "scalar" }
 							}
 						},
 						"relations": {
 							"creditCard": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["creditCardId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "CreditCard",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["creditCardId"], "targetFields": ["id"] },
+								"to": { "model": "CreditCard", "namespace": "public" }
 							}
 						},
 						"storage": {
 							"fields": {
-								"changedAt": {
-									"column": "changedAt"
-								},
-								"creditCardId": {
-									"column": "creditCardId"
-								},
-								"field": {
-									"column": "field"
-								},
-								"id": {
-									"column": "id"
-								},
-								"newValue": {
-									"column": "newValue"
-								},
-								"oldValue": {
-									"column": "oldValue"
-								}
+								"changedAt": { "column": "changedAt" },
+								"creditCardId": { "column": "creditCardId" },
+								"field": { "column": "field" },
+								"id": { "column": "id" },
+								"newValue": { "column": "newValue" },
+								"oldValue": { "column": "oldValue" }
 							},
 							"namespaceId": "public",
 							"table": "CreditCardHistory"
@@ -644,9 +424,7 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"creditCardId": {
@@ -654,62 +432,43 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"dueDate": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/date@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/date@1", "kind": "scalar" }
 							},
 							"id": {
 								"nullable": false,
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"isPaid": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/bool@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/bool@1", "kind": "scalar" }
 							},
 							"paidAmount": {
 								"nullable": false,
 								"type": {
 									"codecId": "pg/numeric@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								}
 							},
 							"statementDate": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/date@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/date@1", "kind": "scalar" }
 							},
 							"totalAmount": {
 								"nullable": false,
 								"type": {
 									"codecId": "pg/numeric@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								}
 							},
 							"updatedAt": {
@@ -717,65 +476,33 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							}
 						},
 						"relations": {
 							"creditCard": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["creditCardId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "CreditCard",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["creditCardId"], "targetFields": ["id"] },
+								"to": { "model": "CreditCard", "namespace": "public" }
 							},
 							"creditPurchases": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["statementId"]
-								},
-								"to": {
-									"model": "CreditPurchase",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["statementId"] },
+								"to": { "model": "CreditPurchase", "namespace": "public" }
 							}
 						},
 						"storage": {
 							"fields": {
-								"createdAt": {
-									"column": "createdAt"
-								},
-								"creditCardId": {
-									"column": "creditCardId"
-								},
-								"dueDate": {
-									"column": "dueDate"
-								},
-								"id": {
-									"column": "id"
-								},
-								"isPaid": {
-									"column": "isPaid"
-								},
-								"paidAmount": {
-									"column": "paidAmount"
-								},
-								"statementDate": {
-									"column": "statementDate"
-								},
-								"totalAmount": {
-									"column": "totalAmount"
-								},
-								"updatedAt": {
-									"column": "updatedAt"
-								}
+								"createdAt": { "column": "createdAt" },
+								"creditCardId": { "column": "creditCardId" },
+								"dueDate": { "column": "dueDate" },
+								"id": { "column": "id" },
+								"isPaid": { "column": "isPaid" },
+								"paidAmount": { "column": "paidAmount" },
+								"statementDate": { "column": "statementDate" },
+								"totalAmount": { "column": "totalAmount" },
+								"updatedAt": { "column": "updatedAt" }
 							},
 							"namespaceId": "public",
 							"table": "CreditCardStatement"
@@ -788,9 +515,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"createdAt": {
@@ -798,26 +523,19 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"currentInstallment": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/int2@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/int2@1", "kind": "scalar" }
 							},
 							"description": {
 								"nullable": false,
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 500
-									}
+									"typeParams": { "length": 500 }
 								}
 							},
 							"id": {
@@ -825,9 +543,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"installmentAmount": {
@@ -835,44 +551,31 @@
 								"type": {
 									"codecId": "pg/numeric@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								}
 							},
 							"installments": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/int2@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/int2@1", "kind": "scalar" }
 							},
 							"parentId": {
 								"nullable": true,
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"purchaseDate": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/date@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/date@1", "kind": "scalar" }
 							},
 							"statementId": {
 								"nullable": false,
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"totalAmount": {
@@ -880,10 +583,7 @@
 								"type": {
 									"codecId": "pg/numeric@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								}
 							},
 							"updatedAt": {
@@ -891,107 +591,51 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							}
 						},
 						"relations": {
 							"category": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["categoryId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "Category",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["categoryId"], "targetFields": ["id"] },
+								"to": { "model": "Category", "namespace": "public" }
 							},
 							"creditPurchaseHistories": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["creditPurchaseId"]
-								},
-								"to": {
-									"model": "CreditPurchaseHistory",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["creditPurchaseId"] },
+								"to": { "model": "CreditPurchaseHistory", "namespace": "public" }
 							},
 							"creditPurchases": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["parentId"]
-								},
-								"to": {
-									"model": "CreditPurchase",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["parentId"] },
+								"to": { "model": "CreditPurchase", "namespace": "public" }
 							},
 							"parent": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["parentId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "CreditPurchase",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["parentId"], "targetFields": ["id"] },
+								"to": { "model": "CreditPurchase", "namespace": "public" }
 							},
 							"statement": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["statementId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "CreditCardStatement",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["statementId"], "targetFields": ["id"] },
+								"to": { "model": "CreditCardStatement", "namespace": "public" }
 							}
 						},
 						"storage": {
 							"fields": {
-								"categoryId": {
-									"column": "categoryId"
-								},
-								"createdAt": {
-									"column": "createdAt"
-								},
-								"currentInstallment": {
-									"column": "currentInstallment"
-								},
-								"description": {
-									"column": "description"
-								},
-								"id": {
-									"column": "id"
-								},
-								"installmentAmount": {
-									"column": "installmentAmount"
-								},
-								"installments": {
-									"column": "installments"
-								},
-								"parentId": {
-									"column": "parentId"
-								},
-								"purchaseDate": {
-									"column": "purchaseDate"
-								},
-								"statementId": {
-									"column": "statementId"
-								},
-								"totalAmount": {
-									"column": "totalAmount"
-								},
-								"updatedAt": {
-									"column": "updatedAt"
-								}
+								"categoryId": { "column": "categoryId" },
+								"createdAt": { "column": "createdAt" },
+								"currentInstallment": { "column": "currentInstallment" },
+								"description": { "column": "description" },
+								"id": { "column": "id" },
+								"installmentAmount": { "column": "installmentAmount" },
+								"installments": { "column": "installments" },
+								"parentId": { "column": "parentId" },
+								"purchaseDate": { "column": "purchaseDate" },
+								"statementId": { "column": "statementId" },
+								"totalAmount": { "column": "totalAmount" },
+								"updatedAt": { "column": "updatedAt" }
 							},
 							"namespaceId": "public",
 							"table": "CreditPurchase"
@@ -1004,9 +648,7 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"creditPurchaseId": {
@@ -1014,9 +656,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"field": {
@@ -1024,9 +664,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 50
-									}
+									"typeParams": { "length": 50 }
 								}
 							},
 							"id": {
@@ -1034,59 +672,33 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"newValue": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/text@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/text@1", "kind": "scalar" }
 							},
 							"oldValue": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/text@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/text@1", "kind": "scalar" }
 							}
 						},
 						"relations": {
 							"creditPurchase": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["creditPurchaseId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "CreditPurchase",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["creditPurchaseId"], "targetFields": ["id"] },
+								"to": { "model": "CreditPurchase", "namespace": "public" }
 							}
 						},
 						"storage": {
 							"fields": {
-								"changedAt": {
-									"column": "changedAt"
-								},
-								"creditPurchaseId": {
-									"column": "creditPurchaseId"
-								},
-								"field": {
-									"column": "field"
-								},
-								"id": {
-									"column": "id"
-								},
-								"newValue": {
-									"column": "newValue"
-								},
-								"oldValue": {
-									"column": "oldValue"
-								}
+								"changedAt": { "column": "changedAt" },
+								"creditPurchaseId": { "column": "creditPurchaseId" },
+								"field": { "column": "field" },
+								"id": { "column": "id" },
+								"newValue": { "column": "newValue" },
+								"oldValue": { "column": "oldValue" }
 							},
 							"namespaceId": "public",
 							"table": "CreditPurchaseHistory"
@@ -1099,10 +711,7 @@
 								"type": {
 									"codecId": "pg/numeric@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								}
 							},
 							"createdAt": {
@@ -1110,74 +719,51 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"date": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/date@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/date@1", "kind": "scalar" }
 							},
 							"description": {
 								"nullable": true,
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 500
-									}
+									"typeParams": { "length": 500 }
 								}
 							},
 							"dueDate": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/date@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/date@1", "kind": "scalar" }
 							},
 							"id": {
 								"nullable": false,
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"isOwedToMe": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/bool@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/bool@1", "kind": "scalar" }
 							},
 							"isPaid": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/bool@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/bool@1", "kind": "scalar" }
 							},
 							"paidDate": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/date@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/date@1", "kind": "scalar" }
 							},
 							"personName": {
 								"nullable": false,
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 100
-									}
+									"typeParams": { "length": 100 }
 								}
 							},
 							"updatedAt": {
@@ -1185,9 +771,7 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"userId": {
@@ -1195,74 +779,36 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							}
 						},
 						"relations": {
 							"debtHistories": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["debtId"]
-								},
-								"to": {
-									"model": "DebtHistory",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["debtId"] },
+								"to": { "model": "DebtHistory", "namespace": "public" }
 							},
 							"user": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["userId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "User",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["userId"], "targetFields": ["id"] },
+								"to": { "model": "User", "namespace": "public" }
 							}
 						},
 						"storage": {
 							"fields": {
-								"amount": {
-									"column": "amount"
-								},
-								"createdAt": {
-									"column": "createdAt"
-								},
-								"date": {
-									"column": "date"
-								},
-								"description": {
-									"column": "description"
-								},
-								"dueDate": {
-									"column": "dueDate"
-								},
-								"id": {
-									"column": "id"
-								},
-								"isOwedToMe": {
-									"column": "isOwedToMe"
-								},
-								"isPaid": {
-									"column": "isPaid"
-								},
-								"paidDate": {
-									"column": "paidDate"
-								},
-								"personName": {
-									"column": "personName"
-								},
-								"updatedAt": {
-									"column": "updatedAt"
-								},
-								"userId": {
-									"column": "userId"
-								}
+								"amount": { "column": "amount" },
+								"createdAt": { "column": "createdAt" },
+								"date": { "column": "date" },
+								"description": { "column": "description" },
+								"dueDate": { "column": "dueDate" },
+								"id": { "column": "id" },
+								"isOwedToMe": { "column": "isOwedToMe" },
+								"isPaid": { "column": "isPaid" },
+								"paidDate": { "column": "paidDate" },
+								"personName": { "column": "personName" },
+								"updatedAt": { "column": "updatedAt" },
+								"userId": { "column": "userId" }
 							},
 							"namespaceId": "public",
 							"table": "Debt"
@@ -1275,9 +821,7 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"debtId": {
@@ -1285,9 +829,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"field": {
@@ -1295,9 +837,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 50
-									}
+									"typeParams": { "length": 50 }
 								}
 							},
 							"id": {
@@ -1305,59 +845,33 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"newValue": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/text@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/text@1", "kind": "scalar" }
 							},
 							"oldValue": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/text@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/text@1", "kind": "scalar" }
 							}
 						},
 						"relations": {
 							"debt": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["debtId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "Debt",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["debtId"], "targetFields": ["id"] },
+								"to": { "model": "Debt", "namespace": "public" }
 							}
 						},
 						"storage": {
 							"fields": {
-								"changedAt": {
-									"column": "changedAt"
-								},
-								"debtId": {
-									"column": "debtId"
-								},
-								"field": {
-									"column": "field"
-								},
-								"id": {
-									"column": "id"
-								},
-								"newValue": {
-									"column": "newValue"
-								},
-								"oldValue": {
-									"column": "oldValue"
-								}
+								"changedAt": { "column": "changedAt" },
+								"debtId": { "column": "debtId" },
+								"field": { "column": "field" },
+								"id": { "column": "id" },
+								"newValue": { "column": "newValue" },
+								"oldValue": { "column": "oldValue" }
 							},
 							"namespaceId": "public",
 							"table": "DebtHistory"
@@ -1370,10 +884,7 @@
 								"type": {
 									"codecId": "pg/numeric@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								}
 							},
 							"createdAt": {
@@ -1381,9 +892,7 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"id": {
@@ -1391,9 +900,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"name": {
@@ -1401,9 +908,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 70
-									}
+									"typeParams": { "length": 70 }
 								}
 							},
 							"type": {
@@ -1411,9 +916,7 @@
 								"type": {
 									"codecId": "pg/enum@1",
 									"kind": "scalar",
-									"typeParams": {
-										"typeName": "FinancialAccountType"
-									}
+									"typeParams": { "typeName": "FinancialAccountType" }
 								}
 							},
 							"updatedAt": {
@@ -1421,9 +924,7 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"userId": {
@@ -1431,45 +932,25 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							}
 						},
 						"relations": {
 							"creditCards": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["financialAccountId"]
-								},
-								"to": {
-									"model": "CreditCard",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["financialAccountId"] },
+								"to": { "model": "CreditCard", "namespace": "public" }
 							},
 							"loanPayments": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["financialAccountId"]
-								},
-								"to": {
-									"model": "LoanPayment",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["financialAccountId"] },
+								"to": { "model": "LoanPayment", "namespace": "public" }
 							},
 							"salaryPayments": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["financialAccountId"]
-								},
-								"to": {
-									"model": "SalaryPayment",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["financialAccountId"] },
+								"to": { "model": "SalaryPayment", "namespace": "public" }
 							},
 							"transactions": {
 								"cardinality": "1:N",
@@ -1477,57 +958,28 @@
 									"localFields": ["id"],
 									"targetFields": ["destinationFinancialAccountId"]
 								},
-								"to": {
-									"model": "Transaction",
-									"namespace": "public"
-								}
+								"to": { "model": "Transaction", "namespace": "public" }
 							},
 							"transactionsTransaction": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["originFinancialAccountId"]
-								},
-								"to": {
-									"model": "Transaction",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["originFinancialAccountId"] },
+								"to": { "model": "Transaction", "namespace": "public" }
 							},
 							"user": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["userId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "User",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["userId"], "targetFields": ["id"] },
+								"to": { "model": "User", "namespace": "public" }
 							}
 						},
 						"storage": {
 							"fields": {
-								"balance": {
-									"column": "balance"
-								},
-								"createdAt": {
-									"column": "createdAt"
-								},
-								"id": {
-									"column": "id"
-								},
-								"name": {
-									"column": "name"
-								},
-								"type": {
-									"column": "type"
-								},
-								"updatedAt": {
-									"column": "updatedAt"
-								},
-								"userId": {
-									"column": "userId"
-								}
+								"balance": { "column": "balance" },
+								"createdAt": { "column": "createdAt" },
+								"id": { "column": "id" },
+								"name": { "column": "name" },
+								"type": { "column": "type" },
+								"updatedAt": { "column": "updatedAt" },
+								"userId": { "column": "userId" }
 							},
 							"namespaceId": "public",
 							"table": "FinancialAccount"
@@ -1540,9 +992,7 @@
 								"type": {
 									"codecId": "pg/enum@1",
 									"kind": "scalar",
-									"typeParams": {
-										"typeName": "AmortizationType"
-									}
+									"typeParams": { "typeName": "AmortizationType" }
 								}
 							},
 							"createdAt": {
@@ -1550,9 +1000,7 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"description": {
@@ -1560,33 +1008,23 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 500
-									}
+									"typeParams": { "length": 500 }
 								}
 							},
 							"dueDay": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/int2@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/int2@1", "kind": "scalar" }
 							},
 							"firstDueDate": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/date@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/date@1", "kind": "scalar" }
 							},
 							"id": {
 								"nullable": false,
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"installmentAmount": {
@@ -1594,10 +1032,7 @@
 								"type": {
 									"codecId": "pg/numeric@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								}
 							},
 							"interestRate": {
@@ -1605,10 +1040,7 @@
 								"type": {
 									"codecId": "pg/numeric@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 5,
-										"scale": 4
-									}
+									"typeParams": { "precision": 5, "scale": 4 }
 								}
 							},
 							"lender": {
@@ -1616,9 +1048,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 100
-									}
+									"typeParams": { "length": 100 }
 								}
 							},
 							"principalAmount": {
@@ -1626,34 +1056,23 @@
 								"type": {
 									"codecId": "pg/numeric@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								}
 							},
 							"startDate": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/date@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/date@1", "kind": "scalar" }
 							},
 							"totalInstallments": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/int2@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/int2@1", "kind": "scalar" }
 							},
 							"updatedAt": {
 								"nullable": false,
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"userId": {
@@ -1661,91 +1080,43 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							}
 						},
 						"relations": {
 							"loanHistories": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["loanId"]
-								},
-								"to": {
-									"model": "LoanHistory",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["loanId"] },
+								"to": { "model": "LoanHistory", "namespace": "public" }
 							},
 							"loanPayments": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["loanId"]
-								},
-								"to": {
-									"model": "LoanPayment",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["loanId"] },
+								"to": { "model": "LoanPayment", "namespace": "public" }
 							},
 							"user": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["userId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "User",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["userId"], "targetFields": ["id"] },
+								"to": { "model": "User", "namespace": "public" }
 							}
 						},
 						"storage": {
 							"fields": {
-								"amortization": {
-									"column": "amortization"
-								},
-								"createdAt": {
-									"column": "createdAt"
-								},
-								"description": {
-									"column": "description"
-								},
-								"dueDay": {
-									"column": "dueDay"
-								},
-								"firstDueDate": {
-									"column": "firstDueDate"
-								},
-								"id": {
-									"column": "id"
-								},
-								"installmentAmount": {
-									"column": "installmentAmount"
-								},
-								"interestRate": {
-									"column": "interestRate"
-								},
-								"lender": {
-									"column": "lender"
-								},
-								"principalAmount": {
-									"column": "principalAmount"
-								},
-								"startDate": {
-									"column": "startDate"
-								},
-								"totalInstallments": {
-									"column": "totalInstallments"
-								},
-								"updatedAt": {
-									"column": "updatedAt"
-								},
-								"userId": {
-									"column": "userId"
-								}
+								"amortization": { "column": "amortization" },
+								"createdAt": { "column": "createdAt" },
+								"description": { "column": "description" },
+								"dueDay": { "column": "dueDay" },
+								"firstDueDate": { "column": "firstDueDate" },
+								"id": { "column": "id" },
+								"installmentAmount": { "column": "installmentAmount" },
+								"interestRate": { "column": "interestRate" },
+								"lender": { "column": "lender" },
+								"principalAmount": { "column": "principalAmount" },
+								"startDate": { "column": "startDate" },
+								"totalInstallments": { "column": "totalInstallments" },
+								"updatedAt": { "column": "updatedAt" },
+								"userId": { "column": "userId" }
 							},
 							"namespaceId": "public",
 							"table": "Loan"
@@ -1758,9 +1129,7 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"field": {
@@ -1768,9 +1137,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 50
-									}
+									"typeParams": { "length": 50 }
 								}
 							},
 							"id": {
@@ -1778,9 +1145,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"loanId": {
@@ -1788,59 +1153,33 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"newValue": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/text@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/text@1", "kind": "scalar" }
 							},
 							"oldValue": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/text@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/text@1", "kind": "scalar" }
 							}
 						},
 						"relations": {
 							"loan": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["loanId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "Loan",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["loanId"], "targetFields": ["id"] },
+								"to": { "model": "Loan", "namespace": "public" }
 							}
 						},
 						"storage": {
 							"fields": {
-								"changedAt": {
-									"column": "changedAt"
-								},
-								"field": {
-									"column": "field"
-								},
-								"id": {
-									"column": "id"
-								},
-								"loanId": {
-									"column": "loanId"
-								},
-								"newValue": {
-									"column": "newValue"
-								},
-								"oldValue": {
-									"column": "oldValue"
-								}
+								"changedAt": { "column": "changedAt" },
+								"field": { "column": "field" },
+								"id": { "column": "id" },
+								"loanId": { "column": "loanId" },
+								"newValue": { "column": "newValue" },
+								"oldValue": { "column": "oldValue" }
 							},
 							"namespaceId": "public",
 							"table": "LoanHistory"
@@ -1853,9 +1192,7 @@
 								"type": {
 									"codecId": "pg/enum@1",
 									"kind": "scalar",
-									"typeParams": {
-										"typeName": "AdvanceType"
-									}
+									"typeParams": { "typeName": "AdvanceType" }
 								}
 							},
 							"createdAt": {
@@ -1863,26 +1200,19 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"dueDate": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/date@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/date@1", "kind": "scalar" }
 							},
 							"financialAccountId": {
 								"nullable": true,
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"id": {
@@ -1890,62 +1220,43 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"installmentNumber": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/int2@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/int2@1", "kind": "scalar" }
 							},
 							"interestPaid": {
 								"nullable": false,
 								"type": {
 									"codecId": "pg/numeric@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								}
 							},
 							"isAdvanced": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/bool@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/bool@1", "kind": "scalar" }
 							},
 							"loanId": {
 								"nullable": false,
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"paidDate": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/date@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/date@1", "kind": "scalar" }
 							},
 							"principalPaid": {
 								"nullable": false,
 								"type": {
 									"codecId": "pg/numeric@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								}
 							},
 							"totalPaid": {
@@ -1953,10 +1264,7 @@
 								"type": {
 									"codecId": "pg/numeric@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								}
 							},
 							"updatedAt": {
@@ -1964,77 +1272,37 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							}
 						},
 						"relations": {
 							"financialAccount": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["financialAccountId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "FinancialAccount",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["financialAccountId"], "targetFields": ["id"] },
+								"to": { "model": "FinancialAccount", "namespace": "public" }
 							},
 							"loan": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["loanId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "Loan",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["loanId"], "targetFields": ["id"] },
+								"to": { "model": "Loan", "namespace": "public" }
 							}
 						},
 						"storage": {
 							"fields": {
-								"advanceType": {
-									"column": "advanceType"
-								},
-								"createdAt": {
-									"column": "createdAt"
-								},
-								"dueDate": {
-									"column": "dueDate"
-								},
-								"financialAccountId": {
-									"column": "financialAccountId"
-								},
-								"id": {
-									"column": "id"
-								},
-								"installmentNumber": {
-									"column": "installmentNumber"
-								},
-								"interestPaid": {
-									"column": "interestPaid"
-								},
-								"isAdvanced": {
-									"column": "isAdvanced"
-								},
-								"loanId": {
-									"column": "loanId"
-								},
-								"paidDate": {
-									"column": "paidDate"
-								},
-								"principalPaid": {
-									"column": "principalPaid"
-								},
-								"totalPaid": {
-									"column": "totalPaid"
-								},
-								"updatedAt": {
-									"column": "updatedAt"
-								}
+								"advanceType": { "column": "advanceType" },
+								"createdAt": { "column": "createdAt" },
+								"dueDate": { "column": "dueDate" },
+								"financialAccountId": { "column": "financialAccountId" },
+								"id": { "column": "id" },
+								"installmentNumber": { "column": "installmentNumber" },
+								"interestPaid": { "column": "interestPaid" },
+								"isAdvanced": { "column": "isAdvanced" },
+								"loanId": { "column": "loanId" },
+								"paidDate": { "column": "paidDate" },
+								"principalPaid": { "column": "principalPaid" },
+								"totalPaid": { "column": "totalPaid" },
+								"updatedAt": { "column": "updatedAt" }
 							},
 							"namespaceId": "public",
 							"table": "LoanPayment"
@@ -2047,10 +1315,7 @@
 								"type": {
 									"codecId": "pg/numeric@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								}
 							},
 							"categoryId": {
@@ -2058,9 +1323,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"createdAt": {
@@ -2068,40 +1331,27 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"dayOfMonth": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/int2@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/int2@1", "kind": "scalar" }
 							},
 							"dayOfWeek": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/int2@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/int2@1", "kind": "scalar" }
 							},
 							"endDate": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/date@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/date@1", "kind": "scalar" }
 							},
 							"frequency": {
 								"nullable": false,
 								"type": {
 									"codecId": "pg/enum@1",
 									"kind": "scalar",
-									"typeParams": {
-										"typeName": "RecurrenceFrequency"
-									}
+									"typeParams": { "typeName": "RecurrenceFrequency" }
 								}
 							},
 							"id": {
@@ -2109,26 +1359,19 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"isActive": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/bool@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/bool@1", "kind": "scalar" }
 							},
 							"name": {
 								"nullable": false,
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 100
-									}
+									"typeParams": { "length": 100 }
 								}
 							},
 							"paymentMethod": {
@@ -2136,26 +1379,19 @@
 								"type": {
 									"codecId": "pg/enum@1",
 									"kind": "scalar",
-									"typeParams": {
-										"typeName": "PaymentMethod"
-									}
+									"typeParams": { "typeName": "PaymentMethod" }
 								}
 							},
 							"startDate": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/date@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/date@1", "kind": "scalar" }
 							},
 							"updatedAt": {
 								"nullable": false,
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"userId": {
@@ -2163,91 +1399,43 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							}
 						},
 						"relations": {
 							"category": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["categoryId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "Category",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["categoryId"], "targetFields": ["id"] },
+								"to": { "model": "Category", "namespace": "public" }
 							},
 							"recurringPaymentHistories": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["recurringPaymentId"]
-								},
-								"to": {
-									"model": "RecurringPaymentHistory",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["recurringPaymentId"] },
+								"to": { "model": "RecurringPaymentHistory", "namespace": "public" }
 							},
 							"transactions": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["recurrenceId"]
-								},
-								"to": {
-									"model": "Transaction",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["recurrenceId"] },
+								"to": { "model": "Transaction", "namespace": "public" }
 							}
 						},
 						"storage": {
 							"fields": {
-								"amount": {
-									"column": "amount"
-								},
-								"categoryId": {
-									"column": "categoryId"
-								},
-								"createdAt": {
-									"column": "createdAt"
-								},
-								"dayOfMonth": {
-									"column": "dayOfMonth"
-								},
-								"dayOfWeek": {
-									"column": "dayOfWeek"
-								},
-								"endDate": {
-									"column": "endDate"
-								},
-								"frequency": {
-									"column": "frequency"
-								},
-								"id": {
-									"column": "id"
-								},
-								"isActive": {
-									"column": "isActive"
-								},
-								"name": {
-									"column": "name"
-								},
-								"paymentMethod": {
-									"column": "paymentMethod"
-								},
-								"startDate": {
-									"column": "startDate"
-								},
-								"updatedAt": {
-									"column": "updatedAt"
-								},
-								"userId": {
-									"column": "userId"
-								}
+								"amount": { "column": "amount" },
+								"categoryId": { "column": "categoryId" },
+								"createdAt": { "column": "createdAt" },
+								"dayOfMonth": { "column": "dayOfMonth" },
+								"dayOfWeek": { "column": "dayOfWeek" },
+								"endDate": { "column": "endDate" },
+								"frequency": { "column": "frequency" },
+								"id": { "column": "id" },
+								"isActive": { "column": "isActive" },
+								"name": { "column": "name" },
+								"paymentMethod": { "column": "paymentMethod" },
+								"startDate": { "column": "startDate" },
+								"updatedAt": { "column": "updatedAt" },
+								"userId": { "column": "userId" }
 							},
 							"namespaceId": "public",
 							"table": "RecurringPayment"
@@ -2260,9 +1448,7 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"field": {
@@ -2270,9 +1456,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 50
-									}
+									"typeParams": { "length": 50 }
 								}
 							},
 							"id": {
@@ -2280,69 +1464,41 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"newValue": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/text@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/text@1", "kind": "scalar" }
 							},
 							"oldValue": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/text@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/text@1", "kind": "scalar" }
 							},
 							"recurringPaymentId": {
 								"nullable": false,
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							}
 						},
 						"relations": {
 							"recurringPayment": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["recurringPaymentId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "RecurringPayment",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["recurringPaymentId"], "targetFields": ["id"] },
+								"to": { "model": "RecurringPayment", "namespace": "public" }
 							}
 						},
 						"storage": {
 							"fields": {
-								"changedAt": {
-									"column": "changedAt"
-								},
-								"field": {
-									"column": "field"
-								},
-								"id": {
-									"column": "id"
-								},
-								"newValue": {
-									"column": "newValue"
-								},
-								"oldValue": {
-									"column": "oldValue"
-								},
-								"recurringPaymentId": {
-									"column": "recurringPaymentId"
-								}
+								"changedAt": { "column": "changedAt" },
+								"field": { "column": "field" },
+								"id": { "column": "id" },
+								"newValue": { "column": "newValue" },
+								"oldValue": { "column": "oldValue" },
+								"recurringPaymentId": { "column": "recurringPaymentId" }
 							},
 							"namespaceId": "public",
 							"table": "RecurringPaymentHistory"
@@ -2355,26 +1511,19 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"endDate": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/date@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/date@1", "kind": "scalar" }
 							},
 							"frequency": {
 								"nullable": false,
 								"type": {
 									"codecId": "pg/enum@1",
 									"kind": "scalar",
-									"typeParams": {
-										"typeName": "RecurrenceFrequency"
-									}
+									"typeParams": { "typeName": "RecurrenceFrequency" }
 								}
 							},
 							"grossAmount": {
@@ -2382,10 +1531,7 @@
 								"type": {
 									"codecId": "pg/numeric@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								}
 							},
 							"id": {
@@ -2393,61 +1539,43 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"isActive": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/bool@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/bool@1", "kind": "scalar" }
 							},
 							"netAmount": {
 								"nullable": false,
 								"type": {
 									"codecId": "pg/numeric@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								}
 							},
 							"payDay": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/int2@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/int2@1", "kind": "scalar" }
 							},
 							"source": {
 								"nullable": false,
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 100
-									}
+									"typeParams": { "length": 100 }
 								}
 							},
 							"startDate": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/date@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/date@1", "kind": "scalar" }
 							},
 							"updatedAt": {
 								"nullable": false,
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"userId": {
@@ -2455,85 +1583,41 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							}
 						},
 						"relations": {
 							"salaryHistories": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["salaryId"]
-								},
-								"to": {
-									"model": "SalaryHistory",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["salaryId"] },
+								"to": { "model": "SalaryHistory", "namespace": "public" }
 							},
 							"salaryPayments": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["salaryId"]
-								},
-								"to": {
-									"model": "SalaryPayment",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["salaryId"] },
+								"to": { "model": "SalaryPayment", "namespace": "public" }
 							},
 							"user": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["userId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "User",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["userId"], "targetFields": ["id"] },
+								"to": { "model": "User", "namespace": "public" }
 							}
 						},
 						"storage": {
 							"fields": {
-								"createdAt": {
-									"column": "createdAt"
-								},
-								"endDate": {
-									"column": "endDate"
-								},
-								"frequency": {
-									"column": "frequency"
-								},
-								"grossAmount": {
-									"column": "grossAmount"
-								},
-								"id": {
-									"column": "id"
-								},
-								"isActive": {
-									"column": "isActive"
-								},
-								"netAmount": {
-									"column": "netAmount"
-								},
-								"payDay": {
-									"column": "payDay"
-								},
-								"source": {
-									"column": "source"
-								},
-								"startDate": {
-									"column": "startDate"
-								},
-								"updatedAt": {
-									"column": "updatedAt"
-								},
-								"userId": {
-									"column": "userId"
-								}
+								"createdAt": { "column": "createdAt" },
+								"endDate": { "column": "endDate" },
+								"frequency": { "column": "frequency" },
+								"grossAmount": { "column": "grossAmount" },
+								"id": { "column": "id" },
+								"isActive": { "column": "isActive" },
+								"netAmount": { "column": "netAmount" },
+								"payDay": { "column": "payDay" },
+								"source": { "column": "source" },
+								"startDate": { "column": "startDate" },
+								"updatedAt": { "column": "updatedAt" },
+								"userId": { "column": "userId" }
 							},
 							"namespaceId": "public",
 							"table": "Salary"
@@ -2546,9 +1630,7 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"field": {
@@ -2556,9 +1638,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 50
-									}
+									"typeParams": { "length": 50 }
 								}
 							},
 							"id": {
@@ -2566,69 +1646,41 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"newValue": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/text@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/text@1", "kind": "scalar" }
 							},
 							"oldValue": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/text@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/text@1", "kind": "scalar" }
 							},
 							"salaryId": {
 								"nullable": false,
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							}
 						},
 						"relations": {
 							"salary": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["salaryId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "Salary",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["salaryId"], "targetFields": ["id"] },
+								"to": { "model": "Salary", "namespace": "public" }
 							}
 						},
 						"storage": {
 							"fields": {
-								"changedAt": {
-									"column": "changedAt"
-								},
-								"field": {
-									"column": "field"
-								},
-								"id": {
-									"column": "id"
-								},
-								"newValue": {
-									"column": "newValue"
-								},
-								"oldValue": {
-									"column": "oldValue"
-								},
-								"salaryId": {
-									"column": "salaryId"
-								}
+								"changedAt": { "column": "changedAt" },
+								"field": { "column": "field" },
+								"id": { "column": "id" },
+								"newValue": { "column": "newValue" },
+								"oldValue": { "column": "oldValue" },
+								"salaryId": { "column": "salaryId" }
 							},
 							"namespaceId": "public",
 							"table": "SalaryHistory"
@@ -2641,10 +1693,7 @@
 								"type": {
 									"codecId": "pg/numeric@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								}
 							},
 							"createdAt": {
@@ -2652,26 +1701,19 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"date": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/date@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/date@1", "kind": "scalar" }
 							},
 							"financialAccountId": {
 								"nullable": false,
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"id": {
@@ -2679,9 +1721,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"notes": {
@@ -2689,9 +1729,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 500
-									}
+									"typeParams": { "length": 500 }
 								}
 							},
 							"salaryId": {
@@ -2699,59 +1737,31 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							}
 						},
 						"relations": {
 							"financialAccount": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["financialAccountId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "FinancialAccount",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["financialAccountId"], "targetFields": ["id"] },
+								"to": { "model": "FinancialAccount", "namespace": "public" }
 							},
 							"salary": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["salaryId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "Salary",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["salaryId"], "targetFields": ["id"] },
+								"to": { "model": "Salary", "namespace": "public" }
 							}
 						},
 						"storage": {
 							"fields": {
-								"amount": {
-									"column": "amount"
-								},
-								"createdAt": {
-									"column": "createdAt"
-								},
-								"date": {
-									"column": "date"
-								},
-								"financialAccountId": {
-									"column": "financialAccountId"
-								},
-								"id": {
-									"column": "id"
-								},
-								"notes": {
-									"column": "notes"
-								},
-								"salaryId": {
-									"column": "salaryId"
-								}
+								"amount": { "column": "amount" },
+								"createdAt": { "column": "createdAt" },
+								"date": { "column": "date" },
+								"financialAccountId": { "column": "financialAccountId" },
+								"id": { "column": "id" },
+								"notes": { "column": "notes" },
+								"salaryId": { "column": "salaryId" }
 							},
 							"namespaceId": "public",
 							"table": "SalaryPayment"
@@ -2764,9 +1774,7 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"expiresAt": {
@@ -2774,9 +1782,7 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"id": {
@@ -2784,9 +1790,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"ipAddress": {
@@ -2794,9 +1798,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 64
-									}
+									"typeParams": { "length": 64 }
 								}
 							},
 							"token": {
@@ -2804,9 +1806,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 512
-									}
+									"typeParams": { "length": 512 }
 								}
 							},
 							"updatedAt": {
@@ -2814,9 +1814,7 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"userAgent": {
@@ -2824,9 +1822,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 1024
-									}
+									"typeParams": { "length": 1024 }
 								}
 							},
 							"userId": {
@@ -2834,51 +1830,27 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							}
 						},
 						"relations": {
 							"user": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["userId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "User",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["userId"], "targetFields": ["id"] },
+								"to": { "model": "User", "namespace": "public" }
 							}
 						},
 						"storage": {
 							"fields": {
-								"createdAt": {
-									"column": "createdAt"
-								},
-								"expiresAt": {
-									"column": "expiresAt"
-								},
-								"id": {
-									"column": "id"
-								},
-								"ipAddress": {
-									"column": "ipAddress"
-								},
-								"token": {
-									"column": "token"
-								},
-								"updatedAt": {
-									"column": "updatedAt"
-								},
-								"userAgent": {
-									"column": "userAgent"
-								},
-								"userId": {
-									"column": "userId"
-								}
+								"createdAt": { "column": "createdAt" },
+								"expiresAt": { "column": "expiresAt" },
+								"id": { "column": "id" },
+								"ipAddress": { "column": "ipAddress" },
+								"token": { "column": "token" },
+								"updatedAt": { "column": "updatedAt" },
+								"userAgent": { "column": "userAgent" },
+								"userId": { "column": "userId" }
 							},
 							"namespaceId": "public",
 							"table": "session"
@@ -2891,44 +1863,31 @@
 								"type": {
 									"codecId": "pg/numeric@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								}
 							},
 							"billingDay": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/int2@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/int2@1", "kind": "scalar" }
 							},
 							"createdAt": {
 								"nullable": false,
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"endDate": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/date@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/date@1", "kind": "scalar" }
 							},
 							"frequency": {
 								"nullable": false,
 								"type": {
 									"codecId": "pg/enum@1",
 									"kind": "scalar",
-									"typeParams": {
-										"typeName": "RecurrenceFrequency"
-									}
+									"typeParams": { "typeName": "RecurrenceFrequency" }
 								}
 							},
 							"id": {
@@ -2936,26 +1895,19 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"isActive": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/bool@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/bool@1", "kind": "scalar" }
 							},
 							"name": {
 								"nullable": false,
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 100
-									}
+									"typeParams": { "length": 100 }
 								}
 							},
 							"paymentMethod": {
@@ -2963,26 +1915,19 @@
 								"type": {
 									"codecId": "pg/enum@1",
 									"kind": "scalar",
-									"typeParams": {
-										"typeName": "PaymentMethod"
-									}
+									"typeParams": { "typeName": "PaymentMethod" }
 								}
 							},
 							"startDate": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/date@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/date@1", "kind": "scalar" }
 							},
 							"updatedAt": {
 								"nullable": false,
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"userId": {
@@ -2990,74 +1935,36 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							}
 						},
 						"relations": {
 							"subscriptionHistories": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["subscriptionId"]
-								},
-								"to": {
-									"model": "SubscriptionHistory",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["subscriptionId"] },
+								"to": { "model": "SubscriptionHistory", "namespace": "public" }
 							},
 							"user": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["userId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "User",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["userId"], "targetFields": ["id"] },
+								"to": { "model": "User", "namespace": "public" }
 							}
 						},
 						"storage": {
 							"fields": {
-								"amount": {
-									"column": "amount"
-								},
-								"billingDay": {
-									"column": "billingDay"
-								},
-								"createdAt": {
-									"column": "createdAt"
-								},
-								"endDate": {
-									"column": "endDate"
-								},
-								"frequency": {
-									"column": "frequency"
-								},
-								"id": {
-									"column": "id"
-								},
-								"isActive": {
-									"column": "isActive"
-								},
-								"name": {
-									"column": "name"
-								},
-								"paymentMethod": {
-									"column": "paymentMethod"
-								},
-								"startDate": {
-									"column": "startDate"
-								},
-								"updatedAt": {
-									"column": "updatedAt"
-								},
-								"userId": {
-									"column": "userId"
-								}
+								"amount": { "column": "amount" },
+								"billingDay": { "column": "billingDay" },
+								"createdAt": { "column": "createdAt" },
+								"endDate": { "column": "endDate" },
+								"frequency": { "column": "frequency" },
+								"id": { "column": "id" },
+								"isActive": { "column": "isActive" },
+								"name": { "column": "name" },
+								"paymentMethod": { "column": "paymentMethod" },
+								"startDate": { "column": "startDate" },
+								"updatedAt": { "column": "updatedAt" },
+								"userId": { "column": "userId" }
 							},
 							"namespaceId": "public",
 							"table": "Subscription"
@@ -3070,9 +1977,7 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"field": {
@@ -3080,9 +1985,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 50
-									}
+									"typeParams": { "length": 50 }
 								}
 							},
 							"id": {
@@ -3090,69 +1993,41 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"newValue": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/text@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/text@1", "kind": "scalar" }
 							},
 							"oldValue": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/text@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/text@1", "kind": "scalar" }
 							},
 							"subscriptionId": {
 								"nullable": false,
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							}
 						},
 						"relations": {
 							"subscription": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["subscriptionId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "Subscription",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["subscriptionId"], "targetFields": ["id"] },
+								"to": { "model": "Subscription", "namespace": "public" }
 							}
 						},
 						"storage": {
 							"fields": {
-								"changedAt": {
-									"column": "changedAt"
-								},
-								"field": {
-									"column": "field"
-								},
-								"id": {
-									"column": "id"
-								},
-								"newValue": {
-									"column": "newValue"
-								},
-								"oldValue": {
-									"column": "oldValue"
-								},
-								"subscriptionId": {
-									"column": "subscriptionId"
-								}
+								"changedAt": { "column": "changedAt" },
+								"field": { "column": "field" },
+								"id": { "column": "id" },
+								"newValue": { "column": "newValue" },
+								"oldValue": { "column": "oldValue" },
+								"subscriptionId": { "column": "subscriptionId" }
 							},
 							"namespaceId": "public",
 							"table": "SubscriptionHistory"
@@ -3165,10 +2040,7 @@
 								"type": {
 									"codecId": "pg/numeric@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								}
 							},
 							"categoryId": {
@@ -3176,9 +2048,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"createdAt": {
@@ -3186,26 +2056,19 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"date": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/date@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/date@1", "kind": "scalar" }
 							},
 							"description": {
 								"nullable": true,
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 1000
-									}
+									"typeParams": { "length": 1000 }
 								}
 							},
 							"destinationFinancialAccountId": {
@@ -3213,9 +2076,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"id": {
@@ -3223,9 +2084,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"originFinancialAccountId": {
@@ -3233,9 +2092,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"recurrenceId": {
@@ -3243,9 +2100,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"type": {
@@ -3253,9 +2108,7 @@
 								"type": {
 									"codecId": "pg/enum@1",
 									"kind": "scalar",
-									"typeParams": {
-										"typeName": "TransactionType"
-									}
+									"typeParams": { "typeName": "TransactionType" }
 								}
 							},
 							"updatedAt": {
@@ -3263,23 +2116,15 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							}
 						},
 						"relations": {
 							"category": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["categoryId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "Category",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["categoryId"], "targetFields": ["id"] },
+								"to": { "model": "Category", "namespace": "public" }
 							},
 							"destinationFinancialAccount": {
 								"cardinality": "N:1",
@@ -3287,80 +2132,39 @@
 									"localFields": ["destinationFinancialAccountId"],
 									"targetFields": ["id"]
 								},
-								"to": {
-									"model": "FinancialAccount",
-									"namespace": "public"
-								}
+								"to": { "model": "FinancialAccount", "namespace": "public" }
 							},
 							"originFinancialAccount": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["originFinancialAccountId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "FinancialAccount",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["originFinancialAccountId"], "targetFields": ["id"] },
+								"to": { "model": "FinancialAccount", "namespace": "public" }
 							},
 							"recurrence": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["recurrenceId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "RecurringPayment",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["recurrenceId"], "targetFields": ["id"] },
+								"to": { "model": "RecurringPayment", "namespace": "public" }
 							},
 							"transactionHistories": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["transactionId"]
-								},
-								"to": {
-									"model": "TransactionHistory",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["transactionId"] },
+								"to": { "model": "TransactionHistory", "namespace": "public" }
 							}
 						},
 						"storage": {
 							"fields": {
-								"amount": {
-									"column": "amount"
-								},
-								"categoryId": {
-									"column": "categoryId"
-								},
-								"createdAt": {
-									"column": "createdAt"
-								},
-								"date": {
-									"column": "date"
-								},
-								"description": {
-									"column": "description"
-								},
+								"amount": { "column": "amount" },
+								"categoryId": { "column": "categoryId" },
+								"createdAt": { "column": "createdAt" },
+								"date": { "column": "date" },
+								"description": { "column": "description" },
 								"destinationFinancialAccountId": {
 									"column": "destinationFinancialAccountId"
 								},
-								"id": {
-									"column": "id"
-								},
-								"originFinancialAccountId": {
-									"column": "originFinancialAccountId"
-								},
-								"recurrenceId": {
-									"column": "recurrenceId"
-								},
-								"type": {
-									"column": "type"
-								},
-								"updatedAt": {
-									"column": "updatedAt"
-								}
+								"id": { "column": "id" },
+								"originFinancialAccountId": { "column": "originFinancialAccountId" },
+								"recurrenceId": { "column": "recurrenceId" },
+								"type": { "column": "type" },
+								"updatedAt": { "column": "updatedAt" }
 							},
 							"namespaceId": "public",
 							"table": "Transaction"
@@ -3373,9 +2177,7 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"field": {
@@ -3383,9 +2185,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 50
-									}
+									"typeParams": { "length": 50 }
 								}
 							},
 							"id": {
@@ -3393,69 +2193,41 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"newValue": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/text@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/text@1", "kind": "scalar" }
 							},
 							"oldValue": {
 								"nullable": true,
-								"type": {
-									"codecId": "pg/text@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/text@1", "kind": "scalar" }
 							},
 							"transactionId": {
 								"nullable": false,
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							}
 						},
 						"relations": {
 							"transaction": {
 								"cardinality": "N:1",
-								"on": {
-									"localFields": ["transactionId"],
-									"targetFields": ["id"]
-								},
-								"to": {
-									"model": "Transaction",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["transactionId"], "targetFields": ["id"] },
+								"to": { "model": "Transaction", "namespace": "public" }
 							}
 						},
 						"storage": {
 							"fields": {
-								"changedAt": {
-									"column": "changedAt"
-								},
-								"field": {
-									"column": "field"
-								},
-								"id": {
-									"column": "id"
-								},
-								"newValue": {
-									"column": "newValue"
-								},
-								"oldValue": {
-									"column": "oldValue"
-								},
-								"transactionId": {
-									"column": "transactionId"
-								}
+								"changedAt": { "column": "changedAt" },
+								"field": { "column": "field" },
+								"id": { "column": "id" },
+								"newValue": { "column": "newValue" },
+								"oldValue": { "column": "oldValue" },
+								"transactionId": { "column": "transactionId" }
 							},
 							"namespaceId": "public",
 							"table": "TransactionHistory"
@@ -3468,9 +2240,7 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"email": {
@@ -3478,26 +2248,19 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 320
-									}
+									"typeParams": { "length": 320 }
 								}
 							},
 							"emailVerified": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/bool@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/bool@1", "kind": "scalar" }
 							},
 							"id": {
 								"nullable": false,
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"image": {
@@ -3505,9 +2268,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 2048
-									}
+									"typeParams": { "length": 2048 }
 								}
 							},
 							"name": {
@@ -3515,9 +2276,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 100
-									}
+									"typeParams": { "length": 100 }
 								}
 							},
 							"updatedAt": {
@@ -3525,125 +2284,61 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							}
 						},
 						"relations": {
 							"authAccounts": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["userId"]
-								},
-								"to": {
-									"model": "AuthAccount",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["userId"] },
+								"to": { "model": "AuthAccount", "namespace": "public" }
 							},
 							"categories": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["userId"]
-								},
-								"to": {
-									"model": "Category",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["userId"] },
+								"to": { "model": "Category", "namespace": "public" }
 							},
 							"debts": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["userId"]
-								},
-								"to": {
-									"model": "Debt",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["userId"] },
+								"to": { "model": "Debt", "namespace": "public" }
 							},
 							"financialAccounts": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["userId"]
-								},
-								"to": {
-									"model": "FinancialAccount",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["userId"] },
+								"to": { "model": "FinancialAccount", "namespace": "public" }
 							},
 							"loans": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["userId"]
-								},
-								"to": {
-									"model": "Loan",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["userId"] },
+								"to": { "model": "Loan", "namespace": "public" }
 							},
 							"salaries": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["userId"]
-								},
-								"to": {
-									"model": "Salary",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["userId"] },
+								"to": { "model": "Salary", "namespace": "public" }
 							},
 							"sessions": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["userId"]
-								},
-								"to": {
-									"model": "Session",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["userId"] },
+								"to": { "model": "Session", "namespace": "public" }
 							},
 							"subscriptions": {
 								"cardinality": "1:N",
-								"on": {
-									"localFields": ["id"],
-									"targetFields": ["userId"]
-								},
-								"to": {
-									"model": "Subscription",
-									"namespace": "public"
-								}
+								"on": { "localFields": ["id"], "targetFields": ["userId"] },
+								"to": { "model": "Subscription", "namespace": "public" }
 							}
 						},
 						"storage": {
 							"fields": {
-								"createdAt": {
-									"column": "createdAt"
-								},
-								"email": {
-									"column": "email"
-								},
-								"emailVerified": {
-									"column": "emailVerified"
-								},
-								"id": {
-									"column": "id"
-								},
-								"image": {
-									"column": "image"
-								},
-								"name": {
-									"column": "name"
-								},
-								"updatedAt": {
-									"column": "updatedAt"
-								}
+								"createdAt": { "column": "createdAt" },
+								"email": { "column": "email" },
+								"emailVerified": { "column": "emailVerified" },
+								"id": { "column": "id" },
+								"image": { "column": "image" },
+								"name": { "column": "name" },
+								"updatedAt": { "column": "updatedAt" }
 							},
 							"namespaceId": "public",
 							"table": "user"
@@ -3656,9 +2351,7 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"expiresAt": {
@@ -3666,9 +2359,7 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"id": {
@@ -3676,9 +2367,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"identifier": {
@@ -3686,9 +2375,7 @@
 								"type": {
 									"codecId": "sql/varchar@1",
 									"kind": "scalar",
-									"typeParams": {
-										"length": 320
-									}
+									"typeParams": { "length": 320 }
 								}
 							},
 							"updatedAt": {
@@ -3696,40 +2383,23 @@
 								"type": {
 									"codecId": "pg/timestamp@1",
 									"kind": "scalar",
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"value": {
 								"nullable": false,
-								"type": {
-									"codecId": "pg/text@1",
-									"kind": "scalar"
-								}
+								"type": { "codecId": "pg/text@1", "kind": "scalar" }
 							}
 						},
 						"relations": {},
 						"storage": {
 							"fields": {
-								"createdAt": {
-									"column": "createdAt"
-								},
-								"expiresAt": {
-									"column": "expiresAt"
-								},
-								"id": {
-									"column": "id"
-								},
-								"identifier": {
-									"column": "identifier"
-								},
-								"updatedAt": {
-									"column": "updatedAt"
-								},
-								"value": {
-									"column": "value"
-								}
+								"createdAt": { "column": "createdAt" },
+								"expiresAt": { "column": "expiresAt" },
+								"id": { "column": "id" },
+								"identifier": { "column": "identifier" },
+								"updatedAt": { "column": "updatedAt" },
+								"value": { "column": "value" }
 							},
 							"namespaceId": "public",
 							"table": "verification"
@@ -3743,106 +2413,31 @@
 	"meta": {},
 	"profileHash": "3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2",
 	"roots": {
-		"account": {
-			"model": "AuthAccount",
-			"namespace": "public"
-		},
-		"Category": {
-			"model": "Category",
-			"namespace": "public"
-		},
-		"CreditCard": {
-			"model": "CreditCard",
-			"namespace": "public"
-		},
-		"CreditCardHistory": {
-			"model": "CreditCardHistory",
-			"namespace": "public"
-		},
-		"CreditCardStatement": {
-			"model": "CreditCardStatement",
-			"namespace": "public"
-		},
-		"CreditPurchase": {
-			"model": "CreditPurchase",
-			"namespace": "public"
-		},
-		"CreditPurchaseHistory": {
-			"model": "CreditPurchaseHistory",
-			"namespace": "public"
-		},
-		"Debt": {
-			"model": "Debt",
-			"namespace": "public"
-		},
-		"DebtHistory": {
-			"model": "DebtHistory",
-			"namespace": "public"
-		},
-		"FinancialAccount": {
-			"model": "FinancialAccount",
-			"namespace": "public"
-		},
-		"Loan": {
-			"model": "Loan",
-			"namespace": "public"
-		},
-		"LoanHistory": {
-			"model": "LoanHistory",
-			"namespace": "public"
-		},
-		"LoanPayment": {
-			"model": "LoanPayment",
-			"namespace": "public"
-		},
-		"RecurringPayment": {
-			"model": "RecurringPayment",
-			"namespace": "public"
-		},
-		"RecurringPaymentHistory": {
-			"model": "RecurringPaymentHistory",
-			"namespace": "public"
-		},
-		"Salary": {
-			"model": "Salary",
-			"namespace": "public"
-		},
-		"SalaryHistory": {
-			"model": "SalaryHistory",
-			"namespace": "public"
-		},
-		"SalaryPayment": {
-			"model": "SalaryPayment",
-			"namespace": "public"
-		},
-		"Subscription": {
-			"model": "Subscription",
-			"namespace": "public"
-		},
-		"SubscriptionHistory": {
-			"model": "SubscriptionHistory",
-			"namespace": "public"
-		},
-		"session": {
-			"model": "Session",
-			"namespace": "public"
-		},
-		"Transaction": {
-			"model": "Transaction",
-			"namespace": "public"
-		},
-		"TransactionHistory": {
-			"model": "TransactionHistory",
-			"namespace": "public"
-		},
-		"user": {
-			"model": "User",
-			"namespace": "public"
-		},
-		"verification": {
-			"model": "Verification",
-			"namespace": "public"
-		}
+		"account": { "model": "AuthAccount", "namespace": "public" },
+		"Category": { "model": "Category", "namespace": "public" },
+		"CreditCard": { "model": "CreditCard", "namespace": "public" },
+		"CreditCardHistory": { "model": "CreditCardHistory", "namespace": "public" },
+		"CreditCardStatement": { "model": "CreditCardStatement", "namespace": "public" },
+		"CreditPurchase": { "model": "CreditPurchase", "namespace": "public" },
+		"CreditPurchaseHistory": { "model": "CreditPurchaseHistory", "namespace": "public" },
+		"Debt": { "model": "Debt", "namespace": "public" },
+		"DebtHistory": { "model": "DebtHistory", "namespace": "public" },
+		"FinancialAccount": { "model": "FinancialAccount", "namespace": "public" },
+		"Loan": { "model": "Loan", "namespace": "public" },
+		"LoanHistory": { "model": "LoanHistory", "namespace": "public" },
+		"LoanPayment": { "model": "LoanPayment", "namespace": "public" },
+		"RecurringPayment": { "model": "RecurringPayment", "namespace": "public" },
+		"RecurringPaymentHistory": { "model": "RecurringPaymentHistory", "namespace": "public" },
+		"Salary": { "model": "Salary", "namespace": "public" },
+		"SalaryHistory": { "model": "SalaryHistory", "namespace": "public" },
+		"SalaryPayment": { "model": "SalaryPayment", "namespace": "public" },
+		"Subscription": { "model": "Subscription", "namespace": "public" },
+		"SubscriptionHistory": { "model": "SubscriptionHistory", "namespace": "public" },
+		"session": { "model": "Session", "namespace": "public" },
+		"Transaction": { "model": "Transaction", "namespace": "public" },
+		"TransactionHistory": { "model": "TransactionHistory", "namespace": "public" },
+		"user": { "model": "User", "namespace": "public" },
+		"verification": { "model": "Verification", "namespace": "public" }
 	},
 	"schemaVersion": "1",
 	"storage": {
@@ -3893,70 +2488,46 @@
 									"codecId": "pg/timestamp@1",
 									"nativeType": "timestamp",
 									"nullable": true,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"accountId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 320
-									}
+									"typeParams": { "length": 320 }
 								},
 								"createdAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
-								"idToken": {
-									"codecId": "pg/text@1",
-									"nativeType": "text",
-									"nullable": true
-								},
+								"idToken": { "codecId": "pg/text@1", "nativeType": "text", "nullable": true },
 								"issuer": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 320
-									}
+									"typeParams": { "length": 320 }
 								},
 								"password": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": true,
-									"typeParams": {
-										"length": 255
-									}
+									"typeParams": { "length": 255 }
 								},
 								"providerId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 100
-									}
+									"typeParams": { "length": 100 }
 								},
 								"refreshToken": {
 									"codecId": "pg/text@1",
@@ -3967,34 +2538,21 @@
 									"codecId": "pg/timestamp@1",
 									"nativeType": "timestamp",
 									"nullable": true,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
-								"scope": {
-									"codecId": "pg/text@1",
-									"nativeType": "text",
-									"nullable": true
-								},
+								"scope": { "codecId": "pg/text@1", "nativeType": "text", "nullable": true },
 								"updatedAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"userId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"foreignKeys": [
@@ -4024,16 +2582,9 @@
 									"name": "account_providerId_accountId_key",
 									"unique": true
 								},
-								{
-									"columns": ["userId"],
-									"name": "account_userId_idx",
-									"unique": false
-								}
+								{ "columns": ["userId"], "name": "account_userId_idx", "unique": false }
 							],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "account_pkey"
-							},
+							"primaryKey": { "columns": ["id"], "name": "account_pkey" },
 							"uniques": []
 						},
 						"Category": {
@@ -4042,77 +2593,52 @@
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": true,
-									"typeParams": {
-										"length": 7
-									}
+									"typeParams": { "length": 7 }
 								},
 								"createdAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"icon": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": true,
-									"typeParams": {
-										"length": 50
-									}
+									"typeParams": { "length": 50 }
 								},
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"name": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 50
-									}
+									"typeParams": { "length": 50 }
 								},
 								"parentId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": true,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"updatedAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"userId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"foreignKeys": [
@@ -4154,59 +2680,37 @@
 									"unique": true
 								}
 							],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "Category_pkey"
-							},
+							"primaryKey": { "columns": ["id"], "name": "Category_pkey" },
 							"uniques": []
 						},
 						"CreditCard": {
 							"columns": {
 								"createdAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"creditLimit": {
 									"codecId": "pg/numeric@1",
 									"nativeType": "numeric",
 									"nullable": false,
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								},
-								"dueDay": {
-									"codecId": "pg/int2@1",
-									"nativeType": "int2",
-									"nullable": false
-								},
+								"dueDay": { "codecId": "pg/int2@1", "nativeType": "int2", "nullable": false },
 								"financialAccountId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"statementDay": {
 									"codecId": "pg/int2@1",
@@ -4215,22 +2719,14 @@
 								},
 								"updatedAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"workingDueDate": {
 									"codecId": "pg/bool@1",
-									"default": {
-										"kind": "literal",
-										"value": false
-									},
+									"default": { "kind": "literal", "value": false },
 									"nativeType": "bool",
 									"nullable": false
 								}
@@ -4259,64 +2755,43 @@
 									"unique": true
 								}
 							],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "CreditCard_pkey"
-							},
+							"primaryKey": { "columns": ["id"], "name": "CreditCard_pkey" },
 							"uniques": []
 						},
 						"CreditCardHistory": {
 							"columns": {
 								"changedAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"creditCardId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"field": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 50
-									}
+									"typeParams": { "length": 50 }
 								},
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"newValue": {
 									"codecId": "pg/text@1",
 									"nativeType": "text",
 									"nullable": true
 								},
-								"oldValue": {
-									"codecId": "pg/text@1",
-									"nativeType": "text",
-									"nullable": true
-								}
+								"oldValue": { "codecId": "pg/text@1", "nativeType": "text", "nullable": true }
 							},
 							"foreignKeys": [
 								{
@@ -4336,33 +2811,23 @@
 								}
 							],
 							"indexes": [],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "CreditCardHistory_pkey"
-							},
+							"primaryKey": { "columns": ["id"], "name": "CreditCardHistory_pkey" },
 							"uniques": []
 						},
 						"CreditCardStatement": {
 							"columns": {
 								"createdAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"creditCardId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"dueDate": {
 									"codecId": "pg/date@1",
@@ -4371,37 +2836,23 @@
 								},
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"isPaid": {
 									"codecId": "pg/bool@1",
-									"default": {
-										"kind": "literal",
-										"value": false
-									},
+									"default": { "kind": "literal", "value": false },
 									"nativeType": "bool",
 									"nullable": false
 								},
 								"paidAmount": {
 									"codecId": "pg/numeric@1",
-									"default": {
-										"expression": "0",
-										"kind": "function"
-									},
+									"default": { "expression": "0", "kind": "function" },
 									"nativeType": "numeric",
 									"nullable": false,
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								},
 								"statementDate": {
 									"codecId": "pg/date@1",
@@ -4410,28 +2861,17 @@
 								},
 								"totalAmount": {
 									"codecId": "pg/numeric@1",
-									"default": {
-										"expression": "0",
-										"kind": "function"
-									},
+									"default": { "expression": "0", "kind": "function" },
 									"nativeType": "numeric",
 									"nullable": false,
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								},
 								"updatedAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"foreignKeys": [
@@ -4458,10 +2898,7 @@
 									"unique": true
 								}
 							],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "CreditCardStatement_pkey"
-							},
+							"primaryKey": { "columns": ["id"], "name": "CreditCardStatement_pkey" },
 							"uniques": []
 						},
 						"CreditPurchase": {
@@ -4470,28 +2907,18 @@
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": true,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"createdAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"currentInstallment": {
 									"codecId": "pg/int2@1",
-									"default": {
-										"kind": "literal",
-										"value": 1
-									},
+									"default": { "kind": "literal", "value": 1 },
 									"nativeType": "int2",
 									"nullable": false
 								},
@@ -4499,37 +2926,24 @@
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 500
-									}
+									"typeParams": { "length": 500 }
 								},
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"installmentAmount": {
 									"codecId": "pg/numeric@1",
 									"nativeType": "numeric",
 									"nullable": false,
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								},
 								"installments": {
 									"codecId": "pg/int2@1",
-									"default": {
-										"kind": "literal",
-										"value": 1
-									},
+									"default": { "kind": "literal", "value": 1 },
 									"nativeType": "int2",
 									"nullable": false
 								},
@@ -4537,9 +2951,7 @@
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": true,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"purchaseDate": {
 									"codecId": "pg/date@1",
@@ -4550,30 +2962,20 @@
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"totalAmount": {
 									"codecId": "pg/numeric@1",
 									"nativeType": "numeric",
 									"nullable": false,
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								},
 								"updatedAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"foreignKeys": [
@@ -4624,64 +3026,43 @@
 								}
 							],
 							"indexes": [],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "CreditPurchase_pkey"
-							},
+							"primaryKey": { "columns": ["id"], "name": "CreditPurchase_pkey" },
 							"uniques": []
 						},
 						"CreditPurchaseHistory": {
 							"columns": {
 								"changedAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"creditPurchaseId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"field": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 50
-									}
+									"typeParams": { "length": 50 }
 								},
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"newValue": {
 									"codecId": "pg/text@1",
 									"nativeType": "text",
 									"nullable": true
 								},
-								"oldValue": {
-									"codecId": "pg/text@1",
-									"nativeType": "text",
-									"nullable": true
-								}
+								"oldValue": { "codecId": "pg/text@1", "nativeType": "text", "nullable": true }
 							},
 							"foreignKeys": [
 								{
@@ -4701,10 +3082,7 @@
 								}
 							],
 							"indexes": [],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "CreditPurchaseHistory_pkey"
-							},
+							"primaryKey": { "columns": ["id"], "name": "CreditPurchaseHistory_pkey" },
 							"uniques": []
 						},
 						"Debt": {
@@ -4713,68 +3091,39 @@
 									"codecId": "pg/numeric@1",
 									"nativeType": "numeric",
 									"nullable": false,
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								},
 								"createdAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
-								"date": {
-									"codecId": "pg/date@1",
-									"nativeType": "date",
-									"nullable": false
-								},
+								"date": { "codecId": "pg/date@1", "nativeType": "date", "nullable": false },
 								"description": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": true,
-									"typeParams": {
-										"length": 500
-									}
+									"typeParams": { "length": 500 }
 								},
-								"dueDate": {
-									"codecId": "pg/date@1",
-									"nativeType": "date",
-									"nullable": true
-								},
+								"dueDate": { "codecId": "pg/date@1", "nativeType": "date", "nullable": true },
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"isOwedToMe": {
 									"codecId": "pg/bool@1",
-									"default": {
-										"kind": "literal",
-										"value": true
-									},
+									"default": { "kind": "literal", "value": true },
 									"nativeType": "bool",
 									"nullable": false
 								},
 								"isPaid": {
 									"codecId": "pg/bool@1",
-									"default": {
-										"kind": "literal",
-										"value": false
-									},
+									"default": { "kind": "literal", "value": false },
 									"nativeType": "bool",
 									"nullable": false
 								},
@@ -4787,29 +3136,20 @@
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 100
-									}
+									"typeParams": { "length": 100 }
 								},
 								"updatedAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"userId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"foreignKeys": [
@@ -4830,64 +3170,43 @@
 								}
 							],
 							"indexes": [],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "Debt_pkey"
-							},
+							"primaryKey": { "columns": ["id"], "name": "Debt_pkey" },
 							"uniques": []
 						},
 						"DebtHistory": {
 							"columns": {
 								"changedAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"debtId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"field": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 50
-									}
+									"typeParams": { "length": 50 }
 								},
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"newValue": {
 									"codecId": "pg/text@1",
 									"nativeType": "text",
 									"nullable": true
 								},
-								"oldValue": {
-									"codecId": "pg/text@1",
-									"nativeType": "text",
-									"nullable": true
-								}
+								"oldValue": { "codecId": "pg/text@1", "nativeType": "text", "nullable": true }
 							},
 							"foreignKeys": [
 								{
@@ -4907,70 +3226,44 @@
 								}
 							],
 							"indexes": [],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "DebtHistory_pkey"
-							},
+							"primaryKey": { "columns": ["id"], "name": "DebtHistory_pkey" },
 							"uniques": []
 						},
 						"FinancialAccount": {
 							"columns": {
 								"balance": {
 									"codecId": "pg/numeric@1",
-									"default": {
-										"expression": "0",
-										"kind": "function"
-									},
+									"default": { "expression": "0", "kind": "function" },
 									"nativeType": "numeric",
 									"nullable": false,
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								},
 								"createdAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"name": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 70
-									}
+									"typeParams": { "length": 70 }
 								},
 								"type": {
 									"codecId": "pg/enum@1",
-									"default": {
-										"kind": "literal",
-										"value": "CHECKING"
-									},
+									"default": { "kind": "literal", "value": "CHECKING" },
 									"nativeType": "FinancialAccountType",
 									"nullable": false,
-									"typeParams": {
-										"typeName": "FinancialAccountType"
-									},
+									"typeParams": { "typeName": "FinancialAccountType" },
 									"valueSet": {
 										"entityKind": "valueSet",
 										"entityName": "FinancialAccountType",
@@ -4980,23 +3273,16 @@
 								},
 								"updatedAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"userId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"foreignKeys": [
@@ -5023,25 +3309,17 @@
 									"unique": true
 								}
 							],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "Account_pkey"
-							},
+							"primaryKey": { "columns": ["id"], "name": "Account_pkey" },
 							"uniques": []
 						},
 						"Loan": {
 							"columns": {
 								"amortization": {
 									"codecId": "pg/enum@1",
-									"default": {
-										"kind": "literal",
-										"value": "PRICE"
-									},
+									"default": { "kind": "literal", "value": "PRICE" },
 									"nativeType": "AmortizationType",
 									"nullable": false,
-									"typeParams": {
-										"typeName": "AmortizationType"
-									},
+									"typeParams": { "typeName": "AmortizationType" },
 									"valueSet": {
 										"entityKind": "valueSet",
 										"entityName": "AmortizationType",
@@ -5051,29 +3329,18 @@
 								},
 								"createdAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"description": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": true,
-									"typeParams": {
-										"length": 500
-									}
+									"typeParams": { "length": 500 }
 								},
-								"dueDay": {
-									"codecId": "pg/int2@1",
-									"nativeType": "int2",
-									"nullable": false
-								},
+								"dueDay": { "codecId": "pg/int2@1", "nativeType": "int2", "nullable": false },
 								"firstDueDate": {
 									"codecId": "pg/date@1",
 									"nativeType": "date",
@@ -5081,50 +3348,34 @@
 								},
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"installmentAmount": {
 									"codecId": "pg/numeric@1",
 									"nativeType": "numeric",
 									"nullable": false,
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								},
 								"interestRate": {
 									"codecId": "pg/numeric@1",
 									"nativeType": "numeric",
 									"nullable": false,
-									"typeParams": {
-										"precision": 5,
-										"scale": 4
-									}
+									"typeParams": { "precision": 5, "scale": 4 }
 								},
 								"lender": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 100
-									}
+									"typeParams": { "length": 100 }
 								},
 								"principalAmount": {
 									"codecId": "pg/numeric@1",
 									"nativeType": "numeric",
 									"nullable": false,
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								},
 								"startDate": {
 									"codecId": "pg/date@1",
@@ -5138,23 +3389,16 @@
 								},
 								"updatedAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"userId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"foreignKeys": [
@@ -5175,64 +3419,43 @@
 								}
 							],
 							"indexes": [],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "Loan_pkey"
-							},
+							"primaryKey": { "columns": ["id"], "name": "Loan_pkey" },
 							"uniques": []
 						},
 						"LoanHistory": {
 							"columns": {
 								"changedAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"field": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 50
-									}
+									"typeParams": { "length": 50 }
 								},
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"loanId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"newValue": {
 									"codecId": "pg/text@1",
 									"nativeType": "text",
 									"nullable": true
 								},
-								"oldValue": {
-									"codecId": "pg/text@1",
-									"nativeType": "text",
-									"nullable": true
-								}
+								"oldValue": { "codecId": "pg/text@1", "nativeType": "text", "nullable": true }
 							},
 							"foreignKeys": [
 								{
@@ -5252,10 +3475,7 @@
 								}
 							],
 							"indexes": [],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "LoanHistory_pkey"
-							},
+							"primaryKey": { "columns": ["id"], "name": "LoanHistory_pkey" },
 							"uniques": []
 						},
 						"LoanPayment": {
@@ -5264,9 +3484,7 @@
 									"codecId": "pg/enum@1",
 									"nativeType": "AdvanceType",
 									"nullable": true,
-									"typeParams": {
-										"typeName": "AdvanceType"
-									},
+									"typeParams": { "typeName": "AdvanceType" },
 									"valueSet": {
 										"entityKind": "valueSet",
 										"entityName": "AdvanceType",
@@ -5276,15 +3494,10 @@
 								},
 								"createdAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"dueDate": {
 									"codecId": "pg/date@1",
@@ -5295,21 +3508,14 @@
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": true,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"installmentNumber": {
 									"codecId": "pg/int2@1",
@@ -5320,17 +3526,11 @@
 									"codecId": "pg/numeric@1",
 									"nativeType": "numeric",
 									"nullable": false,
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								},
 								"isAdvanced": {
 									"codecId": "pg/bool@1",
-									"default": {
-										"kind": "literal",
-										"value": false
-									},
+									"default": { "kind": "literal", "value": false },
 									"nativeType": "bool",
 									"nullable": false
 								},
@@ -5338,9 +3538,7 @@
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"paidDate": {
 									"codecId": "pg/date@1",
@@ -5351,31 +3549,20 @@
 									"codecId": "pg/numeric@1",
 									"nativeType": "numeric",
 									"nullable": false,
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								},
 								"totalPaid": {
 									"codecId": "pg/numeric@1",
 									"nativeType": "numeric",
 									"nullable": false,
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								},
 								"updatedAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"foreignKeys": [
@@ -5411,10 +3598,7 @@
 								}
 							],
 							"indexes": [],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "LoanPayment_pkey"
-							},
+							"primaryKey": { "columns": ["id"], "name": "LoanPayment_pkey" },
 							"uniques": []
 						},
 						"RecurringPayment": {
@@ -5423,30 +3607,20 @@
 									"codecId": "pg/numeric@1",
 									"nativeType": "numeric",
 									"nullable": false,
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								},
 								"categoryId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": true,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"createdAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"dayOfMonth": {
 									"codecId": "pg/int2@1",
@@ -5458,18 +3632,12 @@
 									"nativeType": "int2",
 									"nullable": true
 								},
-								"endDate": {
-									"codecId": "pg/date@1",
-									"nativeType": "date",
-									"nullable": true
-								},
+								"endDate": { "codecId": "pg/date@1", "nativeType": "date", "nullable": true },
 								"frequency": {
 									"codecId": "pg/enum@1",
 									"nativeType": "RecurrenceFrequency",
 									"nullable": false,
-									"typeParams": {
-										"typeName": "RecurrenceFrequency"
-									},
+									"typeParams": { "typeName": "RecurrenceFrequency" },
 									"valueSet": {
 										"entityKind": "valueSet",
 										"entityName": "RecurrenceFrequency",
@@ -5479,22 +3647,14 @@
 								},
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"isActive": {
 									"codecId": "pg/bool@1",
-									"default": {
-										"kind": "literal",
-										"value": true
-									},
+									"default": { "kind": "literal", "value": true },
 									"nativeType": "bool",
 									"nullable": false
 								},
@@ -5502,21 +3662,14 @@
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 100
-									}
+									"typeParams": { "length": 100 }
 								},
 								"paymentMethod": {
 									"codecId": "pg/enum@1",
-									"default": {
-										"kind": "literal",
-										"value": "DEBIT"
-									},
+									"default": { "kind": "literal", "value": "DEBIT" },
 									"nativeType": "PaymentMethod",
 									"nullable": false,
-									"typeParams": {
-										"typeName": "PaymentMethod"
-									},
+									"typeParams": { "typeName": "PaymentMethod" },
 									"valueSet": {
 										"entityKind": "valueSet",
 										"entityName": "PaymentMethod",
@@ -5531,23 +3684,16 @@
 								},
 								"updatedAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"userId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"foreignKeys": [
@@ -5568,45 +3714,30 @@
 								}
 							],
 							"indexes": [],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "RecurringPayment_pkey"
-							},
+							"primaryKey": { "columns": ["id"], "name": "RecurringPayment_pkey" },
 							"uniques": []
 						},
 						"RecurringPaymentHistory": {
 							"columns": {
 								"changedAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"field": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 50
-									}
+									"typeParams": { "length": 50 }
 								},
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"newValue": {
 									"codecId": "pg/text@1",
@@ -5622,9 +3753,7 @@
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"foreignKeys": [
@@ -5645,42 +3774,25 @@
 								}
 							],
 							"indexes": [],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "RecurringPaymentHistory_pkey"
-							},
+							"primaryKey": { "columns": ["id"], "name": "RecurringPaymentHistory_pkey" },
 							"uniques": []
 						},
 						"Salary": {
 							"columns": {
 								"createdAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
-								"endDate": {
-									"codecId": "pg/date@1",
-									"nativeType": "date",
-									"nullable": true
-								},
+								"endDate": { "codecId": "pg/date@1", "nativeType": "date", "nullable": true },
 								"frequency": {
 									"codecId": "pg/enum@1",
-									"default": {
-										"kind": "literal",
-										"value": "MONTHLY"
-									},
+									"default": { "kind": "literal", "value": "MONTHLY" },
 									"nativeType": "RecurrenceFrequency",
 									"nullable": false,
-									"typeParams": {
-										"typeName": "RecurrenceFrequency"
-									},
+									"typeParams": { "typeName": "RecurrenceFrequency" },
 									"valueSet": {
 										"entityKind": "valueSet",
 										"entityName": "RecurrenceFrequency",
@@ -5692,29 +3804,18 @@
 									"codecId": "pg/numeric@1",
 									"nativeType": "numeric",
 									"nullable": false,
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								},
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"isActive": {
 									"codecId": "pg/bool@1",
-									"default": {
-										"kind": "literal",
-										"value": true
-									},
+									"default": { "kind": "literal", "value": true },
 									"nativeType": "bool",
 									"nullable": false
 								},
@@ -5722,23 +3823,14 @@
 									"codecId": "pg/numeric@1",
 									"nativeType": "numeric",
 									"nullable": false,
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								},
-								"payDay": {
-									"codecId": "pg/int2@1",
-									"nativeType": "int2",
-									"nullable": false
-								},
+								"payDay": { "codecId": "pg/int2@1", "nativeType": "int2", "nullable": false },
 								"source": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 100
-									}
+									"typeParams": { "length": 100 }
 								},
 								"startDate": {
 									"codecId": "pg/date@1",
@@ -5747,23 +3839,16 @@
 								},
 								"updatedAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"userId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"foreignKeys": [
@@ -5784,45 +3869,30 @@
 								}
 							],
 							"indexes": [],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "Salary_pkey"
-							},
+							"primaryKey": { "columns": ["id"], "name": "Salary_pkey" },
 							"uniques": []
 						},
 						"SalaryHistory": {
 							"columns": {
 								"changedAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"field": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 50
-									}
+									"typeParams": { "length": 50 }
 								},
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"newValue": {
 									"codecId": "pg/text@1",
@@ -5838,9 +3908,7 @@
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"foreignKeys": [
@@ -5861,10 +3929,7 @@
 								}
 							],
 							"indexes": [],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "SalaryHistory_pkey"
-							},
+							"primaryKey": { "columns": ["id"], "name": "SalaryHistory_pkey" },
 							"uniques": []
 						},
 						"SalaryPayment": {
@@ -5873,63 +3938,40 @@
 									"codecId": "pg/numeric@1",
 									"nativeType": "numeric",
 									"nullable": false,
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								},
 								"createdAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
-								"date": {
-									"codecId": "pg/date@1",
-									"nativeType": "date",
-									"nullable": false
-								},
+								"date": { "codecId": "pg/date@1", "nativeType": "date", "nullable": false },
 								"financialAccountId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"notes": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": true,
-									"typeParams": {
-										"length": 500
-									}
+									"typeParams": { "length": 500 }
 								},
 								"salaryId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"foreignKeys": [
@@ -5965,10 +4007,7 @@
 								}
 							],
 							"indexes": [],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "SalaryPayment_pkey"
-							},
+							"primaryKey": { "columns": ["id"], "name": "SalaryPayment_pkey" },
 							"uniques": []
 						},
 						"Subscription": {
@@ -5977,10 +4016,7 @@
 									"codecId": "pg/numeric@1",
 									"nativeType": "numeric",
 									"nullable": false,
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								},
 								"billingDay": {
 									"codecId": "pg/int2@1",
@@ -5989,32 +4025,18 @@
 								},
 								"createdAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
-								"endDate": {
-									"codecId": "pg/date@1",
-									"nativeType": "date",
-									"nullable": true
-								},
+								"endDate": { "codecId": "pg/date@1", "nativeType": "date", "nullable": true },
 								"frequency": {
 									"codecId": "pg/enum@1",
-									"default": {
-										"kind": "literal",
-										"value": "MONTHLY"
-									},
+									"default": { "kind": "literal", "value": "MONTHLY" },
 									"nativeType": "RecurrenceFrequency",
 									"nullable": false,
-									"typeParams": {
-										"typeName": "RecurrenceFrequency"
-									},
+									"typeParams": { "typeName": "RecurrenceFrequency" },
 									"valueSet": {
 										"entityKind": "valueSet",
 										"entityName": "RecurrenceFrequency",
@@ -6024,22 +4046,14 @@
 								},
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"isActive": {
 									"codecId": "pg/bool@1",
-									"default": {
-										"kind": "literal",
-										"value": true
-									},
+									"default": { "kind": "literal", "value": true },
 									"nativeType": "bool",
 									"nullable": false
 								},
@@ -6047,21 +4061,14 @@
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 100
-									}
+									"typeParams": { "length": 100 }
 								},
 								"paymentMethod": {
 									"codecId": "pg/enum@1",
-									"default": {
-										"kind": "literal",
-										"value": "CREDIT"
-									},
+									"default": { "kind": "literal", "value": "CREDIT" },
 									"nativeType": "PaymentMethod",
 									"nullable": false,
-									"typeParams": {
-										"typeName": "PaymentMethod"
-									},
+									"typeParams": { "typeName": "PaymentMethod" },
 									"valueSet": {
 										"entityKind": "valueSet",
 										"entityName": "PaymentMethod",
@@ -6076,23 +4083,16 @@
 								},
 								"updatedAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"userId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"foreignKeys": [
@@ -6113,45 +4113,30 @@
 								}
 							],
 							"indexes": [],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "Subscription_pkey"
-							},
+							"primaryKey": { "columns": ["id"], "name": "Subscription_pkey" },
 							"uniques": []
 						},
 						"SubscriptionHistory": {
 							"columns": {
 								"changedAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"field": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 50
-									}
+									"typeParams": { "length": 50 }
 								},
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"newValue": {
 									"codecId": "pg/text@1",
@@ -6167,9 +4152,7 @@
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"foreignKeys": [
@@ -6190,89 +4173,61 @@
 								}
 							],
 							"indexes": [],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "SubscriptionHistory_pkey"
-							},
+							"primaryKey": { "columns": ["id"], "name": "SubscriptionHistory_pkey" },
 							"uniques": []
 						},
 						"session": {
 							"columns": {
 								"createdAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"expiresAt": {
 									"codecId": "pg/timestamp@1",
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"ipAddress": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": true,
-									"typeParams": {
-										"length": 64
-									}
+									"typeParams": { "length": 64 }
 								},
 								"token": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 512
-									}
+									"typeParams": { "length": 512 }
 								},
 								"updatedAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"userAgent": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": true,
-									"typeParams": {
-										"length": 1024
-									}
+									"typeParams": { "length": 1024 }
 								},
 								"userId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"foreignKeys": [
@@ -6292,21 +4247,10 @@
 								}
 							],
 							"indexes": [
-								{
-									"columns": ["token"],
-									"name": "session_token_key",
-									"unique": true
-								},
-								{
-									"columns": ["userId"],
-									"name": "session_userId_idx",
-									"unique": false
-								}
+								{ "columns": ["token"], "name": "session_token_key", "unique": true },
+								{ "columns": ["userId"], "name": "session_userId_idx", "unique": false }
 							],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "session_pkey"
-							},
+							"primaryKey": { "columns": ["id"], "name": "session_pkey" },
 							"uniques": []
 						},
 						"Transaction": {
@@ -6315,91 +4259,59 @@
 									"codecId": "pg/numeric@1",
 									"nativeType": "numeric",
 									"nullable": false,
-									"typeParams": {
-										"precision": 12,
-										"scale": 2
-									}
+									"typeParams": { "precision": 12, "scale": 2 }
 								},
 								"categoryId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": true,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"createdAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
-								"date": {
-									"codecId": "pg/date@1",
-									"nativeType": "date",
-									"nullable": false
-								},
+								"date": { "codecId": "pg/date@1", "nativeType": "date", "nullable": false },
 								"description": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": true,
-									"typeParams": {
-										"length": 1000
-									}
+									"typeParams": { "length": 1000 }
 								},
 								"destinationFinancialAccountId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": true,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"originFinancialAccountId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": true,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"recurrenceId": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": true,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"type": {
 									"codecId": "pg/enum@1",
-									"default": {
-										"kind": "literal",
-										"value": "EXPENSE"
-									},
+									"default": { "kind": "literal", "value": "EXPENSE" },
 									"nativeType": "TransactionType",
 									"nullable": false,
-									"typeParams": {
-										"typeName": "TransactionType"
-									},
+									"typeParams": { "typeName": "TransactionType" },
 									"valueSet": {
 										"entityKind": "valueSet",
 										"entityName": "TransactionType",
@@ -6409,15 +4321,10 @@
 								},
 								"updatedAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"foreignKeys": [
@@ -6483,45 +4390,30 @@
 								}
 							],
 							"indexes": [],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "Transaction_pkey"
-							},
+							"primaryKey": { "columns": ["id"], "name": "Transaction_pkey" },
 							"uniques": []
 						},
 						"TransactionHistory": {
 							"columns": {
 								"changedAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"field": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 50
-									}
+									"typeParams": { "length": 50 }
 								},
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"newValue": {
 									"codecId": "pg/text@1",
@@ -6537,9 +4429,7 @@
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								}
 							},
 							"foreignKeys": [
@@ -6560,157 +4450,98 @@
 								}
 							],
 							"indexes": [],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "TransactionHistory_pkey"
-							},
+							"primaryKey": { "columns": ["id"], "name": "TransactionHistory_pkey" },
 							"uniques": []
 						},
 						"user": {
 							"columns": {
 								"createdAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"email": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 320
-									}
+									"typeParams": { "length": 320 }
 								},
 								"emailVerified": {
 									"codecId": "pg/bool@1",
-									"default": {
-										"kind": "literal",
-										"value": false
-									},
+									"default": { "kind": "literal", "value": false },
 									"nativeType": "bool",
 									"nullable": false
 								},
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"image": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": true,
-									"typeParams": {
-										"length": 2048
-									}
+									"typeParams": { "length": 2048 }
 								},
 								"name": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 100
-									}
+									"typeParams": { "length": 100 }
 								},
 								"updatedAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								}
 							},
 							"foreignKeys": [],
-							"indexes": [
-								{
-									"columns": ["email"],
-									"name": "User_email_key",
-									"unique": true
-								}
-							],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "User_pkey"
-							},
+							"indexes": [{ "columns": ["email"], "name": "User_email_key", "unique": true }],
+							"primaryKey": { "columns": ["id"], "name": "User_pkey" },
 							"uniques": []
 						},
 						"verification": {
 							"columns": {
 								"createdAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"expiresAt": {
 									"codecId": "pg/timestamp@1",
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
 								"id": {
 									"codecId": "sql/varchar@1",
-									"default": {
-										"expression": "cuid2()",
-										"kind": "function"
-									},
+									"default": { "expression": "cuid2()", "kind": "function" },
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 36
-									}
+									"typeParams": { "length": 36 }
 								},
 								"identifier": {
 									"codecId": "sql/varchar@1",
 									"nativeType": "character varying",
 									"nullable": false,
-									"typeParams": {
-										"length": 320
-									}
+									"typeParams": { "length": 320 }
 								},
 								"updatedAt": {
 									"codecId": "pg/timestamp@1",
-									"default": {
-										"expression": "now()",
-										"kind": "function"
-									},
+									"default": { "expression": "now()", "kind": "function" },
 									"nativeType": "timestamp",
 									"nullable": false,
-									"typeParams": {
-										"precision": 3
-									}
+									"typeParams": { "precision": 3 }
 								},
-								"value": {
-									"codecId": "pg/text@1",
-									"nativeType": "text",
-									"nullable": false
-								}
+								"value": { "codecId": "pg/text@1", "nativeType": "text", "nullable": false }
 							},
 							"foreignKeys": [],
 							"indexes": [
@@ -6720,22 +4551,13 @@
 									"unique": false
 								}
 							],
-							"primaryKey": {
-								"columns": ["id"],
-								"name": "verification_pkey"
-							},
+							"primaryKey": { "columns": ["id"], "name": "verification_pkey" },
 							"uniques": []
 						}
 					},
 					"valueSet": {
-						"AdvanceType": {
-							"kind": "valueSet",
-							"values": ["FRONT", "BACK"]
-						},
-						"AmortizationType": {
-							"kind": "valueSet",
-							"values": ["PRICE", "SAC", "SACRE"]
-						},
+						"AdvanceType": { "kind": "valueSet", "values": ["FRONT", "BACK"] },
+						"AmortizationType": { "kind": "valueSet", "values": ["PRICE", "SAC", "SACRE"] },
 						"FinancialAccountType": {
 							"kind": "valueSet",
 							"values": ["CHECKING", "SAVINGS", "INVESTMENT", "CASH", "CREDIT_CARD"]
@@ -6748,10 +4570,7 @@
 							"kind": "valueSet",
 							"values": ["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY", "YEARLY"]
 						},
-						"TransactionType": {
-							"kind": "valueSet",
-							"values": ["INCOME", "EXPENSE", "TRANSFER"]
-						}
+						"TransactionType": { "kind": "valueSet", "values": ["INCOME", "EXPENSE", "TRANSFER"] }
 					}
 				},
 				"id": "public",

@@ -25,6 +25,7 @@ namespace public {
 
   model AuthAccount {
     id                    VarChar(36)   @id(map: "account_pkey") @default(dbgenerated("cuid2()"))
+    issuer                VarChar(320)
     accountId             VarChar(320)
     providerId            VarChar(100)
     userId                VarChar(36)
@@ -40,6 +41,7 @@ namespace public {
     user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade, map: "account_userId_fkey")
 
     @@index([providerId, accountId], map: "account_providerId_accountId_key", unique: true)
+    @@index([issuer, accountId], map: "account_issuer_accountId_key", unique: true)
     @@index([userId], map: "account_userId_idx")
     @@map("account")
   }
