@@ -1,0 +1,36 @@
+{
+	"name": "sql",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./typebox": "./out/prismabox/barrel.ts"
+	},
+	"scripts": {
+		"check-types": "tsc --noEmit",
+		"export": "prisma generate",
+		"migrate": "prisma migrate dev --create-only && npm run export",
+		"migrate:deploy": "prisma migrate deploy",
+		"migrate:dev": "prisma migrate dev && bun run export",
+		"migrate:reset": "prisma migrate reset",
+		"seed": "prisma db seed"
+	},
+	"dependencies": {
+		"@prisma/adapter-pg": "^7.8.0",
+		"@prisma/client": "^7.8.0",
+		"dotenv": "^17.4.2",
+		"elysia": "^1.4.28",
+		"kysely": "^0.28.17",
+		"pg": "^8.21.0",
+		"prisma-extension-kysely": "^4.0.0"
+	},
+	"devDependencies": {
+		"@hyoretsu/configs": "^1.2.37",
+		"@hyoretsu/prismabox": "^1.2.2",
+		"@types/node": "^25.9.1",
+		"@types/pg": "^8.20.0",
+		"prisma": "^7.8.0",
+		"prisma-kysely": "^3.1.1",
+		"tsup": "^8.5.1"
+	}
+}

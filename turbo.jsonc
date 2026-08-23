@@ -2,26 +2,91 @@
 	"$schema": "https://turborepo.dev/schema.json",
 	"tasks": {
 		"backend#build": {
-			"inputs": ["src/**"],
+			"dependsOn": ["^export", "generate"],
+			"env": ["DATABASE_URL"],
+			"inputs": ["scripts/inject.ts", "src/**", ".env*"],
 			"outputLogs": "new-only",
 			"outputs": ["dist/**"]
 		},
 		"backend#dev": {
 			"cache": false,
+			"dependsOn": ["^export", "generate"],
+			"env": ["COMPANY_SLUG", "DATABASE_URL"],
 			"persistent": true
 		},
-		"frontend#build": {
-			"inputs": ["src/**"],
+		"build": {
+			"dependsOn": ["^export", "generate"],
+			"inputs": ["src/**", "!src/**/generated/**"],
 			"outputLogs": "new-only",
-			"outputs": ["dist/**"]
+			"outputs": ["build/**", "dist/**", "out/**"]
+		},
+		"check-types": {
+			"dependsOn": ["^export", "generate"],
+			"inputs": ["src/**", "tsconfig*.json"],
+			"outputLogs": "new-only"
+		},
+		"dev": {
+			"cache": false,
+			"dependsOn": ["^export", "generate"],
+			"persistent": true
+		},
+		"export": {
+			"dependsOn": ["^export", "generate"],
+			"env": ["DATABASE_URL"],
+			"inputs": ["src/**", "!src/**/generated/**"],
+			"outputLogs": "new-only",
+			"outputs": ["out/**"]
+		},
+		"frontend#build": {
+			"dependsOn": ["^export", "generate"],
+			"env": ["DATABASE_URL"],
+			"inputs": ["src/**", "!src/**/generated/**"],
+			"outputLogs": "new-only",
+			"outputs": ["build/**", "dist/**", "out/**", ".next/**", "!.next/cache/**"]
 		},
 		"frontend#dev": {
 			"cache": false,
+			"dependsOn": ["^export", "generate"],
 			"persistent": true
 		},
-		"frontend#tauri": {
+		"frontend#generate": {
+			"dependsOn": ["^export"],
+			"inputs": ["kubb.config.ts"],
+			"outputLogs": "new-only",
+			"outputs": ["src/lib/api/generated/**"]
+		},
+		"generate": {
+			"dependsOn": ["^export"],
+			"env": ["DATABASE_URL"],
+			"inputs": ["src/**", "!src/generated/**"],
+			"outputLogs": "new-only",
+			"outputs": ["src/generated/**"]
+		},
+		"migrate:deploy": {
+			"env": ["DATABASE_URL", "DATABASE_TEST_URL"],
+			"inputs": ["src/migrations/**"],
+			"outputLogs": "new-only"
+		},
+		"sql#export": {
+			"dependsOn": ["^export", "generate"],
+			"env": ["DATABASE_URL"],
+			"inputs": ["src/**", "!src/**/generated/**"],
+			"outputLogs": "new-only",
+			"outputs": ["out/**"]
+		},
+		"test": {
+			"dependsOn": ["test:e2e", "test:unit"]
+		},
+		"test:e2e": {
 			"cache": false,
-			"persistent": true
+			"dependsOn": ["^export"],
+			"env": ["DATABASE_TEST_URL", "DATABASE_URL"],
+			"inputs": ["**/*.e2e.test.ts"]
+		},
+		"test:unit": {
+			"dependsOn": ["^export"],
+			"inputs": ["**/*.test.ts", "!**/*.e2e.test.ts"],
+			"outputLogs": "new-only"
 		}
 	}
 }

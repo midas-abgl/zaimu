@@ -1,0 +1,10 @@
+*.log
+.DS_Store
+.env
+.env.*.local
+.env.local
+build
+dist
+generated
+kysely
+node_modules

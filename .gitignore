@@ -1,27 +1,60 @@
-**/build
-**/dist
-**/node_modules
-**/static
-**/tmp
-/.turbo
-/.vscode
-!/.vscode/extensions.json
-!/.vscode/launch.json
-!/.vscode/settings.json
 !.gitkeep
+tmp/
+.cache
 *.log
+!opengraph.*
+certificates
+
+# Artifacts
+build/
+coverage/
+gen/
+generated/
+dist/
+out/
+
+# Dependencies
+node_modules/
+.pnp/
+.pnpm-store
+.pnp.js
 
 # Env files
-**/.env
-**/.env*.local
+.env
+.env*.local
 
-# Test files
-**/coverage
+# Expo
+.expo
 
-# Local agent settings
-/.claude/settings.local.json
-/.codex
+# IDEs
+.idea
+.vscode
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json
+
+# Lefthook
+.githooks/
+lefthook-local.yml
+
+# Worktrees
+.worktrees/
+
+# Vendor
+.codex
+!.codex/
+.env.iranti
+.env.iranti.local
+.next
+.shopify
+.turbo
+.vercel
+.vinext
+next-env.d.ts
 
 # TypeScript
 *.tsbuildinfo
-next-env.d.ts
+
+# Agent scratch plans (canonical plans live in plans/)
+.claude/plans/
