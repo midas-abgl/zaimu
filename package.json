@@ -11,6 +11,7 @@
 	],
 	"scripts": {
 		"build": "turbo build",
+		"check-types": "turbo check-types",
 		"commit": "git add . && bun committier ai",
 		"dev": "turbo dev",
 		"dev:frontend": "bun -F frontend tauri dev",

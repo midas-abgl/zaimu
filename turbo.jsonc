@@ -2,7 +2,7 @@
 	"$schema": "https://turborepo.dev/schema.json",
 	"tasks": {
 		"backend#build": {
-			"dependsOn": ["^export", "generate"],
+			"dependsOn": ["^contract:emit", "generate"],
 			"env": ["DATABASE_URL"],
 			"inputs": ["scripts/inject.ts", "src/**", ".env*"],
 			"outputLogs": "new-only",
@@ -10,35 +10,41 @@
 		},
 		"backend#dev": {
 			"cache": false,
-			"dependsOn": ["^export", "generate"],
+			"dependsOn": ["^contract:emit", "generate"],
 			"env": ["COMPANY_SLUG", "DATABASE_URL"],
 			"persistent": true
 		},
 		"build": {
-			"dependsOn": ["^export", "generate"],
+			"dependsOn": ["^contract:emit", "generate"],
 			"inputs": ["src/**", "!src/**/generated/**"],
 			"outputLogs": "new-only",
 			"outputs": ["build/**", "dist/**", "out/**"]
 		},
 		"check-types": {
-			"dependsOn": ["^export", "generate"],
+			"dependsOn": ["^contract:emit", "generate"],
 			"inputs": ["src/**", "tsconfig*.json"],
 			"outputLogs": "new-only"
 		},
+		"contract:emit": {
+			"env": ["DATABASE_URL"],
+			"inputs": ["src/prisma/contract.prisma", "prisma.config.ts"],
+			"outputLogs": "new-only",
+			"outputs": ["src/prisma/contract.json", "src/prisma/contract.d.ts"]
+		},
 		"dev": {
 			"cache": false,
-			"dependsOn": ["^export", "generate"],
+			"dependsOn": ["^contract:emit", "generate"],
 			"persistent": true
 		},
 		"export": {
-			"dependsOn": ["^export", "generate"],
+			"dependsOn": ["^contract:emit", "generate"],
 			"env": ["DATABASE_URL"],
 			"inputs": ["src/**", "!src/**/generated/**"],
 			"outputLogs": "new-only",
 			"outputs": ["out/**"]
 		},
 		"frontend#build": {
-			"dependsOn": ["^export", "generate"],
+			"dependsOn": ["^contract:emit", "generate"],
 			"env": ["DATABASE_URL"],
 			"inputs": ["src/**", "!src/**/generated/**"],
 			"outputLogs": "new-only",
@@ -46,17 +52,17 @@
 		},
 		"frontend#dev": {
 			"cache": false,
-			"dependsOn": ["^export", "generate"],
+			"dependsOn": ["^contract:emit", "generate"],
 			"persistent": true
 		},
 		"frontend#generate": {
-			"dependsOn": ["^export"],
+			"dependsOn": ["^contract:emit"],
 			"inputs": ["kubb.config.ts"],
 			"outputLogs": "new-only",
 			"outputs": ["src/lib/api/generated/**"]
 		},
 		"generate": {
-			"dependsOn": ["^export"],
+			"dependsOn": ["^contract:emit"],
 			"env": ["DATABASE_URL"],
 			"inputs": ["src/**", "!src/generated/**"],
 			"outputLogs": "new-only",
@@ -67,24 +73,17 @@
 			"inputs": ["src/migrations/**"],
 			"outputLogs": "new-only"
 		},
-		"sql#export": {
-			"dependsOn": ["^export", "generate"],
-			"env": ["DATABASE_URL"],
-			"inputs": ["src/**", "!src/**/generated/**"],
-			"outputLogs": "new-only",
-			"outputs": ["out/**"]
-		},
 		"test": {
 			"dependsOn": ["test:e2e", "test:unit"]
 		},
 		"test:e2e": {
 			"cache": false,
-			"dependsOn": ["^export"],
+			"dependsOn": ["^contract:emit"],
 			"env": ["DATABASE_TEST_URL", "DATABASE_URL"],
 			"inputs": ["**/*.e2e.test.ts"]
 		},
 		"test:unit": {
-			"dependsOn": ["^export"],
+			"dependsOn": ["^contract:emit"],
 			"inputs": ["**/*.test.ts", "!**/*.e2e.test.ts"],
 			"outputLogs": "new-only"
 		}

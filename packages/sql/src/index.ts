@@ -1,39 +1,60 @@
-import { PrismaPg } from "@prisma/adapter-pg";
-import { Kysely, PostgresAdapter, PostgresIntrospector, PostgresQueryCompiler } from "kysely";
-import kyselyExtension from "prisma-extension-kysely";
-import type { DB } from "../out/kysely/types";
-import type { PrismaClient } from "../out/prisma/client.ts";
 import "dotenv/config";
+import type { ResultType } from "@prisma/orm-postgres/components/runtime";
+import type { SqlOrmPlan } from "@prisma/orm-postgres/relational-core";
+import { param } from "@prisma/orm-postgres/relational-core/expression";
+import postgres from "@prisma/orm-postgres/runtime";
+import type { Numeric, Timestamp, Timestamptz } from "@prisma/orm-postgres/target/codec-types";
+import { Pool, types } from "pg";
+import type { Contract } from "./prisma/contract";
+import contractJson from "./prisma/contract.json" with { type: "json" };
 
-const env = globalThis.process?.env;
+type NormalizeDatabaseValue<T> =
+	T extends Numeric<infer _Precision, infer _Scale>
+		? number
+		: T extends Timestamp<infer _Precision> | Timestamptz<infer _Precision>
+			? Date
+			: T extends Date
+				? Date
+				: T extends string
+					? string
+					: T extends readonly (infer Item)[]
+						? NormalizeDatabaseValue<Item>[]
+						: T extends object
+							? { [Key in keyof T]: NormalizeDatabaseValue<T[Key]> }
+							: T;
 
-// PrismaPg connects lazily, so importing this module never opens a connection. Build-only
-// steps that import the client transitively (e.g. `prisma generate`, the OpenAPI export,
-// type-checking) must not require a live DATABASE_URL. We therefore fall back to a harmless
-// placeholder when it is absent and only fail when a query is actually issued.
-const databaseUrl = env?.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/example";
+types.setTypeParser(types.builtins.NUMERIC, value => Number(value));
 
-export const adapter = new PrismaPg({
-	connectionString: databaseUrl,
-	idleTimeoutMillis: Number(env?.PRISMA_POOL_IDLE_TIMEOUT_MS || 30000),
-	max: Number(env?.PRISMA_POOL_MAX || 20),
-	min: Number(env?.PRISMA_POOL_MIN || 2),
+export const pool = new Pool({
+	connectionString: process.env.DATABASE_URL,
+	idleTimeoutMillis: Number(process.env.PRISMA_POOL_IDLE_TIMEOUT_MS ?? 30_000),
+	max: Number(process.env.PRISMA_POOL_MAX ?? 20),
+	min: Number(process.env.PRISMA_POOL_MIN ?? 0),
 });
 
-export const prismaExtensionKysely = () =>
-	kyselyExtension({
-		kysely: driver =>
-			new Kysely<DB>({
-				dialect: {
-					createAdapter: () => new PostgresAdapter(),
-					createDriver: () => driver,
-					createIntrospector: db => new PostgresIntrospector(db),
-					createQueryCompiler: () => new PostgresQueryCompiler(),
-				},
-			}),
-	});
+export const db = postgres<Contract>({ contractJson, pg: pool });
 
-export type KyselyInstance = Kysely<DB>;
-export type PrismaClientInstance = InstanceType<typeof PrismaClient>;
+type QueryPlan = SqlOrmPlan<unknown>;
+type StatementPlan = Parameters<ReturnType<typeof db.runtime>["execute"]>[0];
 
-export * from "../out/prisma/client.ts";
+export const queryRows = async <Plan extends QueryPlan>(plan: Plan) =>
+	(await db
+		.runtime()
+		.query<ResultType<Plan>>(plan as unknown as SqlOrmPlan<ResultType<Plan>>)) as NormalizeDatabaseValue<
+		ResultType<Plan>
+	>[];
+
+export const queryFirst = async <Plan extends QueryPlan>(plan: Plan) => (await queryRows(plan))[0];
+
+export const executeStatement = (plan: StatementPlan) => db.runtime().execute(plan);
+
+export const numeric = <Precision extends number, Scale extends number | undefined>(value: number | string) =>
+	String(value) as Numeric<Precision, Scale>;
+
+export const closeDatabase = async () => {
+	await db.close();
+	await pool.end();
+};
+
+export type { Contract } from "./prisma/contract";
+export { param };

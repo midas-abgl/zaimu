@@ -4,5 +4,5 @@
 	},
 	"exclude": ["./dist", "./node_modules"],
 	"extends": ["@hyoretsu/configs/ts-lib"],
-	"include": ["./out", "./seed", "./src"]
+	"include": ["./src"]
 }

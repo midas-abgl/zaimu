@@ -1,0 +1,468 @@
+// use prisma-next
+// Contract inferred from the live database schema. Edit as needed, then run `prisma contract emit`.
+
+namespace public {
+  model User {
+    id                VarChar(36)        @id(map: "User_pkey") @default(dbgenerated("cuid2()"))
+    email             VarChar(320)
+    name              VarChar(100)
+    createdAt         Timestamp(3)       @default(now())
+    updatedAt         Timestamp(3)       @default(now())
+    emailVerified     Boolean            @default(false)
+    image             VarChar(2048)?
+    categories        Category[]
+    debts             Debt[]
+    financialAccounts FinancialAccount[]
+    loans             Loan[]
+    salaries          Salary[]
+    subscriptions     Subscription[]
+    authAccounts      AuthAccount[]
+    sessions          Session[]
+
+    @@index([email], map: "User_email_key", unique: true)
+    @@map("user")
+  }
+
+  model AuthAccount {
+    id                    VarChar(36)   @id(map: "account_pkey") @default(dbgenerated("cuid2()"))
+    accountId             VarChar(320)
+    providerId            VarChar(100)
+    userId                VarChar(36)
+    accessToken           String?
+    refreshToken          String?
+    idToken               String?
+    accessTokenExpiresAt  Timestamp(3)?
+    refreshTokenExpiresAt Timestamp(3)?
+    scope                 String?
+    password              VarChar(255)?
+    createdAt             Timestamp(3)  @default(now())
+    updatedAt             Timestamp(3)  @default(now())
+    user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade, map: "account_userId_fkey")
+
+    @@index([providerId, accountId], map: "account_providerId_accountId_key", unique: true)
+    @@index([userId], map: "account_userId_idx")
+    @@map("account")
+  }
+
+  model Category {
+    id                VarChar(36)        @id(map: "Category_pkey") @default(dbgenerated("cuid2()"))
+    userId            VarChar(36)
+    name              VarChar(50)
+    color             VarChar(7)?
+    icon              VarChar(50)?
+    parentId          VarChar(36)?
+    createdAt         Timestamp(3)       @default(now())
+    updatedAt         Timestamp(3)       @default(now())
+    creditPurchases   CreditPurchase[]
+    recurringPayments RecurringPayment[]
+    transactions      Transaction[]
+    parent            Category?          @relation(name: "Category_parentId_fkey", fields: [parentId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Category_parentId_fkey", index: false)
+    categories        Category[]         @relation(name: "Category_parentId_fkey")
+    user              User               @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Category_userId_fkey", index: false)
+
+    @@index([userId, name], map: "Category_userId_name_key", unique: true)
+
+    @@map("Category")
+  }
+
+  model FinancialAccount {
+    id                      VarChar(36)                   @id(map: "Account_pkey") @default(dbgenerated("cuid2()"))
+    userId                  VarChar(36)
+    name                    VarChar(70)
+    type                    pg.enum(FinancialAccountType) @default("CHECKING")
+    balance                 Numeric(12, 2)                @default(dbgenerated("0"))
+    createdAt               Timestamp(3)                  @default(now())
+    updatedAt               Timestamp(3)                  @default(now())
+    creditCards             CreditCard[]
+    loanPayments            LoanPayment[]
+    salaryPayments          SalaryPayment[]
+    user                    User                          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Account_userId_fkey", index: false)
+    transactions            Transaction[]                 @relation(name: "Transaction_destinationId_fkey")
+    transactionsTransaction Transaction[]                 @relation(name: "Transaction_originId_fkey")
+
+    @@index([userId, name], map: "Account_userId_name_key", unique: true)
+
+    @@map("FinancialAccount")
+  }
+
+  model CreditCard {
+    id                   VarChar(36)           @id(map: "CreditCard_pkey") @default(dbgenerated("cuid2()"))
+    financialAccountId   VarChar(36)
+    creditLimit          Numeric(12, 2)
+    statementDay         SmallInt
+    dueDay               SmallInt
+    workingDueDate       Boolean               @default(false)
+    createdAt            Timestamp(3)          @default(now())
+    updatedAt            Timestamp(3)          @default(now())
+    creditCardHistories  CreditCardHistory[]
+    creditCardStatements CreditCardStatement[]
+    financialAccount     FinancialAccount      @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCard_accountId_fkey")
+
+    @@index([financialAccountId], map: "CreditCard_accountId_key", unique: true)
+
+    @@map("CreditCard")
+  }
+
+  model CreditCardHistory {
+    id           VarChar(36)  @id(map: "CreditCardHistory_pkey") @default(dbgenerated("cuid2()"))
+    creditCardId VarChar(36)
+    field        VarChar(50)
+    oldValue     String?
+    newValue     String?
+    changedAt    Timestamp(3) @default(now())
+    creditCard   CreditCard   @relation(fields: [creditCardId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCardHistory_creditCardId_fkey", index: false)
+
+    @@map("CreditCardHistory")
+  }
+
+  model CreditCardStatement {
+    id              VarChar(36)      @id(map: "CreditCardStatement_pkey") @default(dbgenerated("cuid2()"))
+    creditCardId    VarChar(36)
+    statementDate   Date
+    dueDate         Date
+    totalAmount     Numeric(12, 2)   @default(dbgenerated("0"))
+    paidAmount      Numeric(12, 2)   @default(dbgenerated("0"))
+    isPaid          Boolean          @default(false)
+    createdAt       Timestamp(3)     @default(now())
+    updatedAt       Timestamp(3)     @default(now())
+    creditPurchases CreditPurchase[]
+    creditCard      CreditCard       @relation(fields: [creditCardId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCardStatement_creditCardId_fkey", index: false)
+
+    @@index([creditCardId, statementDate], map: "CreditCardStatement_creditCardId_statementDate_key", unique: true)
+
+    @@map("CreditCardStatement")
+  }
+
+  model CreditPurchase {
+    id                      VarChar(36)             @id(map: "CreditPurchase_pkey") @default(dbgenerated("cuid2()"))
+    statementId             VarChar(36)
+    description             VarChar(500)
+    totalAmount             Numeric(12, 2)
+    installments            SmallInt                @default(1)
+    currentInstallment      SmallInt                @default(1)
+    installmentAmount       Numeric(12, 2)
+    purchaseDate            Date
+    categoryId              VarChar(36)?
+    parentId                VarChar(36)?
+    createdAt               Timestamp(3)            @default(now())
+    updatedAt               Timestamp(3)            @default(now())
+    creditPurchaseHistories CreditPurchaseHistory[]
+    category                Category?               @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchase_categoryId_fkey", index: false)
+    parent                  CreditPurchase?         @relation(name: "CreditPurchase_parentId_fkey", fields: [parentId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchase_parentId_fkey", index: false)
+    creditPurchases         CreditPurchase[]        @relation(name: "CreditPurchase_parentId_fkey")
+    statement               CreditCardStatement     @relation(fields: [statementId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchase_statementId_fkey", index: false)
+
+    @@map("CreditPurchase")
+  }
+
+  model CreditPurchaseHistory {
+    id               VarChar(36)    @id(map: "CreditPurchaseHistory_pkey") @default(dbgenerated("cuid2()"))
+    creditPurchaseId VarChar(36)
+    field            VarChar(50)
+    oldValue         String?
+    newValue         String?
+    changedAt        Timestamp(3)   @default(now())
+    creditPurchase   CreditPurchase @relation(fields: [creditPurchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchaseHistory_creditPurchaseId_fkey", index: false)
+
+    @@map("CreditPurchaseHistory")
+  }
+
+  model Debt {
+    id            VarChar(36)    @id(map: "Debt_pkey") @default(dbgenerated("cuid2()"))
+    userId        VarChar(36)
+    personName    VarChar(100)
+    amount        Numeric(12, 2)
+    description   VarChar(500)?
+    isOwedToMe    Boolean        @default(true)
+    date          Date
+    dueDate       Date?
+    isPaid        Boolean        @default(false)
+    paidDate      Date?
+    createdAt     Timestamp(3)   @default(now())
+    updatedAt     Timestamp(3)   @default(now())
+    debtHistories DebtHistory[]
+    user          User           @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Debt_userId_fkey", index: false)
+
+    @@map("Debt")
+  }
+
+  model DebtHistory {
+    id        VarChar(36)  @id(map: "DebtHistory_pkey") @default(dbgenerated("cuid2()"))
+    debtId    VarChar(36)
+    field     VarChar(50)
+    oldValue  String?
+    newValue  String?
+    changedAt Timestamp(3) @default(now())
+    debt      Debt         @relation(fields: [debtId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtHistory_debtId_fkey", index: false)
+
+    @@map("DebtHistory")
+  }
+
+  model Loan {
+    id                VarChar(36)               @id(map: "Loan_pkey") @default(dbgenerated("cuid2()"))
+    userId            VarChar(36)
+    lender            VarChar(100)
+    principalAmount   Numeric(12, 2)
+    interestRate      Numeric(5, 4)
+    totalInstallments SmallInt
+    installmentAmount Numeric(12, 2)
+    dueDay            SmallInt
+    startDate         Date
+    firstDueDate      Date
+    description       VarChar(500)?
+    amortization      pg.enum(AmortizationType) @default("PRICE")
+    createdAt         Timestamp(3)              @default(now())
+    updatedAt         Timestamp(3)              @default(now())
+    loanHistories     LoanHistory[]
+    loanPayments      LoanPayment[]
+    user              User                      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Loan_userId_fkey", index: false)
+
+    @@map("Loan")
+  }
+
+  model LoanHistory {
+    id        VarChar(36)  @id(map: "LoanHistory_pkey") @default(dbgenerated("cuid2()"))
+    loanId    VarChar(36)
+    field     VarChar(50)
+    oldValue  String?
+    newValue  String?
+    changedAt Timestamp(3) @default(now())
+    loan      Loan         @relation(fields: [loanId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "LoanHistory_loanId_fkey", index: false)
+
+    @@map("LoanHistory")
+  }
+
+  model LoanPayment {
+    id                 VarChar(36)           @id(map: "LoanPayment_pkey") @default(dbgenerated("cuid2()"))
+    loanId             VarChar(36)
+    financialAccountId VarChar(36)?
+    installmentNumber  SmallInt
+    principalPaid      Numeric(12, 2)
+    interestPaid       Numeric(12, 2)
+    totalPaid          Numeric(12, 2)
+    dueDate            Date
+    paidDate           Date?
+    isAdvanced         Boolean               @default(false)
+    advanceType        pg.enum(AdvanceType)?
+    createdAt          Timestamp(3)          @default(now())
+    updatedAt          Timestamp(3)          @default(now())
+    financialAccount   FinancialAccount?     @relation(fields: [financialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "LoanPayment_accountId_fkey", index: false)
+    loan               Loan                  @relation(fields: [loanId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "LoanPayment_loanId_fkey", index: false)
+
+    @@map("LoanPayment")
+  }
+
+  model RecurringPayment {
+    id                        VarChar(36)                  @id(map: "RecurringPayment_pkey") @default(dbgenerated("cuid2()"))
+    userId                    VarChar(36)
+    name                      VarChar(100)
+    amount                    Numeric(12, 2)
+    frequency                 pg.enum(RecurrenceFrequency)
+    dayOfMonth                SmallInt?
+    dayOfWeek                 SmallInt?
+    startDate                 Date
+    endDate                   Date?
+    categoryId                VarChar(36)?
+    paymentMethod             pg.enum(PaymentMethod)       @default("DEBIT")
+    isActive                  Boolean                      @default(true)
+    createdAt                 Timestamp(3)                 @default(now())
+    updatedAt                 Timestamp(3)                 @default(now())
+    recurringPaymentHistories RecurringPaymentHistory[]
+    transactions              Transaction[]
+    category                  Category?                    @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "RecurringPayment_categoryId_fkey", index: false)
+
+    @@map("RecurringPayment")
+  }
+
+  model RecurringPaymentHistory {
+    id                 VarChar(36)      @id(map: "RecurringPaymentHistory_pkey") @default(dbgenerated("cuid2()"))
+    recurringPaymentId VarChar(36)
+    field              VarChar(50)
+    oldValue           String?
+    newValue           String?
+    changedAt          Timestamp(3)     @default(now())
+    recurringPayment   RecurringPayment @relation(fields: [recurringPaymentId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "RecurringPaymentHistory_recurringPaymentId_fkey", index: false)
+
+    @@map("RecurringPaymentHistory")
+  }
+
+  model Salary {
+    id              VarChar(36)                  @id(map: "Salary_pkey") @default(dbgenerated("cuid2()"))
+    userId          VarChar(36)
+    source          VarChar(100)
+    grossAmount     Numeric(12, 2)
+    netAmount       Numeric(12, 2)
+    frequency       pg.enum(RecurrenceFrequency) @default("MONTHLY")
+    payDay          SmallInt
+    startDate       Date
+    endDate         Date?
+    isActive        Boolean                      @default(true)
+    createdAt       Timestamp(3)                 @default(now())
+    updatedAt       Timestamp(3)                 @default(now())
+    salaryHistories SalaryHistory[]
+    salaryPayments  SalaryPayment[]
+    user            User                         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Salary_userId_fkey", index: false)
+
+    @@map("Salary")
+  }
+
+  model SalaryHistory {
+    id        VarChar(36)  @id(map: "SalaryHistory_pkey") @default(dbgenerated("cuid2()"))
+    salaryId  VarChar(36)
+    field     VarChar(50)
+    oldValue  String?
+    newValue  String?
+    changedAt Timestamp(3) @default(now())
+    salary    Salary       @relation(fields: [salaryId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "SalaryHistory_salaryId_fkey", index: false)
+
+    @@map("SalaryHistory")
+  }
+
+  model SalaryPayment {
+    id                 VarChar(36)      @id(map: "SalaryPayment_pkey") @default(dbgenerated("cuid2()"))
+    salaryId           VarChar(36)
+    financialAccountId VarChar(36)
+    amount             Numeric(12, 2)
+    date               Date
+    notes              VarChar(500)?
+    createdAt          Timestamp(3)     @default(now())
+    financialAccount   FinancialAccount @relation(fields: [financialAccountId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "SalaryPayment_accountId_fkey", index: false)
+    salary             Salary           @relation(fields: [salaryId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "SalaryPayment_salaryId_fkey", index: false)
+
+    @@map("SalaryPayment")
+  }
+
+  model Session {
+    id        VarChar(36)    @id(map: "session_pkey") @default(dbgenerated("cuid2()"))
+    expiresAt Timestamp(3)
+    token     VarChar(512)
+    createdAt Timestamp(3)   @default(now())
+    updatedAt Timestamp(3)   @default(now())
+    ipAddress VarChar(64)?
+    userAgent VarChar(1024)?
+    userId    VarChar(36)
+    user      User           @relation(fields: [userId], references: [id], onDelete: Cascade, map: "session_userId_fkey")
+
+    @@index([token], map: "session_token_key", unique: true)
+    @@index([userId], map: "session_userId_idx")
+    @@map("session")
+  }
+
+  model Subscription {
+    id                    VarChar(36)                  @id(map: "Subscription_pkey") @default(dbgenerated("cuid2()"))
+    userId                VarChar(36)
+    name                  VarChar(100)
+    amount                Numeric(12, 2)
+    billingDay            SmallInt
+    frequency             pg.enum(RecurrenceFrequency) @default("MONTHLY")
+    paymentMethod         pg.enum(PaymentMethod)       @default("CREDIT")
+    startDate             Date
+    endDate               Date?
+    isActive              Boolean                      @default(true)
+    createdAt             Timestamp(3)                 @default(now())
+    updatedAt             Timestamp(3)                 @default(now())
+    subscriptionHistories SubscriptionHistory[]
+    user                  User                         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Subscription_userId_fkey", index: false)
+
+    @@map("Subscription")
+  }
+
+  model SubscriptionHistory {
+    id             VarChar(36)  @id(map: "SubscriptionHistory_pkey") @default(dbgenerated("cuid2()"))
+    subscriptionId VarChar(36)
+    field          VarChar(50)
+    oldValue       String?
+    newValue       String?
+    changedAt      Timestamp(3) @default(now())
+    subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "SubscriptionHistory_subscriptionId_fkey", index: false)
+
+    @@map("SubscriptionHistory")
+  }
+
+  model Transaction {
+    id                            VarChar(36)              @id(map: "Transaction_pkey") @default(dbgenerated("cuid2()"))
+    amount                        Numeric(12, 2)
+    date                          Date
+    description                   VarChar(1000)?
+    type                          pg.enum(TransactionType) @default("EXPENSE")
+    categoryId                    VarChar(36)?
+    recurrenceId                  VarChar(36)?
+    originFinancialAccountId      VarChar(36)?
+    destinationFinancialAccountId VarChar(36)?
+    createdAt                     Timestamp(3)             @default(now())
+    updatedAt                     Timestamp(3)             @default(now())
+    transactionHistories          TransactionHistory[]
+    category                      Category?                @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_categoryId_fkey", index: false)
+    destinationFinancialAccount   FinancialAccount?        @relation(name: "Transaction_destinationId_fkey", fields: [destinationFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_destinationId_fkey", index: false)
+    originFinancialAccount        FinancialAccount?        @relation(name: "Transaction_originId_fkey", fields: [originFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_originId_fkey", index: false)
+    recurrence                    RecurringPayment?        @relation(fields: [recurrenceId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_recurrenceId_fkey", index: false)
+
+    @@map("Transaction")
+  }
+
+  model TransactionHistory {
+    id            VarChar(36)  @id(map: "TransactionHistory_pkey") @default(dbgenerated("cuid2()"))
+    transactionId VarChar(36)
+    field         VarChar(50)
+    oldValue      String?
+    newValue      String?
+    changedAt     Timestamp(3) @default(now())
+    transaction   Transaction  @relation(fields: [transactionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionHistory_transactionId_fkey", index: false)
+
+    @@map("TransactionHistory")
+  }
+
+  model Verification {
+    id         VarChar(36)  @id(map: "verification_pkey") @default(dbgenerated("cuid2()"))
+    identifier VarChar(320)
+    value      String
+    expiresAt  Timestamp(3)
+    createdAt  Timestamp(3) @default(now())
+    updatedAt  Timestamp(3) @default(now())
+
+    @@index([identifier], map: "verification_identifier_idx")
+    @@map("verification")
+  }
+
+  native_enum AdvanceType {
+    FRONT = "FRONT"
+    BACK = "BACK"
+  }
+
+  native_enum AmortizationType {
+    PRICE = "PRICE"
+    SAC = "SAC"
+    SACRE = "SACRE"
+  }
+
+  native_enum FinancialAccountType {
+    CHECKING = "CHECKING"
+    SAVINGS = "SAVINGS"
+    INVESTMENT = "INVESTMENT"
+    CASH = "CASH"
+    CREDIT_CARD = "CREDIT_CARD"
+  }
+
+  native_enum PaymentMethod {
+    DEBIT = "DEBIT"
+    CREDIT = "CREDIT"
+    PIX = "PIX"
+    CASH = "CASH"
+    TRANSFER = "TRANSFER"
+    BOLETO = "BOLETO"
+  }
+
+  native_enum RecurrenceFrequency {
+    DAILY = "DAILY"
+    WEEKLY = "WEEKLY"
+    BIWEEKLY = "BIWEEKLY"
+    MONTHLY = "MONTHLY"
+    YEARLY = "YEARLY"
+  }
+
+  native_enum TransactionType {
+    INCOME = "INCOME"
+    EXPENSE = "EXPENSE"
+    TRANSFER = "TRANSFER"
+  }
+}
