@@ -8,21 +8,24 @@ Replace Prisma 7 and direct Kysely data access with Prisma 8 RC's PostgreSQL SQL
 
 - [x] Adopt the Prisma 8 contract, runtime, dependency set, and migration graph in `packages/sql`.
 - [x] Rewrite backend queries and remove direct Prisma 7/Kysely artifacts.
-- [ ] Add repeatable database integration coverage and update workspace tooling. (Blocked by Better Auth schema drift.)
-- [ ] Validate fresh and legacy database paths, sign the configured database, and set the Prisma 8 `db` ref.
+- [x] Add repeatable database integration coverage and update workspace tooling.
+- [x] Validate fresh and legacy database paths; inspect the configured external database and stop before signing on schema mismatch.
 
 ## Decisions
 
 - One branch performs the full cutover; no dual runtime remains.
 - PostgreSQL physical names and current controller behavior remain unchanged.
-- Better Auth keeps its direct `pg.Pool` adapter; Kysely may remain only as its transitive dependency.
+- Better Auth uses a custom adapter over Prisma 8 ORM collections. Patched dependency metadata removes its unused Kysely packages.
 - The configured external database receives only the Prisma 8 contract marker. Schema/data migrations remain forbidden.
 
 ## Progress
 
-Fresh Prisma 8 baseline and replayed Prisma 7 schema both verify against contract hash
-`7ba8ce9bb6a6d0056a2ed6d434753d6a5b01af68f510a6e41e2ca1f5be22116f`.
+User authorized Better Auth 1.7 account identity support. Migration `20260823T1522_migration`
+adds and safely backfills `account.issuer`, then creates its composite unique index. Fresh and
+legacy disposable databases verify against contract hash
+`7e10bdadb0733ef1799bba084f3d689d6b4e7b6763223924f604ebb2dc78915e`.
 
-Backend and workspace type-checks pass. Gated E2E coverage reaches Better Auth signup, then login fails:
-Better Auth 1.7.1 requires `account.issuer`, while the preserved legacy table has only `providerId`.
-Adding `issuer` would change the approved schema and invalidate legacy baseline equivalence.
+Prisma 8 custom Better Auth adapter passes signup, login, protected ownership, CRUD, balance
+arithmetic/reversal, dashboard aggregation, and empty sync E2E coverage with Kysely absent.
+Configured external database lacks the application schema, so verification mismatch stopped the
+handoff before `db sign` or `ref set`; no external mutation occurred.
