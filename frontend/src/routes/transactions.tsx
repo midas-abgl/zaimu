@@ -16,6 +16,7 @@ import {
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
+import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
@@ -110,7 +111,7 @@ function TransactionsPage() {
 	);
 
 	return (
-		<div className="space-y-6">
+		<PageContainer className="space-y-6">
 			<PageHeader
 				actions={
 					<Button className="cursor-pointer" onClick={() => setIsModalOpen(true)}>
@@ -189,7 +190,7 @@ function TransactionsPage() {
 											)}
 										</div>
 										<p
-											className={`font-bold ${transaction.type === "INCOME" ? "text-emerald-600" : transaction.type === "EXPENSE" ? "text-rose-600" : "text-primary"}`}
+											className={`shrink-0 whitespace-nowrap font-bold ${transaction.type === "INCOME" ? "text-emerald-600" : transaction.type === "EXPENSE" ? "text-rose-600" : "text-primary"}`}
 										>
 											{transaction.type === "INCOME" ? "+" : transaction.type === "EXPENSE" ? "−" : ""}
 											{formatCurrency(Number(transaction.amount))}
@@ -296,7 +297,7 @@ function TransactionsPage() {
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
-		</div>
+		</PageContainer>
 	);
 }
 

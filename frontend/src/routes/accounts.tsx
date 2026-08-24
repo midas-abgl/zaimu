@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { LuLandmark, LuWalletCards } from "react-icons/lu";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
@@ -39,7 +40,7 @@ function AccountsPage() {
 			.reduce((sum, account) => sum + account.balance, 0) ?? 0;
 
 	return (
-		<div className="mx-auto grid w-full max-w-7xl gap-8 px-5 py-8 sm:px-8 lg:py-10">
+		<PageContainer className="grid gap-8">
 			<PageHeader
 				actions={
 					<CreateFinancialAccountDialog
@@ -100,7 +101,7 @@ function AccountsPage() {
 					title="Nenhuma conta cadastrada"
 				/>
 			)}
-		</div>
+		</PageContainer>
 	);
 }
 

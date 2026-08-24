@@ -90,9 +90,9 @@ function AjustesPage() {
 	];
 
 	return (
-		<div className="min-h-screen bg-background">
+		<div className="mx-auto min-h-screen w-full max-w-5xl bg-background lg:py-10">
 			{/* Header */}
-			<div className="gradient-primary relative overflow-hidden px-4 pt-12 pb-20">
+			<div className="gradient-primary relative overflow-hidden px-4 pt-12 pb-20 lg:rounded-3xl lg:px-8">
 				<div className="absolute top-0 right-0 h-48 w-48 translate-x-1/4 -translate-y-1/2 rounded-full bg-white/5" />
 				<div className="absolute bottom-0 left-0 h-32 w-32 -translate-x-1/4 translate-y-1/2 rounded-full bg-white/5" />
 

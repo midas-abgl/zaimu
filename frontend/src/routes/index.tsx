@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
@@ -29,25 +30,27 @@ function DashboardPage() {
 
 	if (dashboardQuery.isPending) {
 		return (
-			<div className="space-y-6">
+			<PageContainer className="space-y-6">
 				<Skeleton className="h-24 rounded-2xl" />
-				<div className="grid gap-4 md:grid-cols-3">
+				<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
 					<Skeleton className="h-36 rounded-2xl" />
 					<Skeleton className="h-36 rounded-2xl" />
 					<Skeleton className="h-36 rounded-2xl" />
 				</div>
 				<Skeleton className="h-80 rounded-2xl" />
-			</div>
+			</PageContainer>
 		);
 	}
 
 	if (dashboardQuery.isError) {
 		return (
-			<EmptyState
-				description="Não foi possível atualizar seus dados agora."
-				icon={<LuTrendingUp />}
-				title="Painel indisponível"
-			/>
+			<PageContainer>
+				<EmptyState
+					description="Não foi possível atualizar seus dados agora."
+					icon={<LuTrendingUp />}
+					title="Painel indisponível"
+				/>
+			</PageContainer>
 		);
 	}
 
@@ -55,7 +58,7 @@ function DashboardPage() {
 	const summary = dashboard.summary;
 
 	return (
-		<div className="space-y-6">
+		<PageContainer className="space-y-6">
 			<PageHeader
 				actions={
 					<Button asChild className="cursor-pointer">
@@ -70,8 +73,8 @@ function DashboardPage() {
 				title="Visão geral"
 			/>
 
-			<section className="grid gap-4 md:grid-cols-3">
-				<Card className="border-0 bg-primary text-primary-foreground shadow-primary/15 shadow-xl md:col-span-1">
+			<section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+				<Card className="border-0 bg-primary text-primary-foreground shadow-primary/15 shadow-xl sm:col-span-2 xl:col-span-1">
 					<CardHeader>
 						<CardTitle className="font-medium text-primary-foreground/75 text-sm">Saldo total</CardTitle>
 					</CardHeader>
@@ -113,14 +116,14 @@ function DashboardPage() {
 				</Card>
 			</section>
 
-			<section className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-				<Card>
-					<CardHeader className="flex-row items-center justify-between">
+			<section className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(20rem,1fr)]">
+				<Card className="min-w-0">
+					<CardHeader className="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center">
 						<div>
 							<CardTitle>Movimentações recentes</CardTitle>
 							<p className="mt-1 text-muted-foreground text-sm">Últimas entradas e saídas registradas.</p>
 						</div>
-						<Button asChild className="cursor-pointer" size="sm" variant="outline">
+						<Button asChild className="w-full cursor-pointer sm:w-auto" size="sm" variant="outline">
 							<Link to="/transactions">
 								Ver todas
 								<LuArrowRight />
@@ -154,7 +157,7 @@ function DashboardPage() {
 											</p>
 										</div>
 										<p
-											className={`font-bold text-sm ${transaction.type === "INCOME" ? "text-emerald-600" : "text-rose-600"}`}
+											className={`shrink-0 whitespace-nowrap font-bold text-sm ${transaction.type === "INCOME" ? "text-emerald-600" : "text-rose-600"}`}
 										>
 											{currency.format(Number(transaction.amount))}
 										</p>
@@ -205,7 +208,7 @@ function DashboardPage() {
 					</Card>
 				</div>
 			</section>
-		</div>
+		</PageContainer>
 	);
 }
 

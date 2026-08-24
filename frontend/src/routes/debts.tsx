@@ -197,7 +197,7 @@ function DívidasPage() {
 
 	if (isLoading) {
 		return (
-			<div className="min-h-screen bg-background">
+			<div className="mx-auto min-h-screen w-full max-w-5xl bg-background lg:py-10">
 				<div className="gradient-primary px-4 pt-12 pb-20">
 					<div className="mb-4 h-8 w-32 animate-pulse rounded-lg bg-white/20" />
 					<div className="h-10 w-48 animate-pulse rounded-lg bg-white/20" />
@@ -212,10 +212,10 @@ function DívidasPage() {
 	}
 
 	return (
-		<div className="min-h-screen bg-background">
+		<div className="mx-auto min-h-screen w-full max-w-5xl bg-background lg:py-10">
 			{/* Header */}
 			<div
-				className={`relative overflow-hidden px-4 pt-12 pb-24 transition-all duration-500 ${
+				className={`relative overflow-hidden px-4 pt-12 pb-24 transition-all duration-500 lg:rounded-3xl lg:px-8 ${
 					totals.net >= 0
 						? "bg-gradient-to-br from-success-600 to-success-500"
 						: "bg-gradient-to-br from-danger-600 to-danger-500"
@@ -355,13 +355,13 @@ function DívidasPage() {
 
 			{/* Create Modal */}
 			{isCreateModalOpen && (
-				<div className="fixed inset-0 z-50 flex items-end justify-center">
+				<div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6">
 					<div
 						className="absolute inset-0 animate-fade-in bg-primary-900/50 backdrop-blur-sm"
 						onClick={() => setIsCreateModalOpen(false)}
 					/>
 
-					<div className="scrollbar-themed relative max-h-[90vh] w-full max-w-lg animate-slide-up overflow-y-auto rounded-t-3xl bg-white p-6">
+					<div className="scrollbar-themed relative max-h-[90dvh] w-full max-w-lg animate-slide-up overflow-y-auto rounded-t-3xl bg-white p-6 sm:rounded-3xl">
 						<div className="absolute top-3 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-primary-200" />
 
 						<div className="mb-6 flex items-center justify-between pt-2">
@@ -435,7 +435,7 @@ function DívidasPage() {
 						</div>
 
 						{/* Dates */}
-						<div className="mb-4 grid grid-cols-2 gap-3">
+						<div className="mb-4 grid gap-3 sm:grid-cols-2">
 							<div>
 								<span className="mb-2 block font-medium text-foreground-muted text-sm">Data</span>
 								<input

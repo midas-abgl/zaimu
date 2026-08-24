@@ -4,6 +4,7 @@ import { useState } from "react";
 import { LuCreditCard, LuPlus } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { CreditCard } from "@/lib/api";
@@ -43,7 +44,7 @@ function CreditCardsPage() {
 	const totalLimit = cards.data?.reduce((sum, card) => sum + card.creditLimit, 0) ?? 0;
 
 	return (
-		<div className="mx-auto grid w-full max-w-7xl gap-8 px-5 py-8 sm:px-8 lg:py-10">
+		<PageContainer className="grid gap-8">
 			<PageHeader
 				actions={
 					<Button asChild className="h-11">
@@ -112,7 +113,7 @@ function CreditCardsPage() {
 				open={Boolean(selectedCard)}
 				pending={purchase.isPending}
 			/>
-		</div>
+		</PageContainer>
 	);
 }
 
