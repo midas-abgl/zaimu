@@ -1,0 +1,9 @@
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "$version"
+version_scheme = "semver2"
+version_provider = "scm"
+update_changelog_on_bump = true
+
+[tool.commitizen.customize]
+scopes = ["backend", "cli", "frontend", "mobile", "nosql", "sql"]
