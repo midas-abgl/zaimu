@@ -1,10 +1,11 @@
 import nodemailer from "nodemailer";
 
 interface AuthEmail {
+	actionLabel: string;
 	preview: string;
 	subject: string;
-	text: string;
 	to: string;
+	url: string;
 }
 
 const publicWebUrl = () => (process.env.PUBLIC_WEB_URL ?? "http://localhost:5173").replace(/\/$/, "");
@@ -26,22 +27,78 @@ const createTransport = () => {
 	});
 };
 
-const sendAuthEmail = async ({ preview, subject, text, to }: AuthEmail) => {
+const escapeHtml = (value: string) =>
+	value.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+
+export const authEmailHtml = ({ actionLabel, preview, subject, url }: Omit<AuthEmail, "to">) => {
+	const appUrl = escapeHtml(publicWebUrl());
+	const bannerUrl = `${appUrl}/brand/zaimu-email-banner.png`;
+	const safeActionLabel = escapeHtml(actionLabel);
+	const safePreview = escapeHtml(preview);
+	const safeSubject = escapeHtml(subject);
+	const safeUrl = escapeHtml(url);
+
+	return `<!doctype html>
+		<html lang="pt-BR">
+			<head>
+				<meta charset="utf-8">
+				<meta name="viewport" content="width=device-width,initial-scale=1">
+				<title>${safeSubject}</title>
+			</head>
+			<body style="margin:0;padding:0;background:#F4F3FF;color:#242424;font-family:Figtree,Arial,sans-serif">
+				<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${safePreview}</div>
+				<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:#F4F3FF">
+					<tr>
+						<td align="center" style="padding:40px 16px">
+							<table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background:#FFFFFF;border:1px solid #E4E2F4;border-radius:24px;box-shadow:0 16px 48px rgba(79,83,183,.12)">
+								<tr>
+									<td style="height:8px;background:#4F53B7;border-radius:24px 24px 0 0;font-size:0;line-height:8px">&nbsp;</td>
+								</tr>
+								<tr>
+									<td align="center" style="padding:32px 32px 28px">
+										<a href="${appUrl}" style="display:inline-block;text-decoration:none" target="_blank">
+											<img src="${bannerUrl}" width="360" alt="Zaimu — the app for finances" style="display:block;width:100%;max-width:360px;height:auto;border:0">
+										</a>
+									</td>
+								</tr>
+								<tr>
+									<td style="border-top:1px solid #ECEAF7;padding:32px">
+										<h1 style="margin:0 0 12px;color:#242424;font-size:28px;line-height:1.25;font-weight:800">${safeSubject}</h1>
+										<p style="margin:0;color:#57546B;font-size:16px;line-height:1.65">${safePreview}</p>
+										<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top:28px">
+											<tr>
+												<td bgcolor="#4F53B7" style="border-radius:12px">
+													<a href="${safeUrl}" target="_blank" style="display:inline-block;padding:14px 22px;color:#FFFFFF;font-size:15px;font-weight:800;line-height:1;text-decoration:none">${safeActionLabel}</a>
+												</td>
+											</tr>
+										</table>
+										<div style="margin-top:28px;padding:16px;background:#FFF8E6;border:1px solid #FFE7A6;border-radius:12px">
+											<p style="margin:0 0 6px;color:#6B5A2B;font-size:12px;line-height:1.5;font-weight:700">Se o botão não funcionar, use este endereço:</p>
+											<a href="${safeUrl}" target="_blank" style="color:#4F53B7;font-size:12px;line-height:1.5;word-break:break-all">${safeUrl}</a>
+										</div>
+									</td>
+								</tr>
+								<tr>
+									<td align="center" style="padding:22px 32px;background:#F8F7FC;border-radius:0 0 24px 24px;color:#77748A;font-size:12px;line-height:1.5">
+										<strong style="color:#4F53B7">Zaimu</strong> · Seu dinheiro, sem ruído.<br>
+										Mensagem automática. Não responda este e-mail.
+									</td>
+								</tr>
+							</table>
+						</td>
+					</tr>
+				</table>
+			</body>
+		</html>`;
+};
+
+const sendAuthEmail = async ({ actionLabel, preview, subject, to, url }: AuthEmail) => {
 	const from = process.env.SMTP_FROM ?? "Zaimu <nao-responda@zaimu.app>";
 	await createTransport().sendMail({
 		from,
-		html: `
-			<div style="background:#f7f7f5;padding:32px;font-family:Figtree,Arial,sans-serif;color:#242424">
-				<div style="max-width:520px;margin:auto;background:#fff;border:1px solid #e7e5e4;border-radius:20px;padding:32px">
-					<div style="display:inline-block;background:#FFD866;border-radius:12px;padding:10px 14px;font-weight:800">Zaimu</div>
-					<h1 style="font-size:24px;margin:24px 0 8px">${subject}</h1>
-					<p style="line-height:1.6;color:#57534e">${preview}</p>
-					<a href="${text}" style="display:inline-block;margin-top:16px;background:#4F53B7;color:#fff;text-decoration:none;border-radius:12px;padding:12px 18px;font-weight:700">Continuar no Zaimu</a>
-					<p style="font-size:12px;line-height:1.5;color:#78716c;margin-top:24px;word-break:break-all">Se o botão não funcionar, copie este endereço:<br>${text}</p>
-				</div>
-			</div>`,
+		html: authEmailHtml({ actionLabel, preview, subject, url }),
 		subject,
-		text: `${preview}\n\n${text}`,
+		text: `${subject}\n\n${preview}\n\n${actionLabel}: ${url}\n\nZaimu · Seu dinheiro, sem ruído.`,
 		to,
 	});
 };
@@ -54,17 +111,19 @@ export const resetPasswordUrl = (token: string) =>
 
 export const sendVerificationEmail = (email: string, token: string) =>
 	sendAuthEmail({
+		actionLabel: "Confirmar e-mail",
 		preview: "Confirme seu e-mail para proteger seus dados financeiros e concluir a criação da conta.",
 		subject: "Confirme seu e-mail",
-		text: verificationUrl(token),
 		to: email,
+		url: verificationUrl(token),
 	});
 
 export const sendPasswordResetEmail = (email: string, token: string) =>
 	sendAuthEmail({
+		actionLabel: "Redefinir senha",
 		preview:
 			"Recebemos uma solicitação para redefinir sua senha. Ignore esta mensagem caso não tenha sido você.",
 		subject: "Redefina sua senha",
-		text: resetPasswordUrl(token),
 		to: email,
+		url: resetPasswordUrl(token),
 	});
