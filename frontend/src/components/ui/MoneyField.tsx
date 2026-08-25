@@ -1,8 +1,18 @@
-import type { ComponentProps } from "react";
-import { NumericFormat } from "react-number-format";
+import type { ChangeEvent, ComponentProps } from "react";
 import { Input } from "./Input";
 import { Label } from "./Label";
 import { RequiredMark } from "./RequiredMark";
+
+const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
+
+function centsToDecimal(value: string) {
+	const isNegative = value.includes("-");
+	const digits = value.replace(/\D/g, "").replace(/^0+/, "");
+	if (!digits) return "";
+
+	const decimal = (Number(digits) / 100).toFixed(2);
+	return isNegative ? `-${decimal}` : decimal;
+}
 
 export function MoneyField({
 	id,
@@ -16,6 +26,10 @@ export function MoneyField({
 	onValueChange: (value: string) => void;
 	value: string;
 }) {
+	const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+		onValueChange(centsToDecimal(event.currentTarget.value));
+	};
+
 	return (
 		<div className="grid gap-2">
 			<Label htmlFor={id}>
@@ -23,23 +37,16 @@ export function MoneyField({
 					{label} {required && <RequiredMark />}
 				</span>
 			</Label>
-			<NumericFormat
+			<Input
 				autoComplete="off"
-				customInput={Input}
-				decimalScale={2}
-				decimalSeparator=","
-				fixedDecimalScale
-				getInputRef={undefined}
 				id={id}
-				inputMode="decimal"
+				inputMode="numeric"
 				name={id}
-				onValueChange={values => onValueChange(values.value)}
+				onChange={handleChange}
 				placeholder="R$ 1.500,00"
-				prefix="R$ "
 				required={required}
-				thousandSeparator="."
-				value={value}
-				valueIsNumericString
+				type="text"
+				value={value ? currency.format(Number(value)) : ""}
 				{...props}
 			/>
 		</div>
