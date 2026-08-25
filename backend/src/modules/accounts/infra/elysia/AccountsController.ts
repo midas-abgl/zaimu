@@ -1,6 +1,7 @@
 import Elysia, { t } from "elysia";
 import { inferMissingFinancialInstitutions } from "~/modules/accounts/application/infer-missing-financial-institutions";
 import { resolveFinancialInstitution } from "~/modules/accounts/application/resolve-financial-institution";
+import { assertCreditCardBillingDays } from "~/modules/accounts/domain/assert-credit-card-billing-days";
 import { assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, nullableNumeric, queryFirst, queryRows } from "~/shared/infra/sql";
@@ -141,6 +142,9 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				throw new HttpException("Informe os dados do cartão de crédito", 400);
 			if (type !== "CREDIT_CARD" && body.creditCard)
 				throw new HttpException("Dados de cartão exigem uma conta do tipo cartão de crédito", 400);
+			if (body.creditCard) {
+				assertCreditCardBillingDays(body.creditCard.statementDay, body.creditCard.dueDay);
+			}
 			const institution = await resolveFinancialInstitution(userId, body.institutionName);
 			const existing = await queryFirst(
 				db.sql.public.FinancialAccount.select("id")
@@ -302,6 +306,17 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 
 			// Update credit card if provided
 			if (body.creditCard && existing.type === "CREDIT_CARD") {
+				const existingCreditCard = await queryFirst(
+					db.sql.public.CreditCard.select("statementDay", "dueDay")
+						.where((fields, functions) => functions.eq(fields.financialAccountId, params.id))
+						.limit(1)
+						.build(),
+				);
+				if (!existingCreditCard) throw new HttpException("CreditCard not found", 404);
+				assertCreditCardBillingDays(
+					body.creditCard.statementDay ?? existingCreditCard.statementDay,
+					body.creditCard.dueDay ?? existingCreditCard.dueDay,
+				);
 				const creditCard = await queryFirst(
 					db.sql.public.CreditCard.update({
 						...(body.creditCard.creditLimit !== undefined && {

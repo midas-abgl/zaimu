@@ -66,6 +66,7 @@ export function CreateFinancialAccountDialog({
 	const [statementDay, setStatementDay] = useState(String(account?.creditCard?.statementDay ?? 10));
 	const [dueDay, setDueDay] = useState(String(account?.creditCard?.dueDay ?? 17));
 	const [workingDueDate, setWorkingDueDate] = useState(account?.creditCard?.workingDueDate ?? false);
+	const hasInvalidBillingDays = Number(statementDay) >= Number(dueDay);
 
 	const reset = () => {
 		setInstitutionId(initialInstitution());
@@ -85,6 +86,7 @@ export function CreateFinancialAccountDialog({
 	};
 	const handleSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
+		if (type === "CREDIT_CARD" && hasInvalidBillingDays) return;
 		try {
 			const institutionName =
 				institutionId === NEW_INSTITUTION
@@ -244,6 +246,11 @@ export function CreateFinancialAccountDialog({
 									value={dueDay}
 								/>
 							</div>
+							{hasInvalidBillingDays && (
+								<p className="text-destructive text-sm">
+									O vencimento deve ser posterior ao fechamento da fatura.
+								</p>
+							)}
 							<label className="flex cursor-pointer items-start gap-3 text-sm" htmlFor="working-due-date">
 								<Checkbox
 									checked={workingDueDate}
@@ -273,7 +280,8 @@ export function CreateFinancialAccountDialog({
 								pending ||
 								!institutionId ||
 								(institutionId === NEW_INSTITUTION && !newInstitutionName.trim()) ||
-								(type === "CREDIT_CARD" && !creditLimit)
+								(type === "CREDIT_CARD" && !creditLimit) ||
+								(type === "CREDIT_CARD" && hasInvalidBillingDays)
 							}
 							type="submit"
 						>
