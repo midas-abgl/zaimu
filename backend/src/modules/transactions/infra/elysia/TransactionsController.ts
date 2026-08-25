@@ -5,6 +5,12 @@ import {
 	assertTransactionOwnership,
 	requireUserId,
 } from "~/modules/auth";
+import {
+	assertTagOwnership,
+	getTagsByEntity,
+	replaceEntityTags,
+	tagEntityType,
+} from "~/modules/categories/application/tag-assignments";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
 
@@ -32,8 +38,24 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (query.financialAccountId) {
 				await assertDirectOwnership("FinancialAccount", query.financialAccountId, userId);
 			}
+			if (query.categoryId) await assertDirectOwnership("Category", query.categoryId, userId);
 			const origin = db.sql.public.FinancialAccount.select("id", "userId").as("origin");
 			const destination = db.sql.public.FinancialAccount.select("id", "userId").as("destination");
+			const taggedTransactionIds = query.categoryId
+				? (
+						await queryRows(
+							db.sql.public.TagAssignment.select("entityId")
+								.where((fields, functions) =>
+									functions.and(
+										functions.eq(fields.categoryId, query.categoryId!),
+										functions.eq(fields.entityType, tagEntityType.transaction),
+									),
+								)
+								.build(),
+						)
+					).map(assignment => assignment.entityId)
+				: undefined;
+			if (taggedTransactionIds?.length === 0) return [];
 			let queryBuilder = db.sql.public.Transaction.outerLeftJoin(db.sql.public.Category, (f, fn) =>
 				fn.eq(f.Transaction.categoryId, f.Category.id),
 			)
@@ -74,7 +96,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				queryBuilder = queryBuilder.where((f, fn) => fn.eq(f.Transaction.type, query.type!));
 			}
 			if (query.categoryId) {
-				queryBuilder = queryBuilder.where((f, fn) => fn.eq(f.Transaction.categoryId, query.categoryId!));
+				queryBuilder = queryBuilder.where((f, fn) => fn.in(f.Transaction.id, taggedTransactionIds!));
 			}
 			if (query.financialAccountId) {
 				queryBuilder = queryBuilder.where((f, fn) =>
@@ -93,8 +115,15 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					.offset(query.offset ?? 0)
 					.build(),
 			);
+			const tagsByTransaction = await getTagsByEntity(
+				tagEntityType.transaction,
+				transactions.map(transaction => transaction.id),
+			);
 
-			return transactions;
+			return transactions.map(transaction => {
+				const tags = tagsByTransaction.get(transaction.id) ?? [];
+				return { ...transaction, tagIds: tags.map(tag => tag.id), tags };
+			});
 		},
 		{
 			detail: { tags: ["Transactions"] },
@@ -125,7 +154,9 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				throw new HttpException("Transaction not found", 404);
 			}
 
-			return transaction;
+			const tagsByTransaction = await getTagsByEntity(tagEntityType.transaction, [transaction.id]);
+			const tags = tagsByTransaction.get(transaction.id) ?? [];
+			return { ...transaction, tagIds: tags.map(tag => tag.id), tags };
 		},
 		{
 			detail: { tags: ["Transactions"] },
@@ -172,7 +203,10 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (body.destinationFinancialAccountId) {
 				await assertBalanceAccountOwnership(body.destinationFinancialAccountId, userId);
 			}
-			if (body.categoryId) await assertDirectOwnership("Category", body.categoryId, userId);
+			const tagIds = await assertTagOwnership(
+				body.tagIds ?? (body.categoryId ? [body.categoryId] : []),
+				userId,
+			);
 			if (body.recurrenceId) await assertDirectOwnership("RecurringPayment", body.recurrenceId, userId);
 			if (!body.originFinancialAccountId && !body.destinationFinancialAccountId && !body.recurrenceId) {
 				throw new HttpException("Informe uma conta financeira ou recorrência", 400);
@@ -181,7 +215,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				db.sql.public.Transaction.insert([
 					{
 						amount: String(body.amount),
-						categoryId: body.categoryId,
+						categoryId: tagIds[0],
 						date: new Date(body.date),
 						description: body.description,
 						destinationFinancialAccountId: body.destinationFinancialAccountId,
@@ -194,6 +228,11 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					.build(),
 			);
 			if (!transaction) throw new HttpException("Transaction not created", 500);
+			await replaceEntityTags({
+				entityIds: [transaction.id],
+				entityType: tagEntityType.transaction,
+				tagIds,
+			});
 
 			// Update account balances
 			if (body.originFinancialAccountId) {
@@ -220,7 +259,9 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				);
 			}
 
-			return transaction;
+			const tagsByTransaction = await getTagsByEntity(tagEntityType.transaction, [transaction.id]);
+			const tags = tagsByTransaction.get(transaction.id) ?? [];
+			return { ...transaction, tagIds: tags.map(tag => tag.id), tags };
 		},
 		{
 			body: t.Object({
@@ -231,6 +272,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				destinationFinancialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				originFinancialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				recurrenceId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
+				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
 				type: t.Optional(TransactionType),
 			}),
 			detail: { tags: ["Transactions"] },
@@ -241,7 +283,10 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
 			await assertTransactionOwnership(params.id, userId);
-			if (body.categoryId) await assertDirectOwnership("Category", body.categoryId, userId);
+			const tagIds =
+				body.tagIds !== undefined || body.categoryId !== undefined
+					? await assertTagOwnership(body.tagIds ?? (body.categoryId ? [body.categoryId] : []), userId)
+					: undefined;
 			const existing = await queryFirst(
 				db.sql.public.Transaction.select(...transactionColumns)
 					.where((f, fn) => fn.eq(f.id, params.id))
@@ -288,7 +333,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					...(body.date && { date: new Date(body.date) }),
 					...(body.description !== undefined && { description: body.description }),
 					...(body.type && { type: body.type }),
-					...(body.categoryId !== undefined && { categoryId: body.categoryId }),
+					...(tagIds !== undefined && { categoryId: tagIds[0] ?? null }),
 					updatedAt: new Date(),
 				} as never)
 					.where((f, fn) => fn.eq(f.id, params.id))
@@ -296,8 +341,17 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					.build(),
 			);
 			if (!transaction) throw new HttpException("Transaction not found", 404);
+			if (tagIds !== undefined) {
+				await replaceEntityTags({
+					entityIds: [transaction.id],
+					entityType: tagEntityType.transaction,
+					tagIds,
+				});
+			}
 
-			return transaction;
+			const tagsByTransaction = await getTagsByEntity(tagEntityType.transaction, [transaction.id]);
+			const tags = tagsByTransaction.get(transaction.id) ?? [];
+			return { ...transaction, tagIds: tags.map(tag => tag.id), tags };
 		},
 		{
 			body: t.Object({
@@ -305,6 +359,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				categoryId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				date: t.Optional(t.String()),
 				description: t.Optional(t.String({ maxLength: 1000 })),
+				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
 				type: t.Optional(TransactionType),
 			}),
 			detail: { tags: ["Transactions"] },
@@ -354,6 +409,11 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				);
 			}
 
+			await replaceEntityTags({
+				entityIds: [params.id],
+				entityType: tagEntityType.transaction,
+				tagIds: [],
+			});
 			await executeStatement(
 				db.sql.public.Transaction.delete()
 					.where((f, fn) => fn.eq(f.id, params.id))

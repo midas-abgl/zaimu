@@ -282,6 +282,7 @@ export const dataService = {
 				description: string;
 				installments?: number;
 				purchaseDate: string;
+				tagIds?: string[];
 				totalAmount: number;
 			},
 		): Promise<CreditPurchase[]> {
@@ -322,7 +323,7 @@ export const dataService = {
 				statement.totalAmount += installmentAmount;
 				await localCreditCardStatements.put(statement, statement.id);
 				const purchase: CreditPurchase = {
-					categoryId: data.categoryId,
+					categoryId: data.tagIds?.[0] ?? data.categoryId,
 					currentInstallment: index + 1,
 					description: data.description,
 					id: crypto.randomUUID(),
@@ -331,6 +332,7 @@ export const dataService = {
 					parentId: purchases[0]?.id,
 					purchaseDate: data.purchaseDate,
 					statementId: statement.id,
+					tagIds: data.tagIds,
 					totalAmount: data.totalAmount,
 				};
 				await localCreditPurchases.put(purchase, purchase.id);
@@ -376,11 +378,16 @@ export const dataService = {
 					.map(item => item.data)
 					.filter(purchase => purchase.statementId === statementId)
 					.map(purchase => {
-						const category = purchase.categoryId ? categories.get(purchase.categoryId) : undefined;
+						const tagIds = purchase.tagIds ?? (purchase.categoryId ? [purchase.categoryId] : []);
+						const tags = tagIds.flatMap(tagId => {
+							const tag = categories.get(tagId);
+							return tag ? [tag] : [];
+						});
 						return {
 							...purchase,
-							categoryColor: category?.color,
-							categoryName: category?.name,
+							categoryColor: tags[0]?.color ?? undefined,
+							categoryName: tags[0]?.name,
+							tags,
 						};
 					})
 					.sort((left, right) => right.purchaseDate.localeCompare(left.purchaseDate));
@@ -1071,7 +1078,9 @@ export const dataService = {
 					transactions = transactions.filter(t => t.type === params.type);
 				}
 				if (params?.categoryId) {
-					transactions = transactions.filter(t => t.categoryId === params.categoryId);
+					transactions = transactions.filter(t =>
+						(t.tagIds ?? (t.categoryId ? [t.categoryId] : [])).includes(params.categoryId!),
+					);
 				}
 				if (params?.financialAccountId) {
 					transactions = transactions.filter(

@@ -28,11 +28,6 @@ function CreditCardsPage() {
 		queryFn: () => dataService.creditCards.getAll(),
 		queryKey: ["credit-cards"],
 	});
-	const categories = useQuery({
-		enabled: hasAccess,
-		queryFn: () => dataService.categories.getAll(),
-		queryKey: ["categories"],
-	});
 	const purchase = useMutation({
 		mutationFn: ({
 			cardId,
@@ -111,13 +106,12 @@ function CreditCardsPage() {
 			)}
 			<CreatePurchaseDialog
 				card={selectedCard}
-				categories={categories.data ?? []}
 				onOpenChange={open => !open && setSelectedCard(null)}
 				onSubmit={async data => {
 					if (!selectedCard) return;
 					await purchase.mutateAsync({
 						cardId: selectedCard.id,
-						data: { ...data, categoryId: data.categoryId === "none" ? undefined : data.categoryId },
+						data,
 					});
 				}}
 				open={Boolean(selectedCard)}

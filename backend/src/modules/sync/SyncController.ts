@@ -1,6 +1,12 @@
 import Elysia from "elysia";
 import { resolveFinancialInstitution } from "~/modules/accounts/application/resolve-financial-institution";
 import { requireUserId } from "~/modules/auth";
+import {
+	getTagsByEntity,
+	normalizeTagIds,
+	replaceEntityTags,
+	tagEntityType,
+} from "~/modules/categories/application/tag-assignments";
 import { db, executeStatement, nullableNumeric, queryFirst, queryRows } from "~/shared/infra/sql";
 import { SyncBody, SyncReturn } from "./SyncDTO";
 
@@ -15,6 +21,11 @@ const optionalDate = (entity: InputEntity, field: string) => {
 	const input = value<null | string | undefined>(entity, field);
 	return input ? new Date(input) : null;
 };
+const entityTagIds = (entity: InputEntity) =>
+	normalizeTagIds(
+		value<string[] | undefined>(entity, "tagIds") ??
+			(value<string | undefined>(entity, "categoryId") ? [value<string>(entity, "categoryId")] : []),
+	);
 
 const accountColumns = [
 	"id",
@@ -185,11 +196,12 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 			);
 			if (existing && existing.userId !== userId)
 				throw new Error(`Recorrência ${id} pertence a outro usuário`);
-			const categoryId = value<string | undefined>(entity, "categoryId");
-			if (categoryId && !categoryIds.has(categoryId)) throw new Error(`Categoria ${categoryId} indisponível`);
+			const tagIds = entityTagIds(entity);
+			if (tagIds.some(tagId => !categoryIds.has(tagId)))
+				throw new Error("Uma ou mais tags estão indisponíveis");
 			const values = {
 				amount: String(value<number>(entity, "amount")),
-				categoryId,
+				categoryId: tagIds[0],
 				dayOfMonth:
 					value<number | undefined>(entity, "dayOfMonth") ?? value<number | undefined>(entity, "day"),
 				dayOfWeek: value<number | undefined>(entity, "dayOfWeek"),
@@ -214,6 +226,11 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					db.sql.public.RecurringPayment.insert([{ ...values, id, userId }] as never).build(),
 				);
 			recurringIds.add(id);
+			await replaceEntityTags({
+				entityIds: [id],
+				entityType: tagEntityType.recurringPayment,
+				tagIds,
+			});
 		});
 
 		await sync("creditCards", body.creditCards, async entity => {
@@ -281,7 +298,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 			const id = value<string>(entity, "id");
 			const statementId = value<string>(entity, "statementId");
 			if (!statementIds.has(statementId)) throw new Error(`Fatura ${statementId} indisponível`);
-			const categoryId = value<string | undefined>(entity, "categoryId");
+			const tagIds = entityTagIds(entity).filter(tagId => categoryIds.has(tagId));
 			const existing = await queryFirst(
 				db.sql.public.CreditPurchase.select("id")
 					.where((f, fn) => fn.eq(f.id, id))
@@ -289,7 +306,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					.build(),
 			);
 			const values = {
-				categoryId: categoryId && categoryIds.has(categoryId) ? categoryId : undefined,
+				categoryId: tagIds[0],
 				currentInstallment: Number(value<number>(entity, "currentInstallment") ?? 1),
 				description: value<string>(entity, "description"),
 				installmentAmount: String(value<number>(entity, "installmentAmount")),
@@ -307,6 +324,11 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 						.build(),
 				);
 			else await executeStatement(db.sql.public.CreditPurchase.insert([{ ...values, id }]).build());
+			await replaceEntityTags({
+				entityIds: [id],
+				entityType: tagEntityType.creditPurchase,
+				tagIds,
+			});
 		});
 
 		await sync("debts", body.debts, async entity => {
@@ -456,23 +478,29 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					.limit(1)
 					.build(),
 			);
-			if (existing) return;
-			const categoryId = value<string | undefined>(entity, "categoryId");
-			await executeStatement(
-				db.sql.public.Transaction.insert([
-					{
-						amount: String(value<number>(entity, "amount")),
-						categoryId: categoryId && categoryIds.has(categoryId) ? categoryId : undefined,
-						date: new Date(value<string>(entity, "date")),
-						description: value<string | undefined>(entity, "description"),
-						destinationFinancialAccountId,
-						id,
-						originFinancialAccountId,
-						recurrenceId,
-						type: value<"EXPENSE" | "INCOME" | "TRANSFER">(entity, "type") ?? "EXPENSE",
-					},
-				]).build(),
-			);
+			const tagIds = entityTagIds(entity).filter(tagId => categoryIds.has(tagId));
+			if (!existing) {
+				await executeStatement(
+					db.sql.public.Transaction.insert([
+						{
+							amount: String(value<number>(entity, "amount")),
+							categoryId: tagIds[0],
+							date: new Date(value<string>(entity, "date")),
+							description: value<string | undefined>(entity, "description"),
+							destinationFinancialAccountId,
+							id,
+							originFinancialAccountId,
+							recurrenceId,
+							type: value<"EXPENSE" | "INCOME" | "TRANSFER">(entity, "type") ?? "EXPENSE",
+						},
+					]).build(),
+				);
+			}
+			await replaceEntityTags({
+				entityIds: [id],
+				entityType: tagEntityType.transaction,
+				tagIds,
+			});
 		});
 
 		const financialAccounts = await queryRows(
@@ -526,6 +554,40 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 						.build(),
 				)
 			: [];
+		const recurringPayments = await queryRows(
+			db.sql.public.RecurringPayment.select(
+				"id",
+				"userId",
+				"name",
+				"amount",
+				"frequency",
+				"dayOfMonth",
+				"dayOfWeek",
+				"startDate",
+				"endDate",
+				"categoryId",
+				"paymentMethod",
+				"isActive",
+				"createdAt",
+				"updatedAt",
+			)
+				.where((f, fn) => fn.eq(f.userId, userId))
+				.build(),
+		);
+		const [purchaseTags, recurringTags, transactionTags] = await Promise.all([
+			getTagsByEntity(
+				tagEntityType.creditPurchase,
+				creditPurchases.map(purchase => purchase.id),
+			),
+			getTagsByEntity(
+				tagEntityType.recurringPayment,
+				recurringPayments.map(payment => payment.id),
+			),
+			getTagsByEntity(
+				tagEntityType.transaction,
+				transactions.map(transaction => transaction.id),
+			),
+		]);
 
 		return {
 			serverData: {
@@ -536,7 +598,11 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				),
 				creditCardStatements,
 				creditCards,
-				creditPurchases,
+				creditPurchases: creditPurchases.map(purchase => ({
+					...purchase,
+					tagIds: (purchaseTags.get(purchase.id) ?? []).map(tag => tag.id),
+					tags: purchaseTags.get(purchase.id) ?? [],
+				})),
 				debts: await queryRows(
 					db.sql.public.Debt.select(
 						"id",
@@ -576,26 +642,11 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 						.where((f, fn) => fn.eq(f.userId, userId))
 						.build(),
 				),
-				recurringPayments: await queryRows(
-					db.sql.public.RecurringPayment.select(
-						"id",
-						"userId",
-						"name",
-						"amount",
-						"frequency",
-						"dayOfMonth",
-						"dayOfWeek",
-						"startDate",
-						"endDate",
-						"categoryId",
-						"paymentMethod",
-						"isActive",
-						"createdAt",
-						"updatedAt",
-					)
-						.where((f, fn) => fn.eq(f.userId, userId))
-						.build(),
-				),
+				recurringPayments: recurringPayments.map(payment => ({
+					...payment,
+					tagIds: (recurringTags.get(payment.id) ?? []).map(tag => tag.id),
+					tags: recurringTags.get(payment.id) ?? [],
+				})),
 				salaries: await queryRows(
 					db.sql.public.Salary.select(
 						"id",
@@ -632,7 +683,11 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 						.where((f, fn) => fn.eq(f.userId, userId))
 						.build(),
 				),
-				transactions,
+				transactions: transactions.map(transaction => ({
+					...transaction,
+					tagIds: (transactionTags.get(transaction.id) ?? []).map(tag => tag.id),
+					tags: transactionTags.get(transaction.id) ?? [],
+				})),
 			},
 			syncResults,
 		};

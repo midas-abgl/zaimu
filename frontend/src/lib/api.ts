@@ -87,17 +87,22 @@ export interface Transaction {
 	categoryId?: string;
 	categoryName?: string;
 	categoryColor?: string;
+	tagIds?: string[];
+	tags?: Tag[];
 	originFinancialAccountId?: string;
 	destinationFinancialAccountId?: string;
 	createdAt: string;
 }
 
-export interface Category {
+export interface Tag {
 	id: string;
-	userId: string;
 	name: string;
-	color?: string;
-	icon?: string;
+	color?: null | string;
+	icon?: null | string;
+}
+
+export interface Category extends Tag {
+	userId: string;
 	parentId?: string;
 }
 
@@ -197,6 +202,8 @@ export interface RecurringPayment {
 	createdAt: string;
 	updatedAt: string;
 	category?: string;
+	tagIds?: string[];
+	tags?: Tag[];
 	day?: number;
 	type?: "INCOME" | "EXPENSE";
 }
@@ -223,6 +230,8 @@ export interface CreditPurchase {
 	categoryId?: string;
 	categoryName?: string;
 	categoryColor?: string;
+	tagIds?: string[];
+	tags?: Tag[];
 	parentId?: string;
 }
 
@@ -285,6 +294,7 @@ export const api = {
 			installments?: number;
 			purchaseDate: string;
 			categoryId?: string;
+			tagIds?: string[];
 		},
 	) => fetchApi(`/credit-cards/${cardId}/purchases`, { body: data, method: "POST" }),
 
@@ -382,6 +392,7 @@ export const api = {
 		description?: string;
 		type?: Transaction["type"];
 		categoryId?: string;
+		tagIds?: string[];
 		originFinancialAccountId?: string;
 		destinationFinancialAccountId?: string;
 	}) => fetchApi<Transaction>("/transactions", { body: data, method: "POST" }),

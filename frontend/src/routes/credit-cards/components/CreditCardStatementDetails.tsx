@@ -88,7 +88,11 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 										<span className="block truncate font-medium">{purchase.description}</span>
 										<span className="text-muted-foreground text-xs">
 											{formatLocalDate(purchase.purchaseDate)}
-											{purchase.categoryName ? ` · ${purchase.categoryName}` : ""}
+											{purchase.tags?.length
+												? ` · ${purchase.tags.map(tag => tag.name).join(" · ")}`
+												: purchase.categoryName
+													? ` · ${purchase.categoryName}`
+													: ""}
 											{purchase.installments > 1
 												? ` · ${purchase.currentInstallment}/${purchase.installments}`
 												: ""}

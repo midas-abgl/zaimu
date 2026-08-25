@@ -1,11 +1,12 @@
 import { addMonths } from "date-fns";
 import Elysia, { t } from "elysia";
+import { assertBalanceAccountOwnership, assertCreditCardOwnership, requireUserId } from "~/modules/auth";
 import {
-	assertBalanceAccountOwnership,
-	assertCreditCardOwnership,
-	assertDirectOwnership,
-	requireUserId,
-} from "~/modules/auth";
+	assertTagOwnership,
+	getTagsByEntity,
+	replaceEntityTags,
+	tagEntityType,
+} from "~/modules/categories/application/tag-assignments";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
 
@@ -167,27 +168,29 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			}
 
 			const purchases = await queryRows(
-				db.sql.public.CreditPurchase.outerLeftJoin(db.sql.public.Category, (fields, functions) =>
-					functions.eq(fields.CreditPurchase.categoryId, fields.Category.id),
-				)
-					.select(fields => ({
-						categoryColor: fields.Category.color,
-						categoryName: fields.Category.name,
-						createdAt: fields.CreditPurchase.createdAt,
-						currentInstallment: fields.CreditPurchase.currentInstallment,
-						description: fields.CreditPurchase.description,
-						id: fields.CreditPurchase.id,
-						installmentAmount: fields.CreditPurchase.installmentAmount,
-						installments: fields.CreditPurchase.installments,
-						purchaseDate: fields.CreditPurchase.purchaseDate,
-						totalAmount: fields.CreditPurchase.totalAmount,
-					}))
-					.where((fields, functions) => functions.eq(fields.CreditPurchase.statementId, params.statementId))
-					.orderBy(fields => fields.CreditPurchase.purchaseDate, { direction: "desc" })
+				db.sql.public.CreditPurchase.select(...purchaseColumns)
+					.where((fields, functions) => functions.eq(fields.statementId, params.statementId))
+					.orderBy("purchaseDate", { direction: "desc" })
 					.build(),
 			);
+			const tagsByPurchase = await getTagsByEntity(
+				tagEntityType.creditPurchase,
+				purchases.map(purchase => purchase.id),
+			);
 
-			return { ...statement, purchases };
+			return {
+				...statement,
+				purchases: purchases.map(purchase => {
+					const tags = tagsByPurchase.get(purchase.id) ?? [];
+					return {
+						...purchase,
+						categoryColor: tags[0]?.color,
+						categoryName: tags[0]?.name,
+						tagIds: tags.map(tag => tag.id),
+						tags,
+					};
+				}),
+			};
 		},
 		{
 			detail: { tags: ["Credit Cards"] },
@@ -202,7 +205,10 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
 			await assertCreditCardOwnership(params.id, userId);
-			if (body.categoryId) await assertDirectOwnership("Category", body.categoryId, userId);
+			const tagIds = await assertTagOwnership(
+				body.tagIds ?? (body.categoryId ? [body.categoryId] : []),
+				userId,
+			);
 			const card = await queryFirst(
 				db.sql.public.CreditCard.select("id", "statementDay", "dueDay")
 					.where((fields, functions) => functions.eq(fields.id, params.id))
@@ -277,7 +283,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				const purchase = await queryFirst(
 					db.sql.public.CreditPurchase.insert([
 						{
-							categoryId: body.categoryId,
+							categoryId: tagIds[0],
 							currentInstallment: i + 1,
 							description: body.description,
 							installmentAmount: String(installmentAmount),
@@ -311,7 +317,20 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				);
 			}
 
-			return createdPurchases;
+			await replaceEntityTags({
+				entityIds: createdPurchases.map(purchase => purchase.id),
+				entityType: tagEntityType.creditPurchase,
+				tagIds,
+			});
+			const tagsByPurchase = await getTagsByEntity(
+				tagEntityType.creditPurchase,
+				createdPurchases.map(purchase => purchase.id),
+			);
+
+			return createdPurchases.map(purchase => {
+				const tags = tagsByPurchase.get(purchase.id) ?? [];
+				return { ...purchase, tagIds: tags.map(tag => tag.id), tags };
+			});
 		},
 		{
 			body: t.Object({
@@ -319,6 +338,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				description: t.String({ maxLength: 500 }),
 				installments: t.Optional(t.Number({ maximum: 48, minimum: 1 })),
 				purchaseDate: t.String(),
+				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
 				totalAmount: t.Number(),
 			}),
 			detail: { tags: ["Credit Cards"] },

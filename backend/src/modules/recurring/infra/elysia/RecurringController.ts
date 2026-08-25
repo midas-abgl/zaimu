@@ -1,5 +1,11 @@
 import Elysia, { t } from "elysia";
 import { assertDirectOwnership, requireUserId } from "~/modules/auth";
+import {
+	assertTagOwnership,
+	getTagsByEntity,
+	replaceEntityTags,
+	tagEntityType,
+} from "~/modules/categories/application/tag-assignments";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 
@@ -52,7 +58,14 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 			}
 
 			const payments = await queryRows(queryBuilder.orderBy("name", { direction: "asc" }).build());
-			return payments;
+			const tagsByPayment = await getTagsByEntity(
+				tagEntityType.recurringPayment,
+				payments.map(payment => payment.id),
+			);
+			return payments.map(payment => {
+				const tags = tagsByPayment.get(payment.id) ?? [];
+				return { ...payment, tagIds: tags.map(tag => tag.id), tags };
+			});
 		},
 		{
 			detail: { tags: ["Recurring Payments"] },
@@ -77,7 +90,9 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 				throw new HttpException("Recurring payment not found", 404);
 			}
 
-			return payment;
+			const tagsByPayment = await getTagsByEntity(tagEntityType.recurringPayment, [payment.id]);
+			const tags = tagsByPayment.get(payment.id) ?? [];
+			return { ...payment, tagIds: tags.map(tag => tag.id), tags };
 		},
 		{
 			detail: { tags: ["Recurring Payments"] },
@@ -118,11 +133,15 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 		"/",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
+			const tagIds = await assertTagOwnership(
+				body.tagIds ?? (body.categoryId ? [body.categoryId] : []),
+				userId,
+			);
 			const payment = await queryFirst(
 				db.sql.public.RecurringPayment.insert([
 					{
 						amount: String(body.amount),
-						categoryId: body.categoryId,
+						categoryId: tagIds[0],
 						dayOfMonth: body.dayOfMonth,
 						dayOfWeek: body.dayOfWeek,
 						endDate: body.endDate ? new Date(body.endDate) : undefined,
@@ -138,8 +157,15 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 					.build(),
 			);
 			if (!payment) throw new HttpException("Recurring payment not created", 500);
+			await replaceEntityTags({
+				entityIds: [payment.id],
+				entityType: tagEntityType.recurringPayment,
+				tagIds,
+			});
 
-			return payment;
+			const tagsByPayment = await getTagsByEntity(tagEntityType.recurringPayment, [payment.id]);
+			const tags = tagsByPayment.get(payment.id) ?? [];
+			return { ...payment, tagIds: tags.map(tag => tag.id), tags };
 		},
 		{
 			body: t.Object({
@@ -153,6 +179,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 				name: t.String({ maxLength: 100 }),
 				paymentMethod: t.Optional(PaymentMethod),
 				startDate: t.String(),
+				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
 			}),
 			detail: { tags: ["Recurring Payments"] },
 		},
@@ -162,6 +189,10 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("RecurringPayment", params.id, userId);
+			const tagIds =
+				body.tagIds !== undefined || body.categoryId !== undefined
+					? await assertTagOwnership(body.tagIds ?? (body.categoryId ? [body.categoryId] : []), userId)
+					: undefined;
 			const existing = await queryFirst(
 				db.sql.public.RecurringPayment.select(...recurringColumns)
 					.where((fields, functions) => functions.eq(fields.id, params.id))
@@ -212,7 +243,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 					...(body.endDate !== undefined && {
 						endDate: body.endDate ? new Date(body.endDate) : null,
 					}),
-					...(body.categoryId !== undefined && { categoryId: body.categoryId }),
+					...(tagIds !== undefined && { categoryId: tagIds[0] ?? null }),
 					...(body.paymentMethod && { paymentMethod: body.paymentMethod }),
 					...(body.isActive !== undefined && { isActive: body.isActive }),
 					updatedAt: new Date(),
@@ -222,8 +253,17 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 					.build(),
 			);
 			if (!payment) throw new HttpException("Recurring payment not found", 404);
+			if (tagIds !== undefined) {
+				await replaceEntityTags({
+					entityIds: [payment.id],
+					entityType: tagEntityType.recurringPayment,
+					tagIds,
+				});
+			}
 
-			return payment;
+			const tagsByPayment = await getTagsByEntity(tagEntityType.recurringPayment, [payment.id]);
+			const tags = tagsByPayment.get(payment.id) ?? [];
+			return { ...payment, tagIds: tags.map(tag => tag.id), tags };
 		},
 		{
 			body: t.Object({
@@ -236,6 +276,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 				isActive: t.Optional(t.Boolean()),
 				name: t.Optional(t.String({ maxLength: 100 })),
 				paymentMethod: t.Optional(PaymentMethod),
+				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
 			}),
 			detail: { tags: ["Recurring Payments"] },
 			params: t.Object({
@@ -259,6 +300,11 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 				throw new HttpException("Recurring payment not found", 404);
 			}
 
+			await replaceEntityTags({
+				entityIds: [params.id],
+				entityType: tagEntityType.recurringPayment,
+				tagIds: [],
+			});
 			await executeStatement(
 				db.sql.public.RecurringPayment.delete()
 					.where((fields, functions) => functions.eq(fields.id, params.id))

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { HiArrowDown, HiArrowsRightLeft, HiArrowUp, HiPlus } from "react-icons/hi2";
+import { TagPicker } from "@/components/tags";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
@@ -40,11 +41,11 @@ function TransactionsPage() {
 	const [filterType, setFilterType] = useState<string>("all");
 	const [draft, setDraft] = useState({
 		amount: "",
-		categoryId: "",
 		date: new Date().toISOString().slice(0, 10),
 		description: "",
 		destinationFinancialAccountId: "",
 		originFinancialAccountId: "",
+		tagIds: [] as string[],
 		type: "EXPENSE" as Transaction["type"],
 	});
 	const [description, setDescription] = useDebouncedInput(draft.description, value =>
@@ -60,20 +61,16 @@ function TransactionsPage() {
 		queryKey: ["transactions", filterType],
 	});
 	const accountsQuery = useQuery({ queryFn: () => dataService.accounts.getAll(), queryKey: ["accounts"] });
-	const categoriesQuery = useQuery({
-		queryFn: () => dataService.categories.getAll(),
-		queryKey: ["categories"],
-	});
 	const balanceAccounts = accountsQuery.data?.filter(account => account.type !== "CREDIT_CARD") ?? [];
 
 	const resetForm = () => {
 		setDraft({
 			amount: "",
-			categoryId: "",
 			date: new Date().toISOString().slice(0, 10),
 			description: "",
 			destinationFinancialAccountId: "",
 			originFinancialAccountId: "",
+			tagIds: [],
 			type: "EXPENSE",
 		});
 		setDescription("");
@@ -83,11 +80,11 @@ function TransactionsPage() {
 		mutationFn: () =>
 			dataService.transactions.create({
 				amount: Number.parseFloat(draft.amount),
-				categoryId: draft.categoryId || undefined,
 				date: draft.date,
 				description: description || undefined,
 				destinationFinancialAccountId: draft.destinationFinancialAccountId || undefined,
 				originFinancialAccountId: draft.originFinancialAccountId || undefined,
+				tagIds: draft.tagIds,
 				type: draft.type,
 			}),
 		onSuccess: async () => {
@@ -184,11 +181,15 @@ function TransactionsPage() {
 										</div>
 										<div className="min-w-0 flex-1">
 											<p className="truncate font-semibold">
-												{transaction.description || transaction.categoryName || "Movimentação"}
+												{transaction.description || transaction.tags?.[0]?.name || "Movimentação"}
 											</p>
-											{transaction.categoryName && transaction.description && (
+											{transaction.tags?.length && transaction.description ? (
+												<p className="truncate text-muted-foreground text-xs">
+													{transaction.tags.map(tag => tag.name).join(" · ")}
+												</p>
+											) : transaction.categoryName && transaction.description ? (
 												<p className="truncate text-muted-foreground text-xs">{transaction.categoryName}</p>
-											)}
+											) : null}
 										</div>
 										<p
 											className={`shrink-0 whitespace-nowrap font-bold ${transaction.type === "INCOME" ? "text-emerald-600" : transaction.type === "EXPENSE" ? "text-rose-600" : "text-primary"}`}
@@ -250,13 +251,10 @@ function TransactionsPage() {
 							required
 							value={draft.date}
 						/>
-						{draft.type !== "TRANSFER" && categoriesQuery.data?.length ? (
-							<CustomSelect
-								label="Categoria"
-								onValueChange={categoryId => setDraft(current => ({ ...current, categoryId }))}
-								options={categoriesQuery.data.map(category => ({ label: category.name, value: category.id }))}
-								placeholder="Selecione a categoria"
-								value={draft.categoryId}
+						{draft.type !== "TRANSFER" ? (
+							<TagPicker
+								onValueChange={tagIds => setDraft(current => ({ ...current, tagIds }))}
+								value={draft.tagIds}
 							/>
 						) : null}
 						{balanceAccounts.length ? (

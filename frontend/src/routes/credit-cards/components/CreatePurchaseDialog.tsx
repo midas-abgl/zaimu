@@ -1,6 +1,6 @@
 import { type SyntheticEvent, useState } from "react";
+import { TagPicker } from "@/components/tags";
 import { Button } from "@/components/ui/Button";
-import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import {
 	Dialog,
@@ -13,31 +13,24 @@ import {
 import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
-import type { Category, CreditCard } from "@/lib/api";
-
-const installments = Array.from({ length: 24 }, (_, index) => ({
-	label: index === 0 ? "À vista" : `${index + 1} parcelas`,
-	value: String(index + 1),
-}));
+import type { CreditCard } from "@/lib/api";
 
 interface PurchaseDraft {
-	categoryId?: string;
 	description: string;
 	installments?: number;
 	purchaseDate: string;
+	tagIds?: string[];
 	totalAmount: number;
 }
 
 export function CreatePurchaseDialog({
 	card,
-	categories,
 	onOpenChange,
 	onSubmit,
 	open,
 	pending,
 }: {
 	card: CreditCard | null;
-	categories: Category[];
 	onOpenChange: (open: boolean) => void;
 	onSubmit: (draft: PurchaseDraft) => Promise<void>;
 	open: boolean;
@@ -45,26 +38,28 @@ export function CreatePurchaseDialog({
 }) {
 	const [description, setDescription] = useDebouncedInput("", () => undefined);
 	const [amount, setAmount] = useState("");
-	const [count, setCount] = useState("1");
+	const [count, setCount] = useDebouncedInput("1", () => undefined);
 	const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-	const [categoryId, setCategoryId] = useState("");
+	const [tagIds, setTagIds] = useState<string[]>([]);
 	const total = Number(amount || 0);
-	const installmentValue = total / Number(count || 1);
+	const installmentCount = Number.parseInt(count, 10);
+	const installmentValue = total / (installmentCount || 1);
 
 	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
+		if (!Number.isInteger(installmentCount) || installmentCount < 1 || installmentCount > 48) return;
 		await onSubmit({
-			categoryId: categoryId || undefined,
 			description: description.trim(),
-			installments: Number(count),
+			installments: installmentCount,
 			purchaseDate: date,
+			tagIds,
 			totalAmount: total,
 		});
 		onOpenChange(false);
 		setDescription("");
 		setAmount("");
 		setCount("1");
-		setCategoryId("");
+		setTagIds([]);
 	};
 
 	return (
@@ -97,12 +92,17 @@ export function CreatePurchaseDialog({
 						value={amount}
 					/>
 					<div className="grid gap-4 sm:grid-cols-2">
-						<CustomSelect
-							label="Parcelamento"
-							onValueChange={setCount}
-							options={installments}
-							placeholder="Selecione"
+						<FormField
+							autoComplete="off"
+							description="Informe 1 para compra à vista."
+							id="purchase-installments"
+							inputMode="numeric"
+							label="Parcelas"
+							name="purchase-installments"
+							onChange={event => setCount(event.currentTarget.value.replace(/\D/g, "").slice(0, 2))}
+							placeholder="Ex: 12"
 							required
+							type="text"
 							value={count}
 						/>
 						<DateField
@@ -115,17 +115,8 @@ export function CreatePurchaseDialog({
 							value={date}
 						/>
 					</div>
-					<CustomSelect
-						label="Categoria"
-						onValueChange={setCategoryId}
-						options={[
-							{ label: "Sem categoria", value: "none" },
-							...categories.map(category => ({ label: category.name, value: category.id })),
-						]}
-						placeholder="Selecione uma categoria"
-						value={categoryId || "none"}
-					/>
-					{Number(count) > 1 && total > 0 && (
+					<TagPicker onValueChange={setTagIds} value={tagIds} />
+					{installmentCount > 1 && total > 0 && (
 						<div className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-sm">
 							<strong>
 								{count}x de{" "}
@@ -140,7 +131,17 @@ export function CreatePurchaseDialog({
 						<Button onClick={() => onOpenChange(false)} type="button" variant="outline">
 							Descartar
 						</Button>
-						<Button disabled={pending || !description.trim() || total <= 0} type="submit">
+						<Button
+							disabled={
+								pending ||
+								!description.trim() ||
+								total <= 0 ||
+								!Number.isInteger(installmentCount) ||
+								installmentCount < 1 ||
+								installmentCount > 48
+							}
+							type="submit"
+						>
 							{pending ? "Salvando…" : "Salvar compra"}
 						</Button>
 					</DialogFooter>

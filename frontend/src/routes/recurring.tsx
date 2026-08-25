@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { HiArrowPath, HiCalendarDays, HiCheck, HiPlus, HiTrash, HiXMark } from "react-icons/hi2";
+import { TagPicker } from "@/components/tags";
 import type { RecurringPayment } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 
@@ -57,7 +58,11 @@ function RecurringCard({
 							{isDespesa ? "-" : "+"}
 							{formatCurrency(payment.amount)}
 						</p>
-						{payment.category && <p className="text-foreground-muted text-xs">{payment.category}</p>}
+						{payment.tags?.length ? (
+							<p className="text-foreground-muted text-xs">{payment.tags.map(tag => tag.name).join(" · ")}</p>
+						) : payment.category ? (
+							<p className="text-foreground-muted text-xs">{payment.category}</p>
+						) : null}
 					</div>
 					<button
 						className="rounded-xl bg-danger-100 p-2 text-danger-600 transition-colors hover:bg-danger-200 disabled:opacity-50"
@@ -81,10 +86,10 @@ function RecurringPage() {
 	const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 	const [newPayment, setNewPayment] = useState({
 		amount: "",
-		category: "",
 		day: "",
 		frequency: "MONTHLY",
 		name: "",
+		tagIds: [] as string[],
 		type: "EXPENSE",
 	});
 
@@ -113,10 +118,10 @@ function RecurringPage() {
 	const resetForm = () => {
 		setNewPayment({
 			amount: "",
-			category: "",
 			day: "",
 			frequency: "MONTHLY",
 			name: "",
+			tagIds: [],
 			type: "EXPENSE",
 		});
 	};
@@ -124,13 +129,13 @@ function RecurringPage() {
 	const handleCreate = () => {
 		createMutation.mutate({
 			amount: Number.parseFloat(newPayment.amount),
-			category: newPayment.category || undefined,
 			day: Number.parseInt(newPayment.day, 10),
 			dayOfMonth: Number.parseInt(newPayment.day, 10),
 			frequency: newPayment.frequency as RecurringPayment["frequency"],
 			name: newPayment.name,
 			paymentMethod: "DEBIT",
 			startDate: new Date().toISOString().slice(0, 10),
+			tagIds: newPayment.tagIds,
 			type: newPayment.type as RecurringPayment["type"],
 		});
 	};
@@ -361,17 +366,10 @@ function RecurringPage() {
 							</div>
 						</div>
 
-						{/* Category */}
 						<div className="mb-6">
-							<span className="mb-2 block font-medium text-foreground-muted text-sm">
-								Category (optional)
-							</span>
-							<input
-								className="input"
-								onChange={e => setNewPayment({ ...newPayment, category: e.target.value })}
-								placeholder="Ex: Moradia"
-								type="text"
-								value={newPayment.category}
+							<TagPicker
+								onValueChange={tagIds => setNewPayment({ ...newPayment, tagIds })}
+								value={newPayment.tagIds}
 							/>
 						</div>
 
