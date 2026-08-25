@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { LuCreditCard, LuPlus } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import type { CreditCard } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { showToast, useAuthStore } from "@/stores";
+import { CreateFinancialAccountDialog } from "./accounts/components";
 import {
 	CreatePurchaseDialog,
 	CreditCardOverviewCard,
@@ -23,6 +24,7 @@ function CreditCardsPage() {
 	const hasAccess = useAuthStore(state => state.isAuthenticated || state.isGuestMode);
 	const [selectedCard, setSelectedCard] = useState<CreditCard | null>(null);
 	const [statementsCard, setStatementsCard] = useState<CreditCard | null>(null);
+	const [isCreateCardOpen, setIsCreateCardOpen] = useState(false);
 	const cards = useQuery({
 		enabled: hasAccess,
 		queryFn: () => dataService.creditCards.getAll(),
@@ -41,16 +43,25 @@ function CreditCardsPage() {
 			showToast("Compra registrada e faturas recalculadas.", "positive");
 		},
 	});
+	const createCard = useMutation({
+		mutationFn: dataService.accounts.create,
+		onError: error => showToast(error.message, "negative"),
+		onSuccess: async () => {
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: ["financial-accounts"] }),
+				queryClient.invalidateQueries({ queryKey: ["credit-cards"] }),
+			]);
+			showToast("Cartão cadastrado.", "positive");
+		},
+	});
 	const totalLimit = cards.data?.reduce((sum, card) => sum + card.creditLimit, 0) ?? 0;
 
 	return (
 		<PageContainer className="grid gap-8">
 			<PageHeader
 				actions={
-					<Button asChild className="h-11">
-						<Link to="/accounts">
-							<LuPlus /> Novo cartão
-						</Link>
+					<Button className="h-11 cursor-pointer" onClick={() => setIsCreateCardOpen(true)}>
+						<LuPlus /> Novo cartão
 					</Button>
 				}
 				description="Acompanhe limite, previsão de fatura e parcelamentos."
@@ -93,13 +104,11 @@ function CreditCardsPage() {
 			) : (
 				<EmptyState
 					action={
-						<Button asChild>
-							<Link to="/accounts">
-								<LuPlus /> Cadastrar cartão
-							</Link>
+						<Button onClick={() => setIsCreateCardOpen(true)}>
+							<LuPlus /> Cadastrar cartão
 						</Button>
 					}
-					description="Cadastre um cartão direto na tela de contas financeiras."
+					description="Cadastre seu cartão sem sair desta tela."
 					icon={<LuCreditCard className="size-7" />}
 					title="Nenhum cartão cadastrado"
 				/>
@@ -120,6 +129,14 @@ function CreditCardsPage() {
 			<CreditCardStatementsDialog
 				card={statementsCard}
 				onOpenChange={open => !open && setStatementsCard(null)}
+			/>
+			<CreateFinancialAccountDialog
+				defaultType="CREDIT_CARD"
+				onCreate={data => createCard.mutateAsync(data)}
+				onOpenChange={setIsCreateCardOpen}
+				open={isCreateCardOpen}
+				pending={createCard.isPending}
+				showTrigger={false}
 			/>
 		</PageContainer>
 	);

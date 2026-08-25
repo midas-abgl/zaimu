@@ -39,8 +39,8 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				await assertDirectOwnership("FinancialAccount", query.financialAccountId, userId);
 			}
 			if (query.categoryId) await assertDirectOwnership("Category", query.categoryId, userId);
-			const origin = db.sql.public.FinancialAccount.select("id", "userId").as("origin");
-			const destination = db.sql.public.FinancialAccount.select("id", "userId").as("destination");
+			const origin = db.sql.public.FinancialAccount.select("id", "userId", "name").as("origin");
+			const destination = db.sql.public.FinancialAccount.select("id", "userId", "name").as("destination");
 			const taggedTransactionIds = query.categoryId
 				? (
 						await queryRows(
@@ -55,7 +55,6 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						)
 					).map(assignment => assignment.entityId)
 				: undefined;
-			if (taggedTransactionIds?.length === 0) return [];
 			let queryBuilder = db.sql.public.Transaction.outerLeftJoin(db.sql.public.Category, (f, fn) =>
 				fn.eq(f.Transaction.categoryId, f.Category.id),
 			)
@@ -74,8 +73,10 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					date: f.Transaction.date,
 					description: f.Transaction.description,
 					destinationFinancialAccountId: f.Transaction.destinationFinancialAccountId,
+					destinationName: f.destination.name,
 					id: f.Transaction.id,
 					originFinancialAccountId: f.Transaction.originFinancialAccountId,
+					originName: f.origin.name,
 					type: f.Transaction.type,
 				}))
 				.where((f, fn) =>
@@ -95,7 +96,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (query.type) {
 				queryBuilder = queryBuilder.where((f, fn) => fn.eq(f.Transaction.type, query.type!));
 			}
-			if (query.categoryId) {
+			if (query.categoryId && taggedTransactionIds?.length) {
 				queryBuilder = queryBuilder.where((f, fn) => fn.in(f.Transaction.id, taggedTransactionIds!));
 			}
 			if (query.financialAccountId) {
@@ -107,23 +108,100 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				);
 			}
 
-			const transactions = await queryRows(
-				queryBuilder
-					.orderBy(f => f.Transaction.date, { direction: "desc" })
-					.orderBy(f => f.Transaction.createdAt, { direction: "desc" })
-					.limit(query.limit ?? 100)
-					.offset(query.offset ?? 0)
-					.build(),
-			);
+			const transactions = taggedTransactionIds?.length === 0 ? [] : await queryRows(queryBuilder.build());
 			const tagsByTransaction = await getTagsByEntity(
 				tagEntityType.transaction,
 				transactions.map(transaction => transaction.id),
 			);
 
-			return transactions.map(transaction => {
+			const normalizedTransactions = transactions.map(transaction => {
 				const tags = tagsByTransaction.get(transaction.id) ?? [];
-				return { ...transaction, tagIds: tags.map(tag => tag.id), tags };
+				const { destinationName, originName, ...data } = transaction;
+				return {
+					...data,
+					source: "FINANCIAL_ACCOUNT" as const,
+					sourceName: transaction.type === "INCOME" ? destinationName : originName,
+					tagIds: tags.map(tag => tag.id),
+					tags,
+				};
 			});
+
+			let purchases: Array<{
+				amount: unknown;
+				categoryColor: string | null;
+				categoryName: string | null;
+				createdAt: Date;
+				date: Date;
+				description: string;
+				id: string;
+				originFinancialAccountId: string;
+				sourceName: string;
+			}> = [];
+			if (!query.type || query.type === "EXPENSE") {
+				let purchaseQuery = db.sql.public.CreditPurchase.innerJoin(
+					db.sql.public.CreditCardStatement,
+					(f, fn) => fn.eq(f.CreditPurchase.statementId, f.CreditCardStatement.id),
+				)
+					.innerJoin(db.sql.public.CreditCard, (f, fn) =>
+						fn.eq(f.CreditCardStatement.creditCardId, f.CreditCard.id),
+					)
+					.innerJoin(db.sql.public.FinancialAccount, (f, fn) =>
+						fn.eq(f.CreditCard.financialAccountId, f.FinancialAccount.id),
+					)
+					.outerLeftJoin(db.sql.public.Category, (f, fn) => fn.eq(f.CreditPurchase.categoryId, f.Category.id))
+					.select(f => ({
+						amount: f.CreditPurchase.totalAmount,
+						categoryColor: f.Category.color,
+						categoryName: f.Category.name,
+						createdAt: f.CreditPurchase.createdAt,
+						date: f.CreditPurchase.purchaseDate,
+						description: f.CreditPurchase.description,
+						id: f.CreditPurchase.id,
+						originFinancialAccountId: f.FinancialAccount.id,
+						sourceName: f.FinancialAccount.name,
+					}))
+					.where((f, fn) =>
+						fn.and(fn.eq(f.FinancialAccount.userId, userId), fn.eq(f.CreditPurchase.currentInstallment, 1)),
+					);
+				if (query.startDate)
+					purchaseQuery = purchaseQuery.where((f, fn) =>
+						fn.gte(f.CreditPurchase.purchaseDate, new Date(query.startDate!)),
+					);
+				if (query.endDate)
+					purchaseQuery = purchaseQuery.where((f, fn) =>
+						fn.lte(f.CreditPurchase.purchaseDate, new Date(query.endDate!)),
+					);
+				if (query.financialAccountId)
+					purchaseQuery = purchaseQuery.where((f, fn) =>
+						fn.eq(f.FinancialAccount.id, query.financialAccountId!),
+					);
+				purchases = await queryRows(purchaseQuery.build());
+			}
+			const purchaseTags = await getTagsByEntity(
+				tagEntityType.creditPurchase,
+				purchases.map(purchase => purchase.id),
+			);
+			const normalizedPurchases = purchases
+				.map(purchase => {
+					const tags = purchaseTags.get(purchase.id) ?? [];
+					return {
+						...purchase,
+						destinationFinancialAccountId: null,
+						source: "CREDIT_CARD" as const,
+						tagIds: tags.map(tag => tag.id),
+						tags,
+						type: "EXPENSE" as const,
+					};
+				})
+				.filter(purchase => !query.categoryId || purchase.tagIds.includes(query.categoryId));
+
+			return [...normalizedTransactions, ...normalizedPurchases]
+				.sort(
+					(left, right) =>
+						new Date(right.date).getTime() - new Date(left.date).getTime() ||
+						new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+				)
+				.slice(query.offset ?? 0, (query.offset ?? 0) + (query.limit ?? 100));
 		},
 		{
 			detail: { tags: ["Transactions"] },

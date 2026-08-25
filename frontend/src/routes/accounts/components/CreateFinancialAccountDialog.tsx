@@ -37,29 +37,38 @@ type UpdateDraft = import("@/lib/dataService").FinancialAccountUpdateDraft;
 export function CreateFinancialAccountDialog({
 	contextual = false,
 	account,
+	defaultType,
 	defaultInstitutionId,
 	institutions = [],
 	onCreate,
+	onOpenChange,
 	onUpdate,
+	open: controlledOpen,
 	pending,
+	showTrigger = true,
 }: {
 	account?: FinancialAccount;
 	contextual?: boolean;
+	defaultType?: FinancialAccount["type"];
 	defaultInstitutionId?: string | null;
 	institutions?: FinancialInstitution[];
 	onCreate: (data: Draft) => Promise<unknown>;
+	onOpenChange?: (open: boolean) => void;
 	onUpdate?: (id: string, data: UpdateDraft) => Promise<unknown>;
+	open?: boolean;
 	pending: boolean;
+	showTrigger?: boolean;
 }) {
 	const initialInstitution = () =>
 		account?.institutionId ??
 		defaultInstitutionId ??
 		(defaultInstitutionId === null ? NO_INSTITUTION : undefined);
-	const [open, setOpen] = useState(false);
+	const [internalOpen, setInternalOpen] = useState(false);
+	const open = controlledOpen ?? internalOpen;
 	const [institutionId, setInstitutionId] = useState<string | undefined>(initialInstitution);
 	const [newInstitutionName, setNewInstitutionName] = useDebouncedInput("", () => undefined);
 	const [name, setName] = useDebouncedInput(account?.name ?? "", () => undefined);
-	const [type, setType] = useState<FinancialAccount["type"]>(account?.type ?? "CHECKING");
+	const [type, setType] = useState<FinancialAccount["type"]>(account?.type ?? defaultType ?? "CHECKING");
 	const [balance, setBalance] = useState(String(account?.balance ?? 0));
 	const [creditLimit, setCreditLimit] = useState(String(account?.creditCard?.creditLimit ?? ""));
 	const [securityDeposit, setSecurityDeposit] = useState(String(account?.creditCard?.securityDeposit ?? ""));
@@ -72,7 +81,7 @@ export function CreateFinancialAccountDialog({
 		setInstitutionId(initialInstitution());
 		setNewInstitutionName("");
 		setName(account?.name ?? "");
-		setType(account?.type ?? "CHECKING");
+		setType(account?.type ?? defaultType ?? "CHECKING");
 		setBalance(String(account?.balance ?? 0));
 		setCreditLimit(String(account?.creditCard?.creditLimit ?? ""));
 		setSecurityDeposit(String(account?.creditCard?.securityDeposit ?? ""));
@@ -81,7 +90,8 @@ export function CreateFinancialAccountDialog({
 		setWorkingDueDate(account?.creditCard?.workingDueDate ?? false);
 	};
 	const handleOpenChange = (nextOpen: boolean) => {
-		setOpen(nextOpen);
+		setInternalOpen(nextOpen);
+		onOpenChange?.(nextOpen);
 		if (!nextOpen) reset();
 	};
 	const handleSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
@@ -120,16 +130,18 @@ export function CreateFinancialAccountDialog({
 
 	return (
 		<Dialog onOpenChange={handleOpenChange} open={open}>
-			<DialogTrigger asChild>
-				<Button
-					className={contextual ? "cursor-pointer" : "h-11 cursor-pointer"}
-					size={contextual ? "sm" : "default"}
-					variant={contextual ? "outline" : "default"}
-				>
-					{account ? <LuPencil /> : <LuPlus />}{" "}
-					{account ? "Editar" : contextual ? "Adicionar conta" : "Nova conta"}
-				</Button>
-			</DialogTrigger>
+			{showTrigger && (
+				<DialogTrigger asChild>
+					<Button
+						className={contextual ? "cursor-pointer" : "h-11 cursor-pointer"}
+						size={contextual ? "sm" : "default"}
+						variant={contextual ? "outline" : "default"}
+					>
+						{account ? <LuPencil /> : <LuPlus />}{" "}
+						{account ? "Editar" : contextual ? "Adicionar conta" : "Nova conta"}
+					</Button>
+				</DialogTrigger>
+			)}
 			<DialogContent className="scrollbar-themed max-h-[92dvh] overflow-y-auto sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>{account ? "Editar conta" : "Cadastrar conta"}</DialogTitle>

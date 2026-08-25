@@ -1,26 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { HiArrowDown, HiArrowsRightLeft, HiArrowUp, HiPlus } from "react-icons/hi2";
-import { TagPicker } from "@/components/tags";
+import { CreateTransactionDialog } from "@/components/transactions";
 import { Button } from "@/components/ui/Button";
-import { CustomSelect } from "@/components/ui/CustomSelect";
-import { DateField } from "@/components/ui/DateField";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { FormField } from "@/components/ui/FormField";
-import { MoneyField } from "@/components/ui/MoneyField";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 
@@ -36,21 +23,8 @@ function formatCurrency(value: number) {
 }
 
 function TransactionsPage() {
-	const queryClient = useQueryClient();
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [filterType, setFilterType] = useState<string>("all");
-	const [draft, setDraft] = useState({
-		amount: "",
-		date: new Date().toISOString().slice(0, 10),
-		description: "",
-		destinationFinancialAccountId: "",
-		originFinancialAccountId: "",
-		tagIds: [] as string[],
-		type: "EXPENSE" as Transaction["type"],
-	});
-	const [description, setDescription] = useDebouncedInput(draft.description, value =>
-		setDraft(current => ({ ...current, description: value })),
-	);
 
 	const transactionsQuery = useQuery({
 		queryFn: () =>
@@ -59,43 +33,6 @@ function TransactionsPage() {
 				type: filterType === "all" ? undefined : (filterType as Transaction["type"]),
 			}),
 		queryKey: ["transactions", filterType],
-	});
-	const accountsQuery = useQuery({ queryFn: () => dataService.accounts.getAll(), queryKey: ["accounts"] });
-	const balanceAccounts = accountsQuery.data?.filter(account => account.type !== "CREDIT_CARD") ?? [];
-
-	const resetForm = () => {
-		setDraft({
-			amount: "",
-			date: new Date().toISOString().slice(0, 10),
-			description: "",
-			destinationFinancialAccountId: "",
-			originFinancialAccountId: "",
-			tagIds: [],
-			type: "EXPENSE",
-		});
-		setDescription("");
-	};
-
-	const createMutation = useMutation({
-		mutationFn: () =>
-			dataService.transactions.create({
-				amount: Number.parseFloat(draft.amount),
-				date: draft.date,
-				description: description || undefined,
-				destinationFinancialAccountId: draft.destinationFinancialAccountId || undefined,
-				originFinancialAccountId: draft.originFinancialAccountId || undefined,
-				tagIds: draft.tagIds,
-				type: draft.type,
-			}),
-		onSuccess: async () => {
-			await Promise.all([
-				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
-				queryClient.invalidateQueries({ queryKey: ["accounts"] }),
-				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-			]);
-			setIsModalOpen(false);
-			resetForm();
-		},
 	});
 
 	const groupedTransactions = transactionsQuery.data?.reduce<Record<string, Transaction[]>>(
@@ -190,6 +127,12 @@ function TransactionsPage() {
 											) : transaction.categoryName && transaction.description ? (
 												<p className="truncate text-muted-foreground text-xs">{transaction.categoryName}</p>
 											) : null}
+											{transaction.sourceName ? (
+												<p className="truncate text-muted-foreground text-xs">
+													{transaction.source === "CREDIT_CARD" ? "Cartão" : "Conta"}:{" "}
+													{transaction.sourceName}
+												</p>
+											) : null}
 										</div>
 										<p
 											className={`shrink-0 whitespace-nowrap font-bold ${transaction.type === "INCOME" ? "text-emerald-600" : transaction.type === "EXPENSE" ? "text-rose-600" : "text-primary"}`}
@@ -205,97 +148,7 @@ function TransactionsPage() {
 				</div>
 			)}
 
-			<Dialog onOpenChange={setIsModalOpen} open={isModalOpen}>
-				<DialogContent className="max-h-[92dvh] sm:max-w-lg">
-					<DialogHeader>
-						<DialogTitle>Nova transação</DialogTitle>
-						<DialogDescription>Informe os dados da movimentação.</DialogDescription>
-					</DialogHeader>
-					<div className="scrollbar-themed grid gap-4 overflow-y-auto pr-1">
-						<CustomSelect
-							label="Tipo"
-							onValueChange={value =>
-								setDraft(current => ({ ...current, type: value as Transaction["type"] }))
-							}
-							options={[
-								{ label: "Despesa", value: "EXPENSE" },
-								{ label: "Receita", value: "INCOME" },
-								{ label: "Transferência", value: "TRANSFER" },
-							]}
-							placeholder="Selecione o tipo"
-							required
-							value={draft.type}
-						/>
-						<MoneyField
-							id="transaction-amount"
-							label="Valor"
-							onValueChange={amount => setDraft(current => ({ ...current, amount }))}
-							required
-							value={draft.amount}
-						/>
-						<FormField
-							autoComplete="off"
-							id="transaction-description"
-							label="Descrição"
-							name="description"
-							onChange={event => setDescription(event.currentTarget.value)}
-							placeholder="Ex: Mercado do mês"
-							type="text"
-							value={description}
-						/>
-						<DateField
-							id="transaction-date"
-							label="Data"
-							name="date"
-							onChange={event => setDraft(current => ({ ...current, date: event.currentTarget.value }))}
-							required
-							value={draft.date}
-						/>
-						{draft.type !== "TRANSFER" ? (
-							<TagPicker
-								onValueChange={tagIds => setDraft(current => ({ ...current, tagIds }))}
-								value={draft.tagIds}
-							/>
-						) : null}
-						{balanceAccounts.length ? (
-							<CustomSelect
-								label={draft.type === "TRANSFER" ? "Conta de origem" : "Conta"}
-								onValueChange={originFinancialAccountId =>
-									setDraft(current => ({ ...current, originFinancialAccountId }))
-								}
-								options={balanceAccounts.map(account => ({ label: account.name, value: account.id }))}
-								placeholder="Selecione a conta"
-								value={draft.originFinancialAccountId}
-							/>
-						) : null}
-						{draft.type === "TRANSFER" && balanceAccounts.length ? (
-							<CustomSelect
-								label="Conta de destino"
-								onValueChange={destinationFinancialAccountId =>
-									setDraft(current => ({ ...current, destinationFinancialAccountId }))
-								}
-								options={balanceAccounts
-									.filter(account => account.id !== draft.originFinancialAccountId)
-									.map(account => ({ label: account.name, value: account.id }))}
-								placeholder="Selecione o destino"
-								value={draft.destinationFinancialAccountId}
-							/>
-						) : null}
-					</div>
-					<DialogFooter>
-						<Button className="cursor-pointer" onClick={() => setIsModalOpen(false)} variant="outline">
-							Descartar
-						</Button>
-						<Button
-							className="cursor-pointer"
-							disabled={!draft.amount || createMutation.isPending}
-							onClick={() => createMutation.mutate()}
-						>
-							{createMutation.isPending ? "Salvando…" : "Salvar"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+			<CreateTransactionDialog onOpenChange={setIsModalOpen} open={isModalOpen} />
 		</PageContainer>
 	);
 }

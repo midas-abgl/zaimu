@@ -6,7 +6,6 @@ import {
 	LuArrowUpRight,
 	LuCreditCard,
 	LuLandmark,
-	LuPlus,
 	LuReceiptText,
 	LuTrendingUp,
 } from "react-icons/lu";
@@ -18,6 +17,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
 import { type AuthState, useAuthStore } from "@/stores";
+import { DashboardQuickActions } from "./components";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
@@ -60,14 +60,7 @@ function DashboardPage() {
 	return (
 		<PageContainer className="space-y-6">
 			<PageHeader
-				actions={
-					<Button asChild className="cursor-pointer">
-						<Link to="/transactions">
-							<LuPlus />
-							Nova transação
-						</Link>
-					</Button>
-				}
+				actions={<DashboardQuickActions />}
 				description="Seu dinheiro, compromissos e próximos passos em um só lugar."
 				eyebrow={`Olá, ${user?.name?.split(" ")[0] || "visitante"}`}
 				title="Visão geral"

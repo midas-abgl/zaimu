@@ -92,6 +92,8 @@ export interface Transaction {
 	originFinancialAccountId?: string;
 	destinationFinancialAccountId?: string;
 	createdAt: string;
+	source?: "CREDIT_CARD" | "FINANCIAL_ACCOUNT";
+	sourceName?: string;
 }
 
 export interface Tag {

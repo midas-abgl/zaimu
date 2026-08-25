@@ -1117,8 +1117,51 @@ export const dataService = {
 			offset?: number;
 		}): Promise<Transaction[]> {
 			if (isGuestMode()) {
-				const local = await localTransactions.getAll();
-				let transactions = local.map(item => item.data);
+				const [local, storedPurchases, storedStatements, storedCards, storedCategories] = await Promise.all([
+					localTransactions.getAll(),
+					localCreditPurchases.getAll(),
+					localCreditCardStatements.getAll(),
+					localCreditCards.getAll(),
+					localCategories.getAll(),
+				]);
+				const statements = new Map(storedStatements.map(item => [item.data.id, item.data]));
+				const cards = new Map(storedCards.map(item => [item.data.id, item.data]));
+				const categories = new Map(storedCategories.map(item => [item.data.id, item.data]));
+				const purchases: Transaction[] = storedPurchases
+					.map(item => item.data)
+					.filter(purchase => purchase.currentInstallment === 1)
+					.flatMap(purchase => {
+						const statement = statements.get(purchase.statementId);
+						const card = statement ? cards.get(statement.creditCardId) : undefined;
+						if (!card) return [];
+						const tagIds = purchase.tagIds ?? (purchase.categoryId ? [purchase.categoryId] : []);
+						const tags = tagIds.flatMap(tagId => {
+							const tag = categories.get(tagId);
+							return tag ? [tag] : [];
+						});
+						return [
+							{
+								amount: purchase.totalAmount,
+								categoryColor: tags[0]?.color ?? undefined,
+								categoryId: purchase.categoryId,
+								categoryName: tags[0]?.name,
+								createdAt: purchase.purchaseDate,
+								date: purchase.purchaseDate,
+								description: purchase.description,
+								id: purchase.id,
+								originFinancialAccountId: card.financialAccountId,
+								source: "CREDIT_CARD" as const,
+								sourceName: card.accountName,
+								tagIds,
+								tags,
+								type: "EXPENSE" as const,
+							},
+						];
+					});
+				let transactions = [
+					...local.map(item => ({ ...item.data, source: "FINANCIAL_ACCOUNT" as const })),
+					...purchases,
+				];
 
 				// Apply filters locally
 				if (params?.startDate) {
@@ -1170,7 +1213,9 @@ export const dataService = {
 
 			const transactions = await fetchWithAuth<Transaction[]>(url);
 			await localTransactions.bulkPut(
-				transactions.map(t => ({ data: t, localId: t.id, syncedAt: Date.now() })),
+				transactions
+					.filter(transaction => transaction.source !== "CREDIT_CARD")
+					.map(t => ({ data: t, localId: t.id, syncedAt: Date.now() })),
 			);
 			return transactions;
 		},
