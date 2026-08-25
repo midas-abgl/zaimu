@@ -66,17 +66,70 @@ suite("Prisma 8 SQL query builder", () => {
 	test("auth, ownership, CRUD, arithmetic, aggregates, and empty sync", async () => {
 		const owner = await createSession("owner");
 		const outsider = await createSession("outsider");
+		const accountName = `Conta ${crypto.randomUUID()}`;
 
 		const accountResponse = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
-			{ balance: 100.25, name: `Conta ${crypto.randomUUID()}`, type: "CHECKING" },
+			{ balance: 100.25, name: accountName, type: "CHECKING" },
 			owner.cookie,
 		);
 		expect(accountResponse.status).toBe(200);
 		const account = (await accountResponse.json()) as { balance: number; id: string };
 		expect(account.balance).toBe(100.25);
 		expect(typeof account.balance).toBe("number");
+
+		const creditCardResponse = await jsonRequest(
+			"/financial-accounts/",
+			"POST",
+			{
+				balance: 999,
+				creditCard: {
+					creditLimit: 1500,
+					dueDay: 17,
+					securityDeposit: 500,
+					statementDay: 10,
+				},
+				name: accountName,
+				type: "CREDIT_CARD",
+			},
+			owner.cookie,
+		);
+		expect(creditCardResponse.status).toBe(200);
+		const creditCardAccount = (await creditCardResponse.json()) as {
+			balance: number | null;
+			creditCard: { securityDeposit: number | null };
+			id: string;
+		};
+		expect(creditCardAccount.balance).toBeNull();
+		expect(creditCardAccount.creditCard.securityDeposit).toBe(500);
+
+		const duplicateAccount = await jsonRequest(
+			"/financial-accounts/",
+			"POST",
+			{ name: accountName, type: "CHECKING" },
+			owner.cookie,
+		);
+		expect(duplicateAccount.status).toBe(409);
+		expect(await duplicateAccount.json()).toEqual({
+			error: "Já existe uma conta desse tipo com este nome",
+		});
+
+		const creditCardTransaction = await jsonRequest(
+			"/transactions/",
+			"POST",
+			{
+				amount: 10,
+				date: "2026-08-23",
+				originFinancialAccountId: creditCardAccount.id,
+				type: "EXPENSE",
+			},
+			owner.cookie,
+		);
+		expect(creditCardTransaction.status).toBe(400);
+		expect(await creditCardTransaction.json()).toEqual({
+			error: "Cartão de crédito não possui saldo próprio",
+		});
 
 		const forbidden = await jsonRequest(
 			`/financial-accounts/${account.id}`,

@@ -72,7 +72,7 @@ namespace public {
     userId                  VarChar(36)
     name                    VarChar(70)
     type                    pg.enum(FinancialAccountType) @default("CHECKING")
-    balance                 Numeric(12, 2)                @default(dbgenerated("0"))
+    balance                 Numeric(12, 2)?               @default(dbgenerated("0"))
     createdAt               Timestamp(3)                  @default(now())
     updatedAt               Timestamp(3)                  @default(now())
     creditCards             CreditCard[]
@@ -82,7 +82,7 @@ namespace public {
     transactions            Transaction[]                 @relation(name: "Transaction_destinationId_fkey")
     transactionsTransaction Transaction[]                 @relation(name: "Transaction_originId_fkey")
 
-    @@index([userId, name], map: "Account_userId_name_key", unique: true)
+    @@index([userId, name, type], map: "FinancialAccount_userId_name_type_key", unique: true)
 
     @@map("FinancialAccount")
   }
@@ -91,6 +91,7 @@ namespace public {
     id                   VarChar(36)           @id(map: "CreditCard_pkey") @default(dbgenerated("cuid2()"))
     financialAccountId   VarChar(36)
     creditLimit          Numeric(12, 2)
+    securityDeposit      Numeric(12, 2)?
     statementDay         SmallInt
     dueDay               SmallInt
     workingDueDate       Boolean               @default(false)

@@ -61,6 +61,12 @@ export function CreditCardOverviewCard({
 						<p className="mt-1 font-bold">{currency.format(available)}</p>
 					</div>
 				</div>
+				{card.securityDeposit != null && (
+					<div className="rounded-xl border border-dashed p-3">
+						<p className="text-muted-foreground text-xs">Valor em garantia do limite</p>
+						<p className="mt-1 font-bold">{currency.format(card.securityDeposit)}</p>
+					</div>
+				)}
 				{statement && (
 					<p className="flex items-center gap-2 text-muted-foreground text-sm">
 						<LuCalendarClock /> Vence em {new Date(statement.dueDate).toLocaleDateString("pt-BR")}

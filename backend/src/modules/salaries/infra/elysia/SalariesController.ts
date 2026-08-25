@@ -1,5 +1,5 @@
 import Elysia, { t } from "elysia";
-import { assertDirectOwnership, requireUserId } from "~/modules/auth";
+import { assertBalanceAccountOwnership, assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
 
@@ -157,7 +157,7 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("Salary", params.id, userId);
-			await assertDirectOwnership("FinancialAccount", body.financialAccountId, userId);
+			await assertBalanceAccountOwnership(body.financialAccountId, userId);
 			const salary = await queryFirst(
 				db.sql.public.Salary.select("id")
 					.where((fields, functions) => functions.eq(fields.id, params.id))

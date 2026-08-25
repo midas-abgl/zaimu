@@ -82,6 +82,11 @@ export const executeStatement = (plan: StatementPlan) => db.runtime().execute(pl
 export const numeric = <Precision extends number, Scale extends number | undefined>(value: number | string) =>
 	String(value) as Numeric<Precision, Scale>;
 
+// Prisma 8 currently omits `null` from nullable numeric write types even though PostgreSQL accepts it.
+export const nullableNumeric = <Precision extends number, Scale extends number | undefined>(
+	value: null | number | string,
+) => (value === null ? null : String(value)) as Numeric<Precision, Scale>;
+
 export const closeDatabase = async () => {
 	await db.close();
 	await pool.end();

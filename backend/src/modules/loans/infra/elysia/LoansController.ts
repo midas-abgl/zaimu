@@ -1,6 +1,6 @@
 import { addMonths, differenceInMonths } from "date-fns";
 import Elysia, { t } from "elysia";
-import { assertDirectOwnership, requireUserId } from "~/modules/auth";
+import { assertBalanceAccountOwnership, assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
 
@@ -409,8 +409,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("Loan", params.id, userId);
-			if (body.financialAccountId)
-				await assertDirectOwnership("FinancialAccount", body.financialAccountId, userId);
+			if (body.financialAccountId) await assertBalanceAccountOwnership(body.financialAccountId, userId);
 			const payment = await queryFirst(
 				db.sql.public.LoanPayment.select(...loanPaymentColumns)
 					.where((fields, functions) =>
@@ -479,8 +478,7 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("Loan", params.id, userId);
-			if (body.financialAccountId)
-				await assertDirectOwnership("FinancialAccount", body.financialAccountId, userId);
+			if (body.financialAccountId) await assertBalanceAccountOwnership(body.financialAccountId, userId);
 			const loan = await queryFirst(
 				db.sql.public.Loan.select("id")
 					.where((fields, functions) => functions.eq(fields.id, params.id))

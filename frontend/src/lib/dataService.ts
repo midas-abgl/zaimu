@@ -40,9 +40,13 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3333";
 
 type FinancialAccountDraft = Omit<
 	FinancialAccount,
-	"createdAt" | "creditCard" | "id" | "updatedAt" | "userId"
+	"balance" | "createdAt" | "creditCard" | "id" | "updatedAt" | "userId"
 > & {
-	creditCard?: Pick<CreditCard, "creditLimit" | "dueDay" | "statementDay" | "workingDueDate">;
+	balance?: number;
+	creditCard?: Pick<
+		CreditCard,
+		"creditLimit" | "dueDay" | "securityDeposit" | "statementDay" | "workingDueDate"
+	>;
 };
 
 // Check if we're in guest mode or authenticated
@@ -90,6 +94,7 @@ export const dataService = {
 				const { creditCard, ...accountData } = data;
 				let newAccount: FinancialAccount = {
 					...accountData,
+					balance: data.type === "CREDIT_CARD" ? null : (accountData.balance ?? 0),
 					createdAt: new Date().toISOString(),
 					id: crypto.randomUUID(),
 					updatedAt: new Date().toISOString(),
@@ -122,7 +127,9 @@ export const dataService = {
 		async getAll(): Promise<FinancialAccount[]> {
 			if (isGuestMode()) {
 				const local = await localAccounts.getAll();
-				return local.map(item => item.data);
+				return local.map(item =>
+					item.data.type === "CREDIT_CARD" ? { ...item.data, balance: null } : item.data,
+				);
 			}
 			const accounts = await fetchWithAuth<FinancialAccount[]>("/financial-accounts");
 			// Cache locally
@@ -295,6 +302,7 @@ export const dataService = {
 				dueDay: details.dueDay,
 				financialAccountId: account.id,
 				id: crypto.randomUUID(),
+				securityDeposit: details.securityDeposit ?? null,
 				statementDay: details.statementDay,
 				workingDueDate: details.workingDueDate,
 			};
@@ -363,7 +371,9 @@ export const dataService = {
 					.filter(t => t.type === "EXPENSE")
 					.reduce((sum, t) => sum + t.amount, 0);
 
-				const totalBalance = accounts.reduce((sum, a) => sum + a.balance, 0);
+				const totalBalance = accounts
+					.filter(account => account.type !== "CREDIT_CARD")
+					.reduce((sum, account) => sum + (account.balance ?? 0), 0);
 				const owedToMe = debts.filter(d => d.isOwedToMe && !d.isPaid).reduce((sum, d) => sum + d.amount, 0);
 				const iOwe = debts.filter(d => !d.isOwedToMe && !d.isPaid).reduce((sum, d) => sum + d.amount, 0);
 

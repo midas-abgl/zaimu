@@ -21,7 +21,9 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 		);
 		const accountIds = accounts.map(account => account.id);
 
-		const totalBalance = accounts.reduce((sum, a) => sum + Number(a.balance), 0);
+		const totalBalance = accounts
+			.filter(account => account.type !== "CREDIT_CARD")
+			.reduce((sum, account) => sum + Number(account.balance), 0);
 
 		// Get current month income
 		const getTransactionTotal = async (type: "INCOME" | "EXPENSE", start: Date, end: Date) => {
@@ -177,7 +179,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 		return {
 			accounts: accounts.map(a => ({
 				...a,
-				balance: Number(a.balance),
+				balance: a.balance === null ? null : Number(a.balance),
 			})),
 			debts: {
 				...debtsSummary,

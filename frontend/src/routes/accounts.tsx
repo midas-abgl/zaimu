@@ -21,6 +21,7 @@ function AccountsPage() {
 	});
 	const createAccount = useMutation({
 		mutationFn: dataService.accounts.create,
+		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
 			await queryClient.invalidateQueries({ queryKey: ["credit-cards"] });
@@ -29,6 +30,7 @@ function AccountsPage() {
 	});
 	const deleteAccount = useMutation({
 		mutationFn: dataService.accounts.delete,
+		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
 			showToast("Conta excluída.", "positive");
@@ -37,7 +39,7 @@ function AccountsPage() {
 	const totalBalance =
 		accounts.data
 			?.filter(account => account.type !== "CREDIT_CARD")
-			.reduce((sum, account) => sum + account.balance, 0) ?? 0;
+			.reduce((sum, account) => sum + (account.balance ?? 0), 0) ?? 0;
 
 	return (
 		<PageContainer className="grid gap-8">

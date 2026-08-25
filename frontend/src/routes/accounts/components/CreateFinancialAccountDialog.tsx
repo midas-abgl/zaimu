@@ -43,6 +43,7 @@ export function CreateFinancialAccountDialog({
 	const [type, setType] = useState<FinancialAccount["type"]>("CHECKING");
 	const [balance, setBalance] = useState("0");
 	const [creditLimit, setCreditLimit] = useState("");
+	const [securityDeposit, setSecurityDeposit] = useState("");
 	const [statementDay, setStatementDay] = useState("10");
 	const [dueDay, setDueDay] = useState("17");
 	const [workingDueDate, setWorkingDueDate] = useState(false);
@@ -52,26 +53,32 @@ export function CreateFinancialAccountDialog({
 		setType("CHECKING");
 		setBalance("0");
 		setCreditLimit("");
+		setSecurityDeposit("");
 		setStatementDay("10");
 		setDueDay("17");
 		setWorkingDueDate(false);
 	};
 	const handleSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		await onCreate({
-			balance: Number(balance || 0),
-			creditCard:
-				type === "CREDIT_CARD"
-					? {
-							creditLimit: Number(creditLimit),
-							dueDay: Number(dueDay),
-							statementDay: Number(statementDay),
-							workingDueDate,
-						}
-					: undefined,
-			name: name.trim(),
-			type,
-		});
+		try {
+			await onCreate({
+				balance: type === "CREDIT_CARD" ? undefined : Number(balance || 0),
+				creditCard:
+					type === "CREDIT_CARD"
+						? {
+								creditLimit: Number(creditLimit),
+								dueDay: Number(dueDay),
+								securityDeposit: securityDeposit ? Number(securityDeposit) : undefined,
+								statementDay: Number(statementDay),
+								workingDueDate,
+							}
+						: undefined,
+				name: name.trim(),
+				type,
+			});
+		} catch {
+			return;
+		}
 		setOpen(false);
 		reset();
 	};
@@ -108,13 +115,15 @@ export function CreateFinancialAccountDialog({
 						required
 						value={type}
 					/>
-					<MoneyField
-						id="balance"
-						label="Saldo inicial"
-						onValueChange={setBalance}
-						placeholder="R$ 2.500,00"
-						value={balance}
-					/>
+					{type !== "CREDIT_CARD" && (
+						<MoneyField
+							id="balance"
+							label="Saldo inicial"
+							onValueChange={setBalance}
+							placeholder="R$ 2.500,00"
+							value={balance}
+						/>
+					)}
 					{type === "CREDIT_CARD" && (
 						<div className="grid gap-5 rounded-2xl border bg-muted/35 p-4">
 							<MoneyField
@@ -125,6 +134,19 @@ export function CreateFinancialAccountDialog({
 								required
 								value={creditLimit}
 							/>
+							<div className="grid gap-2">
+								<MoneyField
+									id="security-deposit"
+									label="Valor em garantia (opcional)"
+									onValueChange={setSecurityDeposit}
+									placeholder="R$ 500,00"
+									value={securityDeposit}
+								/>
+								<p className="text-muted-foreground text-xs">
+									Use somente em cartões cujo limite depende de dinheiro deixado em garantia. Não entra no
+									saldo disponível.
+								</p>
+							</div>
 							<div className="grid gap-4 sm:grid-cols-2">
 								<CustomSelect
 									label="Fechamento"

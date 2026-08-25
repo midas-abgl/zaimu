@@ -47,16 +47,25 @@ export function FinancialAccountCard({
 				</ConfirmActionButton>
 			</div>
 			<div className="mt-6 border-border/70 border-t pt-4">
-				<p className="text-muted-foreground text-xs">
-					{account.type === "CREDIT_CARD" ? "Saldo associado" : "Saldo disponível"}
-				</p>
-				<p
-					className={
-						account.balance < 0 ? "mt-1 font-bold text-2xl text-destructive" : "mt-1 font-bold text-2xl"
-					}
-				>
-					{currency.format(account.balance)}
-				</p>
+				{account.type === "CREDIT_CARD" ? (
+					<>
+						<p className="text-muted-foreground text-xs">Saldo disponível</p>
+						<p className="mt-1 font-bold text-lg">Não se aplica</p>
+					</>
+				) : (
+					<>
+						<p className="text-muted-foreground text-xs">Saldo disponível</p>
+						<p
+							className={
+								(account.balance ?? 0) < 0
+									? "mt-1 font-bold text-2xl text-destructive"
+									: "mt-1 font-bold text-2xl"
+							}
+						>
+							{currency.format(account.balance ?? 0)}
+						</p>
+					</>
+				)}
 			</div>
 		</article>
 	);

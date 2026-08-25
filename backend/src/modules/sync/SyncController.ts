@@ -1,6 +1,6 @@
 import Elysia from "elysia";
 import { requireUserId } from "~/modules/auth";
-import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
+import { db, executeStatement, nullableNumeric, queryFirst, queryRows } from "~/shared/infra/sql";
 import { SyncBody, SyncReturn } from "./SyncDTO";
 
 type InputEntity = Record<string, unknown>;
@@ -30,6 +30,7 @@ const cardColumns = [
 	"id",
 	"financialAccountId",
 	"creditLimit",
+	"securityDeposit",
 	"statementDay",
 	"dueDay",
 	"workingDueDate",
@@ -105,6 +106,8 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 
 		await sync("financialAccounts", body.financialAccounts, async entity => {
 			const id = value<string>(entity, "id");
+			const type =
+				value<"CASH" | "CHECKING" | "CREDIT_CARD" | "INVESTMENT" | "SAVINGS">(entity, "type") ?? "CHECKING";
 			const existing = await queryFirst(
 				db.sql.public.FinancialAccount.select("id", "userId")
 					.where((f, fn) => fn.eq(f.id, id))
@@ -114,10 +117,11 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 			if (existing && existing.userId !== userId)
 				throw new Error(`Conta financeira ${id} pertence a outro usuário`);
 			const values = {
-				balance: String(value<number>(entity, "balance") ?? 0),
+				balance: nullableNumeric<12, 2>(
+					type === "CREDIT_CARD" ? null : (value<number>(entity, "balance") ?? 0),
+				),
 				name: value<string>(entity, "name"),
-				type:
-					value<"CASH" | "CHECKING" | "CREDIT_CARD" | "INVESTMENT" | "SAVINGS">(entity, "type") ?? "CHECKING",
+				type,
 				updatedAt: new Date(),
 			};
 			if (existing)
@@ -211,6 +215,9 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				creditLimit: String(value<number>(entity, "creditLimit")),
 				dueDay: Number(value<number>(entity, "dueDay")),
 				financialAccountId,
+				securityDeposit: nullableNumeric<12, 2>(
+					value<number | null | undefined>(entity, "securityDeposit") ?? null,
+				),
 				statementDay: Number(value<number>(entity, "statementDay")),
 				updatedAt: new Date(),
 				workingDueDate: value<boolean>(entity, "workingDueDate") ?? false,

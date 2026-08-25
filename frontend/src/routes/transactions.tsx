@@ -64,6 +64,7 @@ function TransactionsPage() {
 		queryFn: () => dataService.categories.getAll(),
 		queryKey: ["categories"],
 	});
+	const balanceAccounts = accountsQuery.data?.filter(account => account.type !== "CREDIT_CARD") ?? [];
 
 	const resetForm = () => {
 		setDraft({
@@ -258,24 +259,24 @@ function TransactionsPage() {
 								value={draft.categoryId}
 							/>
 						) : null}
-						{accountsQuery.data?.length ? (
+						{balanceAccounts.length ? (
 							<CustomSelect
 								label={draft.type === "TRANSFER" ? "Conta de origem" : "Conta"}
 								onValueChange={originFinancialAccountId =>
 									setDraft(current => ({ ...current, originFinancialAccountId }))
 								}
-								options={accountsQuery.data.map(account => ({ label: account.name, value: account.id }))}
+								options={balanceAccounts.map(account => ({ label: account.name, value: account.id }))}
 								placeholder="Selecione a conta"
 								value={draft.originFinancialAccountId}
 							/>
 						) : null}
-						{draft.type === "TRANSFER" && accountsQuery.data?.length ? (
+						{draft.type === "TRANSFER" && balanceAccounts.length ? (
 							<CustomSelect
 								label="Conta de destino"
 								onValueChange={destinationFinancialAccountId =>
 									setDraft(current => ({ ...current, destinationFinancialAccountId }))
 								}
-								options={accountsQuery.data
+								options={balanceAccounts
 									.filter(account => account.id !== draft.originFinancialAccountId)
 									.map(account => ({ label: account.name, value: account.id }))}
 								placeholder="Selecione o destino"

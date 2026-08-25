@@ -4,6 +4,7 @@ export {
 	closeDatabase,
 	db,
 	executeStatement,
+	nullableNumeric,
 	numeric,
 	or,
 	param,

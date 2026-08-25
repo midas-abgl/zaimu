@@ -67,6 +67,21 @@ export const assertCreditCardOwnership = async (creditCardId: string, userId: st
 	if (!card) throw new HttpException("Cartão não encontrado", 404);
 };
 
+export const assertBalanceAccountOwnership = async (accountId: string, userId: string) => {
+	const account = await queryFirst(
+		db.sql.public.FinancialAccount.select("id", "type")
+			.where((fields, functions) =>
+				functions.and(functions.eq(fields.id, accountId), functions.eq(fields.userId, userId)),
+			)
+			.limit(1)
+			.build(),
+	);
+
+	if (!account) throw new HttpException("Conta financeira não encontrada", 404);
+	if (account.type === "CREDIT_CARD")
+		throw new HttpException("Cartão de crédito não possui saldo próprio", 400);
+};
+
 export const assertTransactionOwnership = async (transactionId: string, userId: string) => {
 	const origin = db.sql.public.FinancialAccount.select("id", "userId").as("origin");
 	const destination = db.sql.public.FinancialAccount.select("id", "userId").as("destination");

@@ -1,6 +1,11 @@
 import { addMonths } from "date-fns";
 import Elysia, { t } from "elysia";
-import { assertCreditCardOwnership, assertDirectOwnership, requireUserId } from "~/modules/auth";
+import {
+	assertBalanceAccountOwnership,
+	assertCreditCardOwnership,
+	assertDirectOwnership,
+	requireUserId,
+} from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
 
@@ -60,6 +65,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						dueDay: fields.CreditCard.dueDay,
 						financialAccountId: fields.CreditCard.financialAccountId,
 						id: fields.CreditCard.id,
+						securityDeposit: fields.CreditCard.securityDeposit,
 						statementDay: fields.CreditCard.statementDay,
 						workingDueDate: fields.CreditCard.workingDueDate,
 					}))
@@ -89,6 +95,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						dueDay: fields.CreditCard.dueDay,
 						financialAccountId: fields.CreditCard.financialAccountId,
 						id: fields.CreditCard.id,
+						securityDeposit: fields.CreditCard.securityDeposit,
 						statementDay: fields.CreditCard.statementDay,
 						workingDueDate: fields.CreditCard.workingDueDate,
 					}))
@@ -326,7 +333,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const userId = await requireUserId(request);
 			await assertCreditCardOwnership(params.id, userId);
 			if (body.financialAccountId) {
-				await assertDirectOwnership("FinancialAccount", body.financialAccountId, userId);
+				await assertBalanceAccountOwnership(body.financialAccountId, userId);
 			}
 			const statement = await queryFirst(
 				db.sql.public.CreditCardStatement.select(...statementColumns)

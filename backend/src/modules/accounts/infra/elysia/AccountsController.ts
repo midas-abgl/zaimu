@@ -1,7 +1,7 @@
 import Elysia, { t } from "elysia";
 import { assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
-import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
+import { db, executeStatement, nullableNumeric, queryFirst, queryRows } from "~/shared/infra/sql";
 
 const Id = t.String({ maxLength: 36, minLength: 1 });
 const FinancialAccountType = t.Union([
@@ -69,6 +69,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						"id",
 						"financialAccountId",
 						"creditLimit",
+						"securityDeposit",
 						"statementDay",
 						"dueDay",
 						"workingDueDate",
@@ -96,25 +97,34 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 		"/",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
+			const type = body.type ?? "CHECKING";
+			if (type === "CREDIT_CARD" && !body.creditCard)
+				throw new HttpException("Informe os dados do cartão de crédito", 400);
+			if (type !== "CREDIT_CARD" && body.creditCard)
+				throw new HttpException("Dados de cartão exigem uma conta do tipo cartão de crédito", 400);
 			const existing = await queryFirst(
 				db.sql.public.FinancialAccount.select("id")
 					.where((fields, functions) =>
-						functions.and(functions.eq(fields.userId, userId), functions.eq(fields.name, body.name)),
+						functions.and(
+							functions.eq(fields.userId, userId),
+							functions.eq(fields.name, body.name),
+							functions.eq(fields.type, type),
+						),
 					)
 					.limit(1)
 					.build(),
 			);
 
 			if (existing) {
-				throw new HttpException("FinancialAccount with this name already exists", 409);
+				throw new HttpException("Já existe uma conta desse tipo com este nome", 409);
 			}
 
 			const account = await queryFirst(
 				db.sql.public.FinancialAccount.insert([
 					{
-						balance: String(body.balance ?? 0),
+						balance: nullableNumeric<12, 2>(type === "CREDIT_CARD" ? null : (body.balance ?? 0)),
 						name: body.name,
-						type: body.type ?? "CHECKING",
+						type,
 						userId,
 					},
 				])
@@ -124,13 +134,16 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 			if (!account) throw new HttpException("FinancialAccount not created", 500);
 
 			// If it's a credit card, create the credit card details
-			if (body.type === "CREDIT_CARD" && body.creditCard) {
+			if (type === "CREDIT_CARD" && body.creditCard) {
 				const creditCard = await queryFirst(
 					db.sql.public.CreditCard.insert([
 						{
 							creditLimit: String(body.creditCard.creditLimit),
 							dueDay: body.creditCard.dueDay,
 							financialAccountId: account.id,
+							...(body.creditCard.securityDeposit !== undefined && {
+								securityDeposit: String(body.creditCard.securityDeposit),
+							}),
 							statementDay: body.creditCard.statementDay,
 							workingDueDate: body.creditCard.workingDueDate ?? false,
 						},
@@ -139,6 +152,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 							"id",
 							"financialAccountId",
 							"creditLimit",
+							"securityDeposit",
 							"statementDay",
 							"dueDay",
 							"workingDueDate",
@@ -159,13 +173,14 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				balance: t.Optional(t.Number()),
 				creditCard: t.Optional(
 					t.Object({
-						creditLimit: t.Number(),
+						creditLimit: t.Number({ minimum: 0 }),
 						dueDay: t.Number({ maximum: 31, minimum: 1 }),
+						securityDeposit: t.Optional(t.Number({ minimum: 0 })),
 						statementDay: t.Number({ maximum: 31, minimum: 1 }),
 						workingDueDate: t.Optional(t.Boolean()),
 					}),
 				),
-				name: t.String({ maxLength: 70 }),
+				name: t.String({ maxLength: 70, minLength: 1 }),
 				type: t.Optional(FinancialAccountType),
 			}),
 			detail: { tags: ["Accounts"] },
@@ -177,7 +192,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("FinancialAccount", params.id, userId);
 			const existing = await queryFirst(
-				db.sql.public.FinancialAccount.select("id", "type")
+				db.sql.public.FinancialAccount.select("id", "type", "userId")
 					.where((fields, functions) => functions.eq(fields.id, params.id))
 					.limit(1)
 					.build(),
@@ -186,11 +201,30 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 			if (!existing) {
 				throw new HttpException("FinancialAccount not found", 404);
 			}
+			if (body.name) {
+				const duplicate = await queryFirst(
+					db.sql.public.FinancialAccount.select("id")
+						.where((fields, functions) =>
+							functions.and(
+								functions.eq(fields.userId, existing.userId),
+								functions.eq(fields.name, body.name!),
+								functions.eq(fields.type, existing.type),
+								functions.raw`${fields.id} <> ${params.id}`.returns("pg/bool@1"),
+							),
+						)
+						.limit(1)
+						.build(),
+				);
+				if (duplicate) throw new HttpException("Já existe uma conta desse tipo com este nome", 409);
+			}
 
 			const account = await queryFirst(
 				db.sql.public.FinancialAccount.update({
 					...(body.name && { name: body.name }),
-					...(body.balance !== undefined && { balance: String(body.balance) }),
+					...(body.balance !== undefined &&
+						existing.type !== "CREDIT_CARD" && {
+							balance: String(body.balance),
+						}),
 					updatedAt: new Date(),
 				})
 					.where((fields, functions) => functions.eq(fields.id, params.id))
@@ -215,6 +249,9 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						...(body.creditCard.workingDueDate !== undefined && {
 							workingDueDate: body.creditCard.workingDueDate,
 						}),
+						...(body.creditCard.securityDeposit !== undefined && {
+							securityDeposit: String(body.creditCard.securityDeposit),
+						}),
 						updatedAt: new Date(),
 					})
 						.where((fields, functions) => functions.eq(fields.financialAccountId, params.id))
@@ -222,6 +259,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 							"id",
 							"financialAccountId",
 							"creditLimit",
+							"securityDeposit",
 							"statementDay",
 							"dueDay",
 							"workingDueDate",
@@ -242,13 +280,14 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				balance: t.Optional(t.Number()),
 				creditCard: t.Optional(
 					t.Object({
-						creditLimit: t.Optional(t.Number()),
+						creditLimit: t.Optional(t.Number({ minimum: 0 })),
 						dueDay: t.Optional(t.Number({ maximum: 31, minimum: 1 })),
+						securityDeposit: t.Optional(t.Number({ minimum: 0 })),
 						statementDay: t.Optional(t.Number({ maximum: 31, minimum: 1 })),
 						workingDueDate: t.Optional(t.Boolean()),
 					}),
 				),
-				name: t.Optional(t.String({ maxLength: 70 })),
+				name: t.Optional(t.String({ maxLength: 70, minLength: 1 })),
 			}),
 			detail: { tags: ["Accounts"] },
 			params: t.Object({

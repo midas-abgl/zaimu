@@ -54,7 +54,7 @@ export interface FinancialAccount {
 	userId: string;
 	name: string;
 	type: "CHECKING" | "SAVINGS" | "INVESTMENT" | "CASH" | "CREDIT_CARD";
-	balance: number;
+	balance: number | null;
 	createdAt: string;
 	updatedAt: string;
 	creditCard?: CreditCard;
@@ -64,6 +64,7 @@ export interface CreditCard {
 	id: string;
 	financialAccountId: string;
 	creditLimit: number;
+	securityDeposit?: number | null;
 	statementDay: number;
 	dueDay: number;
 	workingDueDate: boolean;
@@ -239,7 +240,7 @@ export interface Dashboard {
 		id: string;
 		name: string;
 		type: string;
-		balance: number;
+		balance: number | null;
 	}>;
 	upcomingBills: Array<{
 		id: string;
@@ -308,6 +309,7 @@ export const api = {
 		balance?: number;
 		creditCard?: {
 			creditLimit: number;
+			securityDeposit?: number;
 			statementDay: number;
 			dueDay: number;
 			workingDueDate?: boolean;

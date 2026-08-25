@@ -1,5 +1,10 @@
 import Elysia, { t } from "elysia";
-import { assertDirectOwnership, assertTransactionOwnership, requireUserId } from "~/modules/auth";
+import {
+	assertBalanceAccountOwnership,
+	assertDirectOwnership,
+	assertTransactionOwnership,
+	requireUserId,
+} from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
 
@@ -162,10 +167,10 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
 			if (body.originFinancialAccountId) {
-				await assertDirectOwnership("FinancialAccount", body.originFinancialAccountId, userId);
+				await assertBalanceAccountOwnership(body.originFinancialAccountId, userId);
 			}
 			if (body.destinationFinancialAccountId) {
-				await assertDirectOwnership("FinancialAccount", body.destinationFinancialAccountId, userId);
+				await assertBalanceAccountOwnership(body.destinationFinancialAccountId, userId);
 			}
 			if (body.categoryId) await assertDirectOwnership("Category", body.categoryId, userId);
 			if (body.recurrenceId) await assertDirectOwnership("RecurringPayment", body.recurrenceId, userId);
