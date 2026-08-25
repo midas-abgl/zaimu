@@ -1,5 +1,18 @@
-import { LuLandmark, LuWalletCards } from "react-icons/lu";
+import { type SyntheticEvent, useState } from "react";
+import { LuLandmark, LuPencil, LuWalletCards } from "react-icons/lu";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@/components/ui/Dialog";
+import { FormField } from "@/components/ui/FormField";
+import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import { CreateFinancialAccountDialog } from "./CreateFinancialAccountDialog";
 import { FinancialAccountCard } from "./FinancialAccountCard";
@@ -12,6 +25,8 @@ export function FinancialInstitutionGroup({
 	institutions,
 	onCreate,
 	onDelete,
+	onUpdate,
+	onUpdateInstitution,
 	pending,
 }: {
 	accounts: FinancialAccount[];
@@ -19,6 +34,8 @@ export function FinancialInstitutionGroup({
 	institutions: FinancialInstitution[];
 	onCreate: Parameters<typeof CreateFinancialAccountDialog>[0]["onCreate"];
 	onDelete: (account: FinancialAccount) => void | Promise<void>;
+	onUpdate: NonNullable<Parameters<typeof CreateFinancialAccountDialog>[0]["onUpdate"]>;
+	onUpdateInstitution: (institution: FinancialInstitution, name: string) => Promise<unknown>;
 	pending: boolean;
 }) {
 	const balance = accounts
@@ -45,6 +62,7 @@ export function FinancialInstitutionGroup({
 						</p>
 					</div>
 				</div>
+				{institution && <EditInstitutionDialog institution={institution} onUpdate={onUpdateInstitution} />}
 				<CreateFinancialAccountDialog
 					contextual
 					defaultInstitutionId={institution?.id ?? null}
@@ -55,9 +73,80 @@ export function FinancialInstitutionGroup({
 			</header>
 			<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
 				{accounts.map(account => (
-					<FinancialAccountCard account={account} key={account.id} onDelete={() => onDelete(account)} />
+					<FinancialAccountCard
+						account={account}
+						institutions={institutions}
+						key={account.id}
+						onDelete={() => onDelete(account)}
+						onUpdate={onUpdate}
+					/>
 				))}
 			</div>
 		</section>
+	);
+}
+
+function EditInstitutionDialog({
+	institution,
+	onUpdate,
+}: {
+	institution: FinancialInstitution;
+	onUpdate: (institution: FinancialInstitution, name: string) => Promise<unknown>;
+}) {
+	const [open, setOpen] = useState(false);
+	const [name, setName] = useDebouncedInput(institution.name, () => undefined);
+	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
+		event.preventDefault();
+		try {
+			await onUpdate(institution, name.trim());
+			setOpen(false);
+		} catch {
+			return;
+		}
+	};
+	return (
+		<Dialog onOpenChange={setOpen} open={open}>
+			<DialogTrigger asChild>
+				<Button
+					aria-label={`Editar ${institution.name}`}
+					className="cursor-pointer"
+					size="sm"
+					variant="outline"
+				>
+					<LuPencil /> Editar instituição
+				</Button>
+			</DialogTrigger>
+			<DialogContent className="sm:max-w-md">
+				<DialogHeader>
+					<DialogTitle>Editar instituição</DialogTitle>
+					<DialogDescription>O nome será atualizado em todas as contas deste grupo.</DialogDescription>
+				</DialogHeader>
+				<form className="grid gap-5" onSubmit={submit}>
+					<FormField
+						autoComplete="organization"
+						id={`institution-${institution.id}`}
+						label="Nome da instituição"
+						name="institution-name"
+						onChange={event => setName(event.currentTarget.value)}
+						placeholder="Ex: Mercado Pago"
+						required
+						type="text"
+						value={name}
+					/>
+					<DialogFooter>
+						<Button className="cursor-pointer" onClick={() => setOpen(false)} type="button" variant="outline">
+							Descartar
+						</Button>
+						<Button
+							className="cursor-pointer disabled:cursor-not-allowed"
+							disabled={!name.trim()}
+							type="submit"
+						>
+							Salvar
+						</Button>
+					</DialogFooter>
+				</form>
+			</DialogContent>
+		</Dialog>
 	);
 }

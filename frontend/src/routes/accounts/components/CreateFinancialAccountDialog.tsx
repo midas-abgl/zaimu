@@ -1,5 +1,5 @@
 import { type SyntheticEvent, useState } from "react";
-import { LuPlus } from "react-icons/lu";
+import { LuPencil, LuPlus } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { CustomSelect } from "@/components/ui/CustomSelect";
@@ -32,45 +32,52 @@ const NEW_INSTITUTION = "__new_institution__";
 const NO_INSTITUTION = "__no_institution__";
 
 type Draft = Parameters<typeof import("@/lib/dataService").dataService.accounts.create>[0];
+type UpdateDraft = import("@/lib/dataService").FinancialAccountUpdateDraft;
 
 export function CreateFinancialAccountDialog({
 	contextual = false,
+	account,
 	defaultInstitutionId,
 	institutions = [],
 	onCreate,
+	onUpdate,
 	pending,
 }: {
+	account?: FinancialAccount;
 	contextual?: boolean;
 	defaultInstitutionId?: string | null;
 	institutions?: FinancialInstitution[];
-	onCreate: (data: Draft) => Promise<void>;
+	onCreate: (data: Draft) => Promise<unknown>;
+	onUpdate?: (id: string, data: UpdateDraft) => Promise<unknown>;
 	pending: boolean;
 }) {
 	const initialInstitution = () =>
-		defaultInstitutionId ?? (defaultInstitutionId === null ? NO_INSTITUTION : undefined);
+		account?.institutionId ??
+		defaultInstitutionId ??
+		(defaultInstitutionId === null ? NO_INSTITUTION : undefined);
 	const [open, setOpen] = useState(false);
 	const [institutionId, setInstitutionId] = useState<string | undefined>(initialInstitution);
 	const [newInstitutionName, setNewInstitutionName] = useDebouncedInput("", () => undefined);
-	const [name, setName] = useDebouncedInput("", () => undefined);
-	const [type, setType] = useState<FinancialAccount["type"]>("CHECKING");
-	const [balance, setBalance] = useState("0");
-	const [creditLimit, setCreditLimit] = useState("");
-	const [securityDeposit, setSecurityDeposit] = useState("");
-	const [statementDay, setStatementDay] = useState("10");
-	const [dueDay, setDueDay] = useState("17");
-	const [workingDueDate, setWorkingDueDate] = useState(false);
+	const [name, setName] = useDebouncedInput(account?.name ?? "", () => undefined);
+	const [type, setType] = useState<FinancialAccount["type"]>(account?.type ?? "CHECKING");
+	const [balance, setBalance] = useState(String(account?.balance ?? 0));
+	const [creditLimit, setCreditLimit] = useState(String(account?.creditCard?.creditLimit ?? ""));
+	const [securityDeposit, setSecurityDeposit] = useState(String(account?.creditCard?.securityDeposit ?? ""));
+	const [statementDay, setStatementDay] = useState(String(account?.creditCard?.statementDay ?? 10));
+	const [dueDay, setDueDay] = useState(String(account?.creditCard?.dueDay ?? 17));
+	const [workingDueDate, setWorkingDueDate] = useState(account?.creditCard?.workingDueDate ?? false);
 
 	const reset = () => {
 		setInstitutionId(initialInstitution());
 		setNewInstitutionName("");
-		setName("");
-		setType("CHECKING");
-		setBalance("0");
-		setCreditLimit("");
-		setSecurityDeposit("");
-		setStatementDay("10");
-		setDueDay("17");
-		setWorkingDueDate(false);
+		setName(account?.name ?? "");
+		setType(account?.type ?? "CHECKING");
+		setBalance(String(account?.balance ?? 0));
+		setCreditLimit(String(account?.creditCard?.creditLimit ?? ""));
+		setSecurityDeposit(String(account?.creditCard?.securityDeposit ?? ""));
+		setStatementDay(String(account?.creditCard?.statementDay ?? 10));
+		setDueDay(String(account?.creditCard?.dueDay ?? 17));
+		setWorkingDueDate(account?.creditCard?.workingDueDate ?? false);
 	};
 	const handleOpenChange = (nextOpen: boolean) => {
 		setOpen(nextOpen);
@@ -83,7 +90,7 @@ export function CreateFinancialAccountDialog({
 				institutionId === NEW_INSTITUTION
 					? newInstitutionName.trim()
 					: institutions.find(institution => institution.id === institutionId)?.name;
-			await onCreate({
+			const data = {
 				balance: type === "CREDIT_CARD" ? undefined : Number(balance || 0),
 				creditCard:
 					type === "CREDIT_CARD"
@@ -95,10 +102,14 @@ export function CreateFinancialAccountDialog({
 								workingDueDate,
 							}
 						: undefined,
-				institutionName: institutionName || undefined,
-				name: name.trim(),
+				institutionName: institutionId === NO_INSTITUTION ? "" : institutionName || undefined,
+				name: name.trim() || undefined,
 				type,
-			});
+			};
+			if (account && onUpdate) {
+				const { type: _, ...updateData } = data;
+				await onUpdate(account.id, updateData);
+			} else await onCreate(data as Draft);
 		} catch {
 			return;
 		}
@@ -113,13 +124,18 @@ export function CreateFinancialAccountDialog({
 					size={contextual ? "sm" : "default"}
 					variant={contextual ? "outline" : "default"}
 				>
-					<LuPlus /> {contextual ? "Adicionar conta" : "Nova conta"}
+					{account ? <LuPencil /> : <LuPlus />}{" "}
+					{account ? "Editar" : contextual ? "Adicionar conta" : "Nova conta"}
 				</Button>
 			</DialogTrigger>
 			<DialogContent className="scrollbar-themed max-h-[92dvh] overflow-y-auto sm:max-w-lg">
 				<DialogHeader>
-					<DialogTitle>Cadastrar conta</DialogTitle>
-					<DialogDescription>Inclua conta bancária, dinheiro, investimento ou cartão.</DialogDescription>
+					<DialogTitle>{account ? "Editar conta" : "Cadastrar conta"}</DialogTitle>
+					<DialogDescription>
+						{account
+							? "Atualize os dados desta conta."
+							: "Inclua conta bancária, dinheiro, investimento ou cartão."}
+					</DialogDescription>
 				</DialogHeader>
 				<form className="grid gap-5" onSubmit={handleSubmit}>
 					<CustomSelect
@@ -154,22 +170,30 @@ export function CreateFinancialAccountDialog({
 					<FormField
 						autoComplete="off"
 						id="account-name"
-						label="Nome da conta"
+						label="Nome da conta (opcional)"
 						name="account-name"
 						onChange={event => setName(event.currentTarget.value)}
 						placeholder="Ex: Principal ou Cartão Gold"
-						required
 						type="text"
 						value={name}
 					/>
-					<CustomSelect
-						label="Tipo"
-						onValueChange={value => setType(value as FinancialAccount["type"])}
-						options={types}
-						placeholder="Selecione o tipo"
-						required
-						value={type}
-					/>
+					{account ? (
+						<div className="grid gap-2">
+							<p className="font-medium text-sm">Tipo</p>
+							<p className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+								{types.find(item => item.value === type)?.label}
+							</p>
+						</div>
+					) : (
+						<CustomSelect
+							label="Tipo"
+							onValueChange={value => setType(value as FinancialAccount["type"])}
+							options={types}
+							placeholder="Selecione o tipo"
+							required
+							value={type}
+						/>
+					)}
 					{type !== "CREDIT_CARD" && (
 						<MoneyField
 							id="balance"
@@ -248,7 +272,6 @@ export function CreateFinancialAccountDialog({
 							disabled={
 								pending ||
 								!institutionId ||
-								!name.trim() ||
 								(institutionId === NEW_INSTITUTION && !newInstitutionName.trim()) ||
 								(type === "CREDIT_CARD" && !creditLimit)
 							}

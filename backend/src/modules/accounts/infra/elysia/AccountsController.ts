@@ -1,4 +1,5 @@
 import Elysia, { t } from "elysia";
+import { inferMissingFinancialInstitutions } from "~/modules/accounts/application/infer-missing-financial-institutions";
 import { resolveFinancialInstitution } from "~/modules/accounts/application/resolve-financial-institution";
 import { assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
@@ -12,12 +13,23 @@ const FinancialAccountType = t.Union([
 	t.Literal("CASH"),
 	t.Literal("CREDIT_CARD"),
 ]);
+const defaultAccountName = (type: typeof FinancialAccountType.static) =>
+	(
+		({
+			CASH: "Dinheiro",
+			CHECKING: "Conta corrente",
+			CREDIT_CARD: "Cartão de crédito",
+			INVESTMENT: "Investimentos",
+			SAVINGS: "Poupança",
+		}) as const
+	)[type];
 
 export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 	.get(
 		"/",
 		async ({ request }) => {
 			const userId = await requireUserId(request);
+			await inferMissingFinancialInstitutions(userId);
 			const accounts = await queryRows(
 				db.sql.public.FinancialAccount.select(
 					"id",
@@ -124,6 +136,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
 			const type = body.type ?? "CHECKING";
+			const name = body.name?.trim() || defaultAccountName(type);
 			if (type === "CREDIT_CARD" && !body.creditCard)
 				throw new HttpException("Informe os dados do cartão de crédito", 400);
 			if (type !== "CREDIT_CARD" && body.creditCard)
@@ -134,7 +147,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					.where((fields, functions) =>
 						functions.and(
 							functions.eq(fields.userId, userId),
-							functions.eq(fields.name, body.name),
+							functions.eq(fields.name, name),
 							functions.eq(fields.type, type),
 							institution
 								? functions.eq(fields.institutionId, institution.id)
@@ -154,7 +167,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					{
 						balance: nullableNumeric<12, 2>(type === "CREDIT_CARD" ? null : (body.balance ?? 0)),
 						institutionId: institution?.id,
-						name: body.name,
+						name,
 						type,
 						userId,
 					},
@@ -212,7 +225,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					}),
 				),
 				institutionName: t.Optional(t.String({ maxLength: 100 })),
-				name: t.String({ maxLength: 70, minLength: 1 }),
+				name: t.Optional(t.String({ maxLength: 70 })),
 				type: t.Optional(FinancialAccountType),
 			}),
 			detail: { tags: ["Accounts"] },

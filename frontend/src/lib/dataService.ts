@@ -41,7 +41,7 @@ import {
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3333";
 
-type FinancialAccountDraft = Omit<
+export type FinancialAccountDraft = Omit<
 	FinancialAccount,
 	"balance" | "createdAt" | "creditCard" | "id" | "institution" | "institutionId" | "updatedAt" | "userId"
 > & {
@@ -52,6 +52,13 @@ type FinancialAccountDraft = Omit<
 	>;
 	institutionName?: string;
 };
+
+export interface FinancialAccountUpdateDraft {
+	balance?: number;
+	creditCard?: FinancialAccountDraft["creditCard"];
+	institutionName?: string;
+	name?: string;
+}
 
 // Check if we're in guest mode or authenticated
 function isGuestMode(): boolean {
@@ -171,13 +178,32 @@ export const dataService = {
 			}
 		},
 
-		async update(id: string, data: Partial<FinancialAccount>): Promise<FinancialAccount> {
+		async update(id: string, data: FinancialAccountUpdateDraft): Promise<FinancialAccount> {
 			if (isGuestMode()) {
 				const existing = await localAccounts.getById(id);
 				if (!existing) throw new Error("FinancialAccount not found");
+				const { institutionName, ...accountData } = data;
+				let institution = existing.data.institution ?? null;
+				if (institutionName !== undefined) {
+					const normalizedName = normalizeInstitutionName(institutionName);
+					institution = normalizedName
+						? ((await localAccounts.getAll())
+								.map(item => item.data.institution)
+								.find(item => item && normalizeInstitutionName(item.name) === normalizedName) ?? {
+								id: crypto.randomUUID(),
+								name: institutionName.normalize("NFKC").trim().replace(/\s+/gu, " "),
+							})
+						: null;
+				}
 				const updated: FinancialAccount = {
 					...existing.data,
-					...data,
+					...accountData,
+					creditCard:
+						data.creditCard && existing.data.creditCard
+							? { ...existing.data.creditCard, ...data.creditCard }
+							: existing.data.creditCard,
+					institution,
+					institutionId: institution?.id ?? null,
 					updatedAt: new Date().toISOString(),
 				};
 				await localAccounts.put(updated, id);
@@ -531,6 +557,31 @@ export const dataService = {
 			});
 			await localDebts.put(debt, debt.id);
 			return debt;
+		},
+	},
+	financialInstitutions: {
+		async update(id: string, name: string): Promise<FinancialInstitution> {
+			if (isGuestMode()) {
+				const accounts = await localAccounts.getAll();
+				const institution = accounts.find(item => item.data.institutionId === id)?.data.institution;
+				if (!institution) throw new Error("Instituição financeira não encontrada");
+				const updated = { ...institution, name: name.normalize("NFKC").trim().replace(/\s+/gu, " ") };
+				await Promise.all(
+					accounts
+						.filter(item => item.data.institutionId === id)
+						.map(item =>
+							localAccounts.put(
+								{ ...item.data, institution: updated, updatedAt: new Date().toISOString() },
+								item.localId,
+							),
+						),
+				);
+				return updated;
+			}
+			return fetchWithAuth<FinancialInstitution>(`/financial-institutions/${id}`, {
+				body: JSON.stringify({ name }),
+				method: "PATCH",
+			});
 		},
 	},
 

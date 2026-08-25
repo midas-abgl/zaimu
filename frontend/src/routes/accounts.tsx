@@ -39,6 +39,25 @@ function AccountsPage() {
 			showToast("Conta excluída.", "positive");
 		},
 	});
+	const updateAccount = useMutation({
+		mutationFn: ({ data, id }: { id: string; data: Parameters<typeof dataService.accounts.update>[1] }) =>
+			dataService.accounts.update(id, data),
+		onError: error => showToast(error.message, "negative"),
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
+			await queryClient.invalidateQueries({ queryKey: ["credit-cards"] });
+			showToast("Conta atualizada.", "positive");
+		},
+	});
+	const updateInstitution = useMutation({
+		mutationFn: ({ id, name }: { id: string; name: string }) =>
+			dataService.financialInstitutions.update(id, name),
+		onError: error => showToast(error.message, "negative"),
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
+			showToast("Instituição atualizada.", "positive");
+		},
+	});
 	const totalBalance =
 		accounts.data
 			?.filter(account => account.type !== "CREDIT_CARD")
@@ -106,6 +125,10 @@ function AccountsPage() {
 								await createAccount.mutateAsync(data);
 							}}
 							onDelete={account => deleteAccount.mutateAsync(account.id)}
+							onUpdate={(id, data) => updateAccount.mutateAsync({ data, id })}
+							onUpdateInstitution={(institution, name) =>
+								updateInstitution.mutateAsync({ id: institution.id, name })
+							}
 							pending={createAccount.isPending}
 						/>
 					))}

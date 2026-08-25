@@ -312,7 +312,7 @@ export const api = {
 
 	createFinancialAccount: (data: {
 		institutionName?: string;
-		name: string;
+		name?: string;
 		type?: FinancialAccount["type"];
 		balance?: number;
 		creditCard?: {
