@@ -8,3 +8,8 @@ export function parseLocalDate(value: string): Date {
 export function formatLocalDate(value: string, options?: Intl.DateTimeFormatOptions): string {
 	return parseLocalDate(value).toLocaleDateString("pt-BR", options);
 }
+
+export function getLocalMonthKey(value: Date | string): string {
+	const date = typeof value === "string" ? parseLocalDate(value) : value;
+	return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}

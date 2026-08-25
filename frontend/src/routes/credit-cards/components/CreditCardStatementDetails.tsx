@@ -1,20 +1,62 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { LuCalendarCheck, LuCalendarClock, LuCircleCheck, LuClock3, LuReceiptText } from "react-icons/lu";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { TabsContent } from "@/components/ui/Tabs";
-import type { CreditCardStatement } from "@/lib/api";
+import type { CreditCardStatement, CreditPurchase } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
+import { showToast } from "@/stores";
+import { CreditPurchaseRow } from "./CreditPurchaseRow";
+import { EditCreditPurchaseDialog } from "./EditCreditPurchaseDialog";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 export function CreditCardStatementDetails({ statement }: { statement: CreditCardStatement }) {
+	const queryClient = useQueryClient();
+	const [editingPurchase, setEditingPurchase] = useState<CreditPurchase | null>(null);
 	const detail = useQuery({
 		queryFn: () => dataService.creditCards.getStatement(statement.creditCardId, statement.id),
 		queryKey: ["credit-card-statement", statement.creditCardId, statement.id],
+	});
+	const refreshStatement = async () => {
+		await Promise.all([
+			queryClient.invalidateQueries({
+				queryKey: ["credit-card-statement", statement.creditCardId, statement.id],
+			}),
+			queryClient.invalidateQueries({ queryKey: ["credit-card-statements", statement.creditCardId] }),
+		]);
+	};
+	const updatePurchase = useMutation({
+		mutationFn: ({
+			data,
+			purchaseId,
+		}: {
+			data: Parameters<typeof dataService.creditCards.updatePurchase>[2];
+			purchaseId: string;
+		}) => dataService.creditCards.updatePurchase(statement.creditCardId, purchaseId, data),
+		onError: error => {
+			showToast(error instanceof Error ? error.message : "Não foi possível editar a transação.", "negative");
+		},
+		onSuccess: async () => {
+			setEditingPurchase(null);
+			await refreshStatement();
+			showToast("Transação atualizada.", "positive");
+		},
+	});
+	const deletePurchase = useMutation({
+		mutationFn: (purchaseId: string) =>
+			dataService.creditCards.deletePurchase(statement.creditCardId, purchaseId),
+		onError: error => {
+			showToast(error instanceof Error ? error.message : "Não foi possível excluir a transação.", "negative");
+		},
+		onSuccess: async () => {
+			await refreshStatement();
+			showToast("Transação excluída.", "positive");
+		},
 	});
 
 	return (
@@ -80,26 +122,13 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 					) : detail.data.purchases.length ? (
 						<div className="grid gap-2">
 							{detail.data.purchases.map(purchase => (
-								<div
-									className="flex items-center justify-between gap-4 rounded-xl border bg-card p-3"
+								<CreditPurchaseRow
+									disabled={statement.isPaid || deletePurchase.isPending}
 									key={purchase.id}
-								>
-									<span className="min-w-0">
-										<span className="block truncate font-medium">{purchase.description}</span>
-										<span className="text-muted-foreground text-xs">
-											{formatLocalDate(purchase.purchaseDate)}
-											{purchase.tags?.length
-												? ` · ${purchase.tags.map(tag => tag.name).join(" · ")}`
-												: purchase.categoryName
-													? ` · ${purchase.categoryName}`
-													: ""}
-											{purchase.installments > 1
-												? ` · ${purchase.currentInstallment}/${purchase.installments}`
-												: ""}
-										</span>
-									</span>
-									<strong className="shrink-0">{currency.format(purchase.installmentAmount)}</strong>
-								</div>
+									onDelete={() => deletePurchase.mutateAsync(purchase.id)}
+									onEdit={() => setEditingPurchase(purchase)}
+									purchase={purchase}
+								/>
 							))}
 						</div>
 					) : (
@@ -111,6 +140,18 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 					)}
 				</ScrollArea>
 			</div>
+			{editingPurchase && (
+				<EditCreditPurchaseDialog
+					key={editingPurchase.id}
+					onOpenChange={open => !open && setEditingPurchase(null)}
+					onSubmit={async data => {
+						await updatePurchase.mutateAsync({ data, purchaseId: editingPurchase.id });
+					}}
+					open
+					pending={updatePurchase.isPending}
+					purchase={editingPurchase}
+				/>
+			)}
 		</TabsContent>
 	);
 }

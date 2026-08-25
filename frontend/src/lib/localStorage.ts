@@ -327,6 +327,7 @@ export const localCreditPurchases = {
 	bulkPut: (items: Array<{ data: CreditPurchase; localId: string; syncedAt?: number }>) =>
 		bulkPut(STORES.creditPurchases, items),
 	clear: () => clearStore(STORES.creditPurchases),
+	delete: (id: string) => softDelete(STORES.creditPurchases, id),
 	getAll: () => getAll<CreditPurchase>(STORES.creditPurchases),
 	getById: (id: string) => getById<CreditPurchase>(STORES.creditPurchases, id),
 	put: (data: CreditPurchase, id?: string) => put(STORES.creditPurchases, data, id),

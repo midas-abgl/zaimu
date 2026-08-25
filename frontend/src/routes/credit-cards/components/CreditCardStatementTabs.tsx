@@ -15,8 +15,8 @@ export function CreditCardStatementTabs({
 	statements: CreditCardStatement[];
 }) {
 	return (
-		<ScrollArea className="h-[65dvh] border-r pr-3">
-			<TabsList aria-label="Faturas" className="grid w-full gap-2 bg-transparent p-0">
+		<ScrollArea className="h-[65dvh] border-r px-1 pr-3">
+			<TabsList aria-label="Faturas" className="grid w-full gap-2 bg-transparent py-1 pr-1 pl-0">
 				{statements.map(statement => {
 					const selected = statement.id === selectedId;
 					return (

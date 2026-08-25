@@ -50,6 +50,35 @@ interface CreditPurchaseRow {
 	updatedAt: Date;
 }
 
+const findPurchaseForCard = (creditCardId: string, purchaseId: string) =>
+	queryFirst(
+		db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
+			functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
+		)
+			.select(fields => ({
+				categoryId: fields.CreditPurchase.categoryId,
+				creditCardId: fields.CreditCardStatement.creditCardId,
+				currentInstallment: fields.CreditPurchase.currentInstallment,
+				description: fields.CreditPurchase.description,
+				id: fields.CreditPurchase.id,
+				installmentAmount: fields.CreditPurchase.installmentAmount,
+				installments: fields.CreditPurchase.installments,
+				isPaid: fields.CreditCardStatement.isPaid,
+				parentId: fields.CreditPurchase.parentId,
+				purchaseDate: fields.CreditPurchase.purchaseDate,
+				statementId: fields.CreditPurchase.statementId,
+				totalAmount: fields.CreditPurchase.totalAmount,
+			}))
+			.where((fields, functions) =>
+				functions.and(
+					functions.eq(fields.CreditPurchase.id, purchaseId),
+					functions.eq(fields.CreditCardStatement.creditCardId, creditCardId),
+				),
+			)
+			.limit(1)
+			.build(),
+	);
+
 export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 	.get(
 		"/",
@@ -344,6 +373,111 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			detail: { tags: ["Credit Cards"] },
 			params: t.Object({
 				id: t.String({ maxLength: 36, minLength: 1 }),
+			}),
+		},
+	)
+	.patch(
+		"/:id/purchases/:purchaseId",
+		async ({ params, body, request }) => {
+			const userId = await requireUserId(request);
+			await assertCreditCardOwnership(params.id, userId);
+			const purchase = await findPurchaseForCard(params.id, params.purchaseId);
+			if (!purchase) throw new HttpException("Purchase not found", 404);
+			if (purchase.isPaid) throw new HttpException("Paid statement purchases cannot be edited", 409);
+
+			const tagIds = body.tagIds === undefined ? undefined : await assertTagOwnership(body.tagIds, userId);
+			const previousAmount = Number(purchase.installmentAmount);
+			const nextAmount = body.installmentAmount ?? previousAmount;
+			const updatedPurchase = await queryFirst(
+				db.sql.public.CreditPurchase.update({
+					...(body.description !== undefined && { description: body.description }),
+					...(body.installmentAmount !== undefined && {
+						installmentAmount: String(body.installmentAmount),
+						...(purchase.installments === 1 && { totalAmount: String(body.installmentAmount) }),
+					}),
+					...(body.purchaseDate !== undefined && { purchaseDate: new Date(body.purchaseDate) }),
+					...(tagIds !== undefined && { categoryId: tagIds[0] ?? null }),
+					updatedAt: new Date(),
+				} as never)
+					.where((fields, functions) => functions.eq(fields.id, params.purchaseId))
+					.returning(...purchaseColumns)
+					.build(),
+			);
+			if (!updatedPurchase) throw new HttpException("Purchase not found", 404);
+
+			const difference = nextAmount - previousAmount;
+			if (difference !== 0) {
+				const amount = param(numeric<12, 2>(difference), { codecId: "pg/numeric@1" });
+				await executeStatement(
+					db.sql.public.CreditCardStatement.update((fields, functions) => ({
+						totalAmount: functions.raw`${fields.totalAmount} + ${amount}`.returns("pg/numeric@1"),
+						updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
+					}))
+						.where((fields, functions) => functions.eq(fields.id, purchase.statementId))
+						.build(),
+				);
+			}
+			if (tagIds !== undefined) {
+				await replaceEntityTags({
+					entityIds: [updatedPurchase.id],
+					entityType: tagEntityType.creditPurchase,
+					tagIds,
+				});
+			}
+
+			const tagsByPurchase = await getTagsByEntity(tagEntityType.creditPurchase, [updatedPurchase.id]);
+			const tags = tagsByPurchase.get(updatedPurchase.id) ?? [];
+			return { ...updatedPurchase, tagIds: tags.map(tag => tag.id), tags };
+		},
+		{
+			body: t.Object({
+				description: t.Optional(t.String({ maxLength: 500, minLength: 1 })),
+				installmentAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
+				purchaseDate: t.Optional(t.String()),
+				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
+			}),
+			detail: { tags: ["Credit Cards"] },
+			params: t.Object({
+				id: t.String({ maxLength: 36, minLength: 1 }),
+				purchaseId: t.String({ maxLength: 36, minLength: 1 }),
+			}),
+		},
+	)
+	.delete(
+		"/:id/purchases/:purchaseId",
+		async ({ params, request }) => {
+			const userId = await requireUserId(request);
+			await assertCreditCardOwnership(params.id, userId);
+			const purchase = await findPurchaseForCard(params.id, params.purchaseId);
+			if (!purchase) throw new HttpException("Purchase not found", 404);
+			if (purchase.isPaid) throw new HttpException("Paid statement purchases cannot be deleted", 409);
+
+			await replaceEntityTags({
+				entityIds: [purchase.id],
+				entityType: tagEntityType.creditPurchase,
+				tagIds: [],
+			});
+			await executeStatement(
+				db.sql.public.CreditPurchase.delete()
+					.where((fields, functions) => functions.eq(fields.id, purchase.id))
+					.build(),
+			);
+			const amount = param(numeric<12, 2>(purchase.installmentAmount), { codecId: "pg/numeric@1" });
+			await executeStatement(
+				db.sql.public.CreditCardStatement.update((fields, functions) => ({
+					totalAmount: functions.raw`GREATEST(0, ${fields.totalAmount} - ${amount})`.returns("pg/numeric@1"),
+					updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
+				}))
+					.where((fields, functions) => functions.eq(fields.id, purchase.statementId))
+					.build(),
+			);
+			return { success: true };
+		},
+		{
+			detail: { tags: ["Credit Cards"] },
+			params: t.Object({
+				id: t.String({ maxLength: 36, minLength: 1 }),
+				purchaseId: t.String({ maxLength: 36, minLength: 1 }),
 			}),
 		},
 	)

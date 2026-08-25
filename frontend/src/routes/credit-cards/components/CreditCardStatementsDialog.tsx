@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs } from "@/components/ui/Tabs";
 import type { CreditCard } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
+import { getLocalMonthKey } from "@/lib/date";
 import { CreditCardStatementDetails } from "./CreditCardStatementDetails";
 import { CreditCardStatementTabs } from "./CreditCardStatementTabs";
 
@@ -23,8 +24,13 @@ export function CreditCardStatementsDialog({
 		queryFn: () => dataService.creditCards.getStatements(card!.id),
 		queryKey: ["credit-card-statements", card?.id, { isPaid: undefined }],
 	});
+	const currentStatement = statements.data?.find(
+		statement => getLocalMonthKey(statement.statementDate) === getLocalMonthKey(new Date()),
+	);
 	const selectedStatement =
-		statements.data?.find(statement => statement.id === selectedStatementId) ?? statements.data?.[0];
+		statements.data?.find(statement => statement.id === selectedStatementId) ??
+		currentStatement ??
+		statements.data?.[0];
 
 	return (
 		<Dialog onOpenChange={onOpenChange} open={Boolean(card)}>

@@ -357,6 +357,22 @@ export const dataService = {
 			await localCreditCards.put(card, card.id);
 			return card;
 		},
+		async deletePurchase(cardId: string, purchaseId: string): Promise<void> {
+			if (!isGuestMode()) {
+				await fetchWithAuth(`/credit-cards/${cardId}/purchases/${purchaseId}`, { method: "DELETE" });
+				return;
+			}
+			const storedPurchase = await localCreditPurchases.getById(purchaseId);
+			if (!storedPurchase) throw new Error("Compra não encontrada");
+			const statement = (await localCreditCardStatements.getById(storedPurchase.data.statementId))?.data;
+			if (!statement || statement.creditCardId !== cardId) throw new Error("Fatura não encontrada");
+			if (statement.isPaid) throw new Error("Compras de faturas pagas não podem ser excluídas");
+			statement.totalAmount = Math.max(0, statement.totalAmount - storedPurchase.data.installmentAmount);
+			await Promise.all([
+				localCreditPurchases.delete(purchaseId),
+				localCreditCardStatements.put(statement, statement.id),
+			]);
+		},
 		async getAll(): Promise<CreditCard[]> {
 			if (isGuestMode()) return (await localCreditCards.getAll()).map(item => item.data);
 			const cards = await fetchWithAuth<CreditCard[]>("/credit-cards");
@@ -413,6 +429,43 @@ export const dataService = {
 				statements.map(statement => ({ data: statement, localId: statement.id, syncedAt: Date.now() })),
 			);
 			return statements;
+		},
+		async updatePurchase(
+			cardId: string,
+			purchaseId: string,
+			data: {
+				description: string;
+				installmentAmount: number;
+				purchaseDate: string;
+				tagIds: string[];
+			},
+		): Promise<CreditPurchase> {
+			if (!isGuestMode()) {
+				return fetchWithAuth<CreditPurchase>(`/credit-cards/${cardId}/purchases/${purchaseId}`, {
+					body: JSON.stringify(data),
+					method: "PATCH",
+				});
+			}
+			const storedPurchase = await localCreditPurchases.getById(purchaseId);
+			if (!storedPurchase) throw new Error("Compra não encontrada");
+			const statement = (await localCreditCardStatements.getById(storedPurchase.data.statementId))?.data;
+			if (!statement || statement.creditCardId !== cardId) throw new Error("Fatura não encontrada");
+			if (statement.isPaid) throw new Error("Compras de faturas pagas não podem ser editadas");
+			const updatedPurchase: CreditPurchase = {
+				...storedPurchase.data,
+				categoryId: data.tagIds[0],
+				description: data.description,
+				installmentAmount: data.installmentAmount,
+				purchaseDate: data.purchaseDate,
+				tagIds: data.tagIds,
+				...(storedPurchase.data.installments === 1 && { totalAmount: data.installmentAmount }),
+			};
+			statement.totalAmount += data.installmentAmount - storedPurchase.data.installmentAmount;
+			await Promise.all([
+				localCreditPurchases.put(updatedPurchase, purchaseId),
+				localCreditCardStatements.put(statement, statement.id),
+			]);
+			return updatedPurchase;
 		},
 	},
 
