@@ -15,12 +15,14 @@ import type {
 	Dashboard,
 	Debt,
 	FinancialAccount,
+	FinancialInstitution,
 	Loan,
 	RecurringPayment,
 	Salary,
 	Subscription,
 	Transaction,
 } from "./api";
+import { normalizeInstitutionName } from "./financial-institution";
 import {
 	clearAllLocalData,
 	localAccounts,
@@ -41,13 +43,14 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3333";
 
 type FinancialAccountDraft = Omit<
 	FinancialAccount,
-	"balance" | "createdAt" | "creditCard" | "id" | "updatedAt" | "userId"
+	"balance" | "createdAt" | "creditCard" | "id" | "institution" | "institutionId" | "updatedAt" | "userId"
 > & {
 	balance?: number;
 	creditCard?: Pick<
 		CreditCard,
 		"creditLimit" | "dueDay" | "securityDeposit" | "statementDay" | "workingDueDate"
 	>;
+	institutionName?: string;
 };
 
 // Check if we're in guest mode or authenticated
@@ -92,12 +95,28 @@ export const dataService = {
 		async create(data: FinancialAccountDraft): Promise<FinancialAccount> {
 			const userId = getUserId();
 			if (isGuestMode()) {
-				const { creditCard, ...accountData } = data;
+				const { creditCard, institutionName, ...accountData } = data;
+				let institution: FinancialInstitution | null = null;
+				const normalizedInstitutionName = normalizeInstitutionName(institutionName ?? "");
+				if (normalizedInstitutionName) {
+					const storedAccounts = await localAccounts.getAll();
+					institution =
+						storedAccounts
+							.map(item => item.data.institution)
+							.find(item => item && normalizeInstitutionName(item.name) === normalizedInstitutionName) ??
+						null;
+					institution ??= {
+						id: crypto.randomUUID(),
+						name: institutionName!.normalize("NFKC").trim().replace(/\s+/gu, " "),
+					};
+				}
 				let newAccount: FinancialAccount = {
 					...accountData,
 					balance: data.type === "CREDIT_CARD" ? null : (accountData.balance ?? 0),
 					createdAt: new Date().toISOString(),
 					id: crypto.randomUUID(),
+					institution,
+					institutionId: institution?.id ?? null,
 					updatedAt: new Date().toISOString(),
 					userId,
 				};

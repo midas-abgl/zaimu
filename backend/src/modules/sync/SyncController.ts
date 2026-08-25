@@ -1,4 +1,5 @@
 import Elysia from "elysia";
+import { resolveFinancialInstitution } from "~/modules/accounts/application/resolve-financial-institution";
 import { requireUserId } from "~/modules/auth";
 import { db, executeStatement, nullableNumeric, queryFirst, queryRows } from "~/shared/infra/sql";
 import { SyncBody, SyncReturn } from "./SyncDTO";
@@ -15,7 +16,16 @@ const optionalDate = (entity: InputEntity, field: string) => {
 	return input ? new Date(input) : null;
 };
 
-const accountColumns = ["id", "userId", "name", "type", "balance", "createdAt", "updatedAt"] as const;
+const accountColumns = [
+	"id",
+	"userId",
+	"name",
+	"type",
+	"balance",
+	"institutionId",
+	"createdAt",
+	"updatedAt",
+] as const;
 const categoryColumns = [
 	"id",
 	"userId",
@@ -116,10 +126,16 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 			);
 			if (existing && existing.userId !== userId)
 				throw new Error(`Conta financeira ${id} pertence a outro usuário`);
+			const institutionInput = value<{ name?: string } | null | undefined>(entity, "institution");
+			const institution = await resolveFinancialInstitution(
+				userId,
+				value<string | undefined>(entity, "institutionName") ?? institutionInput?.name,
+			);
 			const values = {
 				balance: nullableNumeric<12, 2>(
 					type === "CREDIT_CARD" ? null : (value<number>(entity, "balance") ?? 0),
 				),
+				institutionId: institution?.id,
 				name: value<string>(entity, "name"),
 				type,
 				updatedAt: new Date(),
@@ -464,6 +480,16 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				.where((f, fn) => fn.eq(f.userId, userId))
 				.build(),
 		);
+		const financialInstitutions = await queryRows(
+			db.sql.public.FinancialInstitution.select("id", "name")
+				.where((f, fn) => fn.eq(f.userId, userId))
+				.build(),
+		);
+		const institutionsById = new Map(financialInstitutions.map(institution => [institution.id, institution]));
+		const financialAccountsWithInstitutions = financialAccounts.map(account => ({
+			...account,
+			institution: account.institutionId ? (institutionsById.get(account.institutionId) ?? null) : null,
+		}));
 		const serverAccountIds = financialAccounts.map(account => account.id);
 		const creditCards = serverAccountIds.length
 			? await queryRows(
@@ -529,7 +555,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 						.where((f, fn) => fn.eq(f.userId, userId))
 						.build(),
 				),
-				financialAccounts,
+				financialAccounts: financialAccountsWithInstitutions,
 				loans: await queryRows(
 					db.sql.public.Loan.select(
 						"id",

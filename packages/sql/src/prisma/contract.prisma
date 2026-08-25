@@ -13,6 +13,7 @@ namespace public {
     categories        Category[]
     debts             Debt[]
     financialAccounts FinancialAccount[]
+    financialInstitutions FinancialInstitution[]
     loans             Loan[]
     salaries          Salary[]
     subscriptions     Subscription[]
@@ -21,6 +22,20 @@ namespace public {
 
     @@index([email], map: "User_email_key", unique: true)
     @@map("user")
+  }
+
+  model FinancialInstitution {
+    id             VarChar(36)        @id(map: "FinancialInstitution_pkey") @default(dbgenerated("cuid2()"))
+    userId         VarChar(36)
+    name           VarChar(100)
+    normalizedName VarChar(100)
+    createdAt      Timestamp(3)       @default(now())
+    updatedAt      Timestamp(3)       @default(now())
+    financialAccounts FinancialAccount[]
+    user           User               @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "FinancialInstitution_userId_fkey", index: false)
+
+    @@index([userId, normalizedName], map: "FinancialInstitution_userId_normalizedName_key", unique: true)
+    @@map("FinancialInstitution")
   }
 
   model AuthAccount {
@@ -58,6 +73,7 @@ namespace public {
     creditPurchases   CreditPurchase[]
     recurringPayments RecurringPayment[]
     transactions      Transaction[]
+    tagAssignments    TagAssignment[]
     parent            Category?          @relation(name: "Category_parentId_fkey", fields: [parentId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Category_parentId_fkey", index: false)
     categories        Category[]         @relation(name: "Category_parentId_fkey")
     user              User               @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Category_userId_fkey", index: false)
@@ -67,22 +83,40 @@ namespace public {
     @@map("Category")
   }
 
+  model TagAssignment {
+    id         VarChar(36)  @id(map: "TagAssignment_pkey") @default(dbgenerated("cuid2()"))
+    categoryId VarChar(36)
+    entityType VarChar(50)
+    entityId   VarChar(36)
+    createdAt  Timestamp(3) @default(now())
+    updatedAt  Timestamp(3) @default(now())
+    category   Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TagAssignment_categoryId_fkey", index: false)
+
+    @@index([categoryId, entityType, entityId], map: "TagAssignment_categoryId_entityType_entityId_key", unique: true)
+    @@index([entityType, entityId], map: "TagAssignment_entityType_entityId_idx")
+
+    @@map("TagAssignment")
+  }
+
   model FinancialAccount {
     id                      VarChar(36)                   @id(map: "Account_pkey") @default(dbgenerated("cuid2()"))
     userId                  VarChar(36)
     name                    VarChar(70)
     type                    pg.enum(FinancialAccountType) @default("CHECKING")
     balance                 Numeric(12, 2)?               @default(dbgenerated("0"))
+    institutionId           VarChar(36)?
     createdAt               Timestamp(3)                  @default(now())
     updatedAt               Timestamp(3)                  @default(now())
     creditCards             CreditCard[]
     loanPayments            LoanPayment[]
     salaryPayments          SalaryPayment[]
     user                    User                          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Account_userId_fkey", index: false)
+    institution             FinancialInstitution?          @relation(fields: [institutionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "FinancialAccount_institutionId_fkey", index: false)
     transactions            Transaction[]                 @relation(name: "Transaction_destinationId_fkey")
     transactionsTransaction Transaction[]                 @relation(name: "Transaction_originId_fkey")
 
-    @@index([userId, name, type], map: "FinancialAccount_userId_name_type_key", unique: true)
+    @@index([institutionId], map: "FinancialAccount_institutionId_idx")
+    @@index([userId, institutionId, name, type], map: "FinancialAccount_userId_institutionId_name_type_key", unique: true)
 
     @@map("FinancialAccount")
   }

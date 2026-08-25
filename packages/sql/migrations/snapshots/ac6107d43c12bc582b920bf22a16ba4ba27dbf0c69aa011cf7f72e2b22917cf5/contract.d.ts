@@ -21,7 +21,7 @@ import type {
 	Varchar,
 } from "@prisma/orm-postgres/target/codec-types";
 
-export type StorageHash = StorageHashBase<"6ac3b92b6d368eae70728fb838176e0c7b2da4d521ca2b1853c52256368c9f81">;
+export type StorageHash = StorageHashBase<"ac6107d43c12bc582b920bf22a16ba4ba27dbf0c69aa011cf7f72e2b22917cf5">;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash = ProfileHashBase<"3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2">;
 
@@ -427,14 +427,6 @@ export interface FieldOutputTypes {
 			readonly newValue: CodecTypes["pg/text@1"]["output"] | null;
 			readonly changedAt: Timestamp<3>;
 		};
-		readonly TagAssignment: {
-			readonly id: Varchar<36>;
-			readonly categoryId: Varchar<36>;
-			readonly entityType: Varchar<50>;
-			readonly entityId: Varchar<36>;
-			readonly createdAt: Timestamp<3>;
-			readonly updatedAt: Timestamp<3>;
-		};
 		readonly Transaction: {
 			readonly id: Varchar<36>;
 			readonly amount: Numeric<12, 2>;
@@ -720,14 +712,6 @@ export interface FieldInputTypes {
 			readonly oldValue: CodecTypes["pg/text@1"]["input"] | null;
 			readonly newValue: CodecTypes["pg/text@1"]["input"] | null;
 			readonly changedAt: CodecTypes["pg/timestamp@1"]["input"];
-		};
-		readonly TagAssignment: {
-			readonly id: CodecTypes["sql/varchar@1"]["input"];
-			readonly categoryId: CodecTypes["sql/varchar@1"]["input"];
-			readonly entityType: CodecTypes["sql/varchar@1"]["input"];
-			readonly entityId: CodecTypes["sql/varchar@1"]["input"];
-			readonly createdAt: CodecTypes["pg/timestamp@1"]["input"];
-			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
 		};
 		readonly Transaction: {
 			readonly id: CodecTypes["sql/varchar@1"]["input"];
@@ -1015,14 +999,6 @@ export interface StorageColumnTypes {
 			readonly oldValue: CodecTypes["pg/text@1"]["output"] | null;
 			readonly subscriptionId: Varchar<36>;
 		};
-		readonly TagAssignment: {
-			readonly categoryId: Varchar<36>;
-			readonly createdAt: Timestamp<3>;
-			readonly entityId: Varchar<36>;
-			readonly entityType: Varchar<50>;
-			readonly id: Varchar<36>;
-			readonly updatedAt: Timestamp<3>;
-		};
 		readonly Transaction: {
 			readonly amount: Numeric<12, 2>;
 			readonly categoryId: Varchar<36> | null;
@@ -1308,14 +1284,6 @@ export interface StorageColumnInputTypes {
 			readonly newValue: CodecTypes["pg/text@1"]["input"] | null;
 			readonly oldValue: CodecTypes["pg/text@1"]["input"] | null;
 			readonly subscriptionId: CodecTypes["sql/varchar@1"]["input"];
-		};
-		readonly TagAssignment: {
-			readonly categoryId: CodecTypes["sql/varchar@1"]["input"];
-			readonly createdAt: CodecTypes["pg/timestamp@1"]["input"];
-			readonly entityId: CodecTypes["sql/varchar@1"]["input"];
-			readonly entityType: CodecTypes["sql/varchar@1"]["input"];
-			readonly id: CodecTypes["sql/varchar@1"]["input"];
-			readonly updatedAt: CodecTypes["pg/timestamp@1"]["input"];
 		};
 		readonly Transaction: {
 			readonly amount: CodecTypes["pg/numeric@1"]["input"];
@@ -3489,90 +3457,6 @@ type ContractBase = Omit<
 								},
 							];
 						};
-						readonly TagAssignment: {
-							columns: {
-								readonly id: {
-									readonly nativeType: "character varying";
-									readonly codecId: "sql/varchar@1";
-									readonly nullable: false;
-									readonly default: {
-										readonly kind: "function";
-										readonly expression: "cuid2()";
-									};
-									readonly typeParams: { readonly length: 36 };
-								};
-								readonly categoryId: {
-									readonly nativeType: "character varying";
-									readonly codecId: "sql/varchar@1";
-									readonly nullable: false;
-									readonly typeParams: { readonly length: 36 };
-								};
-								readonly entityType: {
-									readonly nativeType: "character varying";
-									readonly codecId: "sql/varchar@1";
-									readonly nullable: false;
-									readonly typeParams: { readonly length: 50 };
-								};
-								readonly entityId: {
-									readonly nativeType: "character varying";
-									readonly codecId: "sql/varchar@1";
-									readonly nullable: false;
-									readonly typeParams: { readonly length: 36 };
-								};
-								readonly createdAt: {
-									readonly nativeType: "timestamp";
-									readonly codecId: "pg/timestamp@1";
-									readonly nullable: false;
-									readonly default: {
-										readonly kind: "function";
-										readonly expression: "now()";
-									};
-									readonly typeParams: { readonly precision: 3 };
-								};
-								readonly updatedAt: {
-									readonly nativeType: "timestamp";
-									readonly codecId: "pg/timestamp@1";
-									readonly nullable: false;
-									readonly default: {
-										readonly kind: "function";
-										readonly expression: "now()";
-									};
-									readonly typeParams: { readonly precision: 3 };
-								};
-							};
-							primaryKey: {
-								readonly columns: readonly ["id"];
-								readonly name: "TagAssignment_pkey";
-							};
-							uniques: readonly [];
-							indexes: readonly [
-								{
-									readonly name: "TagAssignment_categoryId_entityType_entityId_key";
-									readonly columns: readonly ["categoryId", "entityType", "entityId"];
-									readonly unique: true;
-								},
-								{
-									readonly name: "TagAssignment_entityType_entityId_idx";
-									readonly columns: readonly ["entityType", "entityId"];
-									readonly unique: false;
-								},
-							];
-							foreignKeys: readonly [
-								{
-									readonly source: {
-										readonly namespaceId: "public" & NamespaceId;
-										readonly tableName: "TagAssignment";
-										readonly columns: readonly ["categoryId"];
-									};
-									readonly target: {
-										readonly namespaceId: "public" & NamespaceId;
-										readonly tableName: "Category";
-										readonly columns: readonly ["id"];
-									};
-									readonly name: "TagAssignment_categoryId_fkey";
-								},
-							];
-						};
 						readonly Transaction: {
 							columns: {
 								readonly id: {
@@ -3977,10 +3861,6 @@ type ContractBase = Omit<
 		};
 		readonly account: { readonly namespace: "public" & NamespaceId; readonly model: "AuthAccount" };
 		readonly Category: { readonly namespace: "public" & NamespaceId; readonly model: "Category" };
-		readonly TagAssignment: {
-			readonly namespace: "public" & NamespaceId;
-			readonly model: "TagAssignment";
-		};
 		readonly FinancialAccount: {
 			readonly namespace: "public" & NamespaceId;
 			readonly model: "FinancialAccount";
@@ -4300,17 +4180,6 @@ type ContractBase = Omit<
 								readonly to: {
 									readonly namespace: "public" & NamespaceId;
 									readonly model: "RecurringPayment";
-								};
-								readonly cardinality: "1:N";
-								readonly on: {
-									readonly localFields: readonly ["id"];
-									readonly targetFields: readonly ["categoryId"];
-								};
-							};
-							readonly tagAssignments: {
-								readonly to: {
-									readonly namespace: "public" & NamespaceId;
-									readonly model: "TagAssignment";
 								};
 								readonly cardinality: "1:N";
 								readonly on: {
@@ -6479,83 +6348,6 @@ type ContractBase = Omit<
 								readonly oldValue: { readonly column: "oldValue" };
 								readonly newValue: { readonly column: "newValue" };
 								readonly changedAt: { readonly column: "changedAt" };
-							};
-						};
-					};
-					readonly TagAssignment: {
-						readonly fields: {
-							readonly id: {
-								readonly nullable: false;
-								readonly type: {
-									readonly kind: "scalar";
-									readonly codecId: "sql/varchar@1";
-									readonly typeParams: { readonly length: 36 };
-								};
-							};
-							readonly categoryId: {
-								readonly nullable: false;
-								readonly type: {
-									readonly kind: "scalar";
-									readonly codecId: "sql/varchar@1";
-									readonly typeParams: { readonly length: 36 };
-								};
-							};
-							readonly entityType: {
-								readonly nullable: false;
-								readonly type: {
-									readonly kind: "scalar";
-									readonly codecId: "sql/varchar@1";
-									readonly typeParams: { readonly length: 50 };
-								};
-							};
-							readonly entityId: {
-								readonly nullable: false;
-								readonly type: {
-									readonly kind: "scalar";
-									readonly codecId: "sql/varchar@1";
-									readonly typeParams: { readonly length: 36 };
-								};
-							};
-							readonly createdAt: {
-								readonly nullable: false;
-								readonly type: {
-									readonly kind: "scalar";
-									readonly codecId: "pg/timestamp@1";
-									readonly typeParams: { readonly precision: 3 };
-								};
-							};
-							readonly updatedAt: {
-								readonly nullable: false;
-								readonly type: {
-									readonly kind: "scalar";
-									readonly codecId: "pg/timestamp@1";
-									readonly typeParams: { readonly precision: 3 };
-								};
-							};
-						};
-						readonly relations: {
-							readonly category: {
-								readonly to: {
-									readonly namespace: "public" & NamespaceId;
-									readonly model: "Category";
-								};
-								readonly cardinality: "N:1";
-								readonly on: {
-									readonly localFields: readonly ["categoryId"];
-									readonly targetFields: readonly ["id"];
-								};
-							};
-						};
-						readonly storage: {
-							readonly table: "TagAssignment";
-							readonly namespaceId: "public";
-							readonly fields: {
-								readonly id: { readonly column: "id" };
-								readonly categoryId: { readonly column: "categoryId" };
-								readonly entityType: { readonly column: "entityType" };
-								readonly entityId: { readonly column: "entityId" };
-								readonly createdAt: { readonly column: "createdAt" };
-								readonly updatedAt: { readonly column: "updatedAt" };
 							};
 						};
 					};

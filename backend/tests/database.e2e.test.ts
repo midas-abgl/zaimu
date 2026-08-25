@@ -71,13 +71,18 @@ suite("Prisma 8 SQL query builder", () => {
 		const accountResponse = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
-			{ balance: 100.25, name: accountName, type: "CHECKING" },
+			{ balance: 100.25, institutionName: "Mercado Pago", name: accountName, type: "CHECKING" },
 			owner.cookie,
 		);
 		expect(accountResponse.status).toBe(200);
-		const account = (await accountResponse.json()) as { balance: number; id: string };
+		const account = (await accountResponse.json()) as {
+			balance: number;
+			id: string;
+			institution: { id: string; name: string };
+		};
 		expect(account.balance).toBe(100.25);
 		expect(typeof account.balance).toBe("number");
+		expect(account.institution.name).toBe("Mercado Pago");
 
 		const creditCardResponse = await jsonRequest(
 			"/financial-accounts/",
@@ -90,6 +95,7 @@ suite("Prisma 8 SQL query builder", () => {
 					securityDeposit: 500,
 					statementDay: 10,
 				},
+				institutionName: " mercado   PAGO ",
 				name: accountName,
 				type: "CREDIT_CARD",
 			},
@@ -100,14 +106,16 @@ suite("Prisma 8 SQL query builder", () => {
 			balance: number | null;
 			creditCard: { securityDeposit: number | null };
 			id: string;
+			institution: { id: string };
 		};
 		expect(creditCardAccount.balance).toBeNull();
 		expect(creditCardAccount.creditCard.securityDeposit).toBe(500);
+		expect(creditCardAccount.institution.id).toBe(account.institution.id);
 
 		const duplicateAccount = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
-			{ name: accountName, type: "CHECKING" },
+			{ institutionName: "Mercado Pago", name: accountName, type: "CHECKING" },
 			owner.cookie,
 		);
 		expect(duplicateAccount.status).toBe(409);

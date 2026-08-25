@@ -15,7 +15,7 @@ import {
 import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
-import type { FinancialAccount } from "@/lib/api";
+import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 
 const types = [
 	{ label: "Conta corrente", value: "CHECKING" },
@@ -28,17 +28,29 @@ const days = Array.from({ length: 31 }, (_, index) => ({
 	label: `Dia ${index + 1}`,
 	value: String(index + 1),
 }));
+const NEW_INSTITUTION = "__new_institution__";
+const NO_INSTITUTION = "__no_institution__";
 
 type Draft = Parameters<typeof import("@/lib/dataService").dataService.accounts.create>[0];
 
 export function CreateFinancialAccountDialog({
+	contextual = false,
+	defaultInstitutionId,
+	institutions = [],
 	onCreate,
 	pending,
 }: {
+	contextual?: boolean;
+	defaultInstitutionId?: string | null;
+	institutions?: FinancialInstitution[];
 	onCreate: (data: Draft) => Promise<void>;
 	pending: boolean;
 }) {
+	const initialInstitution = () =>
+		defaultInstitutionId ?? (defaultInstitutionId === null ? NO_INSTITUTION : undefined);
 	const [open, setOpen] = useState(false);
+	const [institutionId, setInstitutionId] = useState<string | undefined>(initialInstitution);
+	const [newInstitutionName, setNewInstitutionName] = useDebouncedInput("", () => undefined);
 	const [name, setName] = useDebouncedInput("", () => undefined);
 	const [type, setType] = useState<FinancialAccount["type"]>("CHECKING");
 	const [balance, setBalance] = useState("0");
@@ -49,6 +61,8 @@ export function CreateFinancialAccountDialog({
 	const [workingDueDate, setWorkingDueDate] = useState(false);
 
 	const reset = () => {
+		setInstitutionId(initialInstitution());
+		setNewInstitutionName("");
 		setName("");
 		setType("CHECKING");
 		setBalance("0");
@@ -58,9 +72,17 @@ export function CreateFinancialAccountDialog({
 		setDueDay("17");
 		setWorkingDueDate(false);
 	};
+	const handleOpenChange = (nextOpen: boolean) => {
+		setOpen(nextOpen);
+		if (!nextOpen) reset();
+	};
 	const handleSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		try {
+			const institutionName =
+				institutionId === NEW_INSTITUTION
+					? newInstitutionName.trim()
+					: institutions.find(institution => institution.id === institutionId)?.name;
 			await onCreate({
 				balance: type === "CREDIT_CARD" ? undefined : Number(balance || 0),
 				creditCard:
@@ -73,21 +95,25 @@ export function CreateFinancialAccountDialog({
 								workingDueDate,
 							}
 						: undefined,
+				institutionName: institutionName || undefined,
 				name: name.trim(),
 				type,
 			});
 		} catch {
 			return;
 		}
-		setOpen(false);
-		reset();
+		handleOpenChange(false);
 	};
 
 	return (
-		<Dialog onOpenChange={setOpen} open={open}>
+		<Dialog onOpenChange={handleOpenChange} open={open}>
 			<DialogTrigger asChild>
-				<Button className="h-11">
-					<LuPlus /> Nova conta
+				<Button
+					className={contextual ? "cursor-pointer" : "h-11 cursor-pointer"}
+					size={contextual ? "sm" : "default"}
+					variant={contextual ? "outline" : "default"}
+				>
+					<LuPlus /> {contextual ? "Adicionar conta" : "Nova conta"}
 				</Button>
 			</DialogTrigger>
 			<DialogContent className="scrollbar-themed max-h-[92dvh] overflow-y-auto sm:max-w-lg">
@@ -96,13 +122,42 @@ export function CreateFinancialAccountDialog({
 					<DialogDescription>Inclua conta bancária, dinheiro, investimento ou cartão.</DialogDescription>
 				</DialogHeader>
 				<form className="grid gap-5" onSubmit={handleSubmit}>
+					<CustomSelect
+						label="Instituição"
+						onValueChange={setInstitutionId}
+						options={[
+							...institutions.map(institution => ({
+								label: institution.name,
+								value: institution.id,
+							})),
+							{ label: "Nova instituição", value: NEW_INSTITUTION },
+							{ label: "Sem instituição", value: NO_INSTITUTION },
+						]}
+						placeholder="Selecione uma instituição"
+						required
+						value={institutionId}
+					/>
+					{institutionId === NEW_INSTITUTION && (
+						<FormField
+							autoComplete="organization"
+							description="Banco, fintech ou corretora que reúne esta conta."
+							id="institution-name"
+							label="Nome da instituição"
+							name="institution-name"
+							onChange={event => setNewInstitutionName(event.currentTarget.value)}
+							placeholder="Ex: Mercado Pago"
+							required
+							type="text"
+							value={newInstitutionName}
+						/>
+					)}
 					<FormField
 						autoComplete="off"
 						id="account-name"
-						label="Nome"
+						label="Nome da conta"
 						name="account-name"
 						onChange={event => setName(event.currentTarget.value)}
-						placeholder="Ex: Conta principal"
+						placeholder="Ex: Principal ou Cartão Gold"
 						required
 						type="text"
 						value={name}
@@ -180,11 +235,23 @@ export function CreateFinancialAccountDialog({
 						</div>
 					)}
 					<DialogFooter>
-						<Button onClick={() => setOpen(false)} type="button" variant="outline">
+						<Button
+							className="cursor-pointer"
+							onClick={() => handleOpenChange(false)}
+							type="button"
+							variant="outline"
+						>
 							Descartar
 						</Button>
 						<Button
-							disabled={pending || !name.trim() || (type === "CREDIT_CARD" && !creditLimit)}
+							className="cursor-pointer disabled:cursor-not-allowed"
+							disabled={
+								pending ||
+								!institutionId ||
+								!name.trim() ||
+								(institutionId === NEW_INSTITUTION && !newInstitutionName.trim()) ||
+								(type === "CREDIT_CARD" && !creditLimit)
+							}
 							type="submit"
 						>
 							{pending ? "Salvando…" : "Salvar"}

@@ -1,4 +1,5 @@
 import Elysia, { t } from "elysia";
+import { resolveFinancialInstitution } from "~/modules/accounts/application/resolve-financial-institution";
 import { assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, nullableNumeric, queryFirst, queryRows } from "~/shared/infra/sql";
@@ -24,6 +25,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					"name",
 					"type",
 					"balance",
+					"institutionId",
 					"createdAt",
 					"updatedAt",
 				)
@@ -31,7 +33,16 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					.orderBy("name", { direction: "asc" })
 					.build(),
 			);
-			return accounts;
+			const institutions = await queryRows(
+				db.sql.public.FinancialInstitution.select("id", "name")
+					.where((fields, functions) => functions.eq(fields.userId, userId))
+					.build(),
+			);
+			const institutionsById = new Map(institutions.map(institution => [institution.id, institution]));
+			return accounts.map(account => ({
+				...account,
+				institution: account.institutionId ? (institutionsById.get(account.institutionId) ?? null) : null,
+			}));
 		},
 		{
 			detail: { tags: ["Accounts"] },
@@ -48,6 +59,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					"name",
 					"type",
 					"balance",
+					"institutionId",
 					"createdAt",
 					"updatedAt",
 				)
@@ -61,6 +73,20 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 			if (!account) {
 				throw new HttpException("FinancialAccount not found", 404);
 			}
+
+			const institution = account.institutionId
+				? await queryFirst(
+						db.sql.public.FinancialInstitution.select("id", "name")
+							.where((fields, functions) =>
+								functions.and(
+									functions.eq(fields.id, account.institutionId!),
+									functions.eq(fields.userId, userId),
+								),
+							)
+							.limit(1)
+							.build(),
+					)
+				: null;
 
 			// If it's a credit card, get the credit card details
 			if (account.type === "CREDIT_CARD") {
@@ -81,10 +107,10 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						.build(),
 				);
 
-				return { ...account, creditCard };
+				return { ...account, creditCard, institution };
 			}
 
-			return account;
+			return { ...account, institution };
 		},
 		{
 			detail: { tags: ["Accounts"] },
@@ -102,6 +128,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				throw new HttpException("Informe os dados do cartão de crédito", 400);
 			if (type !== "CREDIT_CARD" && body.creditCard)
 				throw new HttpException("Dados de cartão exigem uma conta do tipo cartão de crédito", 400);
+			const institution = await resolveFinancialInstitution(userId, body.institutionName);
 			const existing = await queryFirst(
 				db.sql.public.FinancialAccount.select("id")
 					.where((fields, functions) =>
@@ -109,6 +136,9 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 							functions.eq(fields.userId, userId),
 							functions.eq(fields.name, body.name),
 							functions.eq(fields.type, type),
+							institution
+								? functions.eq(fields.institutionId, institution.id)
+								: functions.raw`${fields.institutionId} IS NULL`.returns("pg/bool@1"),
 						),
 					)
 					.limit(1)
@@ -123,12 +153,13 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				db.sql.public.FinancialAccount.insert([
 					{
 						balance: nullableNumeric<12, 2>(type === "CREDIT_CARD" ? null : (body.balance ?? 0)),
+						institutionId: institution?.id,
 						name: body.name,
 						type,
 						userId,
 					},
 				])
-					.returning("id", "userId", "name", "type", "balance", "createdAt", "updatedAt")
+					.returning("id", "userId", "name", "type", "balance", "institutionId", "createdAt", "updatedAt")
 					.build(),
 			);
 			if (!account) throw new HttpException("FinancialAccount not created", 500);
@@ -163,10 +194,10 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				);
 				if (!creditCard) throw new HttpException("CreditCard not created", 500);
 
-				return { ...account, creditCard };
+				return { ...account, creditCard, institution };
 			}
 
-			return account;
+			return { ...account, institution };
 		},
 		{
 			body: t.Object({
@@ -180,6 +211,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						workingDueDate: t.Optional(t.Boolean()),
 					}),
 				),
+				institutionName: t.Optional(t.String({ maxLength: 100 })),
 				name: t.String({ maxLength: 70, minLength: 1 }),
 				type: t.Optional(FinancialAccountType),
 			}),
@@ -192,7 +224,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("FinancialAccount", params.id, userId);
 			const existing = await queryFirst(
-				db.sql.public.FinancialAccount.select("id", "type", "userId")
+				db.sql.public.FinancialAccount.select("id", "institutionId", "name", "type", "userId")
 					.where((fields, functions) => functions.eq(fields.id, params.id))
 					.limit(1)
 					.build(),
@@ -201,14 +233,33 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 			if (!existing) {
 				throw new HttpException("FinancialAccount not found", 404);
 			}
-			if (body.name) {
+			const institution =
+				body.institutionName === undefined
+					? existing.institutionId
+						? await queryFirst(
+								db.sql.public.FinancialInstitution.select("id", "name")
+									.where((fields, functions) =>
+										functions.and(
+											functions.eq(fields.id, existing.institutionId!),
+											functions.eq(fields.userId, userId),
+										),
+									)
+									.limit(1)
+									.build(),
+							)
+						: null
+					: await resolveFinancialInstitution(userId, body.institutionName);
+			if (body.name || body.institutionName !== undefined) {
 				const duplicate = await queryFirst(
 					db.sql.public.FinancialAccount.select("id")
 						.where((fields, functions) =>
 							functions.and(
 								functions.eq(fields.userId, existing.userId),
-								functions.eq(fields.name, body.name!),
+								functions.eq(fields.name, body.name ?? existing.name),
 								functions.eq(fields.type, existing.type),
+								institution
+									? functions.eq(fields.institutionId, institution.id)
+									: functions.raw`${fields.institutionId} IS NULL`.returns("pg/bool@1"),
 								functions.raw`${fields.id} <> ${params.id}`.returns("pg/bool@1"),
 							),
 						)
@@ -220,6 +271,9 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 
 			const account = await queryFirst(
 				db.sql.public.FinancialAccount.update({
+					...(body.institutionName !== undefined && {
+						institutionId: (institution?.id ?? null) as never,
+					}),
 					...(body.name && { name: body.name }),
 					...(body.balance !== undefined &&
 						existing.type !== "CREDIT_CARD" && {
@@ -228,7 +282,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					updatedAt: new Date(),
 				})
 					.where((fields, functions) => functions.eq(fields.id, params.id))
-					.returning("id", "userId", "name", "type", "balance", "createdAt", "updatedAt")
+					.returning("id", "userId", "name", "type", "balance", "institutionId", "createdAt", "updatedAt")
 					.build(),
 			);
 			if (!account) throw new HttpException("FinancialAccount not found", 404);
@@ -270,10 +324,10 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				);
 				if (!creditCard) throw new HttpException("CreditCard not found", 404);
 
-				return { ...account, creditCard };
+				return { ...account, creditCard, institution };
 			}
 
-			return account;
+			return { ...account, institution };
 		},
 		{
 			body: t.Object({
@@ -287,6 +341,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						workingDueDate: t.Optional(t.Boolean()),
 					}),
 				),
+				institutionName: t.Optional(t.String({ maxLength: 100 })),
 				name: t.Optional(t.String({ maxLength: 70, minLength: 1 })),
 			}),
 			detail: { tags: ["Accounts"] },

@@ -55,9 +55,16 @@ export interface FinancialAccount {
 	name: string;
 	type: "CHECKING" | "SAVINGS" | "INVESTMENT" | "CASH" | "CREDIT_CARD";
 	balance: number | null;
+	institutionId?: string | null;
+	institution?: FinancialInstitution | null;
 	createdAt: string;
 	updatedAt: string;
 	creditCard?: CreditCard;
+}
+
+export interface FinancialInstitution {
+	id: string;
+	name: string;
 }
 
 export interface CreditCard {
@@ -304,6 +311,7 @@ export const api = {
 	}) => fetchApi<Debt>("/debts", { body: data, method: "POST" }),
 
 	createFinancialAccount: (data: {
+		institutionName?: string;
 		name: string;
 		type?: FinancialAccount["type"];
 		balance?: number;
@@ -497,7 +505,7 @@ export const api = {
 
 	updateDebt: (id: string, data: Partial<Debt>) =>
 		fetchApi<Debt>(`/debts/${id}`, { body: data, method: "PATCH" }),
-	updateFinancialAccount: (id: string, data: Partial<FinancialAccount>) =>
+	updateFinancialAccount: (id: string, data: Partial<FinancialAccount> & { institutionName?: string }) =>
 		fetchApi<FinancialAccount>(`/financial-accounts/${id}`, { body: data, method: "PATCH" }),
 
 	updateSubscription: (id: string, data: Partial<Subscription>) =>
