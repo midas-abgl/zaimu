@@ -10,7 +10,11 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import type { CreditCard } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { showToast, useAuthStore } from "@/stores";
-import { CreatePurchaseDialog, CreditCardOverviewCard } from "./credit-cards/components";
+import {
+	CreatePurchaseDialog,
+	CreditCardOverviewCard,
+	CreditCardStatementsDialog,
+} from "./credit-cards/components";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
@@ -18,6 +22,7 @@ function CreditCardsPage() {
 	const queryClient = useQueryClient();
 	const hasAccess = useAuthStore(state => state.isAuthenticated || state.isGuestMode);
 	const [selectedCard, setSelectedCard] = useState<CreditCard | null>(null);
+	const [statementsCard, setStatementsCard] = useState<CreditCard | null>(null);
 	const cards = useQuery({
 		enabled: hasAccess,
 		queryFn: () => dataService.creditCards.getAll(),
@@ -82,7 +87,12 @@ function CreditCardsPage() {
 			) : cards.data?.length ? (
 				<section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
 					{cards.data.map(card => (
-						<CreditCardOverviewCard card={card} key={card.id} onAddPurchase={() => setSelectedCard(card)} />
+						<CreditCardOverviewCard
+							card={card}
+							key={card.id}
+							onAddPurchase={() => setSelectedCard(card)}
+							onViewStatements={() => setStatementsCard(card)}
+						/>
 					))}
 				</section>
 			) : (
@@ -112,6 +122,10 @@ function CreditCardsPage() {
 				}}
 				open={Boolean(selectedCard)}
 				pending={purchase.isPending}
+			/>
+			<CreditCardStatementsDialog
+				card={statementsCard}
+				onOpenChange={open => !open && setStatementsCard(null)}
 			/>
 		</PageContainer>
 	);

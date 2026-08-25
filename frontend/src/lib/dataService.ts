@@ -10,6 +10,7 @@ import type {
 	Category,
 	CreditCard,
 	CreditCardStatement,
+	CreditCardStatementDetail,
 	CreditPurchase,
 	Dashboard,
 	Debt,
@@ -316,6 +317,31 @@ export const dataService = {
 				cards.map(card => ({ data: card, localId: card.id, syncedAt: Date.now() })),
 			);
 			return cards;
+		},
+		async getStatement(cardId: string, statementId: string): Promise<CreditCardStatementDetail> {
+			if (isGuestMode()) {
+				const statement = (await localCreditCardStatements.getById(statementId))?.data;
+				if (!statement || statement.creditCardId !== cardId) throw new Error("Fatura não encontrada");
+				const [storedPurchases, storedCategories] = await Promise.all([
+					localCreditPurchases.getAll(),
+					localCategories.getAll(),
+				]);
+				const categories = new Map(storedCategories.map(item => [item.data.id, item.data]));
+				const purchases = storedPurchases
+					.map(item => item.data)
+					.filter(purchase => purchase.statementId === statementId)
+					.map(purchase => {
+						const category = purchase.categoryId ? categories.get(purchase.categoryId) : undefined;
+						return {
+							...purchase,
+							categoryColor: category?.color,
+							categoryName: category?.name,
+						};
+					})
+					.sort((left, right) => right.purchaseDate.localeCompare(left.purchaseDate));
+				return { ...statement, purchases };
+			}
+			return fetchWithAuth<CreditCardStatementDetail>(`/credit-cards/${cardId}/statements/${statementId}`);
 		},
 		async getStatements(cardId: string, isPaid?: boolean): Promise<CreditCardStatement[]> {
 			if (isGuestMode()) {

@@ -1,23 +1,26 @@
 import { useQuery } from "@tanstack/react-query";
-import { LuCalendarClock, LuPlus, LuWalletCards } from "react-icons/lu";
+import { LuCalendarClock, LuPlus, LuReceiptText, LuWalletCards } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { Progress } from "@/components/ui/Progress";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { CreditCard } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
+import { formatLocalDate } from "@/lib/date";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 export function CreditCardOverviewCard({
 	card,
 	onAddPurchase,
+	onViewStatements,
 }: {
 	card: CreditCard;
 	onAddPurchase: () => void;
+	onViewStatements: () => void;
 }) {
 	const statements = useQuery({
 		queryFn: () => dataService.creditCards.getStatements(card.id, false),
-		queryKey: ["credit-card-statements", card.id],
+		queryKey: ["credit-card-statements", card.id, { isPaid: false }],
 	});
 	if (statements.isPending) return <Skeleton className="h-72" />;
 	const statement = statements.data?.[0];
@@ -69,12 +72,17 @@ export function CreditCardOverviewCard({
 				)}
 				{statement && (
 					<p className="flex items-center gap-2 text-muted-foreground text-sm">
-						<LuCalendarClock /> Vence em {new Date(statement.dueDate).toLocaleDateString("pt-BR")}
+						<LuCalendarClock /> Vence em {formatLocalDate(statement.dueDate)}
 					</p>
 				)}
-				<Button className="w-full" onClick={onAddPurchase}>
-					<LuPlus /> Registrar compra
-				</Button>
+				<div className="grid grid-cols-2 gap-3">
+					<Button className="w-full cursor-pointer" onClick={onViewStatements} variant="outline">
+						<LuReceiptText /> Ver faturas
+					</Button>
+					<Button className="w-full cursor-pointer" onClick={onAddPurchase}>
+						<LuPlus /> Registrar compra
+					</Button>
+				</div>
 			</div>
 		</article>
 	);
