@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { HiArrowDown, HiArrowsRightLeft, HiArrowUp, HiPlus } from "react-icons/hi2";
-import { CreateTransactionDialog } from "@/components/transactions";
+import { CreateTransactionDialog, TransactionListItem } from "@/components/transactions";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
@@ -17,10 +17,6 @@ const typeOptions = [
 	{ icon: HiArrowDown, id: "INCOME", label: "Receitas" },
 	{ icon: HiArrowsRightLeft, id: "TRANSFER", label: "Transferências" },
 ] as const;
-
-function formatCurrency(value: number) {
-	return new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(value);
-}
 
 function TransactionsPage() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
@@ -106,41 +102,7 @@ function TransactionsPage() {
 							</h2>
 							<div className="divide-y rounded-2xl border bg-card shadow-sm">
 								{transactions.map(transaction => (
-									<div className="flex items-center gap-3 p-4" key={transaction.id}>
-										<div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-muted">
-											{transaction.type === "INCOME" ? (
-												<HiArrowDown className="text-emerald-600" />
-											) : transaction.type === "EXPENSE" ? (
-												<HiArrowUp className="text-rose-600" />
-											) : (
-												<HiArrowsRightLeft className="text-primary" />
-											)}
-										</div>
-										<div className="min-w-0 flex-1">
-											<p className="truncate font-semibold">
-												{transaction.description || transaction.tags?.[0]?.name || "Movimentação"}
-											</p>
-											{transaction.tags?.length && transaction.description ? (
-												<p className="truncate text-muted-foreground text-xs">
-													{transaction.tags.map(tag => tag.name).join(" · ")}
-												</p>
-											) : transaction.categoryName && transaction.description ? (
-												<p className="truncate text-muted-foreground text-xs">{transaction.categoryName}</p>
-											) : null}
-											{transaction.sourceName ? (
-												<p className="truncate text-muted-foreground text-xs">
-													{transaction.source === "CREDIT_CARD" ? "Cartão" : "Conta"}:{" "}
-													{transaction.sourceName}
-												</p>
-											) : null}
-										</div>
-										<p
-											className={`shrink-0 whitespace-nowrap font-bold ${transaction.type === "INCOME" ? "text-emerald-600" : transaction.type === "EXPENSE" ? "text-rose-600" : "text-primary"}`}
-										>
-											{transaction.type === "INCOME" ? "+" : transaction.type === "EXPENSE" ? "−" : ""}
-											{formatCurrency(Number(transaction.amount))}
-										</p>
-									</div>
+									<TransactionListItem key={transaction.id} transaction={transaction} />
 								))}
 							</div>
 						</section>

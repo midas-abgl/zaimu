@@ -9,6 +9,7 @@ import {
 	LuReceiptText,
 	LuTrendingUp,
 } from "react-icons/lu";
+import { TransactionListItem } from "@/components/transactions";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -27,8 +28,12 @@ function DashboardPage() {
 		queryFn: () => dataService.dashboard.get(),
 		queryKey: ["dashboard", user?.id ?? "guest"],
 	});
+	const recentTransactionsQuery = useQuery({
+		queryFn: () => dataService.transactions.getAll({ limit: 5 }),
+		queryKey: ["transactions", "dashboard-recent", user?.id ?? "guest"],
+	});
 
-	if (dashboardQuery.isPending) {
+	if (dashboardQuery.isPending || recentTransactionsQuery.isPending) {
 		return (
 			<PageContainer className="space-y-6">
 				<Skeleton className="h-24 rounded-2xl" />
@@ -56,6 +61,7 @@ function DashboardPage() {
 
 	const dashboard = dashboardQuery.data;
 	const summary = dashboard.summary;
+	const recentTransactions = recentTransactionsQuery.data ?? [];
 
 	return (
 		<PageContainer className="space-y-6">
@@ -114,7 +120,9 @@ function DashboardPage() {
 					<CardHeader className="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center">
 						<div>
 							<CardTitle>Movimentações recentes</CardTitle>
-							<p className="mt-1 text-muted-foreground text-sm">Últimas entradas e saídas registradas.</p>
+							<p className="mt-1 text-muted-foreground text-sm">
+								Últimas entradas, saídas e compras no cartão.
+							</p>
 						</div>
 						<Button asChild className="w-full cursor-pointer sm:w-auto" size="sm" variant="outline">
 							<Link to="/transactions">
@@ -124,7 +132,13 @@ function DashboardPage() {
 						</Button>
 					</CardHeader>
 					<CardContent>
-						{dashboard.recentTransactions.length === 0 ? (
+						{recentTransactionsQuery.isError ? (
+							<EmptyState
+								description="Não foi possível carregar suas movimentações."
+								icon={<LuReceiptText />}
+								title="Movimentações indisponíveis"
+							/>
+						) : recentTransactions.length === 0 ? (
 							<EmptyState
 								description="Suas transações aparecerão aqui."
 								icon={<LuReceiptText />}
@@ -132,29 +146,8 @@ function DashboardPage() {
 							/>
 						) : (
 							<div className="divide-y">
-								{dashboard.recentTransactions.slice(0, 5).map(transaction => (
-									<div className="flex items-center gap-3 py-3" key={transaction.id}>
-										<div className="flex size-10 items-center justify-center rounded-xl bg-muted">
-											{transaction.type === "INCOME" ? (
-												<LuArrowDownLeft className="text-emerald-600" />
-											) : (
-												<LuArrowUpRight className="text-rose-600" />
-											)}
-										</div>
-										<div className="min-w-0 flex-1">
-											<p className="truncate font-semibold text-sm">
-												{transaction.description || transaction.categoryName || "Movimentação"}
-											</p>
-											<p className="text-muted-foreground text-xs">
-												{new Date(transaction.date).toLocaleDateString("pt-BR")}
-											</p>
-										</div>
-										<p
-											className={`shrink-0 whitespace-nowrap font-bold text-sm ${transaction.type === "INCOME" ? "text-emerald-600" : "text-rose-600"}`}
-										>
-											{currency.format(Number(transaction.amount))}
-										</p>
-									</div>
+								{recentTransactions.map(transaction => (
+									<TransactionListItem key={transaction.id} transaction={transaction} />
 								))}
 							</div>
 						)}
