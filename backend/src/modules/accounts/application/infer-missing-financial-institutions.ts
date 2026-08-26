@@ -12,7 +12,7 @@ export async function inferMissingFinancialInstitutions(userId: string) {
 			.where((fields, functions) =>
 				functions.and(
 					functions.eq(fields.userId, userId),
-					functions.neq(fields.type, "CASH"),
+					functions.ne(fields.type, "CASH"),
 					functions.raw`${fields.institutionId} IS NULL`.returns("pg/bool@1"),
 				),
 			)
