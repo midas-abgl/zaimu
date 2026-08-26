@@ -51,9 +51,37 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					.where((fields, functions) => functions.eq(fields.userId, userId))
 					.build(),
 			);
+			const creditCards = accounts.length
+				? await queryRows(
+						db.sql.public.CreditCard.select(
+							"id",
+							"financialAccountId",
+							"creditLimit",
+							"securityDeposit",
+							"statementDay",
+							"dueDay",
+							"workingDueDate",
+							"createdAt",
+							"updatedAt",
+						)
+							.where((fields, functions) =>
+								functions.in(
+									fields.financialAccountId,
+									accounts.map(account => account.id),
+								),
+							)
+							.build(),
+					)
+				: [];
 			const institutionsById = new Map(institutions.map(institution => [institution.id, institution]));
+			const creditCardsByAccountId = new Map(
+				creditCards.map(creditCard => [creditCard.financialAccountId, creditCard]),
+			);
 			return accounts.map(account => ({
 				...account,
+				...(account.type === "CREDIT_CARD" && {
+					creditCard: creditCardsByAccountId.get(account.id) ?? null,
+				}),
 				institution: account.institutionId ? (institutionsById.get(account.institutionId) ?? null) : null,
 			}));
 		},

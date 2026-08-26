@@ -112,6 +112,26 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(creditCardAccount.creditCard.securityDeposit).toBe(500);
 		expect(creditCardAccount.institution.id).toBe(account.institution.id);
 
+		const accountsResponse = await jsonRequest("/financial-accounts/", "GET", undefined, owner.cookie);
+		expect(accountsResponse.status).toBe(200);
+		const accounts = (await accountsResponse.json()) as Array<{
+			id: string;
+			creditCard?: {
+				creditLimit: number;
+				dueDay: number;
+				securityDeposit: number | null;
+				statementDay: number;
+				workingDueDate: boolean;
+			} | null;
+		}>;
+		expect(accounts.find(item => item.id === creditCardAccount.id)?.creditCard).toMatchObject({
+			creditLimit: 1500,
+			dueDay: 17,
+			securityDeposit: 500,
+			statementDay: 10,
+			workingDueDate: false,
+		});
+
 		const duplicateAccount = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
