@@ -40,8 +40,8 @@ function LoanCard({
 	return (
 		<div className="card space-y-4 p-4">
 			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-3">
+			<div className="flex items-center justify-between gap-3">
+				<div className="flex min-w-0 flex-1 items-center gap-3">
 					<div
 						className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
 							isPaid ? "bg-success-100 text-success-600" : "bg-accent-100 text-accent-600"
@@ -85,14 +85,14 @@ function LoanCard({
 			</div>
 
 			{/* Details */}
-			<div className="flex justify-between border-primary-50 border-t pt-2">
-				<div>
+			<div className="grid grid-cols-2 gap-3 border-primary-50 border-t pt-2">
+				<div className="min-w-0">
 					<p className="mb-1 text-foreground-muted text-xs">Parcela</p>
-					<p className="font-bold text-foreground">{formatCurrency(loan.installmentAmount)}</p>
+					<p className="truncate font-bold text-foreground">{formatCurrency(loan.installmentAmount)}</p>
 				</div>
-				<div className="text-right">
+				<div className="min-w-0 text-right">
 					<p className="mb-1 text-foreground-muted text-xs">{isPaid ? "Total pago" : "Restante"}</p>
-					<p className={`font-bold ${isPaid ? "text-success-600" : "text-danger-600"}`}>
+					<p className={`truncate font-bold ${isPaid ? "text-success-600" : "text-danger-600"}`}>
 						{formatCurrency(
 							isPaid
 								? loan.totalPaid || loan.totalInstallments * loan.installmentAmount
@@ -223,10 +223,10 @@ function EmpréstimosPage() {
 				<div className="absolute bottom-0 left-0 h-32 w-32 -translate-x-1/4 translate-y-1/2 rounded-full bg-primary-500/10" />
 
 				<div className="relative z-10">
-					<div className="mb-6 flex items-center justify-between">
+					<div className="mb-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
 						<h1 className="font-bold text-2xl text-white">Empréstimos</h1>
 						<button
-							className="flex items-center gap-2 rounded-xl bg-accent-300 px-4 py-2 font-semibold text-primary-900 transition-all hover:bg-accent-200 active:scale-95"
+							className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent-300 px-4 py-2 font-semibold text-primary-900 transition-all hover:bg-accent-200 active:scale-95 sm:w-auto"
 							onClick={() => setIsCreateModalOpen(true)}
 						>
 							<HiPlus className="h-5 w-5" />
@@ -235,16 +235,16 @@ function EmpréstimosPage() {
 					</div>
 
 					{activeEmpréstimos.length > 0 && (
-						<div className="flex justify-between">
-							<div>
+						<div className="grid grid-cols-2 gap-3">
+							<div className="min-w-0">
 								<p className="mb-1 text-sm text-white/70">Total restante</p>
-								<p className="font-bold text-3xl text-white tracking-tight">
+								<p className="truncate font-bold text-3xl text-white tracking-tight">
 									{formatCurrency(totalRemaining)}
 								</p>
 							</div>
-							<div className="text-right">
+							<div className="min-w-0 text-right">
 								<p className="mb-1 text-sm text-white/70">Mensal</p>
-								<p className="font-bold text-2xl text-white">{formatCurrency(monthlyPayment)}</p>
+								<p className="truncate font-bold text-2xl text-white">{formatCurrency(monthlyPayment)}</p>
 							</div>
 						</div>
 					)}
@@ -413,7 +413,7 @@ function EmpréstimosPage() {
 
 							<div>
 								<span className="mb-2 block font-medium text-foreground-muted text-sm">Amortização</span>
-								<div className="grid grid-cols-3 gap-2">
+								<div className="grid gap-2 min-[400px]:grid-cols-3">
 									{amortizationOptions.map(option => (
 										<button
 											className={`rounded-xl px-3 py-2.5 font-medium text-sm transition-all ${

@@ -61,7 +61,7 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 
 	return (
 		<TabsContent
-			className="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-5 pl-4 sm:pl-6"
+			className="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-5 pt-4 sm:pl-6 min-[480px]:pt-0 min-[480px]:pl-4"
 			value={statement.id}
 		>
 			<header className="flex flex-wrap items-start justify-between gap-3">

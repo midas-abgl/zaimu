@@ -75,12 +75,12 @@ export function CreateTransactionDialog({
 
 	return (
 		<Dialog onOpenChange={handleOpenChange} open={open}>
-			<DialogContent className="max-h-[92dvh] sm:max-w-lg">
+			<DialogContent className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Nova transação</DialogTitle>
 					<DialogDescription>Informe os dados da movimentação.</DialogDescription>
 				</DialogHeader>
-				<div className="scrollbar-themed grid gap-4 overflow-y-auto pr-1">
+				<div className="scrollbar-themed grid min-h-0 gap-4 overflow-y-auto pr-1">
 					<CustomSelect
 						label="Tipo"
 						onValueChange={value => setDraft(current => ({ ...current, type: value as Transaction["type"] }))}

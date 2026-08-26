@@ -53,9 +53,9 @@ function SubscriptionCard({
 
 	return (
 		<div className={`card p-4 transition-opacity ${paused ? "opacity-60" : ""}`}>
-			<div className="flex items-center gap-4">
+			<div className="flex items-start gap-4">
 				<div
-					className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
+					className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
 						paused ? "bg-primary-100 text-primary-400" : "bg-primary-100 text-primary-600"
 					}`}
 				>
@@ -70,14 +70,14 @@ function SubscriptionCard({
 						</span>
 					</div>
 				</div>
-				<div className="flex items-center gap-3 text-right">
-					<div>
+				<div className="flex shrink-0 items-center gap-2 text-right">
+					<div className="w-24 min-w-0">
 						<p className={`font-bold ${paused ? "text-foreground-muted" : "text-primary-600"}`}>
 							{formatCurrency(subscription.amount)}
 						</p>
-						<div className="flex items-center justify-end gap-1 text-foreground-muted">
+						<div className="flex min-w-0 items-center justify-end gap-1 text-foreground-muted">
 							{subscription.paymentMethod === "CREDIT" && <HiCreditCard className="h-3 w-3" />}
-							<span className="text-xs">{methodLabel}</span>
+							<span className="truncate text-xs">{methodLabel}</span>
 						</div>
 					</div>
 					<button
@@ -198,10 +198,10 @@ function AssinaturasPage() {
 				<div className="absolute bottom-0 left-0 h-32 w-32 -translate-x-1/4 translate-y-1/2 rounded-full bg-primary-500/10" />
 
 				<div className="relative z-10">
-					<div className="mb-6 flex items-center justify-between">
+					<div className="mb-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
 						<h1 className="font-bold text-2xl text-white">Assinaturas</h1>
 						<button
-							className="flex items-center gap-2 rounded-xl bg-accent-300 px-4 py-2 font-semibold text-primary-900 transition-all hover:bg-accent-200 active:scale-95"
+							className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent-300 px-4 py-2 font-semibold text-primary-900 transition-all hover:bg-accent-200 active:scale-95 sm:w-auto"
 							onClick={() => setIsCreateModalOpen(true)}
 						>
 							<HiPlus className="h-5 w-5" />
@@ -347,7 +347,7 @@ function AssinaturasPage() {
 						{/* Frequency */}
 						<div className="mb-4">
 							<span className="mb-2 block font-medium text-foreground-muted text-sm">Frequência</span>
-							<div className="grid grid-cols-3 gap-2">
+							<div className="grid gap-2 min-[400px]:grid-cols-3">
 								{frequencyOptions.map(option => (
 									<button
 										className={`rounded-xl px-4 py-2.5 font-medium text-sm transition-all ${

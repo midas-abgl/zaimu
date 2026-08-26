@@ -15,14 +15,17 @@ export function CreditCardStatementTabs({
 	statements: CreditCardStatement[];
 }) {
 	return (
-		<ScrollArea className="h-[65dvh] border-r px-1 pr-3">
-			<TabsList aria-label="Faturas" className="grid w-full gap-2 bg-transparent py-1 pr-1 pl-0">
+		<ScrollArea className="h-full border-b px-1 pb-3 min-[480px]:border-r min-[480px]:border-b-0 min-[480px]:pr-3 min-[480px]:pb-0">
+			<TabsList
+				aria-label="Faturas"
+				className="flex w-max min-w-full gap-2 bg-transparent py-1 pr-1 pl-0 min-[480px]:grid min-[480px]:w-full"
+			>
 				{statements.map(statement => {
 					const selected = statement.id === selectedId;
 					return (
 						<TabsTrigger
 							className={cn(
-								"h-auto w-full cursor-pointer items-start justify-start whitespace-normal rounded-xl border-border p-3 text-left",
+								"h-auto w-36 shrink-0 cursor-pointer items-start justify-start whitespace-normal rounded-xl border-border p-3 text-left min-[480px]:w-full",
 								selected && "border-primary bg-primary/10 ring-1 ring-primary/30",
 							)}
 							key={statement.id}

@@ -58,10 +58,10 @@ function TransactionsPage() {
 				title="Transações"
 			/>
 
-			<div className="grid grid-cols-2 gap-2 rounded-2xl border bg-card p-2 sm:grid-cols-4">
+			<div className="grid gap-2 rounded-2xl border bg-card p-2 sm:grid-cols-4 min-[440px]:grid-cols-2">
 				{typeOptions.map(option => (
 					<Button
-						className="cursor-pointer"
+						className="w-full cursor-pointer"
 						key={option.id}
 						onClick={() => setFilterType(option.id)}
 						variant={filterType === option.id ? "default" : "outline"}

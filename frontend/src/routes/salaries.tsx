@@ -24,9 +24,9 @@ function SalaryCard({ salary, inactive }: { salary: Salary; inactive?: boolean }
 
 	return (
 		<div className={`card p-4 transition-opacity ${inactive ? "opacity-60" : ""}`}>
-			<div className="flex items-center gap-4">
+			<div className="flex items-start gap-4">
 				<div
-					className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
+					className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
 						inactive ? "bg-primary-100 text-primary-400" : "bg-success-100 text-success-600"
 					}`}
 				>
@@ -41,11 +41,13 @@ function SalaryCard({ salary, inactive }: { salary: Salary; inactive?: boolean }
 						</span>
 					</div>
 				</div>
-				<div className="text-right">
+				<div className="w-28 shrink-0 text-right">
 					<p className={`font-bold ${inactive ? "text-foreground-muted" : "text-success-600"}`}>
 						{formatCurrency(salary.netAmount)}
 					</p>
-					<p className="text-foreground-muted text-xs">Gross: {formatCurrency(salary.grossAmount)}</p>
+					<p className="truncate text-foreground-muted text-xs">
+						Gross: {formatCurrency(salary.grossAmount)}
+					</p>
 				</div>
 			</div>
 		</div>
@@ -130,10 +132,10 @@ function SaláriosPage() {
 				<div className="absolute bottom-0 left-0 h-32 w-32 -translate-x-1/4 translate-y-1/2 rounded-full bg-white/5" />
 
 				<div className="relative z-10">
-					<div className="mb-6 flex items-center justify-between">
+					<div className="mb-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
 						<h1 className="font-bold text-2xl text-white">Salários</h1>
 						<button
-							className="flex items-center gap-2 rounded-xl bg-white/20 px-4 py-2 font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/30 active:scale-95"
+							className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/20 px-4 py-2 font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/30 active:scale-95 sm:w-auto"
 							onClick={() => setIsCreateModalOpen(true)}
 						>
 							<HiPlus className="h-5 w-5" />

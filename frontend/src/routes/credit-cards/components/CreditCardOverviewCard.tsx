@@ -54,7 +54,7 @@ export function CreditCardOverviewCard({
 					</div>
 					<Progress value={percent} />
 				</div>
-				<div className="grid grid-cols-2 gap-3">
+				<div className="grid gap-3 min-[420px]:grid-cols-2">
 					<div className="rounded-xl bg-muted p-3">
 						<p className="text-muted-foreground text-xs">Fatura prevista</p>
 						<p className="mt-1 font-bold">{currency.format(used)}</p>
@@ -75,7 +75,7 @@ export function CreditCardOverviewCard({
 						<LuCalendarClock /> Vence em {formatLocalDate(statement.dueDate)}
 					</p>
 				)}
-				<div className="grid grid-cols-2 gap-3">
+				<div className="grid gap-3 min-[420px]:grid-cols-2">
 					<Button className="w-full cursor-pointer" onClick={onViewStatements} variant="outline">
 						<LuReceiptText /> Ver faturas
 					</Button>

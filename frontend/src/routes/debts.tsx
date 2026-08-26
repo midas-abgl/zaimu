@@ -40,37 +40,39 @@ function DebtCard({
 }) {
 	return (
 		<div className="card p-4">
-			<div className="flex items-center gap-3">
-				<div
-					className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl ${
-						isPaid
-							? "bg-primary-100 text-primary-500"
-							: debt.isOwedToMe
-								? "bg-success-100 text-success-600"
-								: "bg-danger-100 text-danger-600"
-					}`}
-				>
-					{isPaid ? (
-						<HiCheckCircle className="h-6 w-6" />
-					) : debt.isOwedToMe ? (
-						<HiArrowDownLeft className="h-6 w-6" />
-					) : (
-						<HiArrowUpRight className="h-6 w-6" />
-					)}
+			<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+				<div className="flex min-w-0 flex-1 items-center gap-3">
+					<div
+						className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
+							isPaid
+								? "bg-primary-100 text-primary-500"
+								: debt.isOwedToMe
+									? "bg-success-100 text-success-600"
+									: "bg-danger-100 text-danger-600"
+						}`}
+					>
+						{isPaid ? (
+							<HiCheckCircle className="h-6 w-6" />
+						) : debt.isOwedToMe ? (
+							<HiArrowDownLeft className="h-6 w-6" />
+						) : (
+							<HiArrowUpRight className="h-6 w-6" />
+						)}
+					</div>
+					<div className="min-w-0 flex-1">
+						<p className="truncate font-semibold text-foreground">{debt.personName}</p>
+						{debt.description && <p className="truncate text-foreground-muted text-xs">{debt.description}</p>}
+						{debt.dueDate && !isPaid && (
+							<div className="mt-1 flex items-center gap-1">
+								<HiClock className="h-3 w-3 text-foreground-muted" />
+								<span className="text-foreground-muted text-xs">
+									Due {new Date(debt.dueDate).toLocaleDateString("pt-BR")}
+								</span>
+							</div>
+						)}
+					</div>
 				</div>
-				<div className="min-w-0 flex-1">
-					<p className="truncate font-semibold text-foreground">{debt.personName}</p>
-					{debt.description && <p className="truncate text-foreground-muted text-xs">{debt.description}</p>}
-					{debt.dueDate && !isPaid && (
-						<div className="mt-1 flex items-center gap-1">
-							<HiClock className="h-3 w-3 text-foreground-muted" />
-							<span className="text-foreground-muted text-xs">
-								Due {new Date(debt.dueDate).toLocaleDateString("pt-BR")}
-							</span>
-						</div>
-					)}
-				</div>
-				<div className="flex flex-col items-end gap-2 text-right">
+				<div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end sm:gap-2">
 					<p
 						className={`font-bold ${
 							isPaid ? "text-foreground-muted" : debt.isOwedToMe ? "text-success-600" : "text-danger-600"
@@ -225,10 +227,10 @@ function DívidasPage() {
 				<div className="absolute bottom-0 left-0 h-32 w-32 -translate-x-1/4 translate-y-1/2 rounded-full bg-white/5" />
 
 				<div className="relative z-10">
-					<div className="mb-6 flex items-center justify-between">
+					<div className="mb-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
 						<h1 className="font-bold text-2xl text-white">Dívidas</h1>
 						<button
-							className="flex items-center gap-2 rounded-xl bg-white/20 px-4 py-2 font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/30 active:scale-95"
+							className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/20 px-4 py-2 font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/30 active:scale-95 sm:w-auto"
 							onClick={() => setIsCreateModalOpen(true)}
 						>
 							<HiPlus className="h-5 w-5" />
@@ -236,14 +238,14 @@ function DívidasPage() {
 						</button>
 					</div>
 
-					<div className="mb-4 flex justify-between">
-						<div>
+					<div className="mb-4 grid grid-cols-2 gap-3">
+						<div className="min-w-0">
 							<p className="mb-1 text-sm text-white/70">A receber</p>
-							<p className="font-bold text-2xl text-white">{formatCurrency(totals.owedToMe)}</p>
+							<p className="truncate font-bold text-2xl text-white">{formatCurrency(totals.owedToMe)}</p>
 						</div>
-						<div className="text-right">
+						<div className="min-w-0 text-right">
 							<p className="mb-1 text-sm text-white/70">A pagar</p>
-							<p className="font-bold text-2xl text-white">{formatCurrency(totals.iOwe)}</p>
+							<p className="truncate font-bold text-2xl text-white">{formatCurrency(totals.iOwe)}</p>
 						</div>
 					</div>
 

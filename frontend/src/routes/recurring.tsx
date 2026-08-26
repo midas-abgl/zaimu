@@ -35,9 +35,9 @@ function RecurringCard({
 
 	return (
 		<div className="card p-4">
-			<div className="flex items-center gap-4">
+			<div className="flex items-start gap-4">
 				<div
-					className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
+					className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
 						isDespesa ? "bg-danger-100 text-danger-600" : "bg-success-100 text-success-600"
 					}`}
 				>
@@ -52,16 +52,18 @@ function RecurringCard({
 						</span>
 					</div>
 				</div>
-				<div className="flex items-center gap-3 text-right">
-					<div>
+				<div className="flex shrink-0 items-center gap-2 text-right">
+					<div className="w-24 min-w-0">
 						<p className={`font-bold ${isDespesa ? "text-danger-600" : "text-success-600"}`}>
 							{isDespesa ? "-" : "+"}
 							{formatCurrency(payment.amount)}
 						</p>
 						{payment.tags?.length ? (
-							<p className="text-foreground-muted text-xs">{payment.tags.map(tag => tag.name).join(" · ")}</p>
+							<p className="truncate text-foreground-muted text-xs">
+								{payment.tags.map(tag => tag.name).join(" · ")}
+							</p>
 						) : payment.category ? (
-							<p className="text-foreground-muted text-xs">{payment.category}</p>
+							<p className="truncate text-foreground-muted text-xs">{payment.category}</p>
 						) : null}
 					</div>
 					<button
@@ -171,10 +173,10 @@ function RecurringPage() {
 				<div className="absolute bottom-0 left-0 h-32 w-32 -translate-x-1/4 translate-y-1/2 rounded-full bg-amber-400/20" />
 
 				<div className="relative z-10">
-					<div className="mb-6 flex items-center justify-between">
+					<div className="mb-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
 						<h1 className="font-bold text-2xl text-white">Recorrências</h1>
 						<button
-							className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 font-semibold text-amber-600 transition-all hover:bg-amber-50 active:scale-95"
+							className="flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-2 font-semibold text-amber-600 transition-all hover:bg-amber-50 active:scale-95 sm:w-auto"
 							onClick={() => setIsCreateModalOpen(true)}
 						>
 							<HiPlus className="h-5 w-5" />
@@ -183,14 +185,18 @@ function RecurringPage() {
 					</div>
 
 					{recurringPayments.length > 0 && (
-						<div className="grid grid-cols-2 gap-4">
-							<div className="rounded-2xl bg-white/20 p-4 backdrop-blur-sm">
+						<div className="grid grid-cols-2 gap-3 sm:gap-4">
+							<div className="min-w-0 rounded-2xl bg-white/20 p-3 backdrop-blur-sm sm:p-4">
 								<p className="text-sm text-white/70">Receitas mensais</p>
-								<p className="font-bold text-white text-xl">{formatCurrency(totalMonthlyReceitas)}</p>
+								<p className="truncate font-bold text-white text-xl">
+									{formatCurrency(totalMonthlyReceitas)}
+								</p>
 							</div>
-							<div className="rounded-2xl bg-white/20 p-4 backdrop-blur-sm">
+							<div className="min-w-0 rounded-2xl bg-white/20 p-3 backdrop-blur-sm sm:p-4">
 								<p className="text-sm text-white/70">Despesas mensais</p>
-								<p className="font-bold text-white text-xl">{formatCurrency(totalMonthlyDespesas)}</p>
+								<p className="truncate font-bold text-white text-xl">
+									{formatCurrency(totalMonthlyDespesas)}
+								</p>
 							</div>
 						</div>
 					)}
@@ -349,7 +355,7 @@ function RecurringPage() {
 						{/* Frequency */}
 						<div className="mb-4">
 							<span className="mb-2 block font-medium text-foreground-muted text-sm">Frequência</span>
-							<div className="grid grid-cols-3 gap-2">
+							<div className="grid gap-2 min-[400px]:grid-cols-3">
 								{frequencyOptions.slice(2).map(option => (
 									<button
 										className={`rounded-xl px-4 py-2.5 font-medium text-sm transition-all ${
