@@ -145,7 +145,7 @@ function SaláriosPage() {
 
 					{activeSalários.length > 0 && (
 						<div>
-							<p className="mb-1 text-sm text-white/70">Total Receitas mensais (Net)</p>
+							<p className="mb-1 text-sm text-white/70">Total de entradas mensais (líquido)</p>
 							<p className="font-bold text-4xl text-white tracking-tight">
 								{formatCurrency(totalMonthlyNet)}
 							</p>

@@ -86,8 +86,8 @@ export function CreateTransactionDialog({
 						label="Tipo"
 						onValueChange={value => setDraft(current => ({ ...current, type: value as Transaction["type"] }))}
 						options={[
-							{ label: "Despesa", value: "EXPENSE" },
-							{ label: "Receita", value: "INCOME" },
+							{ label: "Saída", value: "EXPENSE" },
+							{ label: "Entrada", value: "INCOME" },
 							{ label: "Transferência", value: "TRANSFER" },
 						]}
 						placeholder="Selecione o tipo"

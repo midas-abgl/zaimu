@@ -86,7 +86,7 @@ function DashboardPage() {
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2 font-medium text-sm">
 							<LuArrowDownLeft />
-							Receitas do mês
+							Entradas do mês
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
@@ -99,7 +99,7 @@ function DashboardPage() {
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2 font-medium text-muted-foreground text-sm">
 							<LuArrowUpRight />
-							Despesas do mês
+							Saídas do mês
 						</CardTitle>
 					</CardHeader>
 					<CardContent>

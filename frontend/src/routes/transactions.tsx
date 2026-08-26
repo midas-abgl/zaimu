@@ -13,8 +13,8 @@ import { dataService } from "@/lib/dataService";
 
 const typeOptions = [
 	{ icon: null, id: "all", label: "Todas" },
-	{ icon: HiArrowUp, id: "EXPENSE", label: "Despesas" },
-	{ icon: HiArrowDown, id: "INCOME", label: "Receitas" },
+	{ icon: HiArrowUp, id: "EXPENSE", label: "Saídas" },
+	{ icon: HiArrowDown, id: "INCOME", label: "Entradas" },
 	{ icon: HiArrowsRightLeft, id: "TRANSFER", label: "Transferências" },
 ] as const;
 
@@ -50,7 +50,7 @@ function TransactionsPage() {
 						Adicionar
 					</Button>
 				}
-				description="Acompanhe entradas, despesas e transferências."
+				description="Acompanhe entradas, saídas e transferências."
 				title="Transações"
 			/>
 

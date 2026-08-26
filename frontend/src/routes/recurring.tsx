@@ -31,14 +31,14 @@ function RecurringCard({
 	isDeleting: boolean;
 }) {
 	const frequencyLabel = frequencyOptions.find(f => f.id === payment.frequency)?.label || payment.frequency;
-	const isDespesa = payment.type === "EXPENSE";
+	const isExpense = payment.type === "EXPENSE";
 
 	return (
 		<div className="card p-4">
 			<div className="flex items-start gap-4">
 				<div
 					className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
-						isDespesa ? "bg-danger-100 text-danger-600" : "bg-success-100 text-success-600"
+						isExpense ? "bg-danger-100 text-danger-600" : "bg-success-100 text-success-600"
 					}`}
 				>
 					<HiCalendarDays className="h-6 w-6" />
@@ -54,8 +54,8 @@ function RecurringCard({
 				</div>
 				<div className="flex shrink-0 items-center gap-2 text-right">
 					<div className="w-24 min-w-0">
-						<p className={`font-bold ${isDespesa ? "text-danger-600" : "text-success-600"}`}>
-							{isDespesa ? "-" : "+"}
+						<p className={`font-bold ${isExpense ? "text-danger-600" : "text-success-600"}`}>
+							{isExpense ? "-" : "+"}
 							{formatCurrency(payment.amount)}
 						</p>
 						{payment.tags?.length ? (
@@ -146,8 +146,8 @@ function RecurringPage() {
 	const expenses = recurringPayments.filter(p => p.type === "EXPENSE");
 	const incomes = recurringPayments.filter(p => p.type === "INCOME");
 
-	const totalMonthlyDespesas = expenses.reduce((acc, p) => acc + p.amount, 0);
-	const totalMonthlyReceitas = incomes.reduce((acc, p) => acc + p.amount, 0);
+	const totalMonthlyExpenses = expenses.reduce((acc, p) => acc + p.amount, 0);
+	const totalMonthlyIncome = incomes.reduce((acc, p) => acc + p.amount, 0);
 
 	if (isLoading) {
 		return (
@@ -187,15 +187,13 @@ function RecurringPage() {
 					{recurringPayments.length > 0 && (
 						<div className="grid grid-cols-2 gap-3 sm:gap-4">
 							<div className="min-w-0 rounded-2xl bg-white/20 p-3 backdrop-blur-sm sm:p-4">
-								<p className="text-sm text-white/70">Receitas mensais</p>
-								<p className="truncate font-bold text-white text-xl">
-									{formatCurrency(totalMonthlyReceitas)}
-								</p>
+								<p className="text-sm text-white/70">Entradas mensais</p>
+								<p className="truncate font-bold text-white text-xl">{formatCurrency(totalMonthlyIncome)}</p>
 							</div>
 							<div className="min-w-0 rounded-2xl bg-white/20 p-3 backdrop-blur-sm sm:p-4">
-								<p className="text-sm text-white/70">Despesas mensais</p>
+								<p className="text-sm text-white/70">Saídas mensais</p>
 								<p className="truncate font-bold text-white text-xl">
-									{formatCurrency(totalMonthlyDespesas)}
+									{formatCurrency(totalMonthlyExpenses)}
 								</p>
 							</div>
 						</div>
@@ -207,7 +205,7 @@ function RecurringPage() {
 			<div className="-mt-12 space-y-6 px-4 pb-8">
 				{incomes.length > 0 && (
 					<div className="animate-fade-in">
-						<p className="mb-2 px-1 font-medium text-foreground-muted text-sm">Receitas</p>
+						<p className="mb-2 px-1 font-medium text-foreground-muted text-sm">Entradas</p>
 						<div className="space-y-3">
 							{incomes.map((payment, idx) => (
 								<div className="animate-fade-in" key={payment.id} style={{ animationDelay: `${idx * 0.1}s` }}>
@@ -224,7 +222,7 @@ function RecurringPage() {
 
 				{expenses.length > 0 && (
 					<div className="animate-fade-in" style={{ animationDelay: "0.2s" }}>
-						<p className="mb-2 px-1 font-medium text-foreground-muted text-sm">Despesas</p>
+						<p className="mb-2 px-1 font-medium text-foreground-muted text-sm">Saídas</p>
 						<div className="space-y-3">
 							{expenses.map(payment => (
 								<RecurringCard
@@ -291,7 +289,7 @@ function RecurringPage() {
 									}`}
 									onClick={() => setNewPayment({ ...newPayment, type: "INCOME" })}
 								>
-									Receitas
+									Entradas
 								</button>
 								<button
 									className={`rounded-xl px-4 py-3 font-medium transition-all ${
@@ -301,7 +299,7 @@ function RecurringPage() {
 									}`}
 									onClick={() => setNewPayment({ ...newPayment, type: "EXPENSE" })}
 								>
-									Despesa
+									Saída
 								</button>
 							</div>
 						</div>
