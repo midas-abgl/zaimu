@@ -168,7 +168,9 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					.where((fields, functions) =>
 						functions.and(
 							functions.eq(fields.userId, userId),
-							functions.raw`${fields.name} IS NOT DISTINCT FROM ${name}`.returns("pg/bool@1"),
+							name === null
+								? functions.raw`${fields.name} IS NULL`.returns("pg/bool@1")
+								: functions.eq(fields.name, name),
 							functions.eq(fields.type, type),
 							institution
 								? functions.eq(fields.institutionId, institution.id)
@@ -188,7 +190,8 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					{
 						balance: nullableNumeric<12, 2>(type === "CREDIT_CARD" ? null : (body.balance ?? 0)),
 						institutionId: institution?.id,
-						name,
+						// Prisma 8 currently omits null from nullable varchar write types.
+						name: name as never,
 						type,
 						userId,
 					},
@@ -290,7 +293,9 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						.where((fields, functions) =>
 							functions.and(
 								functions.eq(fields.userId, existing.userId),
-								functions.raw`${fields.name} IS NOT DISTINCT FROM ${name}`.returns("pg/bool@1"),
+								name === null
+									? functions.raw`${fields.name} IS NULL`.returns("pg/bool@1")
+									: functions.eq(fields.name, name),
 								functions.eq(fields.type, existing.type),
 								institution
 									? functions.eq(fields.institutionId, institution.id)
@@ -309,7 +314,8 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					...(body.institutionName !== undefined && {
 						institutionId: (institution?.id ?? null) as never,
 					}),
-					...(body.name !== undefined && { name }),
+					// Prisma 8 currently omits null from nullable varchar write types.
+					...(body.name !== undefined && { name: name as never }),
 					...(body.balance !== undefined &&
 						existing.type !== "CREDIT_CARD" && {
 							balance: String(body.balance),
