@@ -54,6 +54,7 @@ export function FinancialAccountCard({
 					<CreateFinancialAccountDialog
 						account={account}
 						contextual
+						iconOnly
 						institutions={institutions}
 						onCreate={async () => undefined}
 						onUpdate={onUpdate}

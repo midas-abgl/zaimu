@@ -62,14 +62,16 @@ export function FinancialInstitutionGroup({
 						</p>
 					</div>
 				</div>
-				{institution && <EditInstitutionDialog institution={institution} onUpdate={onUpdateInstitution} />}
-				<CreateFinancialAccountDialog
-					contextual
-					defaultInstitutionId={institution?.id ?? null}
-					institutions={institutions}
-					onCreate={onCreate}
-					pending={pending}
-				/>
+				<div className="ml-auto flex items-center gap-2">
+					{institution && <EditInstitutionDialog institution={institution} onUpdate={onUpdateInstitution} />}
+					<CreateFinancialAccountDialog
+						contextual
+						defaultInstitutionId={institution?.id ?? null}
+						institutions={institutions}
+						onCreate={onCreate}
+						pending={pending}
+					/>
+				</div>
 			</header>
 			<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
 				{accounts.map(account => (
@@ -113,7 +115,7 @@ function EditInstitutionDialog({
 					size="sm"
 					variant="outline"
 				>
-					<LuPencil /> Editar instituição
+					<LuPencil /> Editar
 				</Button>
 			</DialogTrigger>
 			<DialogContent className="sm:max-w-md">

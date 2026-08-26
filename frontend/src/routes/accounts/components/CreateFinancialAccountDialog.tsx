@@ -46,6 +46,7 @@ export function CreateFinancialAccountDialog({
 	open: controlledOpen,
 	pending,
 	showTrigger = true,
+	iconOnly = false,
 }: {
 	account?: FinancialAccount;
 	contextual?: boolean;
@@ -58,6 +59,7 @@ export function CreateFinancialAccountDialog({
 	open?: boolean;
 	pending: boolean;
 	showTrigger?: boolean;
+	iconOnly?: boolean;
 }) {
 	const initialInstitution = () =>
 		account?.institutionId ??
@@ -133,12 +135,14 @@ export function CreateFinancialAccountDialog({
 			{showTrigger && (
 				<DialogTrigger asChild>
 					<Button
+						aria-label={account ? `Editar ${account.name}` : undefined}
 						className={contextual ? "cursor-pointer" : "h-11 cursor-pointer"}
-						size={contextual ? "sm" : "default"}
+						size={iconOnly ? "icon-sm" : contextual ? "sm" : "default"}
+						title={iconOnly && account ? `Editar ${account.name}` : undefined}
 						variant={contextual ? "outline" : "default"}
 					>
-						{account ? <LuPencil /> : <LuPlus />}{" "}
-						{account ? "Editar" : contextual ? "Adicionar conta" : "Nova conta"}
+						{account ? <LuPencil /> : <LuPlus />}
+						{!iconOnly && ` ${account ? "Editar" : contextual ? "Adicionar conta" : "Nova conta"}`}
 					</Button>
 				</DialogTrigger>
 			)}
