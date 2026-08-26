@@ -67,7 +67,7 @@ export function DashboardQuickActions() {
 								}}
 								variant="outline"
 							>
-								<LuCreditCard /> {card.accountName}
+								<LuCreditCard /> {card.accountName ?? "Cartão de crédito"}
 							</Button>
 						))
 					) : (

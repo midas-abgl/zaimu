@@ -57,7 +57,7 @@ export interface FinancialAccountUpdateDraft {
 	balance?: number;
 	creditCard?: FinancialAccountDraft["creditCard"];
 	institutionName?: string;
-	name?: string;
+	name?: string | null;
 }
 
 // Check if we're in guest mode or authenticated

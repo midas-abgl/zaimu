@@ -84,6 +84,16 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(typeof account.balance).toBe("number");
 		expect(account.institution.name).toBe("Mercado Pago");
 
+		const unnamedAccountResponse = await jsonRequest(
+			"/financial-accounts/",
+			"POST",
+			{ institutionName: "Mercado Pago", type: "SAVINGS" },
+			owner.cookie,
+		);
+		expect(unnamedAccountResponse.status).toBe(200);
+		const unnamedAccount = (await unnamedAccountResponse.json()) as { id: string; name: string | null };
+		expect(unnamedAccount.name).toBeNull();
+
 		const creditCardResponse = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
@@ -142,6 +152,15 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(await duplicateAccount.json()).toEqual({
 			error: "Já existe uma conta desse tipo com este nome",
 		});
+
+		const clearNameResponse = await jsonRequest(
+			`/financial-accounts/${account.id}`,
+			"PATCH",
+			{ name: null },
+			owner.cookie,
+		);
+		expect(clearNameResponse.status).toBe(200);
+		expect(((await clearNameResponse.json()) as { name: string | null }).name).toBeNull();
 
 		const creditCardTransaction = await jsonRequest(
 			"/transactions/",

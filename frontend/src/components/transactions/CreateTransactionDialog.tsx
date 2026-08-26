@@ -17,6 +17,7 @@ import { MoneyField } from "@/components/ui/MoneyField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
+import { getFinancialAccountDisplayName } from "@/lib/financial-account";
 import { showToast } from "@/stores";
 
 const initialDraft = () => ({
@@ -145,7 +146,10 @@ export function CreateTransactionDialog({
 											},
 								)
 							}
-							options={balanceAccounts.map(account => ({ label: account.name, value: account.id }))}
+							options={balanceAccounts.map(account => ({
+								label: getFinancialAccountDisplayName(account),
+								value: account.id,
+							}))}
 							placeholder="Selecione a conta"
 							required
 							value={primaryAccountId}
@@ -159,7 +163,7 @@ export function CreateTransactionDialog({
 							}
 							options={balanceAccounts
 								.filter(account => account.id !== draft.originFinancialAccountId)
-								.map(account => ({ label: account.name, value: account.id }))}
+								.map(account => ({ label: getFinancialAccountDisplayName(account), value: account.id }))}
 							placeholder="Selecione o destino"
 							required
 							value={draft.destinationFinancialAccountId}

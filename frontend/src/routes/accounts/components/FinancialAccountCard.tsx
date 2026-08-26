@@ -2,15 +2,16 @@ import { LuBanknote, LuCreditCard, LuLandmark, LuPiggyBank, LuTrash2, LuWallet }
 import { Badge } from "@/components/ui/Badge";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
+import { getFinancialAccountDisplayName, getFinancialAccountTypeLabel } from "@/lib/financial-account";
 import { normalizeInstitutionName } from "@/lib/financial-institution";
 import { CreateFinancialAccountDialog } from "./CreateFinancialAccountDialog";
 
 const accountType = {
-	CASH: { icon: LuBanknote, label: "Dinheiro" },
-	CHECKING: { icon: LuLandmark, label: "Conta corrente" },
-	CREDIT_CARD: { icon: LuCreditCard, label: "Cartão de crédito" },
-	INVESTMENT: { icon: LuWallet, label: "Investimentos" },
-	SAVINGS: { icon: LuPiggyBank, label: "Poupança" },
+	CASH: { icon: LuBanknote },
+	CHECKING: { icon: LuLandmark },
+	CREDIT_CARD: { icon: LuCreditCard },
+	INVESTMENT: { icon: LuWallet },
+	SAVINGS: { icon: LuPiggyBank },
 } as const;
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
@@ -29,9 +30,11 @@ export function FinancialAccountCard({
 	const config = accountType[account.type];
 	const Icon = config.icon;
 	const accountRepeatsInstitution =
+		account.name &&
 		account.institution &&
 		normalizeInstitutionName(account.name) === normalizeInstitutionName(account.institution.name);
-	const accountUsesDefaultName = account.name === config.label;
+	const displayName = getFinancialAccountDisplayName(account);
+	const typeLabel = getFinancialAccountTypeLabel(account.type);
 	return (
 		<article className="group rounded-2xl border bg-card p-5 shadow-card transition hover:-translate-y-0.5 hover:border-primary/30">
 			<div className="flex items-start justify-between gap-4">
@@ -41,11 +44,11 @@ export function FinancialAccountCard({
 					</span>
 					<div className="min-w-0">
 						<h2 className="truncate font-bold text-base">
-							{accountRepeatsInstitution || accountUsesDefaultName ? config.label : account.name}
+							{accountRepeatsInstitution ? typeLabel : displayName}
 						</h2>
-						{!accountRepeatsInstitution && !accountUsesDefaultName && (
+						{account.name && !accountRepeatsInstitution && (
 							<Badge className="mt-1" variant="secondary">
-								{config.label}
+								{typeLabel}
 							</Badge>
 						)}
 					</div>
@@ -61,8 +64,8 @@ export function FinancialAccountCard({
 						pending={false}
 					/>
 					<ConfirmActionButton
-						aria-label={`Excluir ${account.name}`}
-						confirmation={`Excluir ${account.name} permanentemente?`}
+						aria-label={`Excluir ${displayName}`}
+						confirmation={`Excluir ${displayName} permanentemente?`}
 						onConfirm={onDelete}
 						size="icon-sm"
 						variant="destructive"

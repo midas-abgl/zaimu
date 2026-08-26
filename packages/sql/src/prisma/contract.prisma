@@ -101,7 +101,7 @@ namespace public {
   model FinancialAccount {
     id                      VarChar(36)                   @id(map: "Account_pkey") @default(dbgenerated("cuid2()"))
     userId                  VarChar(36)
-    name                    VarChar(70)
+    name                    VarChar(70)?
     type                    pg.enum(FinancialAccountType) @default("CHECKING")
     balance                 Numeric(12, 2)?               @default(dbgenerated("0"))
     institutionId           VarChar(36)?

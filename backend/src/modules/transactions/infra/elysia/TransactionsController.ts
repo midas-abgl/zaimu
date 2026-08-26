@@ -149,7 +149,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						fn.eq(f.CreditCard.financialAccountId, f.FinancialAccount.id),
 					)
 					.outerLeftJoin(db.sql.public.Category, (f, fn) => fn.eq(f.CreditPurchase.categoryId, f.Category.id))
-					.select(f => ({
+					.select((f, fn) => ({
 						amount: f.CreditPurchase.totalAmount,
 						categoryColor: f.Category.color,
 						categoryName: f.Category.name,
@@ -158,7 +158,9 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						description: f.CreditPurchase.description,
 						id: f.CreditPurchase.id,
 						originFinancialAccountId: f.FinancialAccount.id,
-						sourceName: f.FinancialAccount.name,
+						sourceName: fn.raw`COALESCE(${f.FinancialAccount.name}, 'Cartão de crédito')`.returns(
+							"sql/varchar@1",
+						),
 					}))
 					.where((f, fn) =>
 						fn.and(fn.eq(f.FinancialAccount.userId, userId), fn.eq(f.CreditPurchase.currentInstallment, 1)),

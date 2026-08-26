@@ -52,7 +52,7 @@ export interface User {
 export interface FinancialAccount {
 	id: string;
 	userId: string;
-	name: string;
+	name: string | null;
 	type: "CHECKING" | "SAVINGS" | "INVESTMENT" | "CASH" | "CREDIT_CARD";
 	balance: number | null;
 	institutionId?: string | null;
@@ -75,7 +75,7 @@ export interface CreditCard {
 	statementDay: number;
 	dueDay: number;
 	workingDueDate: boolean;
-	accountName?: string;
+	accountName?: string | null;
 }
 
 export interface Transaction {
@@ -256,7 +256,7 @@ export interface Dashboard {
 	};
 	accounts: Array<{
 		id: string;
-		name: string;
+		name: string | null;
 		type: string;
 		balance: number | null;
 	}>;
@@ -324,7 +324,7 @@ export const api = {
 
 	createFinancialAccount: (data: {
 		institutionName?: string;
-		name?: string;
+		name?: string | null;
 		type?: FinancialAccount["type"];
 		balance?: number;
 		creditCard?: {

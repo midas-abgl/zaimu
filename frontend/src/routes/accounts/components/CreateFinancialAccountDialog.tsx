@@ -117,7 +117,7 @@ export function CreateFinancialAccountDialog({
 							}
 						: undefined,
 				institutionName: institutionId === NO_INSTITUTION ? "" : institutionName || undefined,
-				name: name.trim() || undefined,
+				name: name.trim() || null,
 				type,
 			};
 			if (account && onUpdate) {
@@ -135,10 +135,10 @@ export function CreateFinancialAccountDialog({
 			{showTrigger && (
 				<DialogTrigger asChild>
 					<Button
-						aria-label={account ? `Editar ${account.name}` : undefined}
+						aria-label={account ? `Editar ${account.name ?? "conta"}` : undefined}
 						className={contextual ? "cursor-pointer" : "h-11 cursor-pointer"}
 						size={iconOnly ? "icon-sm" : contextual ? "sm" : "default"}
-						title={iconOnly && account ? `Editar ${account.name}` : undefined}
+						title={iconOnly && account ? `Editar ${account.name ?? "conta"}` : undefined}
 						variant={contextual ? "outline" : "default"}
 					>
 						{account ? <LuPencil /> : <LuPlus />}

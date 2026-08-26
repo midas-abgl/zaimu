@@ -14,17 +14,6 @@ const FinancialAccountType = t.Union([
 	t.Literal("CASH"),
 	t.Literal("CREDIT_CARD"),
 ]);
-const defaultAccountName = (type: typeof FinancialAccountType.static) =>
-	(
-		({
-			CASH: "Dinheiro",
-			CHECKING: "Conta corrente",
-			CREDIT_CARD: "Cartão de crédito",
-			INVESTMENT: "Investimentos",
-			SAVINGS: "Poupança",
-		}) as const
-	)[type];
-
 export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 	.get(
 		"/",
@@ -165,7 +154,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
 			const type = body.type ?? "CHECKING";
-			const name = body.name?.trim() || defaultAccountName(type);
+			const name = body.name?.trim() || null;
 			if (type === "CREDIT_CARD" && !body.creditCard)
 				throw new HttpException("Informe os dados do cartão de crédito", 400);
 			if (type !== "CREDIT_CARD" && body.creditCard)
@@ -179,7 +168,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					.where((fields, functions) =>
 						functions.and(
 							functions.eq(fields.userId, userId),
-							functions.eq(fields.name, name),
+							functions.raw`${fields.name} IS NOT DISTINCT FROM ${name}`.returns("pg/bool@1"),
 							functions.eq(fields.type, type),
 							institution
 								? functions.eq(fields.institutionId, institution.id)
@@ -257,7 +246,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					}),
 				),
 				institutionName: t.Optional(t.String({ maxLength: 100 })),
-				name: t.Optional(t.String({ maxLength: 70 })),
+				name: t.Optional(t.Union([t.String({ maxLength: 70 }), t.Null()])),
 				type: t.Optional(FinancialAccountType),
 			}),
 			detail: { tags: ["Accounts"] },
@@ -294,13 +283,14 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 							)
 						: null
 					: await resolveFinancialInstitution(userId, body.institutionName);
-			if (body.name || body.institutionName !== undefined) {
+			const name = body.name === undefined ? existing.name : body.name?.trim() || null;
+			if (body.name !== undefined || body.institutionName !== undefined) {
 				const duplicate = await queryFirst(
 					db.sql.public.FinancialAccount.select("id")
 						.where((fields, functions) =>
 							functions.and(
 								functions.eq(fields.userId, existing.userId),
-								functions.eq(fields.name, body.name ?? existing.name),
+								functions.raw`${fields.name} IS NOT DISTINCT FROM ${name}`.returns("pg/bool@1"),
 								functions.eq(fields.type, existing.type),
 								institution
 									? functions.eq(fields.institutionId, institution.id)
@@ -319,7 +309,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					...(body.institutionName !== undefined && {
 						institutionId: (institution?.id ?? null) as never,
 					}),
-					...(body.name && { name: body.name }),
+					...(body.name !== undefined && { name }),
 					...(body.balance !== undefined &&
 						existing.type !== "CREDIT_CARD" && {
 							balance: String(body.balance),
@@ -398,7 +388,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					}),
 				),
 				institutionName: t.Optional(t.String({ maxLength: 100 })),
-				name: t.Optional(t.String({ maxLength: 70, minLength: 1 })),
+				name: t.Optional(t.Union([t.String({ maxLength: 70 }), t.Null()])),
 			}),
 			detail: { tags: ["Accounts"] },
 			params: t.Object({

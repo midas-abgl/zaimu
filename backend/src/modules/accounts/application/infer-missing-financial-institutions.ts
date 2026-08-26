@@ -20,6 +20,7 @@ export async function inferMissingFinancialInstitutions(userId: string) {
 	);
 
 	for (const account of accounts) {
+		if (!account.name) continue;
 		const institution = await resolveFinancialInstitution(userId, account.name);
 		if (!institution) continue;
 		await executeStatement(

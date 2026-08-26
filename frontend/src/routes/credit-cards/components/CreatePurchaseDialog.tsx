@@ -68,7 +68,7 @@ export function CreatePurchaseDialog({
 				<DialogHeader>
 					<DialogTitle>Registrar compra</DialogTitle>
 					<DialogDescription>
-						{card?.accountName} · a previsão da fatura é atualizada na hora.
+						{card?.accountName ?? "Cartão de crédito"} · a previsão da fatura é atualizada na hora.
 					</DialogDescription>
 				</DialogHeader>
 				<form className="grid gap-5" onSubmit={submit}>

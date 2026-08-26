@@ -36,7 +36,7 @@ export function CreditCardStatementsDialog({
 		<Dialog onOpenChange={onOpenChange} open={Boolean(card)}>
 			<DialogContent className="max-h-[90dvh] gap-4 p-4 sm:max-w-5xl sm:gap-6 sm:p-6">
 				<DialogHeader>
-					<DialogTitle>Faturas de {card?.accountName}</DialogTitle>
+					<DialogTitle>Faturas de {card?.accountName ?? "Cartão de crédito"}</DialogTitle>
 					<DialogDescription>Selecione um mês para consultar os detalhes e as transações.</DialogDescription>
 				</DialogHeader>
 				{statements.isPending ? (
