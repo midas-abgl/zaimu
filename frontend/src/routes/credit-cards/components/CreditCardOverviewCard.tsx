@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { Progress } from "@/components/ui/Progress";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { CreditCard } from "@/lib/api";
+import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
 
@@ -42,7 +43,7 @@ export function CreditCardOverviewCard({
 					</span>
 				</div>
 				<div className="relative mt-7">
-					<h2 className="font-bold text-xl">{card.accountName || "Cartão de crédito"}</h2>
+					<h2 className="font-bold text-xl">{getCreditCardDisplayName(card)}</h2>
 					<p className="mt-1 text-sm text-white/65">vencimento dia {card.dueDay}</p>
 				</div>
 			</div>

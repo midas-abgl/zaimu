@@ -4,7 +4,6 @@ import { LuCreditCard, LuPlus, LuReceiptText } from "react-icons/lu";
 import { CreateTransactionDialog } from "@/components/transactions";
 import { Button } from "@/components/ui/Button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
-import type { CreditCard } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { showToast } from "@/stores";
 import { CreatePurchaseDialog } from "../credit-cards/components";
@@ -13,7 +12,7 @@ export function DashboardQuickActions() {
 	const queryClient = useQueryClient();
 	const [menuOpen, setMenuOpen] = useState(false);
 	const [transactionOpen, setTransactionOpen] = useState(false);
-	const [selectedCard, setSelectedCard] = useState<CreditCard | null>(null);
+	const [purchaseOpen, setPurchaseOpen] = useState(false);
 	const cards = useQuery({ queryFn: () => dataService.creditCards.getAll(), queryKey: ["credit-cards"] });
 	const purchase = useMutation({
 		mutationFn: ({
@@ -57,19 +56,16 @@ export function DashboardQuickActions() {
 					{cards.isPending ? (
 						<p className="px-1 text-muted-foreground text-sm">Carregando cartões…</p>
 					) : cards.data?.length ? (
-						cards.data.map(card => (
-							<Button
-								className="w-full cursor-pointer justify-start"
-								key={card.id}
-								onClick={() => {
-									setMenuOpen(false);
-									setSelectedCard(card);
-								}}
-								variant="outline"
-							>
-								<LuCreditCard /> {card.accountName ?? "Cartão de crédito"}
-							</Button>
-						))
+						<Button
+							className="w-full cursor-pointer justify-start"
+							onClick={() => {
+								setMenuOpen(false);
+								setPurchaseOpen(true);
+							}}
+							variant="outline"
+						>
+							<LuCreditCard /> Nova compra
+						</Button>
 					) : (
 						<p className="px-1 text-muted-foreground text-sm">Nenhum cartão cadastrado.</p>
 					)}
@@ -77,12 +73,12 @@ export function DashboardQuickActions() {
 			</Popover>
 			<CreateTransactionDialog onOpenChange={setTransactionOpen} open={transactionOpen} />
 			<CreatePurchaseDialog
-				card={selectedCard}
-				onOpenChange={open => !open && setSelectedCard(null)}
-				onSubmit={async data => {
-					if (selectedCard) await purchase.mutateAsync({ cardId: selectedCard.id, data });
+				cards={cards.data ?? []}
+				onOpenChange={setPurchaseOpen}
+				onSubmit={async (cardId, data) => {
+					await purchase.mutateAsync({ cardId, data });
 				}}
-				open={Boolean(selectedCard)}
+				open={purchaseOpen}
 				pending={purchase.isPending}
 			/>
 		</>

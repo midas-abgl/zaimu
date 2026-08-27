@@ -1,6 +1,7 @@
 import { type SyntheticEvent, useState } from "react";
 import { TagPicker } from "@/components/tags";
 import { Button } from "@/components/ui/Button";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import {
 	Dialog,
@@ -14,6 +15,7 @@ import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { CreditCard } from "@/lib/api";
+import { getCreditCardDisplayName } from "@/lib/credit-card";
 
 interface PurchaseDraft {
 	description: string;
@@ -24,15 +26,17 @@ interface PurchaseDraft {
 }
 
 export function CreatePurchaseDialog({
-	card,
+	cards,
+	initialCardId,
 	onOpenChange,
 	onSubmit,
 	open,
 	pending,
 }: {
-	card: CreditCard | null;
+	cards: CreditCard[];
+	initialCardId?: string;
 	onOpenChange: (open: boolean) => void;
-	onSubmit: (draft: PurchaseDraft) => Promise<void>;
+	onSubmit: (cardId: string, draft: PurchaseDraft) => Promise<void>;
 	open: boolean;
 	pending: boolean;
 }) {
@@ -41,6 +45,7 @@ export function CreatePurchaseDialog({
 	const [count, setCount] = useDebouncedInput("1", () => undefined);
 	const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
 	const [tagIds, setTagIds] = useState<string[]>([]);
+	const [cardId, setCardId] = useState(initialCardId ?? "");
 	const total = Number(amount || 0);
 	const installmentCount = Number.parseInt(count, 10);
 	const installmentValue = total / (installmentCount || 1);
@@ -48,7 +53,7 @@ export function CreatePurchaseDialog({
 	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		if (!Number.isInteger(installmentCount) || installmentCount < 1 || installmentCount > 48) return;
-		await onSubmit({
+		await onSubmit(cardId, {
 			description: description.trim(),
 			installments: installmentCount,
 			purchaseDate: date,
@@ -66,12 +71,18 @@ export function CreatePurchaseDialog({
 		<Dialog onOpenChange={onOpenChange} open={open}>
 			<DialogContent className="sm:max-w-lg">
 				<DialogHeader>
-					<DialogTitle>Registrar compra</DialogTitle>
-					<DialogDescription>
-						{card?.accountName ?? "Cartão de crédito"} · a previsão da fatura é atualizada na hora.
-					</DialogDescription>
+					<DialogTitle>Nova compra</DialogTitle>
+					<DialogDescription>A previsão da fatura é atualizada na hora.</DialogDescription>
 				</DialogHeader>
 				<form className="grid gap-5" onSubmit={submit}>
+					<CustomSelect
+						label="Cartão"
+						onValueChange={setCardId}
+						options={cards.map(card => ({ label: getCreditCardDisplayName(card), value: card.id }))}
+						placeholder="Selecione o cartão"
+						required
+						value={cardId}
+					/>
 					<FormField
 						autoComplete="off"
 						id="purchase-description"
@@ -134,6 +145,7 @@ export function CreatePurchaseDialog({
 						<Button
 							disabled={
 								pending ||
+								!cardId ||
 								!description.trim() ||
 								total <= 0 ||
 								!Number.isInteger(installmentCount) ||

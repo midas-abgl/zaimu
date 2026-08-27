@@ -38,7 +38,9 @@ export function TransactionListItem({ transaction }: { transaction: Transaction 
 				) : null}
 				{transaction.sourceName ? (
 					<p className="truncate text-muted-foreground text-xs">
-						{transaction.source === "CREDIT_CARD" ? "Cartão" : "Conta"}: {transaction.sourceName}
+						{transaction.source === "CREDIT_CARD"
+							? `Cartão ${transaction.sourceName}`
+							: `Conta: ${transaction.sourceName}`}
 					</p>
 				) : null}
 			</div>

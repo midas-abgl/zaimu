@@ -88,8 +88,14 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				db.sql.public.CreditCard.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
 					functions.eq(fields.CreditCard.financialAccountId, fields.FinancialAccount.id),
 				)
-					.select(fields => ({
-						accountName: fields.FinancialAccount.name,
+					.outerLeftJoin(db.sql.public.FinancialInstitution, (fields, functions) =>
+						functions.eq(fields.FinancialAccount.institutionId, fields.FinancialInstitution.id),
+					)
+					.select((fields, functions) => ({
+						accountName:
+							functions.raw`COALESCE(${fields.FinancialAccount.name}, ${fields.FinancialInstitution.name}, 'Cartão de crédito')`.returns(
+								"sql/varchar@1",
+							),
 						createdAt: fields.CreditCard.createdAt,
 						creditLimit: fields.CreditCard.creditLimit,
 						dueDay: fields.CreditCard.dueDay,
@@ -118,8 +124,14 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				db.sql.public.CreditCard.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
 					functions.eq(fields.CreditCard.financialAccountId, fields.FinancialAccount.id),
 				)
-					.select(fields => ({
-						accountName: fields.FinancialAccount.name,
+					.outerLeftJoin(db.sql.public.FinancialInstitution, (fields, functions) =>
+						functions.eq(fields.FinancialAccount.institutionId, fields.FinancialInstitution.id),
+					)
+					.select((fields, functions) => ({
+						accountName:
+							functions.raw`COALESCE(${fields.FinancialAccount.name}, ${fields.FinancialInstitution.name}, 'Cartão de crédito')`.returns(
+								"sql/varchar@1",
+							),
 						createdAt: fields.CreditCard.createdAt,
 						creditLimit: fields.CreditCard.creditLimit,
 						dueDay: fields.CreditCard.dueDay,

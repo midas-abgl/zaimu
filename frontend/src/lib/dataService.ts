@@ -374,7 +374,17 @@ export const dataService = {
 			]);
 		},
 		async getAll(): Promise<CreditCard[]> {
-			if (isGuestMode()) return (await localCreditCards.getAll()).map(item => item.data);
+			if (isGuestMode()) {
+				const [storedCards, storedAccounts] = await Promise.all([
+					localCreditCards.getAll(),
+					localAccounts.getAll(),
+				]);
+				const accounts = new Map(storedAccounts.map(item => [item.data.id, item.data]));
+				return storedCards.map(({ data: card }) => ({
+					...card,
+					accountName: card.accountName || accounts.get(card.financialAccountId)?.institution?.name || null,
+				}));
+			}
 			const cards = await fetchWithAuth<CreditCard[]>("/credit-cards");
 			await localCreditCards.bulkPut(
 				cards.map(card => ({ data: card, localId: card.id, syncedAt: Date.now() })),
@@ -1117,16 +1127,19 @@ export const dataService = {
 			offset?: number;
 		}): Promise<Transaction[]> {
 			if (isGuestMode()) {
-				const [local, storedPurchases, storedStatements, storedCards, storedCategories] = await Promise.all([
-					localTransactions.getAll(),
-					localCreditPurchases.getAll(),
-					localCreditCardStatements.getAll(),
-					localCreditCards.getAll(),
-					localCategories.getAll(),
-				]);
+				const [local, storedPurchases, storedStatements, storedCards, storedCategories, storedAccounts] =
+					await Promise.all([
+						localTransactions.getAll(),
+						localCreditPurchases.getAll(),
+						localCreditCardStatements.getAll(),
+						localCreditCards.getAll(),
+						localCategories.getAll(),
+						localAccounts.getAll(),
+					]);
 				const statements = new Map(storedStatements.map(item => [item.data.id, item.data]));
 				const cards = new Map(storedCards.map(item => [item.data.id, item.data]));
 				const categories = new Map(storedCategories.map(item => [item.data.id, item.data]));
+				const accounts = new Map(storedAccounts.map(item => [item.data.id, item.data]));
 				const purchases: Transaction[] = storedPurchases
 					.map(item => item.data)
 					.filter(purchase => purchase.currentInstallment === 1)
@@ -1151,7 +1164,10 @@ export const dataService = {
 								id: purchase.id,
 								originFinancialAccountId: card.financialAccountId,
 								source: "CREDIT_CARD" as const,
-								sourceName: card.accountName,
+								sourceName:
+									card.accountName ||
+									accounts.get(card.financialAccountId)?.institution?.name ||
+									"Cartão de crédito",
 								tagIds,
 								tags,
 								type: "EXPENSE" as const,

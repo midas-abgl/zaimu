@@ -114,12 +114,13 @@ function CreditCardsPage() {
 				/>
 			)}
 			<CreatePurchaseDialog
-				card={selectedCard}
+				cards={cards.data ?? []}
+				initialCardId={selectedCard?.id}
+				key={selectedCard?.id ?? "purchase"}
 				onOpenChange={open => !open && setSelectedCard(null)}
-				onSubmit={async data => {
-					if (!selectedCard) return;
+				onSubmit={async (cardId, data) => {
 					await purchase.mutateAsync({
-						cardId: selectedCard.id,
+						cardId,
 						data,
 					});
 				}}
