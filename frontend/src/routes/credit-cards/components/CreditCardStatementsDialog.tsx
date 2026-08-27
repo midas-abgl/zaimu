@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { LuReceiptText } from "react-icons/lu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -24,13 +24,21 @@ export function CreditCardStatementsDialog({
 		queryFn: () => dataService.creditCards.getStatements(card!.id),
 		queryKey: ["credit-card-statements", card?.id, { isPaid: undefined }],
 	});
-	const currentStatement = statements.data?.find(
-		statement => getLocalMonthKey(statement.statementDate) === getLocalMonthKey(new Date()),
+	const currentMonth = getLocalMonthKey(new Date());
+	const visibleStatements = useMemo(
+		() =>
+			statements.data
+				?.filter(statement => getLocalMonthKey(statement.statementDate) >= currentMonth)
+				.toSorted((left, right) => left.statementDate.localeCompare(right.statementDate)),
+		[currentMonth, statements.data],
+	);
+	const currentStatement = visibleStatements?.find(
+		statement => getLocalMonthKey(statement.statementDate) === currentMonth,
 	);
 	const selectedStatement =
-		statements.data?.find(statement => statement.id === selectedStatementId) ??
+		visibleStatements?.find(statement => statement.id === selectedStatementId) ??
 		currentStatement ??
-		statements.data?.[0];
+		visibleStatements?.[0];
 
 	return (
 		<Dialog onOpenChange={onOpenChange} open={Boolean(card)}>
@@ -61,7 +69,7 @@ export function CreditCardStatementsDialog({
 						orientation="vertical"
 						value={selectedStatement.id}
 					>
-						<CreditCardStatementTabs selectedId={selectedStatement.id} statements={statements.data} />
+						<CreditCardStatementTabs selectedId={selectedStatement.id} statements={visibleStatements ?? []} />
 						<CreditCardStatementDetails key={selectedStatement.id} statement={selectedStatement} />
 					</Tabs>
 				) : (
