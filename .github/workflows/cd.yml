@@ -43,14 +43,15 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Build and publish image
-        uses: hyoretsu/gh-actions/ghcr@main
+        uses: hyoretsu/gh-actions/containers@main
         with:
-          image: ghcr.io/${{ github.repository }}_backend
+          image: ${{ github.repository }}_backend
           dockerfile: backend/Dockerfile
           build-args: |
             NODE_ENV=production
           secrets: DATABASE_URL=${{ secrets.DATABASE_URL }}
           cache-scope: backend
+          registry: ghcr.io
           password: ${{ secrets.GITHUB_TOKEN }}
 
   ghcr-frontend:
@@ -66,15 +67,16 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Build and publish image
-        uses: hyoretsu/gh-actions/ghcr@main
+        uses: hyoretsu/gh-actions/containers@main
         with:
-          image: ghcr.io/${{ github.repository }}_frontend
+          image: ${{ github.repository }}_frontend
           dockerfile: frontend/Dockerfile
           build-args: |
             NODE_ENV=production
             VITE_API_URL=${{ vars.VITE_API_URL }}
             VITE_APP_URL=${{ vars.VITE_APP_URL }}
           cache-scope: frontend
+          registry: ghcr.io
           password: ${{ secrets.GITHUB_TOKEN }}
 
   desktop:
