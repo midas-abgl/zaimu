@@ -115,7 +115,10 @@ export function CreateTransactionDialog({
 						id="transaction-date"
 						label="Data"
 						name="date"
-						onChange={event => setDraft(current => ({ ...current, date: event.currentTarget.value }))}
+						onChange={event => {
+							const date = event.currentTarget.value;
+							setDraft(current => ({ ...current, date }));
+						}}
 						required
 						value={draft.date}
 					/>
