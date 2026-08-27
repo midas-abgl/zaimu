@@ -70,7 +70,11 @@ export function CreditCardStatementsDialog({
 						value={selectedStatement.id}
 					>
 						<CreditCardStatementTabs selectedId={selectedStatement.id} statements={visibleStatements ?? []} />
-						<CreditCardStatementDetails key={selectedStatement.id} statement={selectedStatement} />
+						<CreditCardStatementDetails
+							card={card!}
+							key={selectedStatement.id}
+							statement={selectedStatement}
+						/>
 					</Tabs>
 				) : (
 					<EmptyState

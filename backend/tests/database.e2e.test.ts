@@ -310,6 +310,37 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(purchases[0]?.installmentAmount).toBe(49.95);
 		expect(typeof purchases[0]?.totalAmount).toBe("number");
 
+		const statementsResponse = await jsonRequest(
+			`/credit-cards/${cardAccount.creditCard.id}/statements`,
+			"GET",
+			undefined,
+			owner.cookie,
+		);
+		const statement = (await statementsResponse.json()) as Array<{ id: string; totalAmount: number }>;
+		expect(statementsResponse.status).toBe(200);
+		const statementToPay = statement[0]!;
+		const statementPaymentResponse = await jsonRequest(
+			`/credit-cards/${cardAccount.creditCard.id}/statements/${statementToPay.id}/pay`,
+			"POST",
+			{
+				amount: 20,
+				date: "2026-08-23",
+				financialAccountId: account.id,
+			},
+			owner.cookie,
+		);
+		expect(statementPaymentResponse.status).toBe(200);
+		const statementPayment = (await statementPaymentResponse.json()) as {
+			statement: { paidAmount: number };
+			transaction: { amount: number; description: string; type: string };
+		};
+		expect(statementPayment.statement.paidAmount).toBe(20);
+		expect(statementPayment.transaction).toMatchObject({
+			amount: 20,
+			description: expect.stringContaining("Pagamento da fatura"),
+			type: "EXPENSE",
+		});
+
 		const lifecycleCases = [
 			{
 				create: {

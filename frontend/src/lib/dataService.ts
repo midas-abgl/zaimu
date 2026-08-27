@@ -440,6 +440,70 @@ export const dataService = {
 			);
 			return statements;
 		},
+		async payStatement(
+			cardId: string,
+			statementId: string,
+			data: { amount?: number; date: string; financialAccountId: string },
+		): Promise<{ statement: CreditCardStatement; transaction: Transaction }> {
+			if (!isGuestMode()) {
+				const payment = await fetchWithAuth<{ statement: CreditCardStatement; transaction: Transaction }>(
+					`/credit-cards/${cardId}/statements/${statementId}/pay`,
+					{ body: JSON.stringify(data), method: "POST" },
+				);
+				await Promise.all([
+					localCreditCardStatements.put(payment.statement, payment.statement.id),
+					localTransactions.put(payment.transaction, payment.transaction.id),
+				]);
+				return payment;
+			}
+
+			const [storedStatement, storedCard, storedAccount] = await Promise.all([
+				localCreditCardStatements.getById(statementId),
+				localCreditCards.getById(cardId),
+				localAccounts.getById(data.financialAccountId),
+			]);
+			const statement = storedStatement?.data;
+			if (!statement || statement.creditCardId !== cardId) throw new Error("Fatura não encontrada");
+			if (statement.isPaid) throw new Error("Esta fatura já foi paga");
+			if (!storedCard) throw new Error("Cartão não encontrado");
+			if (
+				!storedAccount ||
+				storedAccount.data.type === "CREDIT_CARD" ||
+				storedAccount.data.balance === null
+			) {
+				throw new Error("Selecione uma conta com saldo próprio");
+			}
+
+			const remainingAmount = statement.totalAmount - statement.paidAmount;
+			const amount = data.amount ?? remainingAmount;
+			if (amount <= 0 || amount > remainingAmount) throw new Error("Informe um valor válido para a fatura");
+
+			const updatedStatement: CreditCardStatement = {
+				...statement,
+				isPaid: statement.paidAmount + amount >= statement.totalAmount,
+				paidAmount: statement.paidAmount + amount,
+			};
+			const transaction: Transaction = {
+				amount,
+				createdAt: new Date().toISOString(),
+				date: data.date,
+				description: `Pagamento da fatura — ${storedCard.data.accountName || "Cartão de crédito"}`,
+				id: crypto.randomUUID(),
+				originFinancialAccountId: data.financialAccountId,
+				type: "EXPENSE",
+			};
+			const updatedAccount: FinancialAccount = {
+				...storedAccount.data,
+				balance: storedAccount.data.balance - amount,
+				updatedAt: new Date().toISOString(),
+			};
+			await Promise.all([
+				localAccounts.put(updatedAccount, updatedAccount.id),
+				localCreditCardStatements.put(updatedStatement, updatedStatement.id),
+				localTransactions.put(transaction, transaction.id),
+			]);
+			return { statement: updatedStatement, transaction };
+		},
 		async updatePurchase(
 			cardId: string,
 			purchaseId: string,

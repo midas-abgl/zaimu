@@ -498,9 +498,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
 			await assertCreditCardOwnership(params.id, userId);
-			if (body.financialAccountId) {
-				await assertBalanceAccountOwnership(body.financialAccountId, userId);
-			}
+			await assertBalanceAccountOwnership(body.financialAccountId, userId);
 			const statement = await queryFirst(
 				db.sql.public.CreditCardStatement.select(...statementColumns)
 					.where((fields, functions) =>
@@ -517,10 +515,48 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				throw new HttpException("Statement not found", 404);
 			}
 
-			const paymentAmount = body.amount ?? Number(statement.totalAmount) - Number(statement.paidAmount);
+			if (statement.isPaid) throw new HttpException("Statement already paid", 409);
+			const remainingAmount = Number(statement.totalAmount) - Number(statement.paidAmount);
+			const paymentAmount = body.amount ?? remainingAmount;
+			if (paymentAmount <= 0 || paymentAmount > remainingAmount) {
+				throw new HttpException("Informe um valor maior que zero e até o saldo da fatura", 400);
+			}
 
 			const amount = param(numeric<12, 2>(paymentAmount), { codecId: "pg/numeric@1" });
 			const isPaid = Number(statement.paidAmount) + paymentAmount >= Number(statement.totalAmount);
+			const card = await queryFirst(
+				db.sql.public.CreditCard.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
+					functions.eq(fields.CreditCard.financialAccountId, fields.FinancialAccount.id),
+				)
+					.outerLeftJoin(db.sql.public.FinancialInstitution, (fields, functions) =>
+						functions.eq(fields.FinancialAccount.institutionId, fields.FinancialInstitution.id),
+					)
+					.select((fields, functions) => ({
+						accountName:
+							functions.raw`COALESCE(${fields.FinancialAccount.name}, ${fields.FinancialInstitution.name}, 'Cartão de crédito')`.returns(
+								"sql/varchar@1",
+							),
+					}))
+					.where((fields, functions) => functions.eq(fields.CreditCard.id, params.id))
+					.limit(1)
+					.build(),
+			);
+			if (!card) throw new HttpException("Credit card not found", 404);
+
+			const paymentTransaction = await queryFirst(
+				db.sql.public.Transaction.insert([
+					{
+						amount: String(paymentAmount),
+						date: new Date(body.date),
+						description: `Pagamento da fatura — ${card.accountName}`,
+						originFinancialAccountId: body.financialAccountId,
+						type: "EXPENSE",
+					},
+				])
+					.returning("id", "amount", "date", "description", "type", "originFinancialAccountId", "createdAt")
+					.build(),
+			);
+			if (!paymentTransaction) throw new HttpException("Payment transaction not created", 500);
 			const updatedStatement = await queryFirst(
 				db.sql.public.CreditCardStatement.update((fields, functions) => ({
 					isPaid: functions.raw`${isPaid}`.returns("pg/bool@1"),
@@ -533,24 +569,22 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			);
 			if (!updatedStatement) throw new HttpException("Statement not found", 404);
 
-			// Deduct from account if provided
-			if (body.financialAccountId) {
-				await executeStatement(
-					db.sql.public.FinancialAccount.update((fields, functions) => ({
-						balance: functions.raw`${fields.balance} - ${amount}`.returns("pg/numeric@1"),
-						updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-					}))
-						.where((fields, functions) => functions.eq(fields.id, body.financialAccountId!))
-						.build(),
-				);
-			}
+			await executeStatement(
+				db.sql.public.FinancialAccount.update((fields, functions) => ({
+					balance: functions.raw`${fields.balance} - ${amount}`.returns("pg/numeric@1"),
+					updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
+				}))
+					.where((fields, functions) => functions.eq(fields.id, body.financialAccountId))
+					.build(),
+			);
 
-			return updatedStatement;
+			return { statement: updatedStatement, transaction: paymentTransaction };
 		},
 		{
 			body: t.Object({
 				amount: t.Optional(t.Number()),
-				financialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
+				date: t.String(),
+				financialAccountId: t.String({ maxLength: 36, minLength: 1 }),
 			}),
 			detail: { tags: ["Credit Cards"] },
 			params: t.Object({

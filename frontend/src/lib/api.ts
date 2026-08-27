@@ -504,7 +504,7 @@ export const api = {
 	payStatement: (
 		cardId: string,
 		statementId: string,
-		data: { amount?: number; financialAccountId?: string },
+		data: { amount?: number; date: string; financialAccountId: string },
 	) =>
 		fetchApi(`/credit-cards/${cardId}/statements/${statementId}/pay`, {
 			body: data,
