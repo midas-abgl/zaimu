@@ -37,7 +37,13 @@
 		"deep-link": {
 			"desktop": {
 				"schemes": ["zaimu"]
-			}
+			},
+			"mobile": [
+				{
+					"appLink": false,
+					"scheme": ["zaimu"]
+				}
+			]
 		}
 	},
 	"productName": "Zaimu",
