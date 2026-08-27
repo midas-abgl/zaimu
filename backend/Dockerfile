@@ -30,12 +30,6 @@ FROM oven/bun:1.3.12 AS runtime
 
 WORKDIR /app
 
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/backend/node_modules ./backend/node_modules
-COPY --from=build /app/packages/sql/node_modules ./packages/sql/node_modules
-COPY --from=build /app/package.json ./package.json
-COPY --from=build /app/backend/package.json /app/backend/tsconfig.json ./backend/
-COPY --from=build /app/packages/sql/package.json ./packages/sql/
 COPY --from=build /app/backend/dist ./backend/dist
 COPY --from=build /app/packages/sql/out ./packages/sql/out
 

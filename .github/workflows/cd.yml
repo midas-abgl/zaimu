@@ -14,8 +14,9 @@ jobs:
       # {"build":["backend","frontend",...]} — only packages with a build script are included.
       # The web (GHCR) job fans out over this list; the Tauri jobs gate on whether
       # "frontend" is in it. A push that touches neither builds nothing.
-      # An empty base-sha (workflow_dispatch / first push) plans every service.
-      tasks: ${{ steps.affected.outputs.tasks }}
+      # Manual runs plan every service. Pushes use affected detection; a first
+      # push plans every service through its all-zero before SHA.
+      tasks: ${{ steps.all.outputs.tasks || steps.affected.outputs.tasks }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -23,8 +24,22 @@ jobs:
           # Need history present so Turbo's --affected can diff against the base.
           fetch-depth: 0
 
+      - name: Set up Bun for manual run
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies for manual run
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: bun install --frozen-lockfile
+
+      - name: Plan all services
+        id: all
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: echo "tasks=$(bun scripts/affected-packages.ts '' build)" >> "$GITHUB_OUTPUT"
+
       - name: Compute affected services
         id: affected
+        if: ${{ github.event_name == 'push' }}
         uses: hyoretsu/gh-actions/detect-affected@main
         with:
           tasks: build
@@ -106,7 +121,7 @@ jobs:
         uses: hyoretsu/gh-actions/tauri-build@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          release-name: Template App v__VERSION__
+          release-name: Zaimu v__VERSION__
 
   android:
     name: Build & release Android app
@@ -135,7 +150,7 @@ jobs:
         with:
           # Same tag the desktop job uses; the action creates it once and appends assets.
           tag_name: v${{ steps.build.outputs.version }}
-          name: Template App v${{ steps.build.outputs.version }}
+          name: Zaimu v${{ steps.build.outputs.version }}
           draft: false
           prerelease: false
           # AAB goes to Play, not the release — only attach the signed APK(s).

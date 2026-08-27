@@ -10,14 +10,14 @@ export default defineConfig({
 	build: {
 		minify: process.env.TAURI_ENV_DEBUG ? false : "esbuild",
 		sourcemap: !!process.env.TAURI_ENV_DEBUG,
-		target: process.env.TAURI_ENV_PLATFORM === "windows" ? "chrome105" : "safari14",
+		target: "es2022",
 	},
 	clearScreen: false,
 	envPrefix: ["VITE_", "TAURI_"],
 	plugins: [TanStackRouterVite({ routeFileIgnorePattern: "^components$" }), react(), tailwindcss()],
 	resolve: {
 		alias: {
-			"@": resolve(__dirname, "./src"),
+			"@": resolve(import.meta.dirname, "./src"),
 		},
 	},
 	server: {
