@@ -16,8 +16,6 @@ jobs:
       # "frontend" is in it. A push that touches neither builds nothing.
       # An empty base-sha (workflow_dispatch / first push) plans every service.
       tasks: ${{ steps.affected.outputs.tasks }}
-      # JSON array of variant keys from frontend/variants.json, e.g. ["default","demo-acai"]
-      variants: ${{ steps.variants.outputs.keys }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -31,12 +29,6 @@ jobs:
         with:
           tasks: build
           base-sha: ${{ github.event.before }}
-
-      - name: Read variant keys
-        id: variants
-        run: |
-          keys=$(jq -c '[.[].key]' frontend/variants.json)
-          echo "keys=$keys" >> "$GITHUB_OUTPUT"
 
   ghcr-backend:
     name: Build and publish backend image
@@ -62,38 +54,27 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
   ghcr-frontend:
-    name: Build and publish frontend image (${{ matrix.variant }})
+    name: Build and publish frontend image
     needs: detect
     if: ${{ contains(fromJSON(needs.detect.outputs.tasks).build, 'frontend') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-    strategy:
-      fail-fast: false
-      matrix:
-        variant: ${{ fromJSON(needs.detect.outputs.variants) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
-
-      - name: Inject variant
-        run: bun scripts/inject-variant.ts --key=${{ matrix.variant }}
-
       - name: Build and publish image
         uses: hyoretsu/gh-actions/ghcr@main
         with:
-          # Each variant gets its own tagged image: frontend-default, frontend-demo-acai, …
-          image: ghcr.io/${{ github.repository }}_frontend-${{ matrix.variant }}
+          image: ghcr.io/${{ github.repository }}_frontend
           dockerfile: frontend/Dockerfile
           build-args: |
             NODE_ENV=production
             VITE_API_URL=${{ vars.VITE_API_URL }}
             VITE_APP_URL=${{ vars.VITE_APP_URL }}
-          cache-scope: frontend-${{ matrix.variant }}
+          cache-scope: frontend
           password: ${{ secrets.GITHUB_TOKEN }}
 
   desktop:
