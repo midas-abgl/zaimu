@@ -8,8 +8,8 @@ export { and, or } from "@prisma/orm-postgres/orm-client";
 
 import type { Numeric, Timestamp, Timestamptz } from "@prisma/orm-postgres/target/codec-types";
 import { Pool, types } from "pg";
-import type { Contract } from "./prisma/contract";
-import contractJson from "./prisma/contract.json" with { type: "json" };
+import type { Contract } from "../out/prisma/contract";
+import contractJson from "../out/prisma/contract.json" with { type: "json" };
 
 type NormalizeDatabaseValue<T> =
 	T extends Numeric<infer _Precision, infer _Scale>
@@ -92,5 +92,5 @@ export const closeDatabase = async () => {
 	await pool.end();
 };
 
-export type { Contract } from "./prisma/contract";
+export type { Contract } from "../out/prisma/contract";
 export { param };

@@ -29,7 +29,7 @@
 			"env": ["DATABASE_URL"],
 			"inputs": ["src/prisma/contract.prisma", "prisma.config.ts"],
 			"outputLogs": "new-only",
-			"outputs": ["src/prisma/contract.json", "src/prisma/contract.d.ts"]
+			"outputs": ["out/**"]
 		},
 		"dev": {
 			"cache": false,
