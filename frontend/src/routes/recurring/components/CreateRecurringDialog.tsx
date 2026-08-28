@@ -1,0 +1,235 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { TagPicker } from "@/components/tags";
+import { Button } from "@/components/ui/Button";
+import { CustomSelect } from "@/components/ui/CustomSelect";
+import { DateField } from "@/components/ui/DateField";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/Dialog";
+import { dataService } from "@/lib/dataService";
+import { getFinancialAccountDisplayName } from "@/lib/financial-account";
+import { showToast } from "@/stores";
+import { frequencyOptions, paymentMethodOptions, sourceOptions } from "./constants";
+import { DebouncedFormField } from "./DebouncedFormField";
+import { DebouncedMoneyField } from "./DebouncedMoneyField";
+import type { RecurrenceFrequency, RecurringDraft, RecurringSource } from "./types";
+
+const initialDraft = (): RecurringDraft => ({
+	amount: "",
+	day: "",
+	financialAccountId: "",
+	frequency: "MONTHLY",
+	name: "",
+	paymentMethod: "CREDIT",
+	source: "subscription",
+	startDate: new Date().toISOString().slice(0, 10),
+	tagIds: [],
+});
+
+const successMessages: Record<RecurringSource, string> = {
+	recurring: "Recorrência criada.",
+	salary: "Salário criado.",
+	subscription: "Assinatura criada.",
+};
+
+export function CreateRecurringDialog({
+	onOpenChange,
+	open,
+}: {
+	onOpenChange: (open: boolean) => void;
+	open: boolean;
+}) {
+	const queryClient = useQueryClient();
+	const [draft, setDraft] = useState(initialDraft);
+	const accountsQuery = useQuery({ queryFn: () => dataService.accounts.getAll(), queryKey: ["accounts"] });
+	const balanceAccounts = accountsQuery.data?.filter(account => account.type !== "CREDIT_CARD") ?? [];
+	const setField = <Key extends keyof RecurringDraft>(field: Key, value: RecurringDraft[Key]) => {
+		setDraft(current => ({ ...current, [field]: value }));
+	};
+	const handleOpenChange = (nextOpen: boolean) => {
+		onOpenChange(nextOpen);
+		if (!nextOpen) setDraft(initialDraft());
+	};
+
+	const create = useMutation({
+		mutationFn: async () => {
+			const amount = Number.parseFloat(draft.amount);
+			const day = Number.parseInt(draft.day, 10);
+			if (draft.source === "salary") {
+				return dataService.salaries.create({
+					amount,
+					financialAccountId: draft.financialAccountId,
+					frequency: draft.frequency,
+					payDay: day,
+					source: draft.name.trim(),
+					startDate: draft.startDate,
+				});
+			}
+			if (draft.source === "subscription") {
+				return dataService.subscriptions.create({
+					amount,
+					billingDay: day,
+					frequency: draft.frequency,
+					name: draft.name.trim(),
+					paymentMethod: draft.paymentMethod,
+					startDate: draft.startDate,
+				});
+			}
+			return dataService.recurringPayments.create({
+				amount,
+				dayOfMonth: day,
+				frequency: draft.frequency,
+				name: draft.name.trim(),
+				paymentMethod: draft.paymentMethod,
+				startDate: draft.startDate,
+				tagIds: draft.tagIds,
+			});
+		},
+		onError: error => showToast(error.message, "negative"),
+		onSuccess: async () => {
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: ["recurring-payments"] }),
+				queryClient.invalidateQueries({ queryKey: ["salaries"] }),
+				queryClient.invalidateQueries({ queryKey: ["subscriptions"] }),
+				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+			]);
+			showToast(successMessages[draft.source], "positive");
+			handleOpenChange(false);
+		},
+	});
+
+	const nameLabel = draft.source === "salary" ? "Fonte da renda" : "Nome";
+	const namePlaceholder =
+		draft.source === "salary"
+			? "Ex: Empresa Exemplo"
+			: draft.source === "subscription"
+				? "Ex: Streaming"
+				: "Ex: Aluguel";
+	const dayLabel = draft.source === "salary" ? "Dia do pagamento" : "Dia da cobrança";
+	const day = Number.parseInt(draft.day, 10);
+	const dayError = draft.day && (day < 1 || day > 31) ? "Informe um dia entre 1 e 31." : undefined;
+	const canSubmit =
+		draft.name.trim() &&
+		draft.amount &&
+		draft.day &&
+		!dayError &&
+		draft.startDate &&
+		(draft.source !== "salary" || draft.financialAccountId);
+
+	return (
+		<Dialog onOpenChange={handleOpenChange} open={open}>
+			<DialogContent className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-lg">
+				<DialogHeader>
+					<DialogTitle>Nova recorrência</DialogTitle>
+					<DialogDescription>Cadastre uma entrada ou saída que se repete.</DialogDescription>
+				</DialogHeader>
+				<div className="scrollbar-themed grid min-h-0 gap-4 overflow-y-auto pr-1">
+					<CustomSelect
+						label="Tipo"
+						onValueChange={value => setField("source", value as RecurringSource)}
+						options={sourceOptions}
+						placeholder="Selecione o tipo"
+						required
+						value={draft.source}
+					/>
+					<DebouncedFormField
+						autoComplete={draft.source === "salary" ? "organization" : "off"}
+						id="recurring-name"
+						label={nameLabel}
+						name={draft.source === "salary" ? "organization" : "recurring-name"}
+						onValueChange={value => setField("name", value)}
+						placeholder={namePlaceholder}
+						required
+						type="text"
+						value={draft.name}
+					/>
+					<div className="grid gap-4">
+						<DebouncedMoneyField
+							id="recurring-amount"
+							label="Valor"
+							onValueChange={value => setField("amount", value)}
+							required
+							value={draft.amount}
+						/>
+					</div>
+					{draft.source === "salary" && (
+						<CustomSelect
+							label="Conta de destino"
+							onValueChange={value => setField("financialAccountId", value)}
+							options={balanceAccounts.map(account => ({
+								label: getFinancialAccountDisplayName(account),
+								value: account.id,
+							}))}
+							placeholder={accountsQuery.isPending ? "Carregando contas…" : "Selecione a conta"}
+							required
+							value={draft.financialAccountId}
+						/>
+					)}
+					<div className="grid gap-4 sm:grid-cols-2">
+						<CustomSelect
+							label="Frequência"
+							onValueChange={value => setField("frequency", value as RecurrenceFrequency)}
+							options={frequencyOptions}
+							placeholder="Selecione a frequência"
+							required
+							value={draft.frequency}
+						/>
+						<DebouncedFormField
+							autoComplete="off"
+							error={dayError}
+							id="recurring-day"
+							inputMode="numeric"
+							label={dayLabel}
+							maxLength={2}
+							name="recurring-day"
+							onValueChange={value => setField("day", value.replace(/\D/g, "").slice(0, 2))}
+							placeholder="Ex: 10"
+							required
+							type="text"
+							value={draft.day}
+						/>
+					</div>
+					{draft.source !== "salary" && (
+						<CustomSelect
+							label="Forma de pagamento"
+							onValueChange={value => setField("paymentMethod", value as RecurringDraft["paymentMethod"])}
+							options={[...paymentMethodOptions]}
+							placeholder="Selecione a forma"
+							required
+							value={draft.paymentMethod}
+						/>
+					)}
+					<DateField
+						id="recurring-start-date"
+						label="Data inicial"
+						name="start-date"
+						onChange={event => setField("startDate", event.currentTarget.value)}
+						required
+						value={draft.startDate}
+					/>
+					{draft.source === "recurring" && (
+						<TagPicker onValueChange={tagIds => setField("tagIds", tagIds)} value={draft.tagIds} />
+					)}
+				</div>
+				<DialogFooter>
+					<Button className="cursor-pointer" onClick={() => handleOpenChange(false)} variant="outline">
+						Descartar
+					</Button>
+					<Button
+						className="cursor-pointer disabled:cursor-not-allowed"
+						disabled={!canSubmit || create.isPending}
+						onClick={() => create.mutate()}
+					>
+						{create.isPending ? "Salvando…" : "Salvar"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
+}

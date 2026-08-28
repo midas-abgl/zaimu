@@ -6,9 +6,9 @@ import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/s
 const salaryColumns = [
 	"id",
 	"userId",
+	"financialAccountId",
 	"source",
-	"grossAmount",
-	"netAmount",
+	"amount",
 	"frequency",
 	"payDay",
 	"startDate",
@@ -117,14 +117,15 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 		"/",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
+			await assertBalanceAccountOwnership(body.financialAccountId, userId);
 			const salary = await queryFirst(
 				db.sql.public.Salary.insert([
 					{
+						amount: String(body.amount),
 						endDate: body.endDate ? new Date(body.endDate) : undefined,
+						financialAccountId: body.financialAccountId,
 						frequency: body.frequency ?? "MONTHLY",
-						grossAmount: String(body.grossAmount),
 						isActive: body.isActive ?? true,
-						netAmount: String(body.netAmount),
 						payDay: body.payDay,
 						source: body.source,
 						startDate: new Date(body.startDate),
@@ -140,11 +141,11 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 		},
 		{
 			body: t.Object({
+				amount: t.Number({ exclusiveMinimum: 0 }),
 				endDate: t.Optional(t.String()),
+				financialAccountId: t.String({ maxLength: 36, minLength: 1 }),
 				frequency: t.Optional(RecurrenceFrequency),
-				grossAmount: t.Number(),
 				isActive: t.Optional(t.Boolean()),
-				netAmount: t.Number(),
 				payDay: t.Number({ maximum: 31, minimum: 1 }),
 				source: t.String({ maxLength: 100 }),
 				startDate: t.String(),
@@ -215,6 +216,7 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("Salary", params.id, userId);
+			if (body.financialAccountId) await assertBalanceAccountOwnership(body.financialAccountId, userId);
 			const existing = await queryFirst(
 				db.sql.public.Salary.select(...salaryColumns)
 					.where((fields, functions) => functions.eq(fields.id, params.id))
@@ -233,23 +235,15 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 				oldValue: string | null;
 				newValue: string | null;
 			}> = [];
+			if (body.amount !== undefined && body.amount !== Number(existing.amount)) {
+				historyEntries.push({
+					field: "amount",
+					newValue: String(body.amount),
+					oldValue: String(existing.amount),
+					salaryId: params.id,
+				});
+			}
 
-			if (body.grossAmount !== undefined && body.grossAmount !== Number(existing.grossAmount)) {
-				historyEntries.push({
-					field: "grossAmount",
-					newValue: String(body.grossAmount),
-					oldValue: String(existing.grossAmount),
-					salaryId: params.id,
-				});
-			}
-			if (body.netAmount !== undefined && body.netAmount !== Number(existing.netAmount)) {
-				historyEntries.push({
-					field: "netAmount",
-					newValue: String(body.netAmount),
-					oldValue: String(existing.netAmount),
-					salaryId: params.id,
-				});
-			}
 			if (body.isActive !== undefined && body.isActive !== existing.isActive) {
 				historyEntries.push({
 					field: "isActive",
@@ -266,8 +260,8 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 			const salary = await queryFirst(
 				db.sql.public.Salary.update({
 					...(body.source && { source: body.source }),
-					...(body.grossAmount !== undefined && { grossAmount: String(body.grossAmount) }),
-					...(body.netAmount !== undefined && { netAmount: String(body.netAmount) }),
+					...(body.financialAccountId && { financialAccountId: body.financialAccountId }),
+					...(body.amount !== undefined && { amount: String(body.amount) }),
 					...(body.frequency && { frequency: body.frequency }),
 					...(body.payDay !== undefined && { payDay: body.payDay }),
 					...(body.endDate !== undefined && {
@@ -286,11 +280,11 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 		},
 		{
 			body: t.Object({
+				amount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
 				endDate: t.Optional(t.Nullable(t.String())),
+				financialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				frequency: t.Optional(RecurrenceFrequency),
-				grossAmount: t.Optional(t.Number()),
 				isActive: t.Optional(t.Boolean()),
-				netAmount: t.Optional(t.Number()),
 				payDay: t.Optional(t.Number({ maximum: 31, minimum: 1 })),
 				source: t.Optional(t.String({ maxLength: 100 })),
 			}),

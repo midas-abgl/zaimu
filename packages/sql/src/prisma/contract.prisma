@@ -110,6 +110,7 @@ namespace public {
     creditCards             CreditCard[]
     loanPayments            LoanPayment[]
     salaryPayments          SalaryPayment[]
+    salaries                Salary[]
     user                    User                          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Account_userId_fkey", index: false)
     institution             FinancialInstitution?          @relation(fields: [institutionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "FinancialAccount_institutionId_fkey", index: false)
     transactions            Transaction[]                 @relation(name: "Transaction_destinationId_fkey")
@@ -326,9 +327,9 @@ namespace public {
   model Salary {
     id              VarChar(36)                  @id(map: "Salary_pkey") @default(dbgenerated("cuid2()"))
     userId          VarChar(36)
+    financialAccountId VarChar(36)?
     source          VarChar(100)
-    grossAmount     Numeric(12, 2)
-    netAmount       Numeric(12, 2)
+    amount          Numeric(12, 2)
     frequency       pg.enum(RecurrenceFrequency) @default("MONTHLY")
     payDay          SmallInt
     startDate       Date
@@ -338,8 +339,10 @@ namespace public {
     updatedAt       Timestamp(3)                 @default(now())
     salaryHistories SalaryHistory[]
     salaryPayments  SalaryPayment[]
+    financialAccount FinancialAccount?          @relation(fields: [financialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Salary_financialAccountId_fkey", index: false)
     user            User                         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Salary_userId_fkey", index: false)
 
+    @@index([financialAccountId], map: "Salary_financialAccountId_idx")
     @@map("Salary")
   }
 

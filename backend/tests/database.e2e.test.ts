@@ -367,15 +367,15 @@ suite("Prisma 8 SQL query builder", () => {
 			},
 			{
 				create: {
-					grossAmount: 5000,
-					netAmount: 4200,
+					amount: 4200,
+					financialAccountId: account.id,
 					payDay: 5,
 					source: "Empresa",
 					startDate: "2026-08-01",
 				},
-				numericField: "grossAmount",
+				numericField: "amount",
 				path: "/salaries",
-				update: { endDate: null, grossAmount: 5100, isActive: false },
+				update: { amount: 5100, endDate: null, isActive: false },
 			},
 			{
 				create: {

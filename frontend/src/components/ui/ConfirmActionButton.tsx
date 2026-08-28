@@ -1,12 +1,14 @@
-import { type ComponentProps, useEffect, useState } from "react";
+import { type ComponentProps, type ReactNode, useEffect, useState } from "react";
 import { Button } from "./Button";
 
 export function ConfirmActionButton({
 	confirmation = "Confirmar ação?",
+	confirmChildren = "Confirmar",
 	onConfirm,
 	...props
 }: Omit<ComponentProps<typeof Button>, "onClick"> & {
 	confirmation?: string;
+	confirmChildren?: ReactNode;
 	onConfirm: () => void | Promise<void>;
 }) {
 	const [confirming, setConfirming] = useState(false);
@@ -22,8 +24,12 @@ export function ConfirmActionButton({
 					{confirmation}
 				</span>
 			)}
-			<Button {...props} onClick={() => (confirming ? void onConfirm() : setConfirming(true))}>
-				{confirming ? "Confirmar" : props.children}
+			<Button
+				{...props}
+				aria-label={confirming ? confirmation : props["aria-label"]}
+				onClick={() => (confirming ? void onConfirm() : setConfirming(true))}
+			>
+				{confirming ? confirmChildren : props.children}
 			</Button>
 		</div>
 	);

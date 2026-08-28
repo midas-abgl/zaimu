@@ -1,7 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-	HiArrowPathRoundedSquare,
-	HiBanknotes,
 	HiCalendarDays,
 	HiChevronRight,
 	HiClipboardDocumentList,
@@ -41,22 +39,8 @@ const menuItems = [
 		to: "/loans",
 	},
 	{
-		color: "bg-success/10 text-success",
-		description: "Gerencie fontes de renda",
-		icon: HiBanknotes,
-		label: "Salários",
-		to: "/salaries",
-	},
-	{
-		color: "bg-primary-500/10 text-primary-500",
-		description: "Controle cobranças recorrentes",
-		icon: HiArrowPathRoundedSquare,
-		label: "Assinaturas",
-		to: "/subscriptions",
-	},
-	{
 		color: "bg-warning/10 text-warning",
-		description: "Organize pagamentos programados",
+		description: "Centralize salários, assinaturas e pagamentos",
 		icon: HiCalendarDays,
 		label: "Recorrências",
 		to: "/recurring",

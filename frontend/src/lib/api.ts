@@ -165,9 +165,9 @@ export interface Debt {
 export interface Salary {
 	id: string;
 	userId: string;
+	financialAccountId?: string | null;
 	source: string;
-	grossAmount: number;
-	netAmount: number;
+	amount: number;
 	frequency: "DAILY" | "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "YEARLY";
 	payDay: number;
 	startDate: string;
@@ -370,8 +370,8 @@ export const api = {
 
 	createSalary: (data: {
 		source: string;
-		grossAmount: number;
-		netAmount: number;
+		amount: number;
+		financialAccountId: string;
 		frequency?: Salary["frequency"];
 		payDay: number;
 		startDate: string;

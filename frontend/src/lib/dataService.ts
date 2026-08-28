@@ -41,6 +41,19 @@ import {
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3333";
 
+type LegacySalary = Omit<Salary, "amount"> & {
+	amount?: number;
+	grossAmount?: number;
+	netAmount?: number;
+};
+
+function normalizeSalary(salary: LegacySalary): Salary {
+	const normalized = { ...salary, amount: salary.amount ?? salary.netAmount ?? 0 };
+	delete normalized.grossAmount;
+	delete normalized.netAmount;
+	return normalized;
+}
+
 export type FinancialAccountDraft = Omit<
 	FinancialAccount,
 	"balance" | "createdAt" | "creditCard" | "id" | "institution" | "institutionId" | "updatedAt" | "userId"
@@ -827,11 +840,21 @@ export const dataService = {
 
 	// ============== SALARIES ==============
 	salaries: {
-		async create(data: Omit<Salary, "id" | "isActive" | "userId"> & { isActive?: boolean }): Promise<Salary> {
+		async create(data: {
+			amount: number;
+			financialAccountId: string;
+			frequency: Salary["frequency"];
+			isActive?: boolean;
+			payDay: number;
+			source: string;
+			startDate: string;
+		}): Promise<Salary> {
 			const userId = getUserId();
 			if (isGuestMode()) {
+				const { amount, ...salaryData } = data;
 				const newSalary: Salary = {
-					...data,
+					...salaryData,
+					amount,
 					id: crypto.randomUUID(),
 					isActive: data.isActive ?? true,
 					userId,
@@ -858,9 +881,9 @@ export const dataService = {
 		async getAll(): Promise<Salary[]> {
 			if (isGuestMode()) {
 				const local = await localSalaries.getAll();
-				return local.map(item => item.data);
+				return local.map(item => normalizeSalary(item.data as LegacySalary));
 			}
-			const salaries = await fetchWithAuth<Salary[]>("/salaries");
+			const salaries = (await fetchWithAuth<Salary[]>("/salaries")).map(normalizeSalary);
 			await localSalaries.bulkPut(salaries.map(s => ({ data: s, localId: s.id, syncedAt: Date.now() })));
 			return salaries;
 		},
@@ -1024,7 +1047,7 @@ export const dataService = {
 						financialAccounts: accounts.map(a => a.data),
 						loans: loans.map(l => l.data),
 						recurringPayments: recurringPayments.map(payment => payment.data),
-						salaries: salaries.map(s => s.data),
+						salaries: salaries.map(s => normalizeSalary(s.data as LegacySalary)),
 						subscriptions: subscriptions.map(s => s.data),
 						transactions: transactions.map(t => t.data),
 					}),

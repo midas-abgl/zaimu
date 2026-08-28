@@ -401,13 +401,16 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					.build(),
 			);
 			if (existing && existing.userId !== userId) throw new Error(`Salário ${id} pertence a outro usuário`);
+			const financialAccountId = value<string | undefined>(entity, "financialAccountId");
+			if (financialAccountId && !accountIds.has(financialAccountId))
+				throw new Error(`Conta financeira ${financialAccountId} indisponível`);
 			const values = {
+				amount: String(value<number>(entity, "amount")),
 				endDate: optionalDate(entity, "endDate"),
+				financialAccountId,
 				frequency:
 					value<"BIWEEKLY" | "DAILY" | "MONTHLY" | "WEEKLY" | "YEARLY">(entity, "frequency") ?? "MONTHLY",
-				grossAmount: String(value<number>(entity, "grossAmount")),
 				isActive: value<boolean>(entity, "isActive") ?? true,
-				netAmount: String(value<number>(entity, "netAmount")),
 				payDay: Number(value<number>(entity, "payDay")),
 				source: value<string>(entity, "source"),
 				startDate: new Date(value<string>(entity, "startDate")),
@@ -651,9 +654,9 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					db.sql.public.Salary.select(
 						"id",
 						"userId",
+						"financialAccountId",
 						"source",
-						"grossAmount",
-						"netAmount",
+						"amount",
 						"frequency",
 						"payDay",
 						"startDate",
