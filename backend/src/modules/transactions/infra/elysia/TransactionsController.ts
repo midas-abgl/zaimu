@@ -39,8 +39,18 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				await assertDirectOwnership("FinancialAccount", query.financialAccountId, userId);
 			}
 			if (query.categoryId) await assertDirectOwnership("Category", query.categoryId, userId);
-			const origin = db.sql.public.FinancialAccount.select("id", "userId", "name").as("origin");
-			const destination = db.sql.public.FinancialAccount.select("id", "userId", "name").as("destination");
+			const origin = db.sql.public.FinancialAccount.select("id", "institutionId", "userId", "name").as(
+				"origin",
+			);
+			const originInstitution = db.sql.public.FinancialInstitution.select("id", "name").as(
+				"originInstitution",
+			);
+			const destination = db.sql.public.FinancialAccount.select("id", "institutionId", "userId", "name").as(
+				"destination",
+			);
+			const destinationInstitution = db.sql.public.FinancialInstitution.select("id", "name").as(
+				"destinationInstitution",
+			);
 			const taggedTransactionIds = query.categoryId
 				? (
 						await queryRows(
@@ -59,8 +69,12 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				fn.eq(f.Transaction.categoryId, f.Category.id),
 			)
 				.outerLeftJoin(origin, (f, fn) => fn.eq(f.Transaction.originFinancialAccountId, f.origin.id))
+				.outerLeftJoin(originInstitution, (f, fn) => fn.eq(f.origin.institutionId, f.originInstitution.id))
 				.outerLeftJoin(destination, (f, fn) =>
 					fn.eq(f.Transaction.destinationFinancialAccountId, f.destination.id),
+				)
+				.outerLeftJoin(destinationInstitution, (f, fn) =>
+					fn.eq(f.destination.institutionId, f.destinationInstitution.id),
 				)
 				.outerLeftJoin(db.sql.public.RecurringPayment, (f, fn) =>
 					fn.eq(f.Transaction.recurrenceId, f.RecurringPayment.id),
@@ -73,10 +87,14 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					date: f.Transaction.date,
 					description: f.Transaction.description,
 					destinationFinancialAccountId: f.Transaction.destinationFinancialAccountId,
-					destinationName: f.destination.name,
+					destinationName: fn.raw`COALESCE(${f.destination.name}, ${f.destinationInstitution.name})`.returns(
+						"sql/varchar@1",
+					),
 					id: f.Transaction.id,
 					originFinancialAccountId: f.Transaction.originFinancialAccountId,
-					originName: f.origin.name,
+					originName: fn.raw`COALESCE(${f.origin.name}, ${f.originInstitution.name})`.returns(
+						"sql/varchar@1",
+					),
 					type: f.Transaction.type,
 				}))
 				.where((f, fn) =>

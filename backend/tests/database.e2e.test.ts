@@ -211,6 +211,18 @@ suite("Prisma 8 SQL query builder", () => {
 		const income = (await incomeResponse.json()) as { amount: number; id: string };
 		expect(income.amount).toBe(19.75);
 
+		const transactionsResponse = await jsonRequest("/transactions/", "GET", undefined, owner.cookie);
+		expect(transactionsResponse.status).toBe(200);
+		const transactions = (await transactionsResponse.json()) as Array<{
+			id: string;
+			destinationName: string | null;
+			sourceName: string | null;
+		}>;
+		expect(transactions.find(transaction => transaction.id === income.id)).toMatchObject({
+			destinationName: "Mercado Pago",
+			sourceName: "Mercado Pago",
+		});
+
 		const updatedAccount = await jsonRequest(
 			`/financial-accounts/${account.id}`,
 			"GET",
