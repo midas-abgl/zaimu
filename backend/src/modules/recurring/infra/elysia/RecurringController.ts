@@ -6,6 +6,7 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
+import { deleteLinkedTransactions } from "~/modules/transactions/application/delete-linked-transactions";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 
@@ -348,7 +349,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 	)
 	.delete(
 		"/:id",
-		async ({ params, request }) => {
+		async ({ params, query, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("RecurringPayment", params.id, userId);
 			const existing = await queryFirst(
@@ -362,6 +363,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 				throw new HttpException("Recurring payment not found", 404);
 			}
 
+			if (query.deleteTransactions) await deleteLinkedTransactions("recurrenceId", params.id);
 			await replaceEntityTags({
 				entityIds: [params.id],
 				entityType: tagEntityType.recurringPayment,
@@ -379,5 +381,6 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 			params: t.Object({
 				id: t.String({ maxLength: 36, minLength: 1 }),
 			}),
+			query: t.Object({ deleteTransactions: t.Optional(t.Boolean()) }),
 		},
 	);

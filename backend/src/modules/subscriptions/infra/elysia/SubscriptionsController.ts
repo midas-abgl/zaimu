@@ -1,5 +1,6 @@
 import Elysia, { t } from "elysia";
 import { assertDirectOwnership, assertPaymentAccountOwnership, requireUserId } from "~/modules/auth";
+import { deleteLinkedTransactions } from "~/modules/transactions/application/delete-linked-transactions";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 
@@ -272,7 +273,7 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 	)
 	.delete(
 		"/:id",
-		async ({ params, request }) => {
+		async ({ params, query, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("Subscription", params.id, userId);
 			const existing = await queryFirst(
@@ -286,6 +287,7 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 				throw new HttpException("Subscription not found", 404);
 			}
 
+			if (query.deleteTransactions) await deleteLinkedTransactions("subscriptionId", params.id);
 			await executeStatement(
 				db.sql.public.Subscription.delete()
 					.where((fields, functions) => functions.eq(fields.id, params.id))
@@ -298,5 +300,6 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 			params: t.Object({
 				id: t.String({ maxLength: 36, minLength: 1 }),
 			}),
+			query: t.Object({ deleteTransactions: t.Optional(t.Boolean()) }),
 		},
 	);

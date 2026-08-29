@@ -11,6 +11,7 @@ import { dataService } from "@/lib/dataService";
 import { showToast } from "@/stores";
 import {
 	CreateRecurringDialog,
+	DeleteRecurringDialog,
 	type RecurringDirection,
 	RecurringListItem,
 	type RecurringListItemData,
@@ -33,6 +34,7 @@ function RecurringPage() {
 	const [filter, setFilter] = useState<DirectionFilter>("all");
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
 	const [editingItem, setEditingItem] = useState<RecurringListItemData>();
+	const [deletingItem, setDeletingItem] = useState<RecurringListItemData>();
 	const salariesQuery = useQuery({ queryFn: () => dataService.salaries.getAll(), queryKey: ["salaries"] });
 	const accountsQuery = useQuery({ queryFn: () => dataService.accounts.getAll(), queryKey: ["accounts"] });
 	const subscriptionsQuery = useQuery({
@@ -69,14 +71,26 @@ function RecurringPage() {
 		},
 	});
 	const remove = useMutation({
-		mutationFn: async (item: RecurringListItemData) => {
-			if (item.source === "salary") return dataService.salaries.delete(item.id);
-			if (item.source === "subscription") return dataService.subscriptions.delete(item.id);
-			return dataService.recurringPayments.delete(item.id);
+		mutationFn: async ({
+			deleteTransactions,
+			item,
+		}: {
+			deleteTransactions: boolean;
+			item: RecurringListItemData;
+		}) => {
+			if (item.source === "salary") return dataService.salaries.delete(item.id, deleteTransactions);
+			if (item.source === "subscription")
+				return dataService.subscriptions.delete(item.id, deleteTransactions);
+			return dataService.recurringPayments.delete(item.id, deleteTransactions);
 		},
 		onError: error => showToast(error.message, "negative"),
-		onSuccess: async (_, item) => {
+		onSuccess: async (_, { item }) => {
 			await invalidate(item);
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: ["accounts"] }),
+				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+			]);
+			setDeletingItem(undefined);
 			showToast("Recorrência excluída.", "positive");
 		},
 	});
@@ -110,10 +124,10 @@ function RecurringPage() {
 		.reduce((total, item) => total + item.monthlyAmount, 0);
 	const renderItem = (item: RecurringListItemData) => (
 		<RecurringListItem
-			deleting={remove.isPending && remove.variables?.id === item.id}
+			deleting={remove.isPending && remove.variables?.item.id === item.id}
 			item={item}
 			key={`${item.source}:${item.id}`}
-			onDelete={() => remove.mutate(item)}
+			onDelete={() => setDeletingItem(item)}
 			onEdit={() => setEditingItem(item)}
 			onToggle={() => toggle.mutate(item)}
 			toggling={toggle.isPending && toggle.variables?.id === item.id}
@@ -216,6 +230,16 @@ function RecurringPage() {
 						if (!open) setEditingItem(undefined);
 					}}
 					open
+				/>
+			)}
+			{deletingItem && (
+				<DeleteRecurringDialog
+					deleting={remove.isPending}
+					item={deletingItem}
+					onDelete={deleteTransactions => remove.mutate({ deleteTransactions, item: deletingItem })}
+					onOpenChange={open => {
+						if (!open && !remove.isPending) setDeletingItem(undefined);
+					}}
 				/>
 			)}
 		</PageContainer>

@@ -829,9 +829,19 @@ export const dataService = {
 			}
 			return fetchWithAuth<RecurringPayment>("/recurring", { body: JSON.stringify(data), method: "POST" });
 		},
-		async delete(id: string) {
-			if (isGuestMode()) return localRecurringPayments.delete(id);
-			await fetchWithAuth(`/recurring/${id}`, { method: "DELETE" });
+		async delete(id: string, deleteTransactions = false) {
+			if (isGuestMode()) {
+				if (deleteTransactions) {
+					const transactions = await localTransactions.getAll();
+					await Promise.all(
+						transactions
+							.filter(transaction => transaction.data.recurrenceId === id)
+							.map(transaction => localTransactions.delete(transaction.localId)),
+					);
+				}
+				return localRecurringPayments.delete(id);
+			}
+			await fetchWithAuth(`/recurring/${id}?deleteTransactions=${deleteTransactions}`, { method: "DELETE" });
 		},
 		async getAll(): Promise<RecurringPayment[]> {
 			if (isGuestMode()) return (await localRecurringPayments.getAll()).map(item => item.data);
@@ -889,12 +899,20 @@ export const dataService = {
 			return salary;
 		},
 
-		async delete(id: string): Promise<void> {
+		async delete(id: string, deleteTransactions = false): Promise<void> {
 			if (isGuestMode()) {
+				if (deleteTransactions) {
+					const transactions = await localTransactions.getAll();
+					await Promise.all(
+						transactions
+							.filter(transaction => transaction.data.salaryId === id)
+							.map(transaction => localTransactions.delete(transaction.localId)),
+					);
+				}
 				await localSalaries.delete(id);
 				return;
 			}
-			await fetchWithAuth(`/salaries/${id}`, { method: "DELETE" });
+			await fetchWithAuth(`/salaries/${id}?deleteTransactions=${deleteTransactions}`, { method: "DELETE" });
 			await localSalaries.delete(id);
 		},
 		async getAll(): Promise<Salary[]> {
@@ -948,12 +966,22 @@ export const dataService = {
 			return subscription;
 		},
 
-		async delete(id: string): Promise<void> {
+		async delete(id: string, deleteTransactions = false): Promise<void> {
 			if (isGuestMode()) {
+				if (deleteTransactions) {
+					const transactions = await localTransactions.getAll();
+					await Promise.all(
+						transactions
+							.filter(transaction => transaction.data.subscriptionId === id)
+							.map(transaction => localTransactions.delete(transaction.localId)),
+					);
+				}
 				await localSubscriptions.delete(id);
 				return;
 			}
-			await fetchWithAuth(`/subscriptions/${id}`, { method: "DELETE" });
+			await fetchWithAuth(`/subscriptions/${id}?deleteTransactions=${deleteTransactions}`, {
+				method: "DELETE",
+			});
 			await localSubscriptions.delete(id);
 		},
 		async getAll(): Promise<Subscription[]> {

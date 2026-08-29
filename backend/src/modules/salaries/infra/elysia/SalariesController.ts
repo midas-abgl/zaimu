@@ -1,5 +1,6 @@
 import Elysia, { t } from "elysia";
 import { assertBalanceAccountOwnership, assertDirectOwnership, requireUserId } from "~/modules/auth";
+import { deleteLinkedTransactions } from "~/modules/transactions/application/delete-linked-transactions";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
 
@@ -291,7 +292,7 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 	)
 	.delete(
 		"/:id",
-		async ({ params, request }) => {
+		async ({ params, query, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("Salary", params.id, userId);
 			const existing = await queryFirst(
@@ -305,6 +306,7 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 				throw new HttpException("Salary not found", 404);
 			}
 
+			if (query.deleteTransactions) await deleteLinkedTransactions("salaryId", params.id);
 			await executeStatement(
 				db.sql.public.Salary.delete()
 					.where((fields, functions) => functions.eq(fields.id, params.id))
@@ -317,5 +319,6 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 			params: t.Object({
 				id: t.String({ maxLength: 36, minLength: 1 }),
 			}),
+			query: t.Object({ deleteTransactions: t.Optional(t.Boolean()) }),
 		},
 	);
