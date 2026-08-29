@@ -159,11 +159,16 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				amount: unknown;
 				categoryColor: string | null;
 				categoryName: string | null;
+				creditCardId: string;
 				createdAt: Date;
+				currentInstallment: number;
 				date: Date;
 				description: string;
 				id: string;
+				installmentAmount: unknown;
+				installments: number;
 				originFinancialAccountId: string;
+				statementId: string;
 				sourceName: string;
 			}> = [];
 			if (!query.type || query.type === "EXPENSE") {
@@ -186,14 +191,19 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						categoryColor: f.Category.color,
 						categoryName: f.Category.name,
 						createdAt: f.CreditPurchase.createdAt,
+						creditCardId: f.CreditCard.id,
+						currentInstallment: f.CreditPurchase.currentInstallment,
 						date: f.CreditPurchase.purchaseDate,
 						description: f.CreditPurchase.description,
 						id: f.CreditPurchase.id,
+						installmentAmount: f.CreditPurchase.installmentAmount,
+						installments: f.CreditPurchase.installments,
 						originFinancialAccountId: f.FinancialAccount.id,
 						sourceName:
 							fn.raw`COALESCE(${f.FinancialAccount.name}, ${f.FinancialInstitution.name}, 'Cartão de crédito')`.returns(
 								"sql/varchar@1",
 							),
+						statementId: f.CreditPurchase.statementId,
 					}))
 					.where((f, fn) =>
 						fn.and(fn.eq(f.FinancialAccount.userId, userId), fn.eq(f.CreditPurchase.currentInstallment, 1)),
@@ -221,6 +231,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					const tags = purchaseTags.get(purchase.id) ?? [];
 					return {
 						...purchase,
+						creditCardStatementId: purchase.statementId,
 						destinationFinancialAccountId: null,
 						destinationName: null,
 						originName: purchase.sourceName,
@@ -452,6 +463,10 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
 			await assertTransactionOwnership(params.id, userId);
+			if (body.originFinancialAccountId)
+				await assertBalanceAccountOwnership(body.originFinancialAccountId, userId);
+			if (body.destinationFinancialAccountId)
+				await assertBalanceAccountOwnership(body.destinationFinancialAccountId, userId);
 			const tagIds =
 				body.tagIds !== undefined || body.categoryId !== undefined
 					? await assertTagOwnership(body.tagIds ?? (body.categoryId ? [body.categoryId] : []), userId)
@@ -498,30 +513,35 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (historyEntries.length > 0) {
 				await executeStatement(db.sql.public.TransactionHistory.insert(historyEntries as never).build());
 			}
-			if (body.amount !== undefined && body.amount !== Number(existing.amount)) {
-				const difference = param(numeric<12, 2>(body.amount - Number(existing.amount)), {
-					codecId: "pg/numeric@1",
-				});
-				if (existing.originFinancialAccountId) {
+			const nextAmount = body.amount ?? Number(existing.amount);
+			const nextOriginFinancialAccountId =
+				body.originFinancialAccountId === undefined
+					? existing.originFinancialAccountId
+					: body.originFinancialAccountId;
+			const nextDestinationFinancialAccountId =
+				body.destinationFinancialAccountId === undefined
+					? existing.destinationFinancialAccountId
+					: body.destinationFinancialAccountId;
+			const accountsChanged =
+				nextOriginFinancialAccountId !== existing.originFinancialAccountId ||
+				nextDestinationFinancialAccountId !== existing.destinationFinancialAccountId;
+			if (accountsChanged || nextAmount !== Number(existing.amount)) {
+				const updateBalance = async (accountId: string | null, amount: number) => {
+					if (!accountId || amount === 0) return;
+					const balanceDifference = param(numeric<12, 2>(amount), { codecId: "pg/numeric@1" });
 					await executeStatement(
 						db.sql.public.FinancialAccount.update((f, fn) => ({
-							balance: fn.raw`${f.balance} - ${difference}`.returns("pg/numeric@1"),
+							balance: fn.raw`${f.balance} + ${balanceDifference}`.returns("pg/numeric@1"),
 							updatedAt: fn.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
 						}))
-							.where((f, fn) => fn.eq(f.id, existing.originFinancialAccountId!))
+							.where((f, fn) => fn.eq(f.id, accountId))
 							.build(),
 					);
-				}
-				if (existing.destinationFinancialAccountId) {
-					await executeStatement(
-						db.sql.public.FinancialAccount.update((f, fn) => ({
-							balance: fn.raw`${f.balance} + ${difference}`.returns("pg/numeric@1"),
-							updatedAt: fn.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-						}))
-							.where((f, fn) => fn.eq(f.id, existing.destinationFinancialAccountId!))
-							.build(),
-					);
-				}
+				};
+				await updateBalance(existing.originFinancialAccountId, Number(existing.amount));
+				await updateBalance(existing.destinationFinancialAccountId, -Number(existing.amount));
+				await updateBalance(nextOriginFinancialAccountId, -nextAmount);
+				await updateBalance(nextDestinationFinancialAccountId, nextAmount);
 			}
 
 			const transaction = await queryFirst(
@@ -530,6 +550,12 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					...(body.date && { date: new Date(body.date) }),
 					...(body.description !== undefined && { description: body.description }),
 					...(body.type && { type: body.type }),
+					...(body.originFinancialAccountId !== undefined && {
+						originFinancialAccountId: body.originFinancialAccountId,
+					}),
+					...(body.destinationFinancialAccountId !== undefined && {
+						destinationFinancialAccountId: body.destinationFinancialAccountId,
+					}),
 					...(tagIds !== undefined && { categoryId: tagIds[0] ?? null }),
 					updatedAt: new Date(),
 				} as never)
@@ -556,6 +582,8 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				categoryId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				date: t.Optional(t.String()),
 				description: t.Optional(t.String({ maxLength: 1000 })),
+				destinationFinancialAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
+				originFinancialAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
 				type: t.Optional(TransactionType),
 			}),

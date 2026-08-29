@@ -14,6 +14,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
+import { EditCreditPurchaseDialog } from "@/routes/credit-cards/components/EditCreditPurchaseDialog";
 import { showToast } from "@/stores";
 
 const typeOptions = [
@@ -26,6 +27,7 @@ const typeOptions = [
 function TransactionsPage() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+	const [editingPurchase, setEditingPurchase] = useState<Transaction | null>(null);
 	const [filterType, setFilterType] = useState<string>("all");
 	const queryClient = useQueryClient();
 
@@ -57,6 +59,45 @@ function TransactionsPage() {
 				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
 			]);
 			showToast("Transação excluída.", "positive");
+		},
+	});
+	const updatePurchase = useMutation({
+		mutationFn: ({
+			data,
+			transaction,
+		}: {
+			data: Parameters<typeof dataService.creditCards.updatePurchase>[2];
+			transaction: Transaction;
+		}) => {
+			if (!transaction.creditCardId) throw new Error("Cartão da compra não encontrado");
+			return dataService.creditCards.updatePurchase(transaction.creditCardId, transaction.id, data);
+		},
+		onError: error =>
+			showToast(error instanceof Error ? error.message : "Não foi possível editar a compra.", "negative"),
+		onSuccess: async () => {
+			setEditingPurchase(null);
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: ["credit-card-statement"] }),
+				queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
+				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+			]);
+			showToast("Compra atualizada.", "positive");
+		},
+	});
+	const removePurchase = useMutation({
+		mutationFn: (transaction: Transaction) => {
+			if (!transaction.creditCardId) throw new Error("Cartão da compra não encontrado");
+			return dataService.creditCards.deletePurchase(transaction.creditCardId, transaction.id);
+		},
+		onError: error =>
+			showToast(error instanceof Error ? error.message : "Não foi possível excluir a compra.", "negative"),
+		onSuccess: async () => {
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: ["credit-card-statement"] }),
+				queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
+				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+			]);
+			showToast("Compra excluída.", "positive");
 		},
 	});
 
@@ -122,14 +163,21 @@ function TransactionsPage() {
 							<div className="divide-y rounded-2xl border bg-card shadow-sm">
 								{transactions.map(transaction => (
 									<TransactionListItem
-										deleting={remove.isPending && remove.variables === transaction.id}
+										deleting={
+											(transaction.source === "CREDIT_CARD" ? removePurchase.isPending : remove.isPending) &&
+											(transaction.source === "CREDIT_CARD"
+												? removePurchase.variables?.id
+												: remove.variables) === transaction.id
+										}
 										key={transaction.id}
 										onDelete={
-											transaction.source === "CREDIT_CARD" ? undefined : () => remove.mutate(transaction.id)
+											transaction.source === "CREDIT_CARD"
+												? () => removePurchase.mutate(transaction)
+												: () => remove.mutate(transaction.id)
 										}
 										onEdit={
 											transaction.source === "CREDIT_CARD"
-												? undefined
+												? () => setEditingPurchase(transaction)
 												: () => setEditingTransaction(transaction)
 										}
 										transaction={transaction}
@@ -147,6 +195,29 @@ function TransactionsPage() {
 				open={editingTransaction !== null}
 				transaction={editingTransaction}
 			/>
+			{editingPurchase?.creditCardId && editingPurchase.installmentAmount !== undefined ? (
+				<EditCreditPurchaseDialog
+					onOpenChange={open => !open && setEditingPurchase(null)}
+					onSubmit={async data => {
+						await updatePurchase.mutateAsync({ data, transaction: editingPurchase });
+					}}
+					open
+					pending={updatePurchase.isPending}
+					purchase={{
+						categoryId: editingPurchase.categoryId,
+						currentInstallment: editingPurchase.currentInstallment ?? 1,
+						description: editingPurchase.description ?? "",
+						id: editingPurchase.id,
+						installmentAmount: editingPurchase.installmentAmount,
+						installments: editingPurchase.installments ?? 1,
+						purchaseDate: editingPurchase.date,
+						statementId: editingPurchase.creditCardStatementId ?? "",
+						tagIds: editingPurchase.tagIds,
+						tags: editingPurchase.tags,
+						totalAmount: editingPurchase.amount,
+					}}
+				/>
+			) : null}
 		</PageContainer>
 	);
 }

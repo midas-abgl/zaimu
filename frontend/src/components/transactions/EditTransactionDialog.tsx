@@ -1,6 +1,7 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 import {
 	Dialog,
 	DialogContent,
@@ -12,6 +13,7 @@ import {
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
+import { getFinancialAccountDisplayName } from "@/lib/financial-account";
 import { showToast } from "@/stores";
 import { TransactionDetailsFields } from "./TransactionDetailsFields";
 
@@ -19,7 +21,10 @@ function createDraft(transaction: Transaction) {
 	return {
 		amount: String(transaction.amount),
 		date: transaction.date.slice(0, 10),
+		destinationFinancialAccountId: transaction.destinationFinancialAccountId ?? "",
+		originFinancialAccountId: transaction.originFinancialAccountId ?? "",
 		tagIds: transaction.tagIds ?? transaction.tags?.map(tag => tag.id) ?? [],
+		type: transaction.type,
 	};
 }
 
@@ -35,6 +40,11 @@ export function EditTransactionDialog({
 	const queryClient = useQueryClient();
 	const [draft, setDraft] = useState(() => (transaction ? createDraft(transaction) : null));
 	const [description, setDescription] = useDebouncedInput(transaction?.description ?? "", () => undefined);
+	const accountsQuery = useQuery({
+		enabled: open,
+		queryFn: () => dataService.accounts.getAll(),
+		queryKey: ["accounts"],
+	});
 
 	useEffect(() => {
 		if (!open || !transaction) return;
@@ -49,7 +59,10 @@ export function EditTransactionDialog({
 				amount: Number.parseFloat(draft.amount),
 				date: draft.date,
 				description: description.trim() || undefined,
+				destinationFinancialAccountId: draft.destinationFinancialAccountId || null,
+				originFinancialAccountId: draft.originFinancialAccountId || null,
 				tagIds: draft.tagIds,
+				type: draft.type,
 			});
 		},
 		onError: error => showToast(error.message, "negative"),
@@ -65,6 +78,14 @@ export function EditTransactionDialog({
 	});
 
 	if (!transaction || !draft) return null;
+	const balanceAccounts =
+		accountsQuery.data
+			?.filter(account => account.type !== "CREDIT_CARD")
+			.toSorted((left, right) =>
+				getFinancialAccountDisplayName(left).localeCompare(getFinancialAccountDisplayName(right), "pt-BR"),
+			) ?? [];
+	const primaryAccountId =
+		draft.type === "INCOME" ? draft.destinationFinancialAccountId : draft.originFinancialAccountId;
 
 	return (
 		<Dialog onOpenChange={onOpenChange} open={open}>
@@ -82,11 +103,57 @@ export function EditTransactionDialog({
 						onDateChange={date => setDraft(current => (current ? { ...current, date } : current))}
 						onDescriptionChange={setDescription}
 						onTagIdsChange={tagIds => setDraft(current => (current ? { ...current, tagIds } : current))}
-						onTypeChange={() => undefined}
-						showType={false}
+						onTypeChange={type =>
+							setDraft(current =>
+								current
+									? {
+											...current,
+											destinationFinancialAccountId:
+												type === "INCOME" ? current.destinationFinancialAccountId : "",
+											originFinancialAccountId: type === "INCOME" ? "" : current.originFinancialAccountId,
+											type,
+										}
+									: current,
+							)
+						}
 						tagIds={draft.tagIds}
-						type={transaction.type}
+						type={draft.type}
 					/>
+					{balanceAccounts.length > 0 ? (
+						<CustomSelect
+							label={draft.type === "INCOME" ? "Conta de destino" : "Conta de origem"}
+							onValueChange={accountId =>
+								setDraft(current =>
+									current
+										? current.type === "INCOME"
+											? { ...current, destinationFinancialAccountId: accountId }
+											: { ...current, originFinancialAccountId: accountId }
+										: current,
+								)
+							}
+							options={balanceAccounts.map(account => ({
+								label: getFinancialAccountDisplayName(account),
+								value: account.id,
+							}))}
+							placeholder="Selecione a conta"
+							required
+							value={primaryAccountId}
+						/>
+					) : null}
+					{draft.type === "TRANSFER" && balanceAccounts.length > 0 ? (
+						<CustomSelect
+							label="Conta de destino"
+							onValueChange={destinationFinancialAccountId =>
+								setDraft(current => (current ? { ...current, destinationFinancialAccountId } : current))
+							}
+							options={balanceAccounts
+								.filter(account => account.id !== draft.originFinancialAccountId)
+								.map(account => ({ label: getFinancialAccountDisplayName(account), value: account.id }))}
+							placeholder="Selecione o destino"
+							required
+							value={draft.destinationFinancialAccountId}
+						/>
+					) : null}
 				</div>
 				<DialogFooter>
 					<Button className="cursor-pointer" onClick={() => onOpenChange(false)} variant="outline">
@@ -94,7 +161,12 @@ export function EditTransactionDialog({
 					</Button>
 					<Button
 						className="cursor-pointer disabled:cursor-not-allowed"
-						disabled={!draft.amount || update.isPending}
+						disabled={
+							!draft.amount ||
+							!primaryAccountId ||
+							(draft.type === "TRANSFER" && !draft.destinationFinancialAccountId) ||
+							update.isPending
+						}
 						onClick={() => update.mutate()}
 					>
 						{update.isPending ? "Salvando…" : "Salvar"}

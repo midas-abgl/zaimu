@@ -1325,9 +1325,14 @@ export const dataService = {
 								categoryId: purchase.categoryId,
 								categoryName: tags[0]?.name,
 								createdAt: purchase.purchaseDate,
+								creditCardId: card.id,
+								creditCardStatementId: purchase.statementId,
+								currentInstallment: purchase.currentInstallment,
 								date: purchase.purchaseDate,
 								description: purchase.description,
 								id: purchase.id,
+								installmentAmount: purchase.installmentAmount,
+								installments: purchase.installments,
 								originFinancialAccountId: card.financialAccountId,
 								originName:
 									card.accountName ||

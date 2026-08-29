@@ -95,11 +95,16 @@ export interface Transaction {
 	subscriptionOccurrenceDate?: string;
 	tagIds?: string[];
 	tags?: Tag[];
-	originFinancialAccountId?: string;
+	originFinancialAccountId?: null | string;
 	originName?: null | string;
-	destinationFinancialAccountId?: string;
+	destinationFinancialAccountId?: null | string;
 	destinationName?: null | string;
 	createdAt: string;
+	creditCardId?: string;
+	creditCardStatementId?: string;
+	currentInstallment?: number;
+	installmentAmount?: number;
+	installments?: number;
 	source?: "CREDIT_CARD" | "FINANCIAL_ACCOUNT";
 	sourceName?: string;
 }
