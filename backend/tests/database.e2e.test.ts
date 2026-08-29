@@ -487,6 +487,7 @@ suite("Prisma 8 SQL query builder", () => {
 		);
 		const purchases = (await purchaseResponse.json()) as Array<{
 			categoryId: null;
+			id: string;
 			installmentAmount: number;
 			storeName: string;
 			totalAmount: number;
@@ -496,6 +497,16 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(purchases[0]?.categoryId).toBeNull();
 		expect(purchases[0]?.installmentAmount).toBe(49.95);
 		expect(purchases[0]?.storeName).toBe("Livraria Central");
+
+		const purchaseTransactionsResponse = await jsonRequest("/transactions/", "GET", undefined, owner.cookie);
+		const purchaseTransactions = (await purchaseTransactionsResponse.json()) as Array<{
+			id: string;
+			storeName: string | null;
+		}>;
+		expect(purchaseTransactionsResponse.status).toBe(200);
+		expect(purchaseTransactions.find(transaction => transaction.id === purchases[0]?.id)?.storeName).toBe(
+			"Livraria Central",
+		);
 		expect(typeof purchases[0]?.totalAmount).toBe("number");
 
 		const statementsResponse = await jsonRequest(

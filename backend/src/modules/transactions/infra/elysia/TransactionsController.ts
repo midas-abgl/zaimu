@@ -194,6 +194,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				installments: number;
 				originFinancialAccountId: string;
 				statementId: string;
+				storeName: string | null;
 				sourceName: string;
 			}> = [];
 			if (!query.type || query.type === "EXPENSE") {
@@ -230,6 +231,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 								"sql/varchar@1",
 							),
 						statementId: f.CreditPurchase.statementId,
+						storeName: f.CreditPurchase.storeName,
 					}))
 					.where((f, fn) =>
 						fn.and(fn.eq(f.FinancialAccount.userId, userId), fn.eq(f.CreditPurchase.currentInstallment, 1)),
