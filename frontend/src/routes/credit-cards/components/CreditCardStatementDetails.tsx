@@ -1,39 +1,23 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import {
-	LuCalendarCheck,
-	LuCalendarClock,
-	LuCircleCheck,
-	LuClock3,
-	LuReceiptText,
-	LuWalletCards,
-} from "react-icons/lu";
+import { LuCalendarCheck, LuCalendarClock, LuCircleCheck, LuClock3, LuReceiptText } from "react-icons/lu";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { TabsContent } from "@/components/ui/Tabs";
-import type { CreditCard, CreditCardStatement, CreditPurchase } from "@/lib/api";
+import type { CreditCardStatement, CreditPurchase } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
 import { showToast } from "@/stores";
 import { CreditPurchaseRow } from "./CreditPurchaseRow";
 import { EditCreditPurchaseDialog } from "./EditCreditPurchaseDialog";
-import { PayStatementDialog } from "./PayStatementDialog";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
-export function CreditCardStatementDetails({
-	card,
-	statement,
-}: {
-	card: CreditCard;
-	statement: CreditCardStatement;
-}) {
+export function CreditCardStatementDetails({ statement }: { statement: CreditCardStatement }) {
 	const queryClient = useQueryClient();
 	const [editingPurchase, setEditingPurchase] = useState<CreditPurchase | null>(null);
-	const [isPayDialogOpen, setIsPayDialogOpen] = useState(false);
 	const detail = useQuery({
 		queryFn: () => dataService.creditCards.getStatement(statement.creditCardId, statement.id),
 		queryKey: ["credit-card-statement", statement.creditCardId, statement.id],
@@ -74,24 +58,6 @@ export function CreditCardStatementDetails({
 			showToast("Transação excluída.", "positive");
 		},
 	});
-	const payStatement = useMutation({
-		mutationFn: (data: { amount: number; date: string; financialAccountId: string }) =>
-			dataService.creditCards.payStatement(card.id, statement.id, data),
-		onError: error => {
-			showToast(error instanceof Error ? error.message : "Não foi possível pagar a fatura.", "negative");
-		},
-		onSuccess: async () => {
-			setIsPayDialogOpen(false);
-			await Promise.all([
-				refreshStatement(),
-				queryClient.invalidateQueries({ queryKey: ["accounts"] }),
-				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
-				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-			]);
-			showToast("Pagamento registrado como transação.", "positive");
-		},
-	});
-
 	return (
 		<TabsContent
 			className="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-5 pt-4 sm:pl-6 min-[480px]:pt-0 min-[480px]:pl-4"
@@ -104,16 +70,9 @@ export function CreditCardStatementDetails({
 						{formatLocalDate(statement.statementDate, { month: "long", year: "numeric" })}
 					</h3>
 				</div>
-				<div className="flex items-end gap-3 text-right">
-					{!statement.isPaid && (
-						<Button className="cursor-pointer" onClick={() => setIsPayDialogOpen(true)} size="sm">
-							<LuWalletCards /> Pagar
-						</Button>
-					)}
-					<div>
-						<p className="text-muted-foreground text-xs">Total da fatura</p>
-						<strong className="text-xl">{currency.format(statement.totalAmount)}</strong>
-					</div>
+				<div className="text-right">
+					<p className="text-muted-foreground text-xs">Total da fatura</p>
+					<strong className="text-xl">{currency.format(statement.totalAmount)}</strong>
 				</div>
 			</header>
 			<div className="grid gap-2 lg:grid-cols-3">
@@ -190,18 +149,6 @@ export function CreditCardStatementDetails({
 					open
 					pending={updatePurchase.isPending}
 					purchase={editingPurchase}
-				/>
-			)}
-			{isPayDialogOpen && (
-				<PayStatementDialog
-					card={card}
-					onOpenChange={setIsPayDialogOpen}
-					onSubmit={async data => {
-						await payStatement.mutateAsync(data);
-					}}
-					open
-					pending={payStatement.isPending}
-					statement={statement}
 				/>
 			)}
 		</TabsContent>

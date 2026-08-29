@@ -16,12 +16,15 @@ import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { Transaction } from "@/lib/api";
+import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
+import { formatLocalDate } from "@/lib/date";
 import { getFinancialAccountDisplayName } from "@/lib/financial-account";
 import { showToast } from "@/stores";
 
 const initialDraft = () => ({
 	amount: "",
+	creditCardStatementId: "",
 	date: new Date().toISOString().slice(0, 10),
 	destinationFinancialAccountId: "",
 	originFinancialAccountId: "",
@@ -40,12 +43,29 @@ export function CreateTransactionDialog({
 	const [draft, setDraft] = useState(initialDraft);
 	const [description, setDescription] = useDebouncedInput("", () => undefined);
 	const accountsQuery = useQuery({ queryFn: () => dataService.accounts.getAll(), queryKey: ["accounts"] });
+	const payableStatementsQuery = useQuery({
+		enabled: open && draft.type === "EXPENSE",
+		queryFn: async () => {
+			const cards = await dataService.creditCards.getAll();
+			const statements = await Promise.all(
+				cards.map(async card => ({
+					card,
+					statements: await dataService.creditCards.getStatements(card.id, false),
+				})),
+			);
+			return statements.flatMap(({ card, statements }) => statements.map(statement => ({ card, statement })));
+		},
+		queryKey: ["credit-card-statements", "payable"],
+	});
 	const balanceAccounts =
 		accountsQuery.data
 			?.filter(account => account.type !== "CREDIT_CARD")
 			.toSorted((left, right) =>
 				getFinancialAccountDisplayName(left).localeCompare(getFinancialAccountDisplayName(right), "pt-BR"),
 			) ?? [];
+	const selectedStatement = payableStatementsQuery.data?.find(
+		item => item.statement.id === draft.creditCardStatementId,
+	);
 	const primaryAccountId =
 		draft.type === "INCOME" ? draft.destinationFinancialAccountId : draft.originFinancialAccountId;
 	const reset = () => {
@@ -57,24 +77,39 @@ export function CreateTransactionDialog({
 		if (!nextOpen) reset();
 	};
 	const create = useMutation({
-		mutationFn: () =>
-			dataService.transactions.create({
-				amount: Number.parseFloat(draft.amount),
+		mutationFn: async () => {
+			const amount = Number.parseFloat(draft.amount);
+			if (selectedStatement) {
+				return dataService.creditCards.payStatement(
+					selectedStatement.card.id,
+					selectedStatement.statement.id,
+					{
+						amount,
+						date: draft.date,
+						financialAccountId: draft.originFinancialAccountId,
+					},
+				);
+			}
+			const transaction = await dataService.transactions.create({
+				amount,
 				date: draft.date,
 				description: description.trim() || undefined,
 				destinationFinancialAccountId: draft.destinationFinancialAccountId || undefined,
 				originFinancialAccountId: draft.originFinancialAccountId || undefined,
 				tagIds: draft.tagIds,
 				type: draft.type,
-			}),
+			});
+			return { statement: null, transaction };
+		},
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
 			await Promise.all([
 				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
 				queryClient.invalidateQueries({ queryKey: ["accounts"] }),
+				queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
 				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
 			]);
-			showToast("Transação registrada.", "positive");
+			showToast(selectedStatement ? "Pagamento da fatura registrado." : "Transação registrada.", "positive");
 			handleOpenChange(false);
 		},
 	});
@@ -89,7 +124,13 @@ export function CreateTransactionDialog({
 				<div className="scrollbar-themed grid min-h-0 gap-4 overflow-y-auto pr-1">
 					<CustomSelect
 						label="Tipo"
-						onValueChange={value => setDraft(current => ({ ...current, type: value as Transaction["type"] }))}
+						onValueChange={value =>
+							setDraft(current => ({
+								...current,
+								creditCardStatementId: value === "EXPENSE" ? current.creditCardStatementId : "",
+								type: value as Transaction["type"],
+							}))
+						}
 						options={[
 							{ label: "Saída", value: "EXPENSE" },
 							{ label: "Entrada", value: "INCOME" },
@@ -106,16 +147,18 @@ export function CreateTransactionDialog({
 						required
 						value={draft.amount}
 					/>
-					<FormField
-						autoComplete="off"
-						id="transaction-description"
-						label="Descrição"
-						name="description"
-						onChange={event => setDescription(event.currentTarget.value)}
-						placeholder="Ex: Mercado do mês"
-						type="text"
-						value={description}
-					/>
+					{!selectedStatement && (
+						<FormField
+							autoComplete="off"
+							id="transaction-description"
+							label="Descrição"
+							name="description"
+							onChange={event => setDescription(event.currentTarget.value)}
+							placeholder="Ex: Mercado do mês"
+							type="text"
+							value={description}
+						/>
+					)}
 					<DateField
 						id="transaction-date"
 						label="Data"
@@ -127,7 +170,21 @@ export function CreateTransactionDialog({
 						required
 						value={draft.date}
 					/>
-					{draft.type !== "TRANSFER" && (
+					{draft.type === "EXPENSE" && payableStatementsQuery.data?.length ? (
+						<CustomSelect
+							label="Fatura para pagar"
+							onValueChange={creditCardStatementId =>
+								setDraft(current => ({ ...current, creditCardStatementId }))
+							}
+							options={payableStatementsQuery.data.map(({ card, statement }) => ({
+								label: `${getCreditCardDisplayName(card)} · ${formatLocalDate(statement.dueDate)} · ${new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(statement.totalAmount - statement.paidAmount)}`,
+								value: statement.id,
+							}))}
+							placeholder="Nenhuma fatura selecionada"
+							value={draft.creditCardStatementId}
+						/>
+					) : null}
+					{draft.type !== "TRANSFER" && !selectedStatement && (
 						<TagPicker
 							onValueChange={tagIds => setDraft(current => ({ ...current, tagIds }))}
 							value={draft.tagIds}
@@ -187,6 +244,9 @@ export function CreateTransactionDialog({
 						disabled={
 							!draft.amount ||
 							!primaryAccountId ||
+							(selectedStatement &&
+								Number.parseFloat(draft.amount) >
+									selectedStatement.statement.totalAmount - selectedStatement.statement.paidAmount) ||
 							(draft.type === "TRANSFER" && !draft.destinationFinancialAccountId) ||
 							create.isPending
 						}
