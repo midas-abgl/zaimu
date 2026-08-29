@@ -116,8 +116,8 @@ export const assertPaymentAccountOwnership = async (
 	if (!account) throw new HttpException("Conta financeira não encontrada", 404);
 	if (paymentMethod === "CREDIT" && account.type !== "CREDIT_CARD")
 		throw new HttpException("Selecione um cartão de crédito", 400);
-	if (paymentMethod !== "CREDIT" && account.type === "CREDIT_CARD")
-		throw new HttpException("Selecione uma conta com saldo", 400);
+	if (paymentMethod !== "CREDIT" && account.type !== "CHECKING")
+		throw new HttpException("Selecione uma conta corrente", 400);
 };
 
 export const assertTransactionOwnership = async (transactionId: string, userId: string) => {

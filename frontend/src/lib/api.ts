@@ -103,8 +103,10 @@ export interface Transaction {
 	tagIds?: string[];
 	tags?: Tag[];
 	originFinancialAccountId?: null | string;
+	originAccountType?: FinancialAccount["type"] | null;
 	originName?: null | string;
 	destinationFinancialAccountId?: null | string;
+	destinationAccountType?: FinancialAccount["type"] | null;
 	destinationName?: null | string;
 	createdAt: string;
 	creditCardId?: string;

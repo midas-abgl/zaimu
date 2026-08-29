@@ -66,15 +66,11 @@ export function CreateRecurringDialog({
 		accountsQuery.data
 			?.filter(account => account.type === "CHECKING")
 			.toSorted(compareFinancialAccountsByDisplayName) ?? [];
-	const balanceAccounts =
-		accountsQuery.data
-			?.filter(account => account.type !== "CREDIT_CARD")
-			.toSorted(compareFinancialAccountsByDisplayName) ?? [];
 	const compatibleAccounts =
 		draft.source === "salary"
 			? checkingAccounts
 			: draft.paymentMethod !== "CREDIT"
-				? balanceAccounts
+				? checkingAccounts
 				: (accountsQuery.data
 						?.filter(account => account.type === "CREDIT_CARD")
 						.toSorted(compareFinancialAccountsByDisplayName) ?? []);

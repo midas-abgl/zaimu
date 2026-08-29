@@ -164,13 +164,8 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				const tags = tagsByTransaction.get(transaction.id) ?? [];
 				const paymentAccountType =
 					transaction.type === "INCOME" ? transaction.destinationAccountType : transaction.originAccountType;
-				const {
-					destinationAccountType: _destinationAccountType,
-					originAccountType: _originAccountType,
-					...data
-				} = transaction;
 				return {
-					...data,
+					...transaction,
 					source:
 						transaction.type !== "TRANSFER" &&
 						paymentAccountType === "CREDIT_CARD" &&
@@ -228,6 +223,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						id: f.CreditPurchase.id,
 						installmentAmount: f.CreditPurchase.installmentAmount,
 						installments: f.CreditPurchase.installments,
+						originAccountType: "CREDIT_CARD" as const,
 						originFinancialAccountId: f.FinancialAccount.id,
 						sourceName:
 							fn.raw`COALESCE(${f.FinancialAccount.name}, ${f.FinancialInstitution.name}, 'Cartão de crédito')`.returns(

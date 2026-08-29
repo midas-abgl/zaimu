@@ -1424,7 +1424,9 @@ export const dataService = {
 
 						return {
 							...item.data,
+							destinationAccountType: destinationAccount?.type,
 							destinationName,
+							originAccountType: originAccount?.type,
 							originName,
 							source:
 								item.data.type !== "TRANSFER" &&

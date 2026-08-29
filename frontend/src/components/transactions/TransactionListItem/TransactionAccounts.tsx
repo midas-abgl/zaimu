@@ -1,23 +1,32 @@
 import { LuArrowRight, LuCreditCard, LuLandmark } from "react-icons/lu";
 import { Badge } from "@/components/ui/Badge";
 import type { Transaction } from "@/lib/api";
+import { getFinancialAccountTypeLabel } from "@/lib/financial-account";
 
 export function TransactionAccounts({ transaction }: { transaction: Transaction }) {
 	const isCreditCard = transaction.source === "CREDIT_CARD";
 	const originName = transaction.originName || transaction.sourceName;
 	const destinationName =
 		transaction.destinationName || (transaction.type === "INCOME" ? transaction.sourceName : undefined);
+	const originLabel = transaction.originAccountType
+		? `Origem · ${getFinancialAccountTypeLabel(transaction.originAccountType)}`
+		: "Origem";
+	const destinationLabel = transaction.destinationAccountType
+		? `Destino · ${getFinancialAccountTypeLabel(transaction.destinationAccountType)}`
+		: "Destino";
+	const accountType =
+		transaction.type === "INCOME" ? transaction.destinationAccountType : transaction.originAccountType;
 	const accounts =
 		transaction.type === "TRANSFER"
 			? [
 					{
 						id: transaction.originFinancialAccountId || "origin",
-						label: "Origem",
+						label: originLabel,
 						name: originName || "Conta de origem",
 					},
 					{
 						id: transaction.destinationFinancialAccountId || "destination",
-						label: "Destino",
+						label: destinationLabel,
 						name: destinationName || "Conta de destino",
 					},
 				]
@@ -25,7 +34,11 @@ export function TransactionAccounts({ transaction }: { transaction: Transaction 
 					{
 						id:
 							transaction.originFinancialAccountId || transaction.destinationFinancialAccountId || "account",
-						label: isCreditCard ? "Cartão" : "Conta",
+						label: isCreditCard
+							? "Cartão"
+							: accountType
+								? getFinancialAccountTypeLabel(accountType)
+								: "Conta",
 						name: (transaction.type === "INCOME" ? destinationName : originName) || "Conta sem nome",
 					},
 				];
