@@ -1250,6 +1250,11 @@ export const dataService = {
 								description: purchase.description,
 								id: purchase.id,
 								originFinancialAccountId: card.financialAccountId,
+								originName:
+									card.accountName ||
+									accounts.get(card.financialAccountId)?.name ||
+									accounts.get(card.financialAccountId)?.institution?.name ||
+									"Cartão de crédito",
 								source: "CREDIT_CARD" as const,
 								sourceName:
 									card.accountName ||
@@ -1262,7 +1267,24 @@ export const dataService = {
 						];
 					});
 				let transactions = [
-					...local.map(item => ({ ...item.data, source: "FINANCIAL_ACCOUNT" as const })),
+					...local.map(item => {
+						const originAccount = item.data.originFinancialAccountId
+							? accounts.get(item.data.originFinancialAccountId)
+							: undefined;
+						const destinationAccount = item.data.destinationFinancialAccountId
+							? accounts.get(item.data.destinationFinancialAccountId)
+							: undefined;
+						const originName = originAccount?.name || originAccount?.institution?.name;
+						const destinationName = destinationAccount?.name || destinationAccount?.institution?.name;
+
+						return {
+							...item.data,
+							destinationName,
+							originName,
+							source: "FINANCIAL_ACCOUNT" as const,
+							sourceName: item.data.type === "INCOME" ? destinationName : originName,
+						};
+					}),
 					...purchases,
 				];
 

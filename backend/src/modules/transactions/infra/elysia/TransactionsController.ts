@@ -116,11 +116,10 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 
 			const normalizedTransactions = transactions.map(transaction => {
 				const tags = tagsByTransaction.get(transaction.id) ?? [];
-				const { destinationName, originName, ...data } = transaction;
 				return {
-					...data,
+					...transaction,
 					source: "FINANCIAL_ACCOUNT" as const,
-					sourceName: transaction.type === "INCOME" ? destinationName : originName,
+					sourceName: transaction.type === "INCOME" ? transaction.destinationName : transaction.originName,
 					tagIds: tags.map(tag => tag.id),
 					tags,
 				};
@@ -193,6 +192,8 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					return {
 						...purchase,
 						destinationFinancialAccountId: null,
+						destinationName: null,
+						originName: purchase.sourceName,
 						source: "CREDIT_CARD" as const,
 						tagIds: tags.map(tag => tag.id),
 						tags,

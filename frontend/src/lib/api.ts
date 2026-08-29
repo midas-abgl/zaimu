@@ -90,7 +90,9 @@ export interface Transaction {
 	tagIds?: string[];
 	tags?: Tag[];
 	originFinancialAccountId?: string;
+	originName?: null | string;
 	destinationFinancialAccountId?: string;
+	destinationName?: null | string;
 	createdAt: string;
 	source?: "CREDIT_CARD" | "FINANCIAL_ACCOUNT";
 	sourceName?: string;

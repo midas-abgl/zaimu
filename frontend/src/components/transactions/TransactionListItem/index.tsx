@@ -1,5 +1,7 @@
 import { HiArrowDown, HiArrowsRightLeft, HiArrowUp } from "react-icons/hi2";
 import type { Transaction } from "@/lib/api";
+import { TransactionAccounts } from "./TransactionAccounts";
+import { TransactionTags } from "./TransactionTags";
 
 function formatCurrency(value: number) {
 	return new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(value);
@@ -13,9 +15,16 @@ export function TransactionListItem({ transaction }: { transaction: Transaction 
 			: transaction.type === "EXPENSE"
 				? "text-rose-600"
 				: "text-primary";
+	const fallbackTag = transaction.categoryName
+		? {
+				color: transaction.categoryColor,
+				id: transaction.categoryId || `category-${transaction.categoryName}`,
+				name: transaction.categoryName,
+			}
+		: undefined;
 
 	return (
-		<div className="flex items-center gap-3 p-4">
+		<div className="flex items-start gap-3 p-4">
 			<div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-muted">
 				{transaction.type === "INCOME" ? (
 					<HiArrowDown className="text-emerald-600" />
@@ -27,24 +36,15 @@ export function TransactionListItem({ transaction }: { transaction: Transaction 
 			</div>
 			<div className="min-w-0 flex-1">
 				<p className="truncate font-semibold">
-					{transaction.description || transaction.tags?.[0]?.name || "Movimentação"}
+					{transaction.description ||
+						transaction.tags?.[0]?.name ||
+						transaction.categoryName ||
+						"Movimentação"}
 				</p>
-				{transaction.tags?.length && transaction.description ? (
-					<p className="truncate text-muted-foreground text-xs">
-						{transaction.tags.map(tag => tag.name).join(" · ")}
-					</p>
-				) : transaction.categoryName && transaction.description ? (
-					<p className="truncate text-muted-foreground text-xs">{transaction.categoryName}</p>
-				) : null}
-				{transaction.sourceName ? (
-					<p className="truncate text-muted-foreground text-xs">
-						{transaction.source === "CREDIT_CARD"
-							? `Cartão ${transaction.sourceName}`
-							: `Conta: ${transaction.sourceName}`}
-					</p>
-				) : null}
+				<TransactionTags fallback={fallbackTag} tags={transaction.tags} />
+				<TransactionAccounts transaction={transaction} />
 			</div>
-			<p className={`shrink-0 whitespace-nowrap font-bold ${amountColor}`}>
+			<p className={`shrink-0 whitespace-nowrap pt-0.5 font-bold ${amountColor}`}>
 				{amountPrefix}
 				{formatCurrency(Number(transaction.amount))}
 			</p>
