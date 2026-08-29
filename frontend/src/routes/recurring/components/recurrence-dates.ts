@@ -6,6 +6,7 @@ export function getPastRecurrenceDates(
 	startDate: string,
 	dayOfMonth?: number,
 	today = new Date(),
+	endDate?: string,
 ): string[] {
 	const dates: string[] = [];
 	const cutoff = startOfDay(today);
@@ -13,7 +14,8 @@ export function getPastRecurrenceDates(
 	let occurrence = frequency === "MONTHLY" ? monthlyOccurrence(start, dayOfMonth) : start;
 	let monthOffset = 0;
 
-	while (isBefore(occurrence, cutoff)) {
+	const end = endDate ? startOfDay(parseISO(endDate)) : undefined;
+	while (isBefore(occurrence, cutoff) && (!end || !isBefore(end, occurrence))) {
 		dates.push(format(occurrence, "yyyy-MM-dd"));
 		switch (frequency) {
 			case "DAILY":

@@ -2,6 +2,7 @@ import { HiArrowDown, HiArrowUp, HiCheck, HiPause, HiPencil, HiPlay, HiTrash } f
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
+import { formatLocalDate } from "@/lib/date";
 import { frequencyLabels, paymentMethodLabels, sourceLabels } from "./constants";
 import type { RecurringListItemData } from "./types";
 
@@ -45,6 +46,7 @@ export function RecurringListItem({
 						{frequencyLabels[item.frequency]}
 						{item.day ? ` · dia ${item.day}` : ""}
 						{paymentMethod ? ` · ${paymentMethod}` : ""}
+						{item.endDate ? ` · até ${formatLocalDate(item.endDate)}` : ""}
 					</p>
 					{item.tags?.length ? (
 						<p className="truncate text-muted-foreground text-xs">

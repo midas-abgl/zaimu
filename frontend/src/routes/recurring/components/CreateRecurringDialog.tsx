@@ -30,6 +30,7 @@ import type { RecurrenceFrequency, RecurringDraft, RecurringListItemData, Recurr
 const initialDraft = (item?: RecurringListItemData): RecurringDraft => ({
 	amount: item ? String(item.amount) : "",
 	day: item?.day ? String(item.day) : "",
+	endDate: item?.endDate?.slice(0, 10) ?? "",
 	financialAccountId: item?.financialAccountId ?? "",
 	frequency: item?.frequency ?? "MONTHLY",
 	name: item?.title ?? "",
@@ -98,6 +99,7 @@ export function CreateRecurringDialog({
 				if (item.source === "salary") {
 					return dataService.salaries.update(item.id, {
 						amount,
+						endDate: draft.endDate || null,
 						financialAccountId: draft.financialAccountId,
 						frequency: draft.frequency,
 						payDay: day,
@@ -109,6 +111,7 @@ export function CreateRecurringDialog({
 					return dataService.subscriptions.update(item.id, {
 						amount,
 						billingDay: day,
+						endDate: draft.endDate || null,
 						financialAccountId: draft.financialAccountId || null,
 						frequency: draft.frequency,
 						name: draft.name.trim(),
@@ -119,6 +122,7 @@ export function CreateRecurringDialog({
 				return dataService.recurringPayments.update(item.id, {
 					amount,
 					dayOfMonth: day,
+					endDate: draft.endDate || null,
 					financialAccountId: draft.financialAccountId || null,
 					frequency: draft.frequency,
 					name: draft.name.trim(),
@@ -131,6 +135,7 @@ export function CreateRecurringDialog({
 				const salary = await dataService.salaries.create({
 					amount,
 					autoGenerateFrom,
+					endDate: draft.endDate || undefined,
 					financialAccountId: draft.financialAccountId,
 					frequency: draft.frequency,
 					payDay: day,
@@ -140,7 +145,13 @@ export function CreateRecurringDialog({
 				});
 				if (addPastTransactions) {
 					await Promise.all(
-						getPastRecurrenceDates(draft.frequency, draft.startDate, day).map(date =>
+						getPastRecurrenceDates(
+							draft.frequency,
+							draft.startDate,
+							day,
+							new Date(),
+							draft.endDate || undefined,
+						).map(date =>
 							dataService.transactions.create({
 								amount,
 								date,
@@ -159,6 +170,7 @@ export function CreateRecurringDialog({
 				const subscription = await dataService.subscriptions.create({
 					amount,
 					billingDay: day,
+					endDate: draft.endDate || undefined,
 					financialAccountId: draft.financialAccountId || undefined,
 					frequency: draft.frequency,
 					name: draft.name.trim(),
@@ -167,7 +179,13 @@ export function CreateRecurringDialog({
 					tagIds: draft.tagIds,
 				});
 				if (addPastTransactions) {
-					const dates = getPastRecurrenceDates(draft.frequency, draft.startDate, day);
+					const dates = getPastRecurrenceDates(
+						draft.frequency,
+						draft.startDate,
+						day,
+						new Date(),
+						draft.endDate || undefined,
+					);
 					if (selectedCreditCardId) {
 						await Promise.all(
 							dates.map(purchaseDate =>
@@ -199,6 +217,7 @@ export function CreateRecurringDialog({
 			const payment = await dataService.recurringPayments.create({
 				amount,
 				dayOfMonth: day,
+				endDate: draft.endDate || undefined,
 				financialAccountId: draft.financialAccountId || undefined,
 				frequency: draft.frequency,
 				name: draft.name.trim(),
@@ -208,7 +227,13 @@ export function CreateRecurringDialog({
 			});
 			if (addPastTransactions) {
 				await Promise.all(
-					getPastRecurrenceDates(draft.frequency, draft.startDate, day).map(date =>
+					getPastRecurrenceDates(
+						draft.frequency,
+						draft.startDate,
+						day,
+						new Date(),
+						draft.endDate || undefined,
+					).map(date =>
 						dataService.transactions.create({
 							amount,
 							date,
@@ -253,12 +278,17 @@ export function CreateRecurringDialog({
 	const dayLabel = draft.source === "salary" ? "Dia do pagamento" : "Dia da cobrança";
 	const day = Number.parseInt(draft.day, 10);
 	const dayError = draft.day && (day < 1 || day > 31) ? "Informe um dia entre 1 e 31." : undefined;
+	const endDateError =
+		draft.endDate && draft.endDate < draft.startDate
+			? "A data final deve ser igual ou posterior à inicial."
+			: undefined;
 	const requiresFinancialAccount = draft.source === "salary" || draft.paymentMethod === "CREDIT";
 	const canSubmit =
 		draft.name.trim() &&
 		draft.amount &&
 		draft.day &&
 		!dayError &&
+		!endDateError &&
 		draft.startDate &&
 		(!requiresFinancialAccount || draft.financialAccountId);
 	const isStartDateInPast = draft.startDate < format(new Date(), "yyyy-MM-dd");
@@ -401,16 +431,26 @@ export function CreateRecurringDialog({
 								}
 							/>
 						)}
-						{!isEditing && (
-							<DateField
-								id="recurring-start-date"
-								label="Data inicial"
-								name="start-date"
-								onChange={event => setField("startDate", event.currentTarget.value)}
-								required
-								value={draft.startDate}
-							/>
-						)}
+						<DateField
+							description={isEditing ? "Não pode ser alterada após a criação." : undefined}
+							disabled={isEditing}
+							id="recurring-start-date"
+							label="Data inicial"
+							name="start-date"
+							onChange={event => setField("startDate", event.currentTarget.value)}
+							required
+							value={draft.startDate}
+						/>
+						<DateField
+							description="Deixe vazio para continuar sem prazo."
+							error={endDateError}
+							id="recurring-end-date"
+							label="Data final"
+							min={draft.startDate}
+							name="end-date"
+							onChange={event => setField("endDate", event.currentTarget.value)}
+							value={draft.endDate}
+						/>
 						<TagPicker onValueChange={tagIds => setField("tagIds", tagIds)} value={draft.tagIds} />
 					</div>
 					<DialogFooter>

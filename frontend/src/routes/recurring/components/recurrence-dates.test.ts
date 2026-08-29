@@ -28,4 +28,10 @@ describe("getPastRecurrenceDates", () => {
 			"2026-03-31",
 		]);
 	});
+
+	test("stops at the optional end date", () => {
+		expect(
+			getPastRecurrenceDates("MONTHLY", "2026-01-04", 3, new Date("2026-08-28T12:00:00"), "2026-03-03"),
+		).toEqual(["2026-01-03", "2026-02-03", "2026-03-03"]);
+	});
 });

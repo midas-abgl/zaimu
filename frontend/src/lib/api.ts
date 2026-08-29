@@ -185,7 +185,7 @@ export interface Salary {
 	payDay: number;
 	startDate: string;
 	autoGenerateFrom: string;
-	endDate?: string;
+	endDate?: string | null;
 	isActive: boolean;
 	categoryId?: string;
 	tagIds?: string[];
@@ -202,7 +202,7 @@ export interface Subscription {
 	paymentMethod: "DEBIT" | "CREDIT" | "PIX" | "CASH" | "TRANSFER" | "BOLETO";
 	financialAccountId?: string | null;
 	startDate: string;
-	endDate?: string;
+	endDate?: string | null;
 	isActive: boolean;
 	categoryId?: string;
 	tagIds?: string[];
@@ -218,7 +218,7 @@ export interface RecurringPayment {
 	dayOfMonth?: number;
 	dayOfWeek?: number;
 	startDate: string;
-	endDate?: string;
+	endDate?: string | null;
 	categoryId?: string;
 	paymentMethod: "DEBIT" | "CREDIT" | "PIX" | "CASH" | "TRANSFER" | "BOLETO";
 	financialAccountId?: string | null;

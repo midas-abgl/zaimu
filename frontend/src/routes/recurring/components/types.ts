@@ -14,6 +14,7 @@ export interface RecurringListItemData {
 	frequency: RecurrenceFrequency;
 	id: string;
 	monthlyAmount: number;
+	endDate?: string | null;
 	paymentMethod?: Subscription["paymentMethod"] | RecurringPayment["paymentMethod"];
 	source: RecurringSource;
 	startDate: string;
@@ -25,6 +26,7 @@ export interface RecurringDraft {
 	amount: string;
 	day: string;
 	financialAccountId: string;
+	endDate: string;
 	frequency: RecurrenceFrequency;
 	name: string;
 	paymentMethod: Subscription["paymentMethod"];

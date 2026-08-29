@@ -901,6 +901,7 @@ export const dataService = {
 	salaries: {
 		async create(data: {
 			amount: number;
+			endDate?: string;
 			financialAccountId: string;
 			frequency: Salary["frequency"];
 			autoGenerateFrom: string;
