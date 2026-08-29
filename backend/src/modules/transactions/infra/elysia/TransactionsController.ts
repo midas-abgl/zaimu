@@ -312,8 +312,32 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 		"/",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
-			if (body.originFinancialAccountId) {
-				await assertBalanceAccountOwnership(body.originFinancialAccountId, userId);
+			let originFinancialAccountId = body.originFinancialAccountId;
+			let inheritedPaymentAccount = false;
+			if (!originFinancialAccountId && !body.destinationFinancialAccountId && body.recurrenceId) {
+				const recurringPayment = await queryFirst(
+					db.sql.public.RecurringPayment.select("financialAccountId")
+						.where((fields, functions) => functions.eq(fields.id, body.recurrenceId!))
+						.limit(1)
+						.build(),
+				);
+				originFinancialAccountId = recurringPayment?.financialAccountId ?? undefined;
+				inheritedPaymentAccount = Boolean(originFinancialAccountId);
+			}
+			if (!originFinancialAccountId && !body.destinationFinancialAccountId && body.subscriptionId) {
+				const subscription = await queryFirst(
+					db.sql.public.Subscription.select("financialAccountId")
+						.where((fields, functions) => functions.eq(fields.id, body.subscriptionId!))
+						.limit(1)
+						.build(),
+				);
+				originFinancialAccountId = subscription?.financialAccountId ?? undefined;
+				inheritedPaymentAccount = Boolean(originFinancialAccountId);
+			}
+			if (originFinancialAccountId) {
+				if (inheritedPaymentAccount)
+					await assertDirectOwnership("FinancialAccount", originFinancialAccountId, userId);
+				else await assertBalanceAccountOwnership(originFinancialAccountId, userId);
 			}
 			if (body.destinationFinancialAccountId) {
 				await assertBalanceAccountOwnership(body.destinationFinancialAccountId, userId);
@@ -326,7 +350,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (body.salaryId) await assertDirectOwnership("Salary", body.salaryId, userId);
 			if (body.subscriptionId) await assertDirectOwnership("Subscription", body.subscriptionId, userId);
 			if (
-				!body.originFinancialAccountId &&
+				!originFinancialAccountId &&
 				!body.destinationFinancialAccountId &&
 				!body.recurrenceId &&
 				!body.salaryId &&
@@ -342,7 +366,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						date: new Date(body.date),
 						description: body.description,
 						destinationFinancialAccountId: body.destinationFinancialAccountId,
-						originFinancialAccountId: body.originFinancialAccountId,
+						originFinancialAccountId,
 						recurrenceId: body.recurrenceId,
 						salaryId: body.salaryId,
 						salaryOccurrenceDate: body.salaryOccurrenceDate ? new Date(body.salaryOccurrenceDate) : undefined,
@@ -364,16 +388,24 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			});
 
 			// Update account balances
-			if (body.originFinancialAccountId) {
-				const amount = param(numeric<12, 2>(body.amount), { codecId: "pg/numeric@1" });
-				await executeStatement(
-					db.sql.public.FinancialAccount.update((f, fn) => ({
-						balance: fn.raw`${f.balance} - ${amount}`.returns("pg/numeric@1"),
-						updatedAt: fn.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-					}))
-						.where((f, fn) => fn.eq(f.id, body.originFinancialAccountId!))
+			if (originFinancialAccountId) {
+				const account = await queryFirst(
+					db.sql.public.FinancialAccount.select("type")
+						.where((fields, functions) => functions.eq(fields.id, originFinancialAccountId!))
+						.limit(1)
 						.build(),
 				);
+				if (account?.type !== "CREDIT_CARD") {
+					const amount = param(numeric<12, 2>(body.amount), { codecId: "pg/numeric@1" });
+					await executeStatement(
+						db.sql.public.FinancialAccount.update((f, fn) => ({
+							balance: fn.raw`${f.balance} - ${amount}`.returns("pg/numeric@1"),
+							updatedAt: fn.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
+						}))
+							.where((f, fn) => fn.eq(f.id, originFinancialAccountId!))
+							.build(),
+					);
+				}
 			}
 
 			if (body.destinationFinancialAccountId) {
