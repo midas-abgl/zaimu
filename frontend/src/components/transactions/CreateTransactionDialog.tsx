@@ -55,8 +55,24 @@ export function CreateTransactionDialog({
 				})),
 			);
 			return statements
-				.flatMap(({ card, statements }) => statements.map(statement => ({ card, statement })))
-				.toSorted((left, right) => left.statement.dueDate.localeCompare(right.statement.dueDate));
+				.flatMap(({ card, statements }) =>
+					statements.filter(statement => !statement.isPaid).map(statement => ({ card, statement })),
+				)
+				.toSorted((left, right) => {
+					const leftDueDate = new Date(left.statement.dueDate);
+					const rightDueDate = new Date(right.statement.dueDate);
+					const monthOrder =
+						leftDueDate.getFullYear() * 12 +
+						leftDueDate.getMonth() -
+						(rightDueDate.getFullYear() * 12 + rightDueDate.getMonth());
+
+					if (monthOrder !== 0) return monthOrder;
+
+					return getCreditCardDisplayName(left.card).localeCompare(
+						getCreditCardDisplayName(right.card),
+						"pt-BR",
+					);
+				});
 		},
 		queryKey: ["credit-card-statements", "payable"],
 	});
