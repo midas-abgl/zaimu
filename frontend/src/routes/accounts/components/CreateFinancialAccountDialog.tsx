@@ -163,11 +163,11 @@ export function CreateFinancialAccountDialog({
 						label="Instituição"
 						onValueChange={setInstitutionId}
 						options={[
+							{ label: "Nova instituição", value: NEW_INSTITUTION },
 							...institutions.map(institution => ({
 								label: institution.name,
 								value: institution.id,
 							})),
-							{ label: "Nova instituição", value: NEW_INSTITUTION },
 							{ label: "Sem instituição", value: NO_INSTITUTION },
 						]}
 						placeholder="Selecione uma instituição"
