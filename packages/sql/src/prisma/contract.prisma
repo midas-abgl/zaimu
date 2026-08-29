@@ -177,6 +177,7 @@ namespace public {
     id                      VarChar(36)             @id(map: "CreditPurchase_pkey") @default(dbgenerated("cuid2()"))
     statementId             VarChar(36)
     description             VarChar(500)
+    storeName               VarChar(200)?
     totalAmount             Numeric(12, 2)
     installments            SmallInt                @default(1)
     currentInstallment      SmallInt                @default(1)
@@ -426,6 +427,7 @@ namespace public {
     amount                        Numeric(12, 2)
     date                          Date
     description                   VarChar(1000)?
+    storeName                     VarChar(200)?
     type                          pg.enum(TransactionType) @default("EXPENSE")
     categoryId                    VarChar(36)?
     recurrenceId                  VarChar(36)?

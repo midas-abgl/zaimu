@@ -1,4 +1,4 @@
-import { LuDollarSign, LuLandmark, LuPencil, LuTrash2 } from "react-icons/lu";
+import { LuDollarSign, LuLandmark, LuPencil, LuStore, LuTrash2 } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import type { Transaction } from "@/lib/api";
@@ -57,6 +57,12 @@ export function TransactionListItem({
 					</p>
 				</div>
 				<div className="flex min-w-0 flex-wrap items-center gap-1.5">
+					{transaction.storeName ? (
+						<span className="inline-flex min-w-0 items-center gap-1 text-muted-foreground text-xs">
+							<LuStore aria-hidden="true" className="size-3.5 shrink-0" />
+							<span className="max-w-40 truncate">{transaction.storeName}</span>
+						</span>
+					) : null}
 					<TransactionAccounts transaction={transaction} />
 					<TransactionTags fallback={fallbackTag} tags={transaction.tags} />
 				</div>

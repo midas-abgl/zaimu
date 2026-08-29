@@ -292,6 +292,7 @@ export const dataService = {
 			data: {
 				categoryId?: string;
 				description?: string;
+				storeName?: string;
 				installments?: number;
 				purchaseDate: string;
 				tagIds?: string[];
@@ -334,6 +335,7 @@ export const dataService = {
 				installments,
 				purchaseDate: data.purchaseDate,
 				statementId: statement.id,
+				storeName: data.storeName,
 				tagIds: data.tagIds,
 				totalAmount: data.totalAmount,
 			};
@@ -508,6 +510,7 @@ export const dataService = {
 			data: {
 				creditCardId?: string;
 				description: string;
+				storeName?: string | null;
 				installmentAmount: number;
 				purchaseDate: string;
 				tagIds: string[];
@@ -559,6 +562,7 @@ export const dataService = {
 				...storedPurchase.data,
 				categoryId: data.tagIds[0],
 				description: data.description,
+				...(data.storeName !== undefined && { storeName: data.storeName }),
 				installmentAmount: data.installmentAmount,
 				purchaseDate: data.purchaseDate,
 				statementId: targetStatement.id,
@@ -1369,6 +1373,7 @@ export const dataService = {
 									card.accountName ||
 									accounts.get(card.financialAccountId)?.institution?.name ||
 									"Cartão de crédito",
+								storeName: purchase.storeName,
 								tagIds,
 								tags,
 								type: "EXPENSE" as const,

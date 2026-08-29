@@ -19,6 +19,7 @@ import { getCreditCardDisplayName } from "@/lib/credit-card";
 
 interface PurchaseDraft {
 	description: string;
+	storeName?: string;
 	installments?: number;
 	purchaseDate: string;
 	tagIds?: string[];
@@ -45,6 +46,7 @@ export function CreatePurchaseDialog({
 	const [count, setCount] = useDebouncedInput("1", () => undefined);
 	const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
 	const [tagIds, setTagIds] = useState<string[]>([]);
+	const [storeName, setStoreName] = useDebouncedInput("", () => undefined);
 	const [cardId, setCardId] = useState(initialCardId ?? "");
 	const total = Number(amount || 0);
 	const installmentCount = Number.parseInt(count, 10);
@@ -57,6 +59,7 @@ export function CreatePurchaseDialog({
 			description: description.trim(),
 			installments: installmentCount,
 			purchaseDate: date,
+			storeName: storeName.trim() || undefined,
 			tagIds,
 			totalAmount: total,
 		});
@@ -65,6 +68,7 @@ export function CreatePurchaseDialog({
 		setAmount("");
 		setCount("1");
 		setTagIds([]);
+		setStoreName("");
 	};
 
 	return (
@@ -92,6 +96,16 @@ export function CreatePurchaseDialog({
 						placeholder="Ex: Supermercado do mês"
 						type="text"
 						value={description}
+					/>
+					<FormField
+						autoComplete="organization"
+						id="purchase-store"
+						label="Loja"
+						name="storeName"
+						onChange={event => setStoreName(event.currentTarget.value)}
+						placeholder="Ex: Supermercado São José"
+						type="text"
+						value={storeName}
 					/>
 					<MoneyField
 						id="purchase-amount"

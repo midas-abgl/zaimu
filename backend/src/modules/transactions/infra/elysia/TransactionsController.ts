@@ -20,6 +20,7 @@ const transactionColumns = [
 	"amount",
 	"date",
 	"description",
+	"storeName",
 	"type",
 	"categoryId",
 	"recurrenceId",
@@ -117,6 +118,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					),
 					recurrenceId: f.Transaction.recurrenceId,
 					salaryId: f.Transaction.salaryId,
+					storeName: f.Transaction.storeName,
 					subscriptionId: f.Transaction.subscriptionId,
 					type: f.Transaction.type,
 				}))
@@ -407,6 +409,9 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			) {
 				throw new HttpException("Informe uma conta financeira ou recorrência", 400);
 			}
+			if (body.storeName && (body.type ?? "EXPENSE") !== "EXPENSE") {
+				throw new HttpException("Loja só pode ser informada em transações de saída", 400);
+			}
 			const transaction = await queryFirst(
 				db.sql.public.Transaction.insert([
 					{
@@ -419,6 +424,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						recurrenceId: body.recurrenceId,
 						salaryId: body.salaryId,
 						salaryOccurrenceDate: body.salaryOccurrenceDate ? new Date(body.salaryOccurrenceDate) : undefined,
+						storeName: body.storeName,
 						subscriptionId: body.subscriptionId,
 						subscriptionOccurrenceDate: body.subscriptionOccurrenceDate
 							? new Date(body.subscriptionOccurrenceDate)
@@ -451,6 +457,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				recurrenceId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				salaryId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				salaryOccurrenceDate: t.Optional(t.String()),
+				storeName: t.Optional(t.String({ maxLength: 200 })),
 				subscriptionId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				subscriptionOccurrenceDate: t.Optional(t.String()),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
@@ -485,6 +492,9 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (body.amount !== undefined && body.amount <= 0) {
 				throw new HttpException("Informe um valor maior que zero", 400);
 			}
+			if (body.storeName && (body.type ?? existing.type) !== "EXPENSE") {
+				throw new HttpException("Loja só pode ser informada em transações de saída", 400);
+			}
 
 			// Record history for changed fields
 			const historyEntries: Array<{
@@ -510,6 +520,14 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					transactionId: params.id,
 				});
 			}
+			if (body.storeName !== undefined && body.storeName !== existing.storeName) {
+				historyEntries.push({
+					field: "storeName",
+					newValue: body.storeName,
+					oldValue: existing.storeName,
+					transactionId: params.id,
+				});
+			}
 			if (existing.recurrenceId || existing.salaryId || existing.subscriptionId) {
 				historyEntries.push({
 					field: "manualEdit",
@@ -527,6 +545,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					...(body.amount !== undefined && { amount: String(body.amount) }),
 					...(body.date && { date: new Date(body.date) }),
 					...(body.description !== undefined && { description: body.description }),
+					...(body.storeName !== undefined && { storeName: body.storeName }),
 					...(body.type && { type: body.type }),
 					...(body.originFinancialAccountId !== undefined && {
 						originFinancialAccountId: body.originFinancialAccountId,
@@ -562,6 +581,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				description: t.Optional(t.String({ maxLength: 1000 })),
 				destinationFinancialAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				originFinancialAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
+				storeName: t.Optional(t.Nullable(t.String({ maxLength: 200 }))),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
 				type: t.Optional(TransactionType),
 			}),

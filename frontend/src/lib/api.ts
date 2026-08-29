@@ -84,6 +84,7 @@ export interface Transaction {
 	amount: number;
 	date: string;
 	description?: string;
+	storeName?: string | null;
 	type: "INCOME" | "EXPENSE" | "TRANSFER";
 	categoryId?: string;
 	categoryName?: string;
@@ -247,6 +248,7 @@ export interface CreditPurchase {
 	id: string;
 	statementId: string;
 	description: string;
+	storeName?: string | null;
 	totalAmount: number;
 	installments: number;
 	currentInstallment: number;
@@ -316,6 +318,7 @@ export const api = {
 		cardId: string,
 		data: {
 			description?: string;
+			storeName?: string;
 			totalAmount: number;
 			installments?: number;
 			purchaseDate: string;

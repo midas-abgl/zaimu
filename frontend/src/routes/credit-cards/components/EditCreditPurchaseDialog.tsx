@@ -20,6 +20,7 @@ import { getCreditCardDisplayName } from "@/lib/credit-card";
 interface CreditPurchaseUpdate {
 	creditCardId?: string;
 	description: string;
+	storeName?: string | null;
 	installmentAmount: number;
 	purchaseDate: string;
 	tagIds: string[];
@@ -46,6 +47,7 @@ export function EditCreditPurchaseDialog({
 	const [amount, setAmount] = useState(String(purchase.installmentAmount));
 	const [date, setDate] = useState(purchase.purchaseDate.slice(0, 10));
 	const [tagIds, setTagIds] = useState(purchase.tagIds ?? (purchase.categoryId ? [purchase.categoryId] : []));
+	const [storeName, setStoreName] = useDebouncedInput(purchase.storeName ?? "", () => undefined);
 	const [selectedCardId, setSelectedCardId] = useState(creditCardId ?? "");
 	const numericAmount = Number(amount);
 
@@ -56,6 +58,7 @@ export function EditCreditPurchaseDialog({
 			description: description.trim(),
 			installmentAmount: numericAmount,
 			purchaseDate: date,
+			storeName: storeName.trim() || null,
 			tagIds,
 		});
 	};
@@ -89,6 +92,16 @@ export function EditCreditPurchaseDialog({
 						placeholder="Ex: Supermercado do mês"
 						type="text"
 						value={description}
+					/>
+					<FormField
+						autoComplete="organization"
+						id="credit-purchase-store"
+						label="Loja"
+						name="storeName"
+						onChange={event => setStoreName(event.currentTarget.value)}
+						placeholder="Ex: Supermercado São José"
+						type="text"
+						value={storeName}
 					/>
 					<MoneyField
 						id="credit-purchase-amount"

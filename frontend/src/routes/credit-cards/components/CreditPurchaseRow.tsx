@@ -20,9 +20,10 @@ export function CreditPurchaseRow({
 	return (
 		<div className="grid gap-3 rounded-xl border bg-card p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
 			<div className="min-w-0">
-				<p className="truncate font-medium">{purchase.description}</p>
+				<p className="truncate font-medium">{purchase.description || purchase.storeName || "Compra"}</p>
 				<p className="text-muted-foreground text-xs">
 					{formatLocalDate(purchase.purchaseDate)}
+					{purchase.storeName ? ` · ${purchase.storeName}` : ""}
 					{purchase.isForecast ? " · Previsão" : ""}
 					{purchase.tags?.length
 						? ` · ${purchase.tags.map(tag => tag.name).join(" · ")}`

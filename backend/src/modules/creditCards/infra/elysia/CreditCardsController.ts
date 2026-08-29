@@ -25,6 +25,7 @@ const purchaseColumns = [
 	"id",
 	"statementId",
 	"description",
+	"storeName",
 	"totalAmount",
 	"installments",
 	"currentInstallment",
@@ -68,6 +69,7 @@ interface CreditPurchaseRow {
 	id: string;
 	statementId: string;
 	description: string;
+	storeName: string | null;
 	totalAmount: number;
 	installments: number;
 	currentInstallment: number;
@@ -783,6 +785,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						installments,
 						purchaseDate,
 						statementId: statement.id,
+						storeName: body.storeName,
 						totalAmount: String(body.totalAmount),
 					},
 				])
@@ -828,6 +831,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				description: t.Optional(t.String({ maxLength: 500 })),
 				installments: t.Optional(t.Number({ maximum: 48, minimum: 1 })),
 				purchaseDate: t.String(),
+				storeName: t.Optional(t.String({ maxLength: 200 })),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
 				totalAmount: t.Number(),
 			}),
@@ -888,6 +892,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const updatedPurchase = await queryFirst(
 				db.sql.public.CreditPurchase.update({
 					...(body.description !== undefined && { description: body.description }),
+					...(body.storeName !== undefined && { storeName: body.storeName }),
 					...(body.installmentAmount !== undefined && {
 						installmentAmount: String(body.installmentAmount),
 						...(purchase.installments === 1 && { totalAmount: String(body.installmentAmount) }),
@@ -956,6 +961,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				description: t.Optional(t.String({ maxLength: 500 })),
 				installmentAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
 				purchaseDate: t.Optional(t.String()),
+				storeName: t.Optional(t.Nullable(t.String({ maxLength: 200 }))),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
 			}),
 			detail: { tags: ["Credit Cards"] },

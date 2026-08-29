@@ -3,6 +3,7 @@ import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
+import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { Transaction } from "@/lib/api";
 
 export function TransactionDetailsFields({
@@ -12,10 +13,13 @@ export function TransactionDetailsFields({
 	onAmountChange,
 	onDateChange,
 	onDescriptionChange,
+	onStoreNameChange,
 	onTagIdsChange,
 	onTypeChange,
 	showDescription = true,
 	showTags = true,
+	showStore = false,
+	storeName,
 	showType = true,
 	tagIds,
 	type,
@@ -26,14 +30,19 @@ export function TransactionDetailsFields({
 	onAmountChange: (amount: string) => void;
 	onDateChange: (date: string) => void;
 	onDescriptionChange: (description: string) => void;
+	onStoreNameChange: (storeName: string) => void;
 	onTagIdsChange: (tagIds: string[]) => void;
 	onTypeChange: (type: Transaction["type"]) => void;
 	showDescription?: boolean;
 	showTags?: boolean;
+	showStore?: boolean;
+	storeName: string;
 	showType?: boolean;
 	tagIds: string[];
 	type: Transaction["type"];
 }) {
+	const [localStoreName, setLocalStoreName] = useDebouncedInput(storeName, onStoreNameChange);
+
 	return (
 		<>
 			{showType ? (
@@ -67,6 +76,18 @@ export function TransactionDetailsFields({
 					placeholder="Ex: Mercado do mês"
 					type="text"
 					value={description}
+				/>
+			) : null}
+			{showStore ? (
+				<FormField
+					autoComplete="organization"
+					id="transaction-store"
+					label="Loja"
+					name="storeName"
+					onChange={event => setLocalStoreName(event.currentTarget.value)}
+					placeholder="Ex: Supermercado São José"
+					type="text"
+					value={localStoreName}
 				/>
 			) : null}
 			<DateField

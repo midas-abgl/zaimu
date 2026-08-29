@@ -414,12 +414,14 @@ suite("Prisma 8 SQL query builder", () => {
 				amount: 10,
 				date: "2026-08-23",
 				originFinancialAccountId: account.id,
+				storeName: "Mercado do bairro",
 				type: "EXPENSE",
 			},
 			owner.cookie,
 		);
-		const expense = (await expenseResponse.json()) as { id: string };
+		const expense = (await expenseResponse.json()) as { id: string; storeName: string };
 		expect(expenseResponse.status).toBe(200);
+		expect(expense.storeName).toBe("Mercado do bairro");
 
 		const transferResponse = await jsonRequest(
 			"/transactions/",
@@ -474,18 +476,26 @@ suite("Prisma 8 SQL query builder", () => {
 		const purchaseResponse = await jsonRequest(
 			`/credit-cards/${cardAccount.creditCard.id}/purchases`,
 			"POST",
-			{ description: "Compra sem categoria", installments: 2, purchaseDate: "2026-08-02", totalAmount: 99.9 },
+			{
+				description: "Compra sem categoria",
+				installments: 2,
+				purchaseDate: "2026-08-02",
+				storeName: "Livraria Central",
+				totalAmount: 99.9,
+			},
 			owner.cookie,
 		);
 		const purchases = (await purchaseResponse.json()) as Array<{
 			categoryId: null;
 			installmentAmount: number;
+			storeName: string;
 			totalAmount: number;
 		}>;
 		expect(purchaseResponse.status).toBe(200);
 		expect(purchases).toHaveLength(2);
 		expect(purchases[0]?.categoryId).toBeNull();
 		expect(purchases[0]?.installmentAmount).toBe(49.95);
+		expect(purchases[0]?.storeName).toBe("Livraria Central");
 		expect(typeof purchases[0]?.totalAmount).toBe("number");
 
 		const statementsResponse = await jsonRequest(

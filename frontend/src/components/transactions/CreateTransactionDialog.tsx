@@ -28,6 +28,7 @@ const initialDraft = () => ({
 	date: new Date().toISOString().slice(0, 10),
 	destinationFinancialAccountId: "",
 	originFinancialAccountId: "",
+	storeName: "",
 	tagIds: [] as string[],
 	type: "EXPENSE" as Transaction["type"],
 });
@@ -96,6 +97,7 @@ export function CreateTransactionDialog({
 				description: description.trim() || undefined,
 				destinationFinancialAccountId: draft.destinationFinancialAccountId || undefined,
 				originFinancialAccountId: draft.originFinancialAccountId || undefined,
+				storeName: draft.type === "EXPENSE" ? draft.storeName.trim() || undefined : undefined,
 				tagIds: draft.tagIds,
 				type: draft.type,
 			});
@@ -129,6 +131,7 @@ export function CreateTransactionDialog({
 						onAmountChange={amount => setDraft(current => ({ ...current, amount }))}
 						onDateChange={date => setDraft(current => ({ ...current, date }))}
 						onDescriptionChange={setDescription}
+						onStoreNameChange={storeName => setDraft(current => ({ ...current, storeName }))}
 						onTagIdsChange={tagIds => setDraft(current => ({ ...current, tagIds }))}
 						onTypeChange={type =>
 							setDraft(current => ({
@@ -138,7 +141,9 @@ export function CreateTransactionDialog({
 							}))
 						}
 						showDescription={!selectedStatement}
+						showStore={draft.type === "EXPENSE" && !selectedStatement}
 						showTags={draft.type !== "TRANSFER" && !selectedStatement}
+						storeName={draft.storeName}
 						tagIds={draft.tagIds}
 						type={draft.type}
 					/>
