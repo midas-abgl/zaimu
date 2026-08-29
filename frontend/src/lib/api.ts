@@ -351,7 +351,6 @@ export const api = {
 		institutionName?: string;
 		name?: string | null;
 		type?: FinancialAccount["type"];
-		balance?: number;
 		creditCard?: {
 			creditLimit: number;
 			securityDeposit?: number;

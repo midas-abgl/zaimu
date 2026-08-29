@@ -1,9 +1,10 @@
 import Elysia, { t } from "elysia";
+import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
 import { resolveFinancialInstitution } from "~/modules/accounts/application/resolve-financial-institution";
 import { assertCreditCardBillingDays } from "~/modules/accounts/domain/assert-credit-card-billing-days";
 import { assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
-import { db, executeStatement, nullableNumeric, queryFirst, queryRows } from "~/shared/infra/sql";
+import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 
 const Id = t.String({ maxLength: 36, minLength: 1 });
 const FinancialAccountType = t.Union([
@@ -24,7 +25,6 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					"userId",
 					"name",
 					"type",
-					"balance",
 					"institutionId",
 					"createdAt",
 					"updatedAt",
@@ -65,8 +65,10 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 			const creditCardsByAccountId = new Map(
 				creditCards.map(creditCard => [creditCard.financialAccountId, creditCard]),
 			);
+			const balances = await getFinancialAccountBalances(accounts.map(account => account.id));
 			return accounts.map(account => ({
 				...account,
+				balance: account.type === "CREDIT_CARD" ? null : (balances.get(account.id) ?? 0),
 				...(account.type === "CREDIT_CARD" && {
 					creditCard: creditCardsByAccountId.get(account.id) ?? null,
 				}),
@@ -87,7 +89,6 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					"userId",
 					"name",
 					"type",
-					"balance",
 					"institutionId",
 					"createdAt",
 					"updatedAt",
@@ -118,6 +119,10 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				: null;
 
 			// If it's a credit card, get the credit card details
+			const balance =
+				account.type === "CREDIT_CARD"
+					? null
+					: (await getFinancialAccountBalances([account.id])).get(account.id);
 			if (account.type === "CREDIT_CARD") {
 				const creditCard = await queryFirst(
 					db.sql.public.CreditCard.select(
@@ -137,10 +142,10 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						.build(),
 				);
 
-				return { ...account, creditCard, institution };
+				return { ...account, balance, creditCard, institution };
 			}
 
-			return { ...account, institution };
+			return { ...account, balance, institution };
 		},
 		{
 			detail: { tags: ["Accounts"] },
@@ -188,7 +193,6 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 			const account = await queryFirst(
 				db.sql.public.FinancialAccount.insert([
 					{
-						balance: nullableNumeric<12, 2>(type === "CREDIT_CARD" ? null : (body.balance ?? 0)),
 						institutionId: institution?.id,
 						// Prisma 8 currently omits null from nullable varchar write types.
 						name: name as never,
@@ -196,7 +200,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						userId,
 					},
 				])
-					.returning("id", "userId", "name", "type", "balance", "institutionId", "createdAt", "updatedAt")
+					.returning("id", "userId", "name", "type", "institutionId", "createdAt", "updatedAt")
 					.build(),
 			);
 			if (!account) throw new HttpException("FinancialAccount not created", 500);
@@ -233,14 +237,13 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				);
 				if (!creditCard) throw new HttpException("CreditCard not created", 500);
 
-				return { ...account, creditCard, institution };
+				return { ...account, balance: null, creditCard, institution };
 			}
 
-			return { ...account, institution };
+			return { ...account, balance: 0, institution };
 		},
 		{
 			body: t.Object({
-				balance: t.Optional(t.Number()),
 				creditCard: t.Optional(
 					t.Object({
 						creditLimit: t.Number({ minimum: 0 }),
@@ -319,14 +322,10 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					}),
 					// Prisma 8 currently omits null from nullable varchar write types.
 					...(body.name !== undefined && { name: name as never }),
-					...(body.balance !== undefined &&
-						existing.type !== "CREDIT_CARD" && {
-							balance: String(body.balance),
-						}),
 					updatedAt: new Date(),
 				})
 					.where((fields, functions) => functions.eq(fields.id, params.id))
-					.returning("id", "userId", "name", "type", "balance", "institutionId", "createdAt", "updatedAt")
+					.returning("id", "userId", "name", "type", "institutionId", "createdAt", "updatedAt")
 					.build(),
 			);
 			if (!account) throw new HttpException("FinancialAccount not found", 404);
@@ -383,14 +382,17 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				);
 				if (!creditCard) throw new HttpException("CreditCard not found", 404);
 
-				return { ...account, creditCard, institution };
+				return { ...account, balance: null, creditCard, institution };
 			}
 
-			return { ...account, institution };
+			return {
+				...account,
+				balance: (await getFinancialAccountBalances([account.id])).get(account.id) ?? 0,
+				institution,
+			};
 		},
 		{
 			body: t.Object({
-				balance: t.Optional(t.Number()),
 				creditCard: t.Optional(
 					t.Object({
 						creditLimit: t.Optional(t.Number({ minimum: 0 })),

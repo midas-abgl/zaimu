@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { compareFinancialAccountsByDisplayName, getFinancialAccountDisplayName } from "./financial-account";
+import {
+	calculateFinancialAccountBalances,
+	compareFinancialAccountsByDisplayName,
+	getFinancialAccountDisplayName,
+} from "./financial-account";
 
 describe("getFinancialAccountDisplayName", () => {
 	test("uses the account title when present", () => {
@@ -50,5 +54,24 @@ describe("compareFinancialAccountsByDisplayName", () => {
 		expect(
 			accounts.toSorted(compareFinancialAccountsByDisplayName).map(getFinancialAccountDisplayName),
 		).toEqual(["Ágil", "Banco Central", "Zeta"]);
+	});
+});
+
+describe("calculateFinancialAccountBalances", () => {
+	test("derives balances from account transactions", () => {
+		const accounts = calculateFinancialAccountBalances(
+			[
+				{ balance: 999, id: "checking", type: "CHECKING" },
+				{ balance: 999, id: "savings", type: "SAVINGS" },
+				{ balance: 999, id: "card", type: "CREDIT_CARD" },
+			] as never,
+			[
+				{ amount: 100, destinationFinancialAccountId: "checking" },
+				{ amount: 25, originFinancialAccountId: "checking" },
+				{ amount: 10, destinationFinancialAccountId: "savings", originFinancialAccountId: "checking" },
+			],
+		);
+
+		expect(accounts.map(account => account.balance)).toEqual([65, 10, null]);
 	});
 });

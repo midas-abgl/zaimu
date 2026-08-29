@@ -8,7 +8,7 @@ import {
 } from "~/modules/categories/application/tag-assignments";
 import { deleteLinkedTransactions } from "~/modules/transactions/application/delete-linked-transactions";
 import { HttpException } from "~/shared/errors";
-import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
+import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 
 const salaryColumns = [
 	"id",
@@ -294,26 +294,6 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 						),
 					),
 				);
-				if (body.amount !== undefined) {
-					const difference = body.amount - Number(existing.amount);
-					await Promise.all(
-						automaticTransactions
-							.filter(transaction => transaction.destinationFinancialAccountId)
-							.map(transaction => {
-								const amount = param(numeric<12, 2>(difference), { codecId: "pg/numeric@1" });
-								return executeStatement(
-									db.sql.public.FinancialAccount.update((fields, functions) => ({
-										balance: functions.raw`${fields.balance} + ${amount}`.returns("pg/numeric@1"),
-										updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-									}))
-										.where((fields, functions) =>
-											functions.eq(fields.id, transaction.destinationFinancialAccountId!),
-										)
-										.build(),
-								);
-							}),
-					);
-				}
 			}
 
 			const tagsBySalary = await getTagsByEntity(tagEntityType.salary, [salary.id]);

@@ -641,15 +641,6 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			);
 			if (!updatedStatement) throw new HttpException("Statement not found", 404);
 
-			await executeStatement(
-				db.sql.public.FinancialAccount.update((fields, functions) => ({
-					balance: functions.raw`${fields.balance} - ${amount}`.returns("pg/numeric@1"),
-					updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-				}))
-					.where((fields, functions) => functions.eq(fields.id, body.financialAccountId))
-					.build(),
-			);
-
 			return { statement: updatedStatement, transaction: paymentTransaction };
 		},
 		{

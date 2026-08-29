@@ -2,7 +2,7 @@ import { addMonths, differenceInMonths } from "date-fns";
 import Elysia, { t } from "elysia";
 import { assertBalanceAccountOwnership, assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
-import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
+import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 
 const loanColumns = [
 	"id",
@@ -444,19 +444,6 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 			);
 			if (!updatedPayment) throw new HttpException("Payment not found", 404);
 
-			// Update account balance if provided
-			if (body.financialAccountId) {
-				const amount = param(numeric<12, 2>(payment.totalPaid), { codecId: "pg/numeric@1" });
-				await executeStatement(
-					db.sql.public.FinancialAccount.update((fields, functions) => ({
-						balance: functions.raw`${fields.balance} - ${amount}`.returns("pg/numeric@1"),
-						updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-					}))
-						.where((fields, functions) => functions.eq(fields.id, body.financialAccountId!))
-						.build(),
-				);
-			}
-
 			return updatedPayment;
 		},
 		{
@@ -527,19 +514,6 @@ export const LoansController = new Elysia({ prefix: "/loans" })
 
 			// Calculate total paid
 			const totalPaid = unpaidPayments.reduce((sum, p) => sum + Number(p.totalPaid), 0);
-
-			// Update account balance if provided
-			if (body.financialAccountId) {
-				const amount = param(numeric<12, 2>(totalPaid), { codecId: "pg/numeric@1" });
-				await executeStatement(
-					db.sql.public.FinancialAccount.update((fields, functions) => ({
-						balance: functions.raw`${fields.balance} - ${amount}`.returns("pg/numeric@1"),
-						updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-					}))
-						.where((fields, functions) => functions.eq(fields.id, body.financialAccountId!))
-						.build(),
-				);
-			}
 
 			return {
 				advancedInstallments: unpaidPayments.length,

@@ -4,7 +4,7 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
-import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
+import { db, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
 
 type SalaryFrequency = "BIWEEKLY" | "DAILY" | "MONTHLY" | "WEEKLY" | "YEARLY";
 
@@ -133,16 +133,6 @@ export async function materializeSalaryTransactions(userId: string) {
 				entityType: tagEntityType.transaction,
 				tagIds,
 			});
-
-			const amount = param(numeric<12, 2>(salary.amount), { codecId: "pg/numeric@1" });
-			await executeStatement(
-				db.sql.public.FinancialAccount.update((fields, functions) => ({
-					balance: functions.raw`${fields.balance} + ${amount}`.returns("pg/numeric@1"),
-					updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-				}))
-					.where((fields, functions) => functions.eq(fields.id, salary.financialAccountId!))
-					.build(),
-			);
 		}
 	}
 }

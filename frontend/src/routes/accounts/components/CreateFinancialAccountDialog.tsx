@@ -71,7 +71,6 @@ export function CreateFinancialAccountDialog({
 	const [newInstitutionName, setNewInstitutionName] = useDebouncedInput("", () => undefined);
 	const [name, setName] = useDebouncedInput(account?.name ?? "", () => undefined);
 	const [type, setType] = useState<FinancialAccount["type"]>(account?.type ?? defaultType ?? "CHECKING");
-	const [balance, setBalance] = useState(String(account?.balance ?? 0));
 	const [creditLimit, setCreditLimit] = useState(String(account?.creditCard?.creditLimit ?? ""));
 	const [securityDeposit, setSecurityDeposit] = useState(String(account?.creditCard?.securityDeposit ?? ""));
 	const [statementDay, setStatementDay] = useState(String(account?.creditCard?.statementDay ?? 10));
@@ -85,7 +84,6 @@ export function CreateFinancialAccountDialog({
 		setNewInstitutionName("");
 		setName(account?.name ?? "");
 		setType(account?.type ?? defaultType ?? "CHECKING");
-		setBalance(String(account?.balance ?? 0));
 		setCreditLimit(String(account?.creditCard?.creditLimit ?? ""));
 		setSecurityDeposit(String(account?.creditCard?.securityDeposit ?? ""));
 		setStatementDay(String(account?.creditCard?.statementDay ?? 10));
@@ -107,7 +105,6 @@ export function CreateFinancialAccountDialog({
 					? newInstitutionName.trim()
 					: institutions.find(institution => institution.id === institutionId)?.name;
 			const data = {
-				balance: type === "CREDIT_CARD" ? undefined : Number(balance || 0),
 				creditCard:
 					type === "CREDIT_CARD"
 						? {
@@ -212,15 +209,6 @@ export function CreateFinancialAccountDialog({
 							placeholder="Selecione o tipo"
 							required
 							value={type}
-						/>
-					)}
-					{type !== "CREDIT_CARD" && (
-						<MoneyField
-							id="balance"
-							label="Saldo inicial"
-							onValueChange={setBalance}
-							placeholder="R$ 2.500,00"
-							value={balance}
 						/>
 					)}
 					{type === "CREDIT_CARD" && (

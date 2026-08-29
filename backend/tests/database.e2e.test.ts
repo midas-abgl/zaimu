@@ -71,7 +71,7 @@ suite("Prisma 8 SQL query builder", () => {
 		const accountResponse = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
-			{ balance: 100.25, institutionName: "Mercado Pago", name: accountName, type: "CHECKING" },
+			{ institutionName: "Mercado Pago", name: accountName, type: "CHECKING" },
 			owner.cookie,
 		);
 		expect(accountResponse.status).toBe(200);
@@ -80,7 +80,7 @@ suite("Prisma 8 SQL query builder", () => {
 			id: string;
 			institution: { id: string; name: string };
 		};
-		expect(account.balance).toBe(100.25);
+		expect(account.balance).toBe(0);
 		expect(typeof account.balance).toBe("number");
 		expect(account.institution.name).toBe("Mercado Pago");
 
@@ -98,7 +98,6 @@ suite("Prisma 8 SQL query builder", () => {
 			"/financial-accounts/",
 			"POST",
 			{
-				balance: 999,
 				creditCard: {
 					creditLimit: 1500,
 					dueDay: 17,
@@ -401,12 +400,12 @@ suite("Prisma 8 SQL query builder", () => {
 			undefined,
 			owner.cookie,
 		);
-		expect(((await updatedAccount.json()) as { balance: number }).balance).toBe(120);
+		expect(((await updatedAccount.json()) as { balance: number }).balance).toBe(19.75);
 
 		const destinationResponse = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
-			{ balance: 50, name: `Destino ${crypto.randomUUID()}`, type: "SAVINGS" },
+			{ name: `Destino ${crypto.randomUUID()}`, type: "SAVINGS" },
 			owner.cookie,
 		);
 		const destination = (await destinationResponse.json()) as { id: string };
@@ -453,8 +452,8 @@ suite("Prisma 8 SQL query builder", () => {
 			undefined,
 			owner.cookie,
 		);
-		expect(((await transferredOrigin.json()) as { balance: number }).balance).toBe(90);
-		expect(((await transferredDestination.json()) as { balance: number }).balance).toBe(70);
+		expect(((await transferredOrigin.json()) as { balance: number }).balance).toBe(-10.25);
+		expect(((await transferredDestination.json()) as { balance: number }).balance).toBe(20);
 
 		expect(
 			(await jsonRequest(`/transactions/${transfer.id}`, "DELETE", undefined, owner.cookie)).status,
@@ -467,7 +466,6 @@ suite("Prisma 8 SQL query builder", () => {
 			"/financial-accounts/",
 			"POST",
 			{
-				balance: 0,
 				creditCard: { creditLimit: 1500, dueDay: 10, statementDay: 3 },
 				name: `Cartão ${crypto.randomUUID()}`,
 				type: "CREDIT_CARD",
@@ -607,12 +605,12 @@ suite("Prisma 8 SQL query builder", () => {
 		const deletion = await jsonRequest(`/transactions/${income.id}`, "DELETE", undefined, owner.cookie);
 		expect(deletion.status).toBe(200);
 		const reversed = await jsonRequest(`/financial-accounts/${account.id}`, "GET", undefined, owner.cookie);
-		expect(((await reversed.json()) as { balance: number }).balance).toBe(100.25);
+		expect(((await reversed.json()) as { balance: number }).balance).toBe(0);
 
 		const outsiderAccountResponse = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
-			{ balance: 1, name: `Externa ${crypto.randomUUID()}`, type: "CHECKING" },
+			{ name: `Externa ${crypto.randomUUID()}`, type: "CHECKING" },
 			outsider.cookie,
 		);
 		const outsiderAccount = (await outsiderAccountResponse.json()) as { id: string };
@@ -620,9 +618,7 @@ suite("Prisma 8 SQL query builder", () => {
 			"/sync/",
 			"POST",
 			{
-				financialAccounts: [
-					{ balance: 999, id: outsiderAccount.id, name: "Tentativa indevida", type: "CHECKING" },
-				],
+				financialAccounts: [{ id: outsiderAccount.id, name: "Tentativa indevida", type: "CHECKING" }],
 			},
 			owner.cookie,
 		);
@@ -638,9 +634,8 @@ suite("Prisma 8 SQL query builder", () => {
 			"POST",
 			{
 				financialAccounts: [
-					{ balance: 3.5, id: crypto.randomUUID(), name: `Offline A ${crypto.randomUUID()}`, type: "CASH" },
+					{ id: crypto.randomUUID(), name: `Offline A ${crypto.randomUUID()}`, type: "CASH" },
 					{
-						balance: 7.25,
 						id: crypto.randomUUID(),
 						name: `Offline B ${crypto.randomUUID()}`,
 						type: "SAVINGS",

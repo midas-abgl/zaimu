@@ -22,6 +22,7 @@ import type {
 	Subscription,
 	Transaction,
 } from "./api";
+import { calculateFinancialAccountBalances } from "./financial-account";
 import { normalizeInstitutionName } from "./financial-institution";
 import {
 	clearAllLocalData,
@@ -65,7 +66,6 @@ export type FinancialAccountDraft = Omit<
 	FinancialAccount,
 	"balance" | "createdAt" | "creditCard" | "id" | "institution" | "institutionId" | "updatedAt" | "userId"
 > & {
-	balance?: number;
 	creditCard?: Pick<
 		CreditCard,
 		"creditLimit" | "dueDay" | "excludeFromTotals" | "securityDeposit" | "statementDay" | "workingDueDate"
@@ -74,7 +74,6 @@ export type FinancialAccountDraft = Omit<
 };
 
 export interface FinancialAccountUpdateDraft {
-	balance?: number;
 	creditCard?: FinancialAccountDraft["creditCard"];
 	institutionName?: string;
 	name?: string | null;
@@ -139,7 +138,7 @@ export const dataService = {
 				}
 				let newAccount: FinancialAccount = {
 					...accountData,
-					balance: data.type === "CREDIT_CARD" ? null : (accountData.balance ?? 0),
+					balance: data.type === "CREDIT_CARD" ? null : 0,
 					createdAt: new Date().toISOString(),
 					id: crypto.randomUUID(),
 					institution,
@@ -173,9 +172,10 @@ export const dataService = {
 		},
 		async getAll(): Promise<FinancialAccount[]> {
 			if (isGuestMode()) {
-				const local = await localAccounts.getAll();
-				return local.map(item =>
-					item.data.type === "CREDIT_CARD" ? { ...item.data, balance: null } : item.data,
+				const [local, transactions] = await Promise.all([localAccounts.getAll(), localTransactions.getAll()]);
+				return calculateFinancialAccountBalances(
+					local.map(item => item.data),
+					transactions.map(item => item.data),
 				);
 			}
 			const accounts = await fetchWithAuth<FinancialAccount[]>("/financial-accounts");
@@ -186,8 +186,7 @@ export const dataService = {
 
 		async getById(id: string): Promise<FinancialAccount | null> {
 			if (isGuestMode()) {
-				const local = await localAccounts.getById(id);
-				return local?.data || null;
+				return (await this.getAll()).find(account => account.id === id) ?? null;
 			}
 			try {
 				return await fetchWithAuth<FinancialAccount>(`/financial-accounts/${id}`);
@@ -513,13 +512,7 @@ export const dataService = {
 				originFinancialAccountId: data.financialAccountId,
 				type: "EXPENSE",
 			};
-			const updatedAccount: FinancialAccount = {
-				...storedAccount.data,
-				balance: storedAccount.data.balance - amount,
-				updatedAt: new Date().toISOString(),
-			};
 			await Promise.all([
-				localAccounts.put(updatedAccount, updatedAccount.id),
 				localCreditCardStatements.put(updatedStatement, updatedStatement.id),
 				localTransactions.put(transaction, transaction.id),
 			]);

@@ -1,4 +1,5 @@
 import Elysia from "elysia";
+import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
 import { resolveFinancialInstitution } from "~/modules/accounts/application/resolve-financial-institution";
 import { requireUserId } from "~/modules/auth";
 import {
@@ -27,16 +28,7 @@ const entityTagIds = (entity: InputEntity) =>
 			(value<string | undefined>(entity, "categoryId") ? [value<string>(entity, "categoryId")] : []),
 	);
 
-const accountColumns = [
-	"id",
-	"userId",
-	"name",
-	"type",
-	"balance",
-	"institutionId",
-	"createdAt",
-	"updatedAt",
-] as const;
+const accountColumns = ["id", "userId", "name", "type", "institutionId", "createdAt", "updatedAt"] as const;
 const categoryColumns = [
 	"id",
 	"userId",
@@ -150,9 +142,6 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				value<string | undefined>(entity, "institutionName") ?? institutionInput?.name,
 			);
 			const values = {
-				balance: nullableNumeric<12, 2>(
-					type === "CREDIT_CARD" ? null : (value<number>(entity, "balance") ?? 0),
-				),
 				institutionId: institution?.id,
 				name: value<string>(entity, "name"),
 				type,
@@ -555,8 +544,10 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				.build(),
 		);
 		const institutionsById = new Map(financialInstitutions.map(institution => [institution.id, institution]));
+		const balances = await getFinancialAccountBalances(financialAccounts.map(account => account.id));
 		const financialAccountsWithInstitutions = financialAccounts.map(account => ({
 			...account,
+			balance: account.type === "CREDIT_CARD" ? null : (balances.get(account.id) ?? 0),
 			institution: account.institutionId ? (institutionsById.get(account.institutionId) ?? null) : null,
 		}));
 		const serverAccountIds = financialAccounts.map(account => account.id);

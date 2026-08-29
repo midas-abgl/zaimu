@@ -1,5 +1,6 @@
 import { endOfMonth, startOfMonth, subMonths } from "date-fns";
 import Elysia from "elysia";
+import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
 import { requireUserId } from "~/modules/auth";
 import { materializeSalaryTransactions } from "~/modules/salaries/application/materialize-salary-transactions";
 import { db, queryFirst, queryRows } from "~/shared/infra/sql";
@@ -17,15 +18,16 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 
 		// Get accounts summary
 		const accounts = await queryRows(
-			db.sql.public.FinancialAccount.select("id", "name", "type", "balance")
+			db.sql.public.FinancialAccount.select("id", "name", "type")
 				.where((f, fn) => fn.eq(f.userId, userId))
 				.build(),
 		);
 		const accountIds = accounts.map(account => account.id);
 
+		const balances = await getFinancialAccountBalances(accountIds);
 		const totalBalance = accounts
 			.filter(account => account.type !== "CREDIT_CARD")
-			.reduce((sum, account) => sum + Number(account.balance), 0);
+			.reduce((sum, account) => sum + (balances.get(account.id) ?? 0), 0);
 
 		// Get current month income
 		const getTransactionTotal = async (type: "INCOME" | "EXPENSE", start: Date, end: Date) => {
@@ -179,9 +181,9 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 					);
 
 		return {
-			accounts: accounts.map(a => ({
-				...a,
-				balance: a.balance === null ? null : Number(a.balance),
+			accounts: accounts.map(account => ({
+				...account,
+				balance: account.type === "CREDIT_CARD" ? null : (balances.get(account.id) ?? 0),
 			})),
 			debts: {
 				...debtsSummary,

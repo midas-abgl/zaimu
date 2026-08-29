@@ -13,7 +13,7 @@ import {
 } from "~/modules/categories/application/tag-assignments";
 import { materializeSalaryTransactions } from "~/modules/salaries/application/materialize-salary-transactions";
 import { HttpException } from "~/shared/errors";
-import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
+import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 
 const transactionColumns = [
 	"id",
@@ -436,39 +436,6 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				tagIds,
 			});
 
-			// Update account balances
-			if (originFinancialAccountId) {
-				const account = await queryFirst(
-					db.sql.public.FinancialAccount.select("type")
-						.where((fields, functions) => functions.eq(fields.id, originFinancialAccountId!))
-						.limit(1)
-						.build(),
-				);
-				if (account?.type !== "CREDIT_CARD") {
-					const amount = param(numeric<12, 2>(body.amount), { codecId: "pg/numeric@1" });
-					await executeStatement(
-						db.sql.public.FinancialAccount.update((f, fn) => ({
-							balance: fn.raw`${f.balance} - ${amount}`.returns("pg/numeric@1"),
-							updatedAt: fn.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-						}))
-							.where((f, fn) => fn.eq(f.id, originFinancialAccountId!))
-							.build(),
-					);
-				}
-			}
-
-			if (body.destinationFinancialAccountId) {
-				const amount = param(numeric<12, 2>(body.amount), { codecId: "pg/numeric@1" });
-				await executeStatement(
-					db.sql.public.FinancialAccount.update((f, fn) => ({
-						balance: fn.raw`${f.balance} + ${amount}`.returns("pg/numeric@1"),
-						updatedAt: fn.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-					}))
-						.where((f, fn) => fn.eq(f.id, body.destinationFinancialAccountId!))
-						.build(),
-				);
-			}
-
 			const tagsByTransaction = await getTagsByEntity(tagEntityType.transaction, [transaction.id]);
 			const tags = tagsByTransaction.get(transaction.id) ?? [];
 			return { ...transaction, tagIds: tags.map(tag => tag.id), tags };
@@ -555,37 +522,6 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (historyEntries.length > 0) {
 				await executeStatement(db.sql.public.TransactionHistory.insert(historyEntries as never).build());
 			}
-			const nextAmount = body.amount ?? Number(existing.amount);
-			const nextOriginFinancialAccountId =
-				body.originFinancialAccountId === undefined
-					? existing.originFinancialAccountId
-					: body.originFinancialAccountId;
-			const nextDestinationFinancialAccountId =
-				body.destinationFinancialAccountId === undefined
-					? existing.destinationFinancialAccountId
-					: body.destinationFinancialAccountId;
-			const accountsChanged =
-				nextOriginFinancialAccountId !== existing.originFinancialAccountId ||
-				nextDestinationFinancialAccountId !== existing.destinationFinancialAccountId;
-			if (accountsChanged || nextAmount !== Number(existing.amount)) {
-				const updateBalance = async (accountId: string | null, amount: number) => {
-					if (!accountId || amount === 0) return;
-					const balanceDifference = param(numeric<12, 2>(amount), { codecId: "pg/numeric@1" });
-					await executeStatement(
-						db.sql.public.FinancialAccount.update((f, fn) => ({
-							balance: fn.raw`${f.balance} + ${balanceDifference}`.returns("pg/numeric@1"),
-							updatedAt: fn.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-						}))
-							.where((f, fn) => fn.eq(f.id, accountId))
-							.build(),
-					);
-				};
-				await updateBalance(existing.originFinancialAccountId, Number(existing.amount));
-				await updateBalance(existing.destinationFinancialAccountId, -Number(existing.amount));
-				await updateBalance(nextOriginFinancialAccountId, -nextAmount);
-				await updateBalance(nextDestinationFinancialAccountId, nextAmount);
-			}
-
 			const transaction = await queryFirst(
 				db.sql.public.Transaction.update({
 					...(body.amount !== undefined && { amount: String(body.amount) }),
@@ -649,31 +585,6 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 
 			if (!existing) {
 				throw new HttpException("Transaction not found", 404);
-			}
-
-			// Reverse account balance changes
-			if (existing.originFinancialAccountId) {
-				const amount = param(numeric<12, 2>(existing.amount), { codecId: "pg/numeric@1" });
-				await executeStatement(
-					db.sql.public.FinancialAccount.update((f, fn) => ({
-						balance: fn.raw`${f.balance} + ${amount}`.returns("pg/numeric@1"),
-						updatedAt: fn.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-					}))
-						.where((f, fn) => fn.eq(f.id, existing.originFinancialAccountId!))
-						.build(),
-				);
-			}
-
-			if (existing.destinationFinancialAccountId) {
-				const amount = param(numeric<12, 2>(existing.amount), { codecId: "pg/numeric@1" });
-				await executeStatement(
-					db.sql.public.FinancialAccount.update((f, fn) => ({
-						balance: fn.raw`${f.balance} - ${amount}`.returns("pg/numeric@1"),
-						updatedAt: fn.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-					}))
-						.where((f, fn) => fn.eq(f.id, existing.destinationFinancialAccountId!))
-						.build(),
-				);
 			}
 
 			await replaceEntityTags({
