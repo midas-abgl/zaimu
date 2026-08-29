@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { ListItemLayout } from "@/components/ui/ListItemLayout";
 import type { Transaction } from "@/lib/api";
+import { getTransactionTitle } from "@/lib/transaction-title";
 import { TransactionAccounts } from "./TransactionAccounts";
 import { TransactionTags } from "./TransactionTags";
 
@@ -99,12 +100,7 @@ export function TransactionListItem({
 			}
 			tags={<TransactionTags fallback={fallbackTag} tags={transaction.tags} />}
 			title={
-				<p className="min-w-0 flex-1 truncate font-semibold leading-6">
-					{transaction.description ||
-						transaction.tags?.[0]?.name ||
-						transaction.categoryName ||
-						"Movimentação"}
-				</p>
+				<p className="min-w-0 flex-1 truncate font-semibold leading-6">{getTransactionTitle(transaction)}</p>
 			}
 		/>
 	);
