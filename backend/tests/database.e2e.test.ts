@@ -489,11 +489,13 @@ suite("Prisma 8 SQL query builder", () => {
 			categoryId: null;
 			id: string;
 			installmentAmount: number;
+			statementId: string;
 			storeName: string;
 			totalAmount: number;
 		}>;
 		expect(purchaseResponse.status).toBe(200);
 		expect(purchases).toHaveLength(2);
+		expect(new Set(purchases.map(purchase => purchase.statementId))).toHaveSize(2);
 		expect(purchases[0]?.categoryId).toBeNull();
 		expect(purchases[0]?.installmentAmount).toBe(49.95);
 		expect(purchases[0]?.storeName).toBe("Livraria Central");
@@ -517,6 +519,9 @@ suite("Prisma 8 SQL query builder", () => {
 		);
 		const statement = (await statementsResponse.json()) as Array<{ id: string; totalAmount: number }>;
 		expect(statementsResponse.status).toBe(200);
+		expect(statement.map(item => item.id)).toEqual(
+			expect.arrayContaining(purchases.map(purchase => purchase.statementId)),
+		);
 		const statementToPay = statement[0]!;
 		const statementPaymentResponse = await jsonRequest(
 			`/credit-cards/${cardAccount.creditCard.id}/statements/${statementToPay.id}/pay`,

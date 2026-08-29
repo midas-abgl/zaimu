@@ -811,6 +811,71 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					.where((fields, functions) => functions.eq(fields.id, statement.id))
 					.build(),
 			);
+			for (let currentInstallment = 2; currentInstallment <= installments; currentInstallment++) {
+				const occurrenceDate = addMonths(purchaseDate, currentInstallment - 1);
+				const { dueDate: installmentDueDate, statementDate: installmentStatementDate } = getStatementDates(
+					card,
+					occurrenceDate,
+				);
+				let installmentStatement = await queryFirst(
+					db.sql.public.CreditCardStatement.select(...statementColumns)
+						.where((fields, functions) =>
+							functions.and(
+								functions.eq(fields.creditCardId, params.id),
+								functions.eq(fields.statementDate, installmentStatementDate),
+							),
+						)
+						.limit(1)
+						.build(),
+				);
+				if (!installmentStatement) {
+					installmentStatement = await queryFirst(
+						db.sql.public.CreditCardStatement.insert([
+							{
+								creditCardId: params.id,
+								dueDate: installmentDueDate,
+								statementDate: installmentStatementDate,
+								totalAmount: "0",
+							},
+						])
+							.returning(...statementColumns)
+							.build(),
+					);
+				}
+				if (!installmentStatement) throw new HttpException("Statement not created", 500);
+				const installmentPurchase = await queryFirst(
+					db.sql.public.CreditPurchase.insert([
+						{
+							categoryId: tagIds[0],
+							currentInstallment,
+							description: body.description ?? "",
+							installmentAmount: String(installmentAmount),
+							installments,
+							parentId: purchase.id,
+							purchaseDate,
+							statementId: installmentStatement.id,
+							storeName: body.storeName,
+							totalAmount: String(body.totalAmount),
+						},
+					])
+						.returning(...purchaseColumns)
+						.build(),
+				);
+				if (!installmentPurchase) throw new HttpException("Purchase not created", 500);
+				createdPurchases.push({
+					...installmentPurchase,
+					installmentAmount: Number(installmentPurchase.installmentAmount),
+					totalAmount: Number(installmentPurchase.totalAmount),
+				});
+				await executeStatement(
+					db.sql.public.CreditCardStatement.update((fields, functions) => ({
+						totalAmount: functions.raw`${fields.totalAmount} + ${amount}`.returns("pg/numeric@1"),
+						updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
+					}))
+						.where((fields, functions) => functions.eq(fields.id, installmentStatement.id))
+						.build(),
+				);
+			}
 
 			await replaceEntityTags({
 				entityIds: createdPurchases.map(purchase => purchase.id),
