@@ -1,4 +1,4 @@
-import { HiArrowDown, HiArrowsRightLeft, HiArrowUp } from "react-icons/hi2";
+import { LuDollarSign, LuLandmark } from "react-icons/lu";
 import type { Transaction } from "@/lib/api";
 import { TransactionAccounts } from "./TransactionAccounts";
 import { TransactionTags } from "./TransactionTags";
@@ -9,6 +9,7 @@ function formatCurrency(value: number) {
 
 export function TransactionListItem({ transaction }: { transaction: Transaction }) {
 	const amountPrefix = transaction.type === "INCOME" ? "+" : transaction.type === "EXPENSE" ? "−" : "";
+	const isCreditCardPurchase = transaction.source === "CREDIT_CARD";
 	const amountColor =
 		transaction.type === "INCOME"
 			? "text-emerald-600"
@@ -25,14 +26,10 @@ export function TransactionListItem({ transaction }: { transaction: Transaction 
 
 	return (
 		<div className="flex items-start gap-4 px-4 py-5">
-			<div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-muted">
-				{transaction.type === "INCOME" ? (
-					<HiArrowDown className="text-emerald-600" />
-				) : transaction.type === "EXPENSE" ? (
-					<HiArrowUp className="text-rose-600" />
-				) : (
-					<HiArrowsRightLeft className="text-primary" />
-				)}
+			<div
+				className={`flex size-11 shrink-0 items-center justify-center rounded-2xl bg-muted ${amountColor}`}
+			>
+				{isCreditCardPurchase ? <LuDollarSign aria-hidden="true" /> : <LuLandmark aria-hidden="true" />}
 			</div>
 			<div className="min-w-0 flex-1 space-y-2.5">
 				<p className="truncate font-semibold leading-6">
