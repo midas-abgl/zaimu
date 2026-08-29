@@ -303,35 +303,6 @@ export function CreateRecurringDialog({
 								value={draft.financialAccountId}
 							/>
 						)}
-						{draft.source !== "salary" && compatibleAccounts.length > 0 && (
-							<CustomSelect
-								label={draft.paymentMethod === "CREDIT" ? "Cartão de cobrança" : "Conta de saída"}
-								onValueChange={value =>
-									setField("financialAccountId", value === noFinancialAccountValue ? "" : value)
-								}
-								options={[
-									...(draft.paymentMethod === "CREDIT"
-										? []
-										: [{ label: "Sem conta específica", value: noFinancialAccountValue }]),
-									...compatibleAccounts.map(account => ({
-										label: getFinancialAccountDisplayName(account),
-										value: account.id,
-									})),
-								]}
-								placeholder={
-									accountsQuery.isPending
-										? "Carregando contas…"
-										: draft.paymentMethod === "CREDIT"
-											? "Selecione o cartão"
-											: "Selecione a conta"
-								}
-								required={draft.paymentMethod === "CREDIT"}
-								value={
-									draft.financialAccountId ||
-									(draft.paymentMethod === "CREDIT" ? undefined : noFinancialAccountValue)
-								}
-							/>
-						)}
 						<div className="grid gap-4 sm:grid-cols-2">
 							<CustomSelect
 								label="Frequência"
@@ -370,6 +341,35 @@ export function CreateRecurringDialog({
 								placeholder="Selecione a forma"
 								required
 								value={draft.paymentMethod}
+							/>
+						)}
+						{draft.source !== "salary" && compatibleAccounts.length > 0 && (
+							<CustomSelect
+								label={draft.paymentMethod === "CREDIT" ? "Cartão de cobrança" : "Conta de saída"}
+								onValueChange={value =>
+									setField("financialAccountId", value === noFinancialAccountValue ? "" : value)
+								}
+								options={[
+									...(draft.paymentMethod === "CREDIT"
+										? []
+										: [{ label: "Sem conta específica", value: noFinancialAccountValue }]),
+									...compatibleAccounts.map(account => ({
+										label: getFinancialAccountDisplayName(account),
+										value: account.id,
+									})),
+								]}
+								placeholder={
+									accountsQuery.isPending
+										? "Carregando contas…"
+										: draft.paymentMethod === "CREDIT"
+											? "Selecione o cartão"
+											: "Selecione a conta"
+								}
+								required={draft.paymentMethod === "CREDIT"}
+								value={
+									draft.financialAccountId ||
+									(draft.paymentMethod === "CREDIT" ? undefined : noFinancialAccountValue)
+								}
 							/>
 						)}
 						{!isEditing && (
