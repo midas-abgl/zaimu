@@ -1,4 +1,4 @@
-import { addMonths } from "date-fns";
+import { addDays, addMonths, addWeeks, addYears, isAfter, startOfDay } from "date-fns";
 import Elysia, { t } from "elysia";
 import { assertBalanceAccountOwnership, assertCreditCardOwnership, requireUserId } from "~/modules/auth";
 import {
@@ -77,6 +77,71 @@ interface CreditPurchaseRow {
 	parentId: string | null;
 	createdAt: Date;
 	updatedAt: Date;
+}
+
+type SubscriptionFrequency = "BIWEEKLY" | "DAILY" | "MONTHLY" | "WEEKLY" | "YEARLY";
+
+function subscriptionOccurrences(
+	subscription: {
+		billingDay: number;
+		endDate: Date | null;
+		frequency: SubscriptionFrequency;
+		startDate: Date;
+	},
+	until: Date,
+) {
+	const occurrences: Date[] = [];
+	const start = startOfDay(subscription.startDate);
+	const end = startOfDay(subscription.endDate && subscription.endDate < until ? subscription.endDate : until);
+	let occurrence = start;
+	if (subscription.frequency === "MONTHLY") {
+		const first = new Date(
+			start.getFullYear(),
+			start.getMonth(),
+			Math.min(subscription.billingDay, new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate()),
+		);
+		occurrence =
+			first < start
+				? new Date(
+						start.getFullYear(),
+						start.getMonth() + 1,
+						Math.min(
+							subscription.billingDay,
+							new Date(start.getFullYear(), start.getMonth() + 2, 0).getDate(),
+						),
+					)
+				: first;
+	}
+	while (!isAfter(occurrence, end)) {
+		occurrences.push(occurrence);
+		switch (subscription.frequency) {
+			case "DAILY":
+				occurrence = addDays(occurrence, 1);
+				break;
+			case "WEEKLY":
+				occurrence = addWeeks(occurrence, 1);
+				break;
+			case "BIWEEKLY":
+				occurrence = addWeeks(occurrence, 2);
+				break;
+			case "MONTHLY": {
+				const nextMonth = new Date(occurrence.getFullYear(), occurrence.getMonth() + 1, 1);
+				occurrence = new Date(
+					nextMonth.getFullYear(),
+					nextMonth.getMonth(),
+					Math.min(
+						subscription.billingDay,
+						new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 0).getDate(),
+					),
+				);
+				break;
+			}
+			case "YEARLY":
+				occurrence = addYears(occurrence, 1);
+				break;
+		}
+	}
+	return occurrences;
 }
 
 function getStatementDates(card: { dueDay: number; statementDay: number }, purchaseDate: Date) {
@@ -168,6 +233,192 @@ async function materializeDueInstallments(
 			);
 		}
 	}
+}
+
+async function materializeDueSubscriptionPurchases(
+	creditCardId: string,
+	financialAccountId: string,
+	card: { dueDay: number; statementDay: number },
+	today = new Date(),
+) {
+	const subscriptions = await queryRows(
+		db.sql.public.Subscription.select(
+			"amount",
+			"billingDay",
+			"endDate",
+			"frequency",
+			"id",
+			"name",
+			"startDate",
+		)
+			.where((fields, functions) =>
+				functions.and(
+					functions.eq(fields.financialAccountId, financialAccountId),
+					functions.eq(fields.isActive, true),
+					functions.eq(fields.paymentMethod, "CREDIT"),
+				),
+			)
+			.build(),
+	);
+	if (subscriptions.length === 0) return;
+	const existing = await queryRows(
+		db.sql.public.CreditPurchase.select("subscriptionId", "subscriptionOccurrenceDate")
+			.where((fields, functions) =>
+				functions.in(
+					fields.subscriptionId,
+					subscriptions.map(subscription => subscription.id),
+				),
+			)
+			.build(),
+	);
+	const materialized = new Set(
+		existing.flatMap(purchase =>
+			purchase.subscriptionId && purchase.subscriptionOccurrenceDate
+				? [`${purchase.subscriptionId}:${purchase.subscriptionOccurrenceDate.toISOString().slice(0, 10)}`]
+				: [],
+		),
+	);
+	const tagsBySubscription = await getTagsByEntity(
+		tagEntityType.subscription,
+		subscriptions.map(subscription => subscription.id),
+	);
+	for (const subscription of subscriptions) {
+		for (const occurrenceDate of subscriptionOccurrences(
+			subscription as typeof subscription & { frequency: SubscriptionFrequency },
+			today,
+		)) {
+			const occurrenceKey = `${subscription.id}:${occurrenceDate.toISOString().slice(0, 10)}`;
+			if (materialized.has(occurrenceKey)) continue;
+			const { dueDate, statementDate } = getStatementDates(card, occurrenceDate);
+			let statement = await queryFirst(
+				db.sql.public.CreditCardStatement.select(...statementColumns)
+					.where((fields, functions) =>
+						functions.and(
+							functions.eq(fields.creditCardId, creditCardId),
+							functions.eq(fields.statementDate, statementDate),
+						),
+					)
+					.limit(1)
+					.build(),
+			);
+			if (!statement) {
+				statement = await queryFirst(
+					db.sql.public.CreditCardStatement.insert([
+						{ creditCardId, dueDate, statementDate, totalAmount: "0" },
+					])
+						.returning(...statementColumns)
+						.build(),
+				);
+			}
+			if (!statement) throw new HttpException("Statement not created", 500);
+			const purchase = await queryFirst(
+				db.sql.public.CreditPurchase.insert([
+					{
+						currentInstallment: 1,
+						description: subscription.name,
+						installmentAmount: String(subscription.amount),
+						installments: 1,
+						purchaseDate: occurrenceDate,
+						statementId: statement.id,
+						subscriptionId: subscription.id,
+						subscriptionOccurrenceDate: occurrenceDate,
+						totalAmount: String(subscription.amount),
+					},
+				])
+					.returning("id")
+					.build(),
+			);
+			if (!purchase) continue;
+			const tagIds = (tagsBySubscription.get(subscription.id) ?? []).map(tag => tag.id);
+			await replaceEntityTags({
+				entityIds: [purchase.id],
+				entityType: tagEntityType.creditPurchase,
+				tagIds,
+			});
+			const amount = param(numeric<12, 2>(subscription.amount), { codecId: "pg/numeric@1" });
+			await executeStatement(
+				db.sql.public.CreditCardStatement.update((fields, functions) => ({
+					totalAmount: functions.raw`${fields.totalAmount} + ${amount}`.returns("pg/numeric@1"),
+					updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
+				}))
+					.where((fields, functions) => functions.eq(fields.id, statement.id))
+					.build(),
+			);
+		}
+	}
+}
+
+async function forecastSubscriptionPurchases(
+	financialAccountId: string,
+	card: { dueDay: number; statementDay: number },
+	today = new Date(),
+) {
+	const subscriptions = await queryRows(
+		db.sql.public.Subscription.select(
+			"amount",
+			"billingDay",
+			"endDate",
+			"frequency",
+			"id",
+			"name",
+			"startDate",
+		)
+			.where((fields, functions) =>
+				functions.and(
+					functions.eq(fields.financialAccountId, financialAccountId),
+					functions.eq(fields.isActive, true),
+					functions.eq(fields.paymentMethod, "CREDIT"),
+				),
+			)
+			.build(),
+	);
+	const forecasts = new Map<string, { dueDate: Date; purchases: CreditPurchaseRow[]; statementDate: Date }>();
+	const horizon = addMonths(startOfDay(today), 12);
+	for (const subscription of subscriptions) {
+		for (const occurrenceDate of subscriptionOccurrences(
+			subscription as typeof subscription & { frequency: SubscriptionFrequency },
+			horizon,
+		)) {
+			if (!isAfter(occurrenceDate, startOfDay(today))) continue;
+			const { dueDate, statementDate } = getStatementDates(card, occurrenceDate);
+			const key = statementDate.toISOString().slice(0, 10);
+			const forecast = forecasts.get(key) ?? { dueDate, purchases: [], statementDate };
+			forecast.purchases.push({
+				categoryId: null,
+				createdAt: new Date(),
+				currentInstallment: 1,
+				description: subscription.name,
+				id: `subscription-${subscription.id}-${occurrenceDate.toISOString().slice(0, 10)}`,
+				installmentAmount: Number(subscription.amount),
+				installments: 1,
+				parentId: null,
+				purchaseDate: occurrenceDate,
+				statementId: forecastStatementId(statementDate),
+				totalAmount: Number(subscription.amount),
+				updatedAt: new Date(),
+			});
+			forecasts.set(key, forecast);
+		}
+	}
+	return forecasts;
+}
+
+function mergeForecasts(
+	...forecasts: Map<string, { dueDate: Date; purchases: CreditPurchaseRow[]; statementDate: Date }>[]
+) {
+	const merged = new Map<string, { dueDate: Date; purchases: CreditPurchaseRow[]; statementDate: Date }>();
+	for (const source of forecasts) {
+		for (const [key, forecast] of source) {
+			const current = merged.get(key) ?? {
+				dueDate: forecast.dueDate,
+				purchases: [],
+				statementDate: forecast.statementDate,
+			};
+			current.purchases.push(...forecast.purchases);
+			merged.set(key, current);
+		}
+	}
+	return merged;
 }
 
 const findPurchaseForCard = (creditCardId: string, purchaseId: string) =>
@@ -287,13 +538,16 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const userId = await requireUserId(request);
 			await assertCreditCardOwnership(params.id, userId);
 			const card = await queryFirst(
-				db.sql.public.CreditCard.select("dueDay", "statementDay")
+				db.sql.public.CreditCard.select("dueDay", "financialAccountId", "statementDay")
 					.where((fields, functions) => functions.eq(fields.id, params.id))
 					.limit(1)
 					.build(),
 			);
 			if (!card) throw new HttpException("Credit card not found", 404);
-			await materializeDueInstallments(params.id, card);
+			await Promise.all([
+				materializeDueInstallments(params.id, card),
+				materializeDueSubscriptionPurchases(params.id, card.financialAccountId, card),
+			]);
 			let queryBuilder = db.sql.public.CreditCardStatement.select(...statementColumns).where(
 				(fields, functions) => functions.eq(fields.creditCardId, params.id),
 			);
@@ -330,7 +584,12 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const statementDates = new Set(
 				statements.map(statement => statement.statementDate.toISOString().slice(0, 10)),
 			);
-			const forecasts = [...forecastInstallments(card, purchases).values()]
+			const forecasts = [
+				...mergeForecasts(
+					forecastInstallments(card, purchases),
+					await forecastSubscriptionPurchases(card.financialAccountId, card),
+				).values(),
+			]
 				.filter(forecast => !statementDates.has(forecast.statementDate.toISOString().slice(0, 10)))
 				.map(forecast => ({
 					createdAt: new Date(),
@@ -367,12 +626,16 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				const statementDate = new Date(`${params.statementId.slice("forecast-".length)}T12:00:00Z`);
 				if (Number.isNaN(statementDate.getTime())) throw new HttpException("Statement not found", 404);
 				const card = await queryFirst(
-					db.sql.public.CreditCard.select("dueDay", "statementDay")
+					db.sql.public.CreditCard.select("dueDay", "financialAccountId", "statementDay")
 						.where((fields, functions) => functions.eq(fields.id, params.id))
 						.limit(1)
 						.build(),
 				);
 				if (!card) throw new HttpException("Credit card not found", 404);
+				await Promise.all([
+					materializeDueInstallments(params.id, card),
+					materializeDueSubscriptionPurchases(params.id, card.financialAccountId, card),
+				]);
 				const purchases = (await queryRows(
 					db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
 						functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
@@ -394,7 +657,10 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						.where((fields, functions) => functions.eq(fields.CreditCardStatement.creditCardId, params.id))
 						.build(),
 				)) as unknown as CreditPurchaseRow[];
-				const forecast = forecastInstallments(card, purchases).get(statementDate.toISOString().slice(0, 10));
+				const forecast = mergeForecasts(
+					forecastInstallments(card, purchases),
+					await forecastSubscriptionPurchases(card.financialAccountId, card),
+				).get(statementDate.toISOString().slice(0, 10));
 				if (!forecast) throw new HttpException("Statement not found", 404);
 				return {
 					createdAt: new Date(),

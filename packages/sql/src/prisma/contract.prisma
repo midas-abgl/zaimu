@@ -184,6 +184,8 @@ namespace public {
     purchaseDate            Date
     categoryId              VarChar(36)?
     parentId                VarChar(36)?
+		subscriptionId          VarChar(36)?
+		subscriptionOccurrenceDate Date?
     createdAt               Timestamp(3)            @default(now())
     updatedAt               Timestamp(3)            @default(now())
     creditPurchaseHistories CreditPurchaseHistory[]
@@ -191,6 +193,9 @@ namespace public {
     parent                  CreditPurchase?         @relation(name: "CreditPurchase_parentId_fkey", fields: [parentId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchase_parentId_fkey", index: false)
     creditPurchases         CreditPurchase[]        @relation(name: "CreditPurchase_parentId_fkey")
     statement               CreditCardStatement     @relation(fields: [statementId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchase_statementId_fkey", index: false)
+		subscription            Subscription?           @relation(fields: [subscriptionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchase_subscriptionId_fkey", index: false)
+
+		@@index([subscriptionId, subscriptionOccurrenceDate], map: "CreditPurchase_subscriptionId_occurrenceDate_key", unique: true)
 
     @@map("CreditPurchase")
   }
@@ -396,6 +401,7 @@ namespace public {
     updatedAt             Timestamp(3)                 @default(now())
     subscriptionHistories SubscriptionHistory[]
     transactions          Transaction[]
+		creditPurchases       CreditPurchase[]
     user                  User                         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Subscription_userId_fkey", index: false)
     financialAccount      FinancialAccount?            @relation(fields: [financialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Subscription_financialAccountId_fkey", index: false)
 
