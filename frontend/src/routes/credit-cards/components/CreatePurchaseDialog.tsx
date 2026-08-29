@@ -1,4 +1,5 @@
 import { type SyntheticEvent, useState } from "react";
+import { StorePicker } from "@/components/stores";
 import { TagPicker } from "@/components/tags";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
@@ -46,7 +47,7 @@ export function CreatePurchaseDialog({
 	const [count, setCount] = useDebouncedInput("1", () => undefined);
 	const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
 	const [tagIds, setTagIds] = useState<string[]>([]);
-	const [storeName, setStoreName] = useDebouncedInput("", () => undefined);
+	const [storeName, setStoreName] = useState("");
 	const [cardId, setCardId] = useState(initialCardId ?? "");
 	const total = Number(amount || 0);
 	const installmentCount = Number.parseInt(count, 10);
@@ -97,16 +98,7 @@ export function CreatePurchaseDialog({
 						type="text"
 						value={description}
 					/>
-					<FormField
-						autoComplete="organization"
-						id="purchase-store"
-						label="Loja"
-						name="storeName"
-						onChange={event => setStoreName(event.currentTarget.value)}
-						placeholder="Ex: Supermercado São José"
-						type="text"
-						value={storeName}
-					/>
+					<StorePicker onValueChange={setStoreName} value={storeName} />
 					<MoneyField
 						id="purchase-amount"
 						label="Valor total"

@@ -1,4 +1,5 @@
 import { type SyntheticEvent, useState } from "react";
+import { StorePicker } from "@/components/stores";
 import { TagPicker } from "@/components/tags";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
@@ -47,7 +48,7 @@ export function EditCreditPurchaseDialog({
 	const [amount, setAmount] = useState(String(purchase.installmentAmount));
 	const [date, setDate] = useState(purchase.purchaseDate.slice(0, 10));
 	const [tagIds, setTagIds] = useState(purchase.tagIds ?? (purchase.categoryId ? [purchase.categoryId] : []));
-	const [storeName, setStoreName] = useDebouncedInput(purchase.storeName ?? "", () => undefined);
+	const [storeName, setStoreName] = useState(purchase.storeName ?? "");
 	const [selectedCardId, setSelectedCardId] = useState(creditCardId ?? "");
 	const numericAmount = Number(amount);
 
@@ -93,16 +94,7 @@ export function EditCreditPurchaseDialog({
 						type="text"
 						value={description}
 					/>
-					<FormField
-						autoComplete="organization"
-						id="credit-purchase-store"
-						label="Loja"
-						name="storeName"
-						onChange={event => setStoreName(event.currentTarget.value)}
-						placeholder="Ex: Supermercado São José"
-						type="text"
-						value={storeName}
-					/>
+					<StorePicker onValueChange={setStoreName} value={storeName} />
 					<MoneyField
 						id="credit-purchase-amount"
 						label={purchase.installments > 1 ? "Valor da parcela" : "Valor"}
