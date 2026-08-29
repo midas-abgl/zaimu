@@ -25,6 +25,8 @@ const transactionColumns = [
 	"recurrenceId",
 	"salaryId",
 	"salaryOccurrenceDate",
+	"subscriptionId",
+	"subscriptionOccurrenceDate",
 	"originFinancialAccountId",
 	"destinationFinancialAccountId",
 	"createdAt",
@@ -84,6 +86,9 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					fn.eq(f.Transaction.recurrenceId, f.RecurringPayment.id),
 				)
 				.outerLeftJoin(db.sql.public.Salary, (f, fn) => fn.eq(f.Transaction.salaryId, f.Salary.id))
+				.outerLeftJoin(db.sql.public.Subscription, (f, fn) =>
+					fn.eq(f.Transaction.subscriptionId, f.Subscription.id),
+				)
 				.select((f, fn) => ({
 					amount: f.Transaction.amount,
 					categoryColor: f.Category.color,
@@ -108,6 +113,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						fn.eq(f.destination.userId, userId),
 						fn.eq(f.RecurringPayment.userId, userId),
 						fn.eq(f.Salary.userId, userId),
+						fn.eq(f.Subscription.userId, userId),
 					),
 				);
 
@@ -318,11 +324,13 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			);
 			if (body.recurrenceId) await assertDirectOwnership("RecurringPayment", body.recurrenceId, userId);
 			if (body.salaryId) await assertDirectOwnership("Salary", body.salaryId, userId);
+			if (body.subscriptionId) await assertDirectOwnership("Subscription", body.subscriptionId, userId);
 			if (
 				!body.originFinancialAccountId &&
 				!body.destinationFinancialAccountId &&
 				!body.recurrenceId &&
-				!body.salaryId
+				!body.salaryId &&
+				!body.subscriptionId
 			) {
 				throw new HttpException("Informe uma conta financeira ou recorrência", 400);
 			}
@@ -338,6 +346,10 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						recurrenceId: body.recurrenceId,
 						salaryId: body.salaryId,
 						salaryOccurrenceDate: body.salaryOccurrenceDate ? new Date(body.salaryOccurrenceDate) : undefined,
+						subscriptionId: body.subscriptionId,
+						subscriptionOccurrenceDate: body.subscriptionOccurrenceDate
+							? new Date(body.subscriptionOccurrenceDate)
+							: undefined,
 						type: body.type ?? "EXPENSE",
 					},
 				])
@@ -391,6 +403,8 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				recurrenceId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				salaryId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				salaryOccurrenceDate: t.Optional(t.String()),
+				subscriptionId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
+				subscriptionOccurrenceDate: t.Optional(t.String()),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
 				type: t.Optional(TransactionType),
 			}),

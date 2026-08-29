@@ -91,6 +91,8 @@ export interface Transaction {
 	recurrenceId?: string;
 	salaryId?: string;
 	salaryOccurrenceDate?: string;
+	subscriptionId?: string;
+	subscriptionOccurrenceDate?: string;
 	tagIds?: string[];
 	tags?: Tag[];
 	originFinancialAccountId?: string;

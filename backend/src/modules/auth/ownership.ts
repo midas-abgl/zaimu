@@ -119,6 +119,9 @@ export const assertTransactionOwnership = async (transactionId: string, userId: 
 			.outerLeftJoin(db.sql.public.Salary, (fields, functions) =>
 				functions.eq(fields.Transaction.salaryId, fields.Salary.id),
 			)
+			.outerLeftJoin(db.sql.public.Subscription, (fields, functions) =>
+				functions.eq(fields.Transaction.subscriptionId, fields.Subscription.id),
+			)
 			.select(fields => ({ id: fields.Transaction.id }))
 			.where((fields, functions) =>
 				functions.and(
@@ -128,6 +131,7 @@ export const assertTransactionOwnership = async (transactionId: string, userId: 
 						functions.eq(fields.destination.userId, userId),
 						functions.eq(fields.RecurringPayment.userId, userId),
 						functions.eq(fields.Salary.userId, userId),
+						functions.eq(fields.Subscription.userId, userId),
 					),
 				),
 			)

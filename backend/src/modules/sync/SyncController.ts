@@ -94,6 +94,8 @@ const transactionColumns = [
 	"recurrenceId",
 	"salaryId",
 	"salaryOccurrenceDate",
+	"subscriptionId",
+	"subscriptionOccurrenceDate",
 	"originFinancialAccountId",
 	"destinationFinancialAccountId",
 	"createdAt",
@@ -109,6 +111,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 		const categoryIds = new Set<string>();
 		const recurringIds = new Set<string>();
 		const salaryIds = new Set<string>();
+		const subscriptionIds = new Set<string>();
 		const cardIds = new Set<string>();
 		const statementIds = new Set<string>();
 
@@ -203,6 +206,9 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 			const tagIds = entityTagIds(entity);
 			if (tagIds.some(tagId => !categoryIds.has(tagId)))
 				throw new Error("Uma ou mais tags estão indisponíveis");
+			const financialAccountId = value<string | undefined>(entity, "financialAccountId");
+			if (financialAccountId && !accountIds.has(financialAccountId))
+				throw new Error(`Conta financeira ${financialAccountId} indisponível`);
 			const values = {
 				amount: String(value<number>(entity, "amount")),
 				categoryId: tagIds[0],
@@ -210,6 +216,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					value<number | undefined>(entity, "dayOfMonth") ?? value<number | undefined>(entity, "day"),
 				dayOfWeek: value<number | undefined>(entity, "dayOfWeek"),
 				endDate: optionalDate(entity, "endDate"),
+				financialAccountId,
 				frequency: value<"BIWEEKLY" | "DAILY" | "MONTHLY" | "WEEKLY" | "YEARLY">(entity, "frequency"),
 				isActive: value<boolean>(entity, "isActive") ?? true,
 				name: value<string>(entity, "name"),
@@ -444,10 +451,14 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 			);
 			if (existing && existing.userId !== userId)
 				throw new Error(`Assinatura ${id} pertence a outro usuário`);
+			const financialAccountId = value<string | undefined>(entity, "financialAccountId");
+			if (financialAccountId && !accountIds.has(financialAccountId))
+				throw new Error(`Conta financeira ${financialAccountId} indisponível`);
 			const values = {
 				amount: String(value<number>(entity, "amount")),
 				billingDay: Number(value<number>(entity, "billingDay")),
 				endDate: optionalDate(entity, "endDate"),
+				financialAccountId,
 				frequency:
 					value<"BIWEEKLY" | "DAILY" | "MONTHLY" | "WEEKLY" | "YEARLY">(entity, "frequency") ?? "MONTHLY",
 				isActive: value<boolean>(entity, "isActive") ?? true,
@@ -468,6 +479,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				await executeStatement(
 					db.sql.public.Subscription.insert([{ ...values, id, userId }] as never).build(),
 				);
+			subscriptionIds.add(id);
 		});
 
 		await sync("transactions", body.transactions, async entity => {
@@ -479,6 +491,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 			);
 			const recurrenceId = value<string | undefined>(entity, "recurrenceId");
 			const salaryId = value<string | undefined>(entity, "salaryId");
+			const subscriptionId = value<string | undefined>(entity, "subscriptionId");
 			if (originFinancialAccountId && !accountIds.has(originFinancialAccountId))
 				throw new Error(`Conta de origem ${originFinancialAccountId} indisponível`);
 			if (destinationFinancialAccountId && !accountIds.has(destinationFinancialAccountId))
@@ -486,6 +499,8 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 			if (recurrenceId && !recurringIds.has(recurrenceId))
 				throw new Error(`Recorrência ${recurrenceId} indisponível`);
 			if (salaryId && !salaryIds.has(salaryId)) throw new Error(`Salário ${salaryId} indisponível`);
+			if (subscriptionId && !subscriptionIds.has(subscriptionId))
+				throw new Error(`Assinatura ${subscriptionId} indisponível`);
 			const existing = await queryFirst(
 				db.sql.public.Transaction.select("id")
 					.where((f, fn) => fn.eq(f.id, id))
@@ -507,6 +522,8 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 							recurrenceId,
 							salaryId,
 							salaryOccurrenceDate: optionalDate(entity, "salaryOccurrenceDate"),
+							subscriptionId,
+							subscriptionOccurrenceDate: optionalDate(entity, "subscriptionOccurrenceDate"),
 							type: value<"EXPENSE" | "INCOME" | "TRANSFER">(entity, "type") ?? "EXPENSE",
 						},
 					]).build(),
@@ -558,18 +575,51 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 						.build(),
 				)
 			: [];
-		const transactions = serverAccountIds.length
-			? await queryRows(
-					db.sql.public.Transaction.select(...transactionColumns)
-						.where((f, fn) =>
-							fn.or(
-								fn.in(f.originFinancialAccountId, serverAccountIds),
-								fn.in(f.destinationFinancialAccountId, serverAccountIds),
-							),
-						)
-						.build(),
-				)
-			: [];
+		let transactionQueryBuilder = db.sql.public.Transaction.outerLeftJoin(
+			db.sql.public.RecurringPayment,
+			(f, fn) => fn.eq(f.Transaction.recurrenceId, f.RecurringPayment.id),
+		)
+			.outerLeftJoin(db.sql.public.Salary, (f, fn) => fn.eq(f.Transaction.salaryId, f.Salary.id))
+			.outerLeftJoin(db.sql.public.Subscription, (f, fn) =>
+				fn.eq(f.Transaction.subscriptionId, f.Subscription.id),
+			)
+			.select(f => ({
+				amount: f.Transaction.amount,
+				categoryId: f.Transaction.categoryId,
+				createdAt: f.Transaction.createdAt,
+				date: f.Transaction.date,
+				description: f.Transaction.description,
+				destinationFinancialAccountId: f.Transaction.destinationFinancialAccountId,
+				id: f.Transaction.id,
+				originFinancialAccountId: f.Transaction.originFinancialAccountId,
+				recurrenceId: f.Transaction.recurrenceId,
+				salaryId: f.Transaction.salaryId,
+				salaryOccurrenceDate: f.Transaction.salaryOccurrenceDate,
+				subscriptionId: f.Transaction.subscriptionId,
+				subscriptionOccurrenceDate: f.Transaction.subscriptionOccurrenceDate,
+				type: f.Transaction.type,
+				updatedAt: f.Transaction.updatedAt,
+			}));
+		if (serverAccountIds.length) {
+			transactionQueryBuilder = transactionQueryBuilder.where((f, fn) =>
+				fn.or(
+					fn.in(f.originFinancialAccountId, serverAccountIds),
+					fn.in(f.destinationFinancialAccountId, serverAccountIds),
+					fn.eq(f.RecurringPayment.userId, userId),
+					fn.eq(f.Salary.userId, userId),
+					fn.eq(f.Subscription.userId, userId),
+				),
+			);
+		} else {
+			transactionQueryBuilder = transactionQueryBuilder.where((f, fn) =>
+				fn.or(
+					fn.eq(f.RecurringPayment.userId, userId),
+					fn.eq(f.Salary.userId, userId),
+					fn.eq(f.Subscription.userId, userId),
+				),
+			);
+		}
+		const transactions = await queryRows(transactionQueryBuilder.build());
 		const recurringPayments = await queryRows(
 			db.sql.public.RecurringPayment.select(
 				"id",
@@ -582,6 +632,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				"startDate",
 				"endDate",
 				"categoryId",
+				"financialAccountId",
 				"paymentMethod",
 				"isActive",
 				"createdAt",
@@ -691,6 +742,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 						"billingDay",
 						"frequency",
 						"paymentMethod",
+						"financialAccountId",
 						"startDate",
 						"endDate",
 						"isActive",

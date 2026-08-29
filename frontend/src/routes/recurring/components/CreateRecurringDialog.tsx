@@ -155,7 +155,7 @@ export function CreateRecurringDialog({
 				return salary;
 			}
 			if (draft.source === "subscription") {
-				return dataService.subscriptions.create({
+				const subscription = await dataService.subscriptions.create({
 					amount,
 					billingDay: day,
 					financialAccountId: draft.financialAccountId || undefined,
@@ -164,6 +164,21 @@ export function CreateRecurringDialog({
 					paymentMethod: draft.paymentMethod,
 					startDate: draft.startDate,
 				});
+				if (addPastTransactions) {
+					await Promise.all(
+						getPastRecurrenceDates(draft.frequency, draft.startDate, day).map(date =>
+							dataService.transactions.create({
+								amount,
+								date,
+								description: draft.name.trim(),
+								subscriptionId: subscription.id,
+								subscriptionOccurrenceDate: date,
+								type: "EXPENSE",
+							}),
+						),
+					);
+				}
+				return subscription;
 			}
 			const payment = await dataService.recurringPayments.create({
 				amount,
@@ -232,9 +247,8 @@ export function CreateRecurringDialog({
 		draft.startDate &&
 		(!requiresFinancialAccount || draft.financialAccountId);
 	const isStartDateInPast = draft.startDate < format(new Date(), "yyyy-MM-dd");
-	const canAddPastTransactions = draft.source !== "subscription";
 	const handleSave = () => {
-		if (!isEditing && isStartDateInPast && canAddPastTransactions) {
+		if (!isEditing && isStartDateInPast) {
 			setIsPastTransactionsDialogOpen(true);
 			return;
 		}
