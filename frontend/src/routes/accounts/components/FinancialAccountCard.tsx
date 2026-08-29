@@ -5,6 +5,7 @@ import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import { getFinancialAccountDisplayName, getFinancialAccountTypeLabel } from "@/lib/financial-account";
 import { normalizeInstitutionName } from "@/lib/financial-institution";
 import { CreateFinancialAccountDialog } from "./CreateFinancialAccountDialog";
+import { CreditCardAccountSummary } from "./CreditCardAccountSummary";
 
 const accountType = {
 	CASH: { icon: LuBanknote },
@@ -76,10 +77,7 @@ export function FinancialAccountCard({
 			</div>
 			<div className="mt-6 border-border/70 border-t pt-4">
 				{account.type === "CREDIT_CARD" ? (
-					<>
-						<p className="text-muted-foreground text-xs">Saldo disponível</p>
-						<p className="mt-1 font-bold text-lg">Não se aplica</p>
-					</>
+					<CreditCardAccountSummary card={account.creditCard} />
 				) : (
 					<>
 						<p className="text-muted-foreground text-xs">Saldo disponível</p>
