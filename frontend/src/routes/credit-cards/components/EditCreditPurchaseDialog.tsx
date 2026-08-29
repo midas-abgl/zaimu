@@ -1,4 +1,4 @@
-import { type SyntheticEvent, useState } from "react";
+import { type SyntheticEvent, useEffect, useState } from "react";
 import { StorePicker } from "@/components/stores";
 import { TagPicker } from "@/components/tags";
 import { Button } from "@/components/ui/Button";
@@ -50,6 +50,11 @@ export function EditCreditPurchaseDialog({
 	const [tagIds, setTagIds] = useState(purchase.tagIds ?? (purchase.categoryId ? [purchase.categoryId] : []));
 	const [storeName, setStoreName] = useState(purchase.storeName ?? "");
 	const [selectedCardId, setSelectedCardId] = useState(creditCardId ?? "");
+
+	useEffect(() => {
+		if (!open) return;
+		setStoreName(purchase.storeName ?? "");
+	}, [open, purchase.storeName]);
 	const numericAmount = Number(amount);
 
 	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
