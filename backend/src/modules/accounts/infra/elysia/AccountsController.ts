@@ -1,5 +1,4 @@
 import Elysia, { t } from "elysia";
-import { inferMissingFinancialInstitutions } from "~/modules/accounts/application/infer-missing-financial-institutions";
 import { resolveFinancialInstitution } from "~/modules/accounts/application/resolve-financial-institution";
 import { assertCreditCardBillingDays } from "~/modules/accounts/domain/assert-credit-card-billing-days";
 import { assertDirectOwnership, requireUserId } from "~/modules/auth";
@@ -19,7 +18,6 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 		"/",
 		async ({ request }) => {
 			const userId = await requireUserId(request);
-			await inferMissingFinancialInstitutions(userId);
 			const accounts = await queryRows(
 				db.sql.public.FinancialAccount.select(
 					"id",
