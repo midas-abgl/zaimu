@@ -44,12 +44,14 @@ export function CreditCardOverviewCard({
 				</div>
 				<div className="relative mt-7">
 					<h2 className="font-bold text-xl">{getCreditCardDisplayName(card)}</h2>
-					<p className="mt-1 text-sm text-white/65">vencimento dia {card.dueDay}</p>
-					{card.excludeFromTotals && (
-						<span className="mt-3 inline-flex rounded-full border border-white/25 px-2.5 py-1 text-white/75 text-xs">
-							Fora dos seus totais
-						</span>
-					)}
+					<div className="mt-1 flex items-center justify-between gap-2">
+						<p className="text-sm text-white/65">vencimento dia {card.dueDay}</p>
+						{card.excludeFromTotals && (
+							<span className="shrink-0 rounded-full border border-white/25 px-2.5 py-1 text-white/75 text-xs">
+								Oculto
+							</span>
+						)}
+					</div>
 				</div>
 			</div>
 			<div className="grid gap-5 p-5">
