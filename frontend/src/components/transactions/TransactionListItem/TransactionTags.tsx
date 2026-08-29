@@ -7,10 +7,10 @@ export function TransactionTags({ fallback, tags }: { fallback?: Tag; tags?: Tag
 	if (!visibleTags.length) return null;
 
 	return (
-		<ul aria-label="Tags" className="mt-1.5 flex min-w-0 list-none flex-wrap gap-1">
+		<ul aria-label="Tags" className="flex min-w-0 list-none flex-wrap gap-1.5">
 			{visibleTags.map(tag => (
 				<li className="min-w-0" key={tag.id}>
-					<Badge className="h-6 max-w-44" variant="secondary">
+					<Badge className="h-7 max-w-44 px-2.5" variant="secondary">
 						<span
 							aria-hidden="true"
 							className="size-2 shrink-0 rounded-full"

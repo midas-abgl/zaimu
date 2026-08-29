@@ -4,6 +4,7 @@ import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { ListItemLayout } from "@/components/ui/ListItemLayout";
 import type { Transaction } from "@/lib/api";
 import { getTransactionTitle } from "@/lib/transaction-title";
+import { InstallmentPurchaseDetails } from "./InstallmentPurchaseDetails";
 import { TransactionAccounts } from "./TransactionAccounts";
 import { TransactionTags } from "./TransactionTags";
 
@@ -24,8 +25,9 @@ export function TransactionListItem({
 }) {
 	const isCreditCardPurchase = transaction.source === "CREDIT_CARD";
 	const amountPrefix = transaction.type === "INCOME" ? "+" : transaction.type === "EXPENSE" ? "−" : "";
-	const amountColor =
-		transaction.type === "INCOME"
+	const amountColor = isCreditCardPurchase
+		? "text-primary"
+		: transaction.type === "INCOME"
 			? "text-emerald-600"
 			: transaction.type === "EXPENSE"
 				? "text-rose-600"
@@ -57,7 +59,7 @@ export function TransactionListItem({
 						{onDelete ? (
 							<ConfirmActionButton
 								className="cursor-pointer disabled:cursor-not-allowed"
-								confirmation="Excluir esta transação permanentemente?"
+								confirmation={`Excluir ${isCreditCardPurchase ? "esta compra" : "esta transação"} permanentemente?`}
 								confirmChildren={
 									<>
 										<LuTrash2 /> Excluir
@@ -75,10 +77,18 @@ export function TransactionListItem({
 				) : undefined
 			}
 			amount={
-				<p className={`whitespace-nowrap font-bold ${amountColor}`}>
-					{amountPrefix}
-					{formatCurrency(Number(transaction.amount))}
-				</p>
+				isCreditCardPurchase && transaction.installments && transaction.installmentAmount ? (
+					<InstallmentPurchaseDetails
+						installmentAmount={Number(transaction.installmentAmount)}
+						installments={transaction.installments}
+						totalAmount={Number(transaction.amount)}
+					/>
+				) : (
+					<p className={`whitespace-nowrap font-bold ${amountColor}`}>
+						{amountPrefix}
+						{formatCurrency(Number(transaction.amount))}
+					</p>
+				)
 			}
 			icon={
 				<div
@@ -88,17 +98,17 @@ export function TransactionListItem({
 				</div>
 			}
 			metadata={
-				<>
+				<div className="flex min-w-0 flex-wrap items-center gap-1.5">
+					<TransactionAccounts transaction={transaction} />
 					{transaction.storeName ? (
-						<span className="inline-flex min-w-0 items-center gap-1 text-muted-foreground text-xs">
+						<span className="inline-flex min-w-0 shrink items-center gap-1 text-muted-foreground text-xs">
 							<LuStore aria-hidden="true" className="size-3.5 shrink-0" />
 							<span className="max-w-40 truncate">{transaction.storeName}</span>
 						</span>
 					) : null}
-					<TransactionAccounts transaction={transaction} />
-				</>
+					<TransactionTags fallback={fallbackTag} tags={transaction.tags} />
+				</div>
 			}
-			tags={<TransactionTags fallback={fallbackTag} tags={transaction.tags} />}
 			title={
 				<p className="min-w-0 flex-1 truncate font-semibold leading-6">{getTransactionTitle(transaction)}</p>
 			}
