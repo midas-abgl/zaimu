@@ -1,5 +1,5 @@
 import Elysia, { t } from "elysia";
-import { assertBalanceAccountOwnership, assertDirectOwnership, requireUserId } from "~/modules/auth";
+import { assertCheckingAccountOwnership, assertDirectOwnership, requireUserId } from "~/modules/auth";
 import {
 	assertTagOwnership,
 	getTagsByEntity,
@@ -116,7 +116,7 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 		"/",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
-			await assertBalanceAccountOwnership(body.financialAccountId, userId);
+			await assertCheckingAccountOwnership(body.financialAccountId, userId);
 			const tagIds = await assertTagOwnership(
 				body.tagIds ?? (body.categoryId ? [body.categoryId] : []),
 				userId,
@@ -171,7 +171,7 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 				body.tagIds !== undefined || body.categoryId !== undefined
 					? await assertTagOwnership(body.tagIds ?? (body.categoryId ? [body.categoryId] : []), userId)
 					: undefined;
-			if (body.financialAccountId) await assertBalanceAccountOwnership(body.financialAccountId, userId);
+			if (body.financialAccountId) await assertCheckingAccountOwnership(body.financialAccountId, userId);
 			const existing = await queryFirst(
 				db.sql.public.Salary.select(...salaryColumns)
 					.where((fields, functions) => functions.eq(fields.id, params.id))

@@ -82,6 +82,23 @@ export const assertBalanceAccountOwnership = async (accountId: string, userId: s
 		throw new HttpException("Cartão de crédito não possui saldo próprio", 400);
 };
 
+export const assertCheckingAccountOwnership = async (accountId: string, userId: string) => {
+	const account = await queryFirst(
+		db.sql.public.FinancialAccount.select("id")
+			.where((fields, functions) =>
+				functions.and(
+					functions.eq(fields.id, accountId),
+					functions.eq(fields.userId, userId),
+					functions.eq(fields.type, "CHECKING"),
+				),
+			)
+			.limit(1)
+			.build(),
+	);
+
+	if (!account) throw new HttpException("Selecione uma conta corrente", 400);
+};
+
 export const assertPaymentAccountOwnership = async (
 	accountId: string,
 	paymentMethod: "BOLETO" | "CASH" | "CREDIT" | "DEBIT" | "PIX" | "TRANSFER",

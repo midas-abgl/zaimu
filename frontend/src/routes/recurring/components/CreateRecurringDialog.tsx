@@ -62,16 +62,22 @@ export function CreateRecurringDialog({
 	const isEditing = Boolean(item);
 	const [isPastTransactionsDialogOpen, setIsPastTransactionsDialogOpen] = useState(false);
 	const accountsQuery = useQuery({ queryFn: () => dataService.accounts.getAll(), queryKey: ["accounts"] });
+	const checkingAccounts =
+		accountsQuery.data
+			?.filter(account => account.type === "CHECKING")
+			.toSorted(compareFinancialAccountsByDisplayName) ?? [];
 	const balanceAccounts =
 		accountsQuery.data
 			?.filter(account => account.type !== "CREDIT_CARD")
 			.toSorted(compareFinancialAccountsByDisplayName) ?? [];
 	const compatibleAccounts =
-		draft.source === "salary" || draft.paymentMethod !== "CREDIT"
-			? balanceAccounts
-			: (accountsQuery.data
-					?.filter(account => account.type === "CREDIT_CARD")
-					.toSorted(compareFinancialAccountsByDisplayName) ?? []);
+		draft.source === "salary"
+			? checkingAccounts
+			: draft.paymentMethod !== "CREDIT"
+				? balanceAccounts
+				: (accountsQuery.data
+						?.filter(account => account.type === "CREDIT_CARD")
+						.toSorted(compareFinancialAccountsByDisplayName) ?? []);
 	const selectedCreditCardId = accountsQuery.data?.find(account => account.id === draft.financialAccountId)
 		?.creditCard?.id;
 	useEffect(() => {

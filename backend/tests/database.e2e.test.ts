@@ -269,6 +269,19 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(salaryResponse.status).toBe(200);
 		const salary = (await salaryResponse.json()) as { id: string; tagIds: string[] };
 		expect(salary.tagIds).toEqual([category.id]);
+		const salaryToSavingsResponse = await jsonRequest(
+			"/salaries/",
+			"POST",
+			{
+				amount: 5000,
+				financialAccountId: unnamedAccount.id,
+				payDay: 10,
+				source: "Salário em poupança",
+				startDate: "2026-08-01",
+			},
+			owner.cookie,
+		);
+		expect(salaryToSavingsResponse.status).toBe(400);
 
 		const salaryTransactionResponse = await jsonRequest(
 			"/transactions/",
