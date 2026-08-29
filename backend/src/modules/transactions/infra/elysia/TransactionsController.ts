@@ -115,6 +115,9 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					originName: fn.raw`COALESCE(${f.origin.name}, ${f.originInstitution.name})`.returns(
 						"sql/varchar@1",
 					),
+					recurrenceId: f.Transaction.recurrenceId,
+					salaryId: f.Transaction.salaryId,
+					subscriptionId: f.Transaction.subscriptionId,
 					type: f.Transaction.type,
 				}))
 				.where((f, fn) =>
@@ -166,7 +169,11 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				return {
 					...data,
 					source:
-						transaction.type !== "TRANSFER" && paymentAccountType === "CREDIT_CARD"
+						transaction.type !== "TRANSFER" &&
+						paymentAccountType === "CREDIT_CARD" &&
+						!transaction.recurrenceId &&
+						!transaction.salaryId &&
+						!transaction.subscriptionId
 							? ("CREDIT_CARD" as const)
 							: ("FINANCIAL_ACCOUNT" as const),
 					sourceName: transaction.type === "INCOME" ? transaction.destinationName : transaction.originName,
@@ -533,6 +540,14 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					field: "description",
 					newValue: body.description,
 					oldValue: existing.description,
+					transactionId: params.id,
+				});
+			}
+			if (existing.recurrenceId || existing.salaryId || existing.subscriptionId) {
+				historyEntries.push({
+					field: "manualEdit",
+					newValue: null,
+					oldValue: null,
 					transactionId: params.id,
 				});
 			}

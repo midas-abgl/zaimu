@@ -73,6 +73,8 @@ export function CreateRecurringDialog({
 			: (accountsQuery.data
 					?.filter(account => account.type === "CREDIT_CARD")
 					.toSorted(compareFinancialAccountsByDisplayName) ?? []);
+	const selectedCreditCardId = accountsQuery.data?.find(account => account.id === draft.financialAccountId)
+		?.creditCard?.id;
 	useEffect(() => {
 		if (draft.financialAccountId || compatibleAccounts.length !== 1) return;
 		setDraft(current =>
@@ -115,6 +117,7 @@ export function CreateRecurringDialog({
 						name: draft.name.trim(),
 						paymentMethod: draft.paymentMethod,
 						tagIds: draft.tagIds,
+						updateUneditedTransactions,
 					});
 				}
 				return dataService.recurringPayments.update(item.id, {
@@ -169,18 +172,32 @@ export function CreateRecurringDialog({
 					tagIds: draft.tagIds,
 				});
 				if (addPastTransactions) {
-					await Promise.all(
-						getPastRecurrenceDates(draft.frequency, draft.startDate, day).map(date =>
-							dataService.transactions.create({
-								amount,
-								date,
-								description: draft.name.trim(),
-								subscriptionId: subscription.id,
-								subscriptionOccurrenceDate: date,
-								type: "EXPENSE",
-							}),
-						),
-					);
+					const dates = getPastRecurrenceDates(draft.frequency, draft.startDate, day);
+					if (selectedCreditCardId) {
+						await Promise.all(
+							dates.map(purchaseDate =>
+								dataService.creditCards.addPurchase(selectedCreditCardId, {
+									description: draft.name.trim(),
+									purchaseDate,
+									tagIds: draft.tagIds,
+									totalAmount: amount,
+								}),
+							),
+						);
+					} else {
+						await Promise.all(
+							dates.map(date =>
+								dataService.transactions.create({
+									amount,
+									date,
+									description: draft.name.trim(),
+									subscriptionId: subscription.id,
+									subscriptionOccurrenceDate: date,
+									type: "EXPENSE",
+								}),
+							),
+						);
+					}
 				}
 				return subscription;
 			}
@@ -217,10 +234,11 @@ export function CreateRecurringDialog({
 				queryClient.invalidateQueries({ queryKey: ["subscriptions"] }),
 				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
 				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+				queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
 			]);
 			showToast(
 				isEditing
-					? updateUneditedTransactions && (draft.source === "recurring" || draft.source === "salary")
+					? updateUneditedTransactions
 						? "Recorrência e histórico automático atualizados."
 						: "Recorrência atualizada."
 					: addPastTransactions
@@ -401,7 +419,7 @@ export function CreateRecurringDialog({
 							/>
 						)}
 						<TagPicker onValueChange={tagIds => setField("tagIds", tagIds)} value={draft.tagIds} />
-						{isEditing && draft.source !== "subscription" && (
+						{isEditing && (
 							<label
 								className="flex cursor-pointer items-start gap-3 rounded-xl border p-3"
 								htmlFor="update-automatic-history"

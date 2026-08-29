@@ -205,6 +205,7 @@ export interface Subscription {
 	startDate: string;
 	endDate?: string;
 	isActive: boolean;
+	updateUneditedTransactions?: boolean;
 	categoryId?: string;
 	tagIds?: string[];
 	tags?: Tag[];

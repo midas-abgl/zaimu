@@ -289,6 +289,7 @@ suite("Prisma 8 SQL query builder", () => {
 			{
 				amount: 30,
 				billingDay: 10,
+				financialAccountId: creditCardAccount.id,
 				frequency: "MONTHLY",
 				name: "Assinatura com tags",
 				startDate: "2026-08-01",
@@ -311,9 +312,60 @@ suite("Prisma 8 SQL query builder", () => {
 			owner.cookie,
 		);
 		expect(subscriptionTransactionResponse.status).toBe(200);
-		expect(((await subscriptionTransactionResponse.json()) as { tagIds: string[] }).tagIds).toEqual([
-			secondCategory.id,
-		]);
+		const subscriptionTransaction = (await subscriptionTransactionResponse.json()) as {
+			id: string;
+			tagIds: string[];
+		};
+		expect(subscriptionTransaction.tagIds).toEqual([secondCategory.id]);
+		const updateSubscriptionResponse = await jsonRequest(
+			`/subscriptions/${subscription.id}`,
+			"PATCH",
+			{
+				amount: 45,
+				billingDay: 15,
+				name: "Assinatura atualizada",
+				updateUneditedTransactions: true,
+			},
+			owner.cookie,
+		);
+		expect(updateSubscriptionResponse.status).toBe(200);
+		const updatedSubscriptionTransactionResponse = await jsonRequest(
+			`/transactions/${subscriptionTransaction.id}`,
+			"GET",
+			undefined,
+			owner.cookie,
+		);
+		expect(updatedSubscriptionTransactionResponse.status).toBe(200);
+		expect(
+			(await updatedSubscriptionTransactionResponse.json()) as {
+				amount: number;
+				date: string;
+				description: string;
+			},
+		).toMatchObject({ amount: 45, date: "2026-08-15T00:00:00.000Z", description: "Assinatura atualizada" });
+		const manuallyEditSubscriptionTransactionResponse = await jsonRequest(
+			`/transactions/${subscriptionTransaction.id}`,
+			"PATCH",
+			{ date: "2026-08-18" },
+			owner.cookie,
+		);
+		expect(manuallyEditSubscriptionTransactionResponse.status).toBe(200);
+		const reupdateSubscriptionResponse = await jsonRequest(
+			`/subscriptions/${subscription.id}`,
+			"PATCH",
+			{ billingDay: 20, updateUneditedTransactions: true },
+			owner.cookie,
+		);
+		expect(reupdateSubscriptionResponse.status).toBe(200);
+		const manuallyEditedSubscriptionTransactionResponse = await jsonRequest(
+			`/transactions/${subscriptionTransaction.id}`,
+			"GET",
+			undefined,
+			owner.cookie,
+		);
+		expect(
+			(await manuallyEditedSubscriptionTransactionResponse.json()) as { date: string; source: string },
+		).toMatchObject({ date: "2026-08-18T00:00:00.000Z", source: "FINANCIAL_ACCOUNT" });
 
 		const incomeResponse = await jsonRequest(
 			"/transactions/",

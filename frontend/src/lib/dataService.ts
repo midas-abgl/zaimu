@@ -54,6 +54,13 @@ function normalizeSalary(salary: LegacySalary): Salary {
 	return normalized;
 }
 
+function dateWithDayOfMonth(date: string, dayOfMonth: number): string {
+	const value = new Date(date);
+	const lastDay = new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth() + 1, 0)).getUTCDate();
+	value.setUTCDate(Math.min(dayOfMonth, lastDay));
+	return value.toISOString();
+}
+
 export type FinancialAccountDraft = Omit<
 	FinancialAccount,
 	"balance" | "createdAt" | "creditCard" | "id" | "institution" | "institutionId" | "updatedAt" | "userId"
@@ -1090,6 +1097,9 @@ export const dataService = {
 					...data,
 					...(hasTagChanges && { categoryId: tagIds[0], tagIds }),
 				};
+				const linkedTransactions = (await localTransactions.getAll()).filter(
+					transaction => transaction.data.subscriptionId === id,
+				);
 				await Promise.all([
 					localSubscriptions.put(updated, id),
 					...(hasTagChanges
@@ -1101,6 +1111,21 @@ export const dataService = {
 										transaction.localId,
 									),
 								)
+						: []),
+					...(data.updateUneditedTransactions
+						? linkedTransactions.map(transaction =>
+								localTransactions.put(
+									{
+										...transaction.data,
+										...(data.amount !== undefined && { amount: data.amount }),
+										...(data.name !== undefined && { description: data.name }),
+										...(data.billingDay !== undefined && {
+											date: dateWithDayOfMonth(transaction.data.date, data.billingDay),
+										}),
+									},
+									transaction.localId,
+								),
+							)
 						: []),
 				]);
 				return updated;
@@ -1447,7 +1472,11 @@ export const dataService = {
 							destinationName,
 							originName,
 							source:
-								item.data.type !== "TRANSFER" && paymentAccount?.type === "CREDIT_CARD"
+								item.data.type !== "TRANSFER" &&
+								paymentAccount?.type === "CREDIT_CARD" &&
+								!item.data.recurrenceId &&
+								!item.data.salaryId &&
+								!item.data.subscriptionId
 									? ("CREDIT_CARD" as const)
 									: ("FINANCIAL_ACCOUNT" as const),
 							sourceName: item.data.type === "INCOME" ? destinationName : originName,
