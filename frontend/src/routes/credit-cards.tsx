@@ -8,6 +8,7 @@ import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { CreditCard } from "@/lib/api";
+import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
 import { showToast, useAuthStore } from "@/stores";
 import { CreateFinancialAccountDialog } from "./accounts/components";
@@ -57,6 +58,11 @@ function CreditCardsPage() {
 	const totalLimit =
 		cards.data?.reduce((sum, card) => sum + (card.excludeFromTotals ? 0 : card.creditLimit), 0) ?? 0;
 	const ownCardsCount = cards.data?.filter(card => !card.excludeFromTotals).length ?? 0;
+	const sortedCards = [...(cards.data ?? [])].sort((firstCard, secondCard) =>
+		getCreditCardDisplayName(firstCard).localeCompare(getCreditCardDisplayName(secondCard), "pt-BR", {
+			sensitivity: "base",
+		}),
+	);
 
 	return (
 		<PageContainer className="grid gap-8">
@@ -94,7 +100,7 @@ function CreditCardsPage() {
 				/>
 			) : cards.data?.length ? (
 				<section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-					{cards.data.map(card => (
+					{sortedCards.map(card => (
 						<CreditCardOverviewCard
 							card={card}
 							key={card.id}
