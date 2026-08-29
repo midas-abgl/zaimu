@@ -30,11 +30,11 @@ export function DeleteRecurringDialog({
 						Esta recorrência pode já ter gerado transações. Deseja excluí-las também?
 					</DialogDescription>
 				</DialogHeader>
-				<DialogFooter>
-					<Button disabled={deleting} onClick={() => onDelete(false)} variant="outline">
+				<DialogFooter className="flex-col sm:flex-col">
+					<Button className="w-full" disabled={deleting} onClick={() => onDelete(false)} variant="outline">
 						Excluir somente recorrência
 					</Button>
-					<Button disabled={deleting} onClick={() => onDelete(true)} variant="destructive">
+					<Button className="w-full" disabled={deleting} onClick={() => onDelete(true)} variant="destructive">
 						<HiTrash /> {deleting ? "Excluindo…" : "Excluir recorrência e transações"}
 					</Button>
 				</DialogFooter>
