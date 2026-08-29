@@ -24,7 +24,7 @@ export function TransactionListItem({ transaction }: { transaction: Transaction 
 		: undefined;
 
 	return (
-		<div className="flex items-start gap-3 p-4">
+		<div className="flex items-start gap-4 px-4 py-5">
 			<div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-muted">
 				{transaction.type === "INCOME" ? (
 					<HiArrowDown className="text-emerald-600" />
@@ -34,15 +34,17 @@ export function TransactionListItem({ transaction }: { transaction: Transaction 
 					<HiArrowsRightLeft className="text-primary" />
 				)}
 			</div>
-			<div className="min-w-0 flex-1">
-				<p className="truncate font-semibold">
+			<div className="min-w-0 flex-1 space-y-2.5">
+				<p className="truncate font-semibold leading-6">
 					{transaction.description ||
 						transaction.tags?.[0]?.name ||
 						transaction.categoryName ||
 						"Movimentação"}
 				</p>
-				<TransactionTags fallback={fallbackTag} tags={transaction.tags} />
-				<TransactionAccounts transaction={transaction} />
+				<div className="flex min-w-0 flex-wrap items-center gap-1.5">
+					<TransactionAccounts transaction={transaction} />
+					<TransactionTags fallback={fallbackTag} tags={transaction.tags} />
+				</div>
 			</div>
 			<p className={`shrink-0 whitespace-nowrap pt-0.5 font-bold ${amountColor}`}>
 				{amountPrefix}
