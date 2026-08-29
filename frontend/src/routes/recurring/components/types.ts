@@ -17,7 +17,7 @@ export interface RecurringListItemData {
 	paymentMethod?: Subscription["paymentMethod"] | RecurringPayment["paymentMethod"];
 	source: RecurringSource;
 	startDate: string;
-	tags?: RecurringPayment["tags"];
+	tags?: RecurringPayment["tags"] | Salary["tags"] | Subscription["tags"];
 	title: string;
 }
 

@@ -1,5 +1,11 @@
 import Elysia, { t } from "elysia";
 import { assertBalanceAccountOwnership, assertDirectOwnership, requireUserId } from "~/modules/auth";
+import {
+	assertTagOwnership,
+	getTagsByEntity,
+	replaceEntityTags,
+	tagEntityType,
+} from "~/modules/categories/application/tag-assignments";
 import { deleteLinkedTransactions } from "~/modules/transactions/application/delete-linked-transactions";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
@@ -49,7 +55,14 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 			}
 
 			const salaries = await queryRows(queryBuilder.orderBy("startDate", { direction: "desc" }).build());
-			return salaries;
+			const tagsBySalary = await getTagsByEntity(
+				tagEntityType.salary,
+				salaries.map(salary => salary.id),
+			);
+			return salaries.map(salary => {
+				const tags = tagsBySalary.get(salary.id) ?? [];
+				return { ...salary, tagIds: tags.map(tag => tag.id), tags };
+			});
 		},
 		{
 			detail: { tags: ["Salaries"] },
@@ -74,7 +87,9 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 				throw new HttpException("Salary not found", 404);
 			}
 
-			return salary;
+			const tagsBySalary = await getTagsByEntity(tagEntityType.salary, [salary.id]);
+			const tags = tagsBySalary.get(salary.id) ?? [];
+			return { ...salary, tagIds: tags.map(tag => tag.id), tags };
 		},
 		{
 			detail: { tags: ["Salaries"] },
@@ -109,6 +124,10 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
 			await assertBalanceAccountOwnership(body.financialAccountId, userId);
+			const tagIds = await assertTagOwnership(
+				body.tagIds ?? (body.categoryId ? [body.categoryId] : []),
+				userId,
+			);
 			const salary = await queryFirst(
 				db.sql.public.Salary.insert([
 					{
@@ -128,13 +147,16 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 					.build(),
 			);
 			if (!salary) throw new HttpException("Salary not created", 500);
-
-			return salary;
+			await replaceEntityTags({ entityIds: [salary.id], entityType: tagEntityType.salary, tagIds });
+			const tagsBySalary = await getTagsByEntity(tagEntityType.salary, [salary.id]);
+			const tags = tagsBySalary.get(salary.id) ?? [];
+			return { ...salary, tagIds: tags.map(tag => tag.id), tags };
 		},
 		{
 			body: t.Object({
 				amount: t.Number({ exclusiveMinimum: 0 }),
 				autoGenerateFrom: t.Optional(t.String()),
+				categoryId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				endDate: t.Optional(t.String()),
 				financialAccountId: t.String({ maxLength: 36, minLength: 1 }),
 				frequency: t.Optional(RecurrenceFrequency),
@@ -142,6 +164,7 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 				payDay: t.Number({ maximum: 31, minimum: 1 }),
 				source: t.String({ maxLength: 100 }),
 				startDate: t.String(),
+				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
 			}),
 			detail: { tags: ["Salaries"] },
 		},
@@ -151,6 +174,10 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("Salary", params.id, userId);
+			const tagIds =
+				body.tagIds !== undefined || body.categoryId !== undefined
+					? await assertTagOwnership(body.tagIds ?? (body.categoryId ? [body.categoryId] : []), userId)
+					: undefined;
 			if (body.financialAccountId) await assertBalanceAccountOwnership(body.financialAccountId, userId);
 			const existing = await queryFirst(
 				db.sql.public.Salary.select(...salaryColumns)
@@ -210,6 +237,24 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 					.build(),
 			);
 			if (!salary) throw new HttpException("Salary not found", 404);
+			if (tagIds !== undefined) {
+				const linkedTransactions = await queryRows(
+					db.sql.public.Transaction.select("id")
+						.where((fields, functions) => functions.eq(fields.salaryId, salary.id))
+						.build(),
+				);
+				await replaceEntityTags({ entityIds: [salary.id], entityType: tagEntityType.salary, tagIds });
+				await executeStatement(
+					db.sql.public.Transaction.update({ categoryId: tagIds[0] ?? null, updatedAt: new Date() } as never)
+						.where((fields, functions) => functions.eq(fields.salaryId, salary.id))
+						.build(),
+				);
+				await replaceEntityTags({
+					entityIds: linkedTransactions.map(transaction => transaction.id),
+					entityType: tagEntityType.transaction,
+					tagIds,
+				});
+			}
 			if (body.updateUneditedTransactions) {
 				const transactions = await queryRows(
 					db.sql.public.Transaction.select("id", "date", "destinationFinancialAccountId")
@@ -271,17 +316,21 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 				}
 			}
 
-			return salary;
+			const tagsBySalary = await getTagsByEntity(tagEntityType.salary, [salary.id]);
+			const tags = tagsBySalary.get(salary.id) ?? [];
+			return { ...salary, tagIds: tags.map(tag => tag.id), tags };
 		},
 		{
 			body: t.Object({
 				amount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
+				categoryId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				endDate: t.Optional(t.Nullable(t.String())),
 				financialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				frequency: t.Optional(RecurrenceFrequency),
 				isActive: t.Optional(t.Boolean()),
 				payDay: t.Optional(t.Number({ maximum: 31, minimum: 1 })),
 				source: t.Optional(t.String({ maxLength: 100 })),
+				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
 				updateUneditedTransactions: t.Optional(t.Boolean()),
 			}),
 			detail: { tags: ["Salaries"] },
@@ -307,6 +356,7 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 			}
 
 			if (query.deleteTransactions) await deleteLinkedTransactions("salaryId", params.id);
+			await replaceEntityTags({ entityIds: [params.id], entityType: tagEntityType.salary, tagIds: [] });
 			await executeStatement(
 				db.sql.public.Salary.delete()
 					.where((fields, functions) => functions.eq(fields.id, params.id))

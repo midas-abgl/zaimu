@@ -1,5 +1,11 @@
 import Elysia, { t } from "elysia";
 import { assertDirectOwnership, assertPaymentAccountOwnership, requireUserId } from "~/modules/auth";
+import {
+	assertTagOwnership,
+	getTagsByEntity,
+	replaceEntityTags,
+	tagEntityType,
+} from "~/modules/categories/application/tag-assignments";
 import { deleteLinkedTransactions } from "~/modules/transactions/application/delete-linked-transactions";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
@@ -52,6 +58,10 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 			}
 
 			const subscriptions = await queryRows(queryBuilder.orderBy("name", { direction: "asc" }).build());
+			const tagsBySubscription = await getTagsByEntity(
+				tagEntityType.subscription,
+				subscriptions.map(subscription => subscription.id),
+			);
 
 			// Calculate total monthly cost
 			const totalMonthlyCost = subscriptions
@@ -74,7 +84,13 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 					}
 				}, 0);
 
-			return { subscriptions, totalMonthlyCost };
+			return {
+				subscriptions: subscriptions.map(subscription => {
+					const tags = tagsBySubscription.get(subscription.id) ?? [];
+					return { ...subscription, tagIds: tags.map(tag => tag.id), tags };
+				}),
+				totalMonthlyCost,
+			};
 		},
 		{
 			detail: { tags: ["Subscriptions"] },
@@ -99,7 +115,9 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 				throw new HttpException("Subscription not found", 404);
 			}
 
-			return subscription;
+			const tagsBySubscription = await getTagsByEntity(tagEntityType.subscription, [subscription.id]);
+			const tags = tagsBySubscription.get(subscription.id) ?? [];
+			return { ...subscription, tagIds: tags.map(tag => tag.id), tags };
 		},
 		{
 			detail: { tags: ["Subscriptions"] },
@@ -142,6 +160,10 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 			const userId = await requireUserId(request);
 			if (body.financialAccountId)
 				await assertPaymentAccountOwnership(body.financialAccountId, body.paymentMethod ?? "CREDIT", userId);
+			const tagIds = await assertTagOwnership(
+				body.tagIds ?? (body.categoryId ? [body.categoryId] : []),
+				userId,
+			);
 			const subscription = await queryFirst(
 				db.sql.public.Subscription.insert([
 					{
@@ -161,13 +183,20 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 					.build(),
 			);
 			if (!subscription) throw new HttpException("Subscription not created", 500);
-
-			return subscription;
+			await replaceEntityTags({
+				entityIds: [subscription.id],
+				entityType: tagEntityType.subscription,
+				tagIds,
+			});
+			const tagsBySubscription = await getTagsByEntity(tagEntityType.subscription, [subscription.id]);
+			const tags = tagsBySubscription.get(subscription.id) ?? [];
+			return { ...subscription, tagIds: tags.map(tag => tag.id), tags };
 		},
 		{
 			body: t.Object({
 				amount: t.Number(),
 				billingDay: t.Number({ maximum: 31, minimum: 1 }),
+				categoryId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				endDate: t.Optional(t.String()),
 				financialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				frequency: t.Optional(RecurrenceFrequency),
@@ -175,6 +204,7 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 				name: t.String({ maxLength: 100 }),
 				paymentMethod: t.Optional(PaymentMethod),
 				startDate: t.String(),
+				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
 			}),
 			detail: { tags: ["Subscriptions"] },
 		},
@@ -184,6 +214,10 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("Subscription", params.id, userId);
+			const tagIds =
+				body.tagIds !== undefined || body.categoryId !== undefined
+					? await assertTagOwnership(body.tagIds ?? (body.categoryId ? [body.categoryId] : []), userId)
+					: undefined;
 			const existing = await queryFirst(
 				db.sql.public.Subscription.select(...subscriptionColumns)
 					.where((fields, functions) => functions.eq(fields.id, params.id))
@@ -251,19 +285,45 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 					.build(),
 			);
 			if (!subscription) throw new HttpException("Subscription not found", 404);
+			if (tagIds !== undefined) {
+				const linkedTransactions = await queryRows(
+					db.sql.public.Transaction.select("id")
+						.where((fields, functions) => functions.eq(fields.subscriptionId, subscription.id))
+						.build(),
+				);
+				await replaceEntityTags({
+					entityIds: [subscription.id],
+					entityType: tagEntityType.subscription,
+					tagIds,
+				});
+				await executeStatement(
+					db.sql.public.Transaction.update({ categoryId: tagIds[0] ?? null, updatedAt: new Date() } as never)
+						.where((fields, functions) => functions.eq(fields.subscriptionId, subscription.id))
+						.build(),
+				);
+				await replaceEntityTags({
+					entityIds: linkedTransactions.map(transaction => transaction.id),
+					entityType: tagEntityType.transaction,
+					tagIds,
+				});
+			}
 
-			return subscription;
+			const tagsBySubscription = await getTagsByEntity(tagEntityType.subscription, [subscription.id]);
+			const tags = tagsBySubscription.get(subscription.id) ?? [];
+			return { ...subscription, tagIds: tags.map(tag => tag.id), tags };
 		},
 		{
 			body: t.Object({
 				amount: t.Optional(t.Number()),
 				billingDay: t.Optional(t.Number({ maximum: 31, minimum: 1 })),
+				categoryId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				endDate: t.Optional(t.Nullable(t.String())),
 				financialAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				frequency: t.Optional(RecurrenceFrequency),
 				isActive: t.Optional(t.Boolean()),
 				name: t.Optional(t.String({ maxLength: 100 })),
 				paymentMethod: t.Optional(PaymentMethod),
+				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
 			}),
 			detail: { tags: ["Subscriptions"] },
 			params: t.Object({
@@ -288,6 +348,7 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 			}
 
 			if (query.deleteTransactions) await deleteLinkedTransactions("subscriptionId", params.id);
+			await replaceEntityTags({ entityIds: [params.id], entityType: tagEntityType.subscription, tagIds: [] });
 			await executeStatement(
 				db.sql.public.Subscription.delete()
 					.where((fields, functions) => functions.eq(fields.id, params.id))

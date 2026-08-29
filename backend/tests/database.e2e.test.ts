@@ -255,6 +255,66 @@ suite("Prisma 8 SQL query builder", () => {
 			secondCategory.id,
 		]);
 
+		const salaryResponse = await jsonRequest(
+			"/salaries/",
+			{
+				amount: 5000,
+				financialAccountId: account.id,
+				payDay: 10,
+				source: "Salário com tags",
+				startDate: "2026-08-01",
+				tagIds: [category.id],
+			},
+			owner.cookie,
+		);
+		expect(salaryResponse.status).toBe(200);
+		const salary = (await salaryResponse.json()) as { id: string; tagIds: string[] };
+		expect(salary.tagIds).toEqual([category.id]);
+
+		const salaryTransactionResponse = await jsonRequest(
+			"/transactions/",
+			{
+				amount: 5000,
+				date: "2026-08-10",
+				salaryId: salary.id,
+				type: "INCOME",
+			},
+			owner.cookie,
+		);
+		expect(salaryTransactionResponse.status).toBe(200);
+		expect(((await salaryTransactionResponse.json()) as { tagIds: string[] }).tagIds).toEqual([category.id]);
+
+		const subscriptionResponse = await jsonRequest(
+			"/subscriptions/",
+			{
+				amount: 30,
+				billingDay: 10,
+				frequency: "MONTHLY",
+				name: "Assinatura com tags",
+				startDate: "2026-08-01",
+				tagIds: [secondCategory.id],
+			},
+			owner.cookie,
+		);
+		expect(subscriptionResponse.status).toBe(200);
+		const subscription = (await subscriptionResponse.json()) as { id: string; tagIds: string[] };
+		expect(subscription.tagIds).toEqual([secondCategory.id]);
+
+		const subscriptionTransactionResponse = await jsonRequest(
+			"/transactions/",
+			{
+				amount: 30,
+				date: "2026-08-10",
+				subscriptionId: subscription.id,
+				type: "EXPENSE",
+			},
+			owner.cookie,
+		);
+		expect(subscriptionTransactionResponse.status).toBe(200);
+		expect(((await subscriptionTransactionResponse.json()) as { tagIds: string[] }).tagIds).toEqual([
+			secondCategory.id,
+		]);
+
 		const incomeResponse = await jsonRequest(
 			"/transactions/",
 			"POST",

@@ -102,6 +102,7 @@ export function CreateRecurringDialog({
 						frequency: draft.frequency,
 						payDay: day,
 						source: draft.name.trim(),
+						tagIds: draft.tagIds,
 						updateUneditedTransactions,
 					});
 				}
@@ -113,6 +114,7 @@ export function CreateRecurringDialog({
 						frequency: draft.frequency,
 						name: draft.name.trim(),
 						paymentMethod: draft.paymentMethod,
+						tagIds: draft.tagIds,
 					});
 				}
 				return dataService.recurringPayments.update(item.id, {
@@ -136,6 +138,7 @@ export function CreateRecurringDialog({
 					payDay: day,
 					source: draft.name.trim(),
 					startDate: draft.startDate,
+					tagIds: draft.tagIds,
 				});
 				if (addPastTransactions) {
 					await Promise.all(
@@ -163,6 +166,7 @@ export function CreateRecurringDialog({
 					name: draft.name.trim(),
 					paymentMethod: draft.paymentMethod,
 					startDate: draft.startDate,
+					tagIds: draft.tagIds,
 				});
 				if (addPastTransactions) {
 					await Promise.all(
@@ -396,9 +400,7 @@ export function CreateRecurringDialog({
 								value={draft.startDate}
 							/>
 						)}
-						{draft.source === "recurring" && (
-							<TagPicker onValueChange={tagIds => setField("tagIds", tagIds)} value={draft.tagIds} />
-						)}
+						<TagPicker onValueChange={tagIds => setField("tagIds", tagIds)} value={draft.tagIds} />
 						{isEditing && draft.source !== "subscription" && (
 							<label
 								className="flex cursor-pointer items-start gap-3 rounded-xl border p-3"

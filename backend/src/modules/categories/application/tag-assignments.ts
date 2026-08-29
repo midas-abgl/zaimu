@@ -4,6 +4,8 @@ import { db, executeStatement, queryRows } from "~/shared/infra/sql";
 export const tagEntityType = {
 	creditPurchase: "CREDIT_PURCHASE",
 	recurringPayment: "RECURRING_PAYMENT",
+	salary: "SALARY",
+	subscription: "SUBSCRIPTION",
 	transaction: "TRANSACTION",
 } as const;
 

@@ -406,6 +406,9 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 
 		await sync("salaries", body.salaries, async entity => {
 			const id = value<string>(entity, "id");
+			const tagIds = entityTagIds(entity);
+			if (tagIds.some(tagId => !categoryIds.has(tagId)))
+				throw new Error("Uma ou mais tags estão indisponíveis");
 			const existing = await queryFirst(
 				db.sql.public.Salary.select("id", "userId")
 					.where((f, fn) => fn.eq(f.id, id))
@@ -439,10 +442,14 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				);
 			else await executeStatement(db.sql.public.Salary.insert([{ ...values, id, userId }] as never).build());
 			salaryIds.add(id);
+			await replaceEntityTags({ entityIds: [id], entityType: tagEntityType.salary, tagIds });
 		});
 
 		await sync("subscriptions", body.subscriptions, async entity => {
 			const id = value<string>(entity, "id");
+			const tagIds = entityTagIds(entity);
+			if (tagIds.some(tagId => !categoryIds.has(tagId)))
+				throw new Error("Uma ou mais tags estão indisponíveis");
 			const existing = await queryFirst(
 				db.sql.public.Subscription.select("id", "userId")
 					.where((f, fn) => fn.eq(f.id, id))
@@ -480,6 +487,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					db.sql.public.Subscription.insert([{ ...values, id, userId }] as never).build(),
 				);
 			subscriptionIds.add(id);
+			await replaceEntityTags({ entityIds: [id], entityType: tagEntityType.subscription, tagIds });
 		});
 
 		await sync("transactions", body.transactions, async entity => {
@@ -641,7 +649,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				.where((f, fn) => fn.eq(f.userId, userId))
 				.build(),
 		);
-		const [purchaseTags, recurringTags, transactionTags] = await Promise.all([
+		const [purchaseTags, recurringTags, salaryTags, subscriptionTags, transactionTags] = await Promise.all([
 			getTagsByEntity(
 				tagEntityType.creditPurchase,
 				creditPurchases.map(purchase => purchase.id),
@@ -649,6 +657,26 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 			getTagsByEntity(
 				tagEntityType.recurringPayment,
 				recurringPayments.map(payment => payment.id),
+			),
+			getTagsByEntity(
+				tagEntityType.salary,
+				(
+					await queryRows(
+						db.sql.public.Salary.select("id")
+							.where((f, fn) => fn.eq(f.userId, userId))
+							.build(),
+					)
+				).map(salary => salary.id),
+			),
+			getTagsByEntity(
+				tagEntityType.subscription,
+				(
+					await queryRows(
+						db.sql.public.Subscription.select("id")
+							.where((f, fn) => fn.eq(f.userId, userId))
+							.build(),
+					)
+				).map(subscription => subscription.id),
 			),
 			getTagsByEntity(
 				tagEntityType.transaction,
@@ -714,44 +742,56 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					tagIds: (recurringTags.get(payment.id) ?? []).map(tag => tag.id),
 					tags: recurringTags.get(payment.id) ?? [],
 				})),
-				salaries: await queryRows(
-					db.sql.public.Salary.select(
-						"id",
-						"userId",
-						"financialAccountId",
-						"source",
-						"amount",
-						"frequency",
-						"payDay",
-						"startDate",
-						"autoGenerateFrom",
-						"endDate",
-						"isActive",
-						"createdAt",
-						"updatedAt",
+				salaries: (
+					await queryRows(
+						db.sql.public.Salary.select(
+							"id",
+							"userId",
+							"financialAccountId",
+							"source",
+							"amount",
+							"frequency",
+							"payDay",
+							"startDate",
+							"autoGenerateFrom",
+							"endDate",
+							"isActive",
+							"createdAt",
+							"updatedAt",
+						)
+							.where((f, fn) => fn.eq(f.userId, userId))
+							.build(),
 					)
-						.where((f, fn) => fn.eq(f.userId, userId))
-						.build(),
-				),
-				subscriptions: await queryRows(
-					db.sql.public.Subscription.select(
-						"id",
-						"userId",
-						"name",
-						"amount",
-						"billingDay",
-						"frequency",
-						"paymentMethod",
-						"financialAccountId",
-						"startDate",
-						"endDate",
-						"isActive",
-						"createdAt",
-						"updatedAt",
+				).map(salary => ({
+					...salary,
+					tagIds: (salaryTags.get(salary.id) ?? []).map(tag => tag.id),
+					tags: salaryTags.get(salary.id) ?? [],
+				})),
+				subscriptions: (
+					await queryRows(
+						db.sql.public.Subscription.select(
+							"id",
+							"userId",
+							"name",
+							"amount",
+							"billingDay",
+							"frequency",
+							"paymentMethod",
+							"financialAccountId",
+							"startDate",
+							"endDate",
+							"isActive",
+							"createdAt",
+							"updatedAt",
+						)
+							.where((f, fn) => fn.eq(f.userId, userId))
+							.build(),
 					)
-						.where((f, fn) => fn.eq(f.userId, userId))
-						.build(),
-				),
+				).map(subscription => ({
+					...subscription,
+					tagIds: (subscriptionTags.get(subscription.id) ?? []).map(tag => tag.id),
+					tags: subscriptionTags.get(subscription.id) ?? [],
+				})),
 				transactions: transactions.map(transaction => ({
 					...transaction,
 					tagIds: (transactionTags.get(transaction.id) ?? []).map(tag => tag.id),

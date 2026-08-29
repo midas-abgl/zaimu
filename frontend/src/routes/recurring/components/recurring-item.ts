@@ -31,6 +31,7 @@ export function salaryToListItem(salary: Salary, accounts: FinancialAccount[] = 
 		monthlyAmount: toMonthlyAmount(Number(salary.amount), salary.frequency),
 		source: "salary",
 		startDate: salary.startDate,
+		tags: salary.tags,
 		title: salary.source,
 	};
 }
@@ -53,6 +54,7 @@ export function subscriptionToListItem(
 		paymentMethod: subscription.paymentMethod,
 		source: "subscription",
 		startDate: subscription.startDate,
+		tags: subscription.tags,
 		title: subscription.name,
 	};
 }

@@ -1,4 +1,9 @@
 import { addDays, addWeeks, addYears, format, isAfter, startOfDay } from "date-fns";
+import {
+	getTagsByEntity,
+	replaceEntityTags,
+	tagEntityType,
+} from "~/modules/categories/application/tag-assignments";
 import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
 
 type SalaryFrequency = "BIWEEKLY" | "DAILY" | "MONTHLY" | "WEEKLY" | "YEARLY";
@@ -66,6 +71,10 @@ export async function materializeSalaryTransactions(userId: string) {
 			)
 			.build(),
 	);
+	const tagsBySalary = await getTagsByEntity(
+		tagEntityType.salary,
+		salaries.map(salary => salary.id),
+	);
 
 	for (const salary of salaries) {
 		if (!salary.financialAccountId) continue;
@@ -89,10 +98,12 @@ export async function materializeSalaryTransactions(userId: string) {
 		).filter(date => date >= format(salary.autoGenerateFrom, "yyyy-MM-dd") && !scheduledDates.has(date));
 
 		for (const date of dates) {
+			const tagIds = (tagsBySalary.get(salary.id) ?? []).map(tag => tag.id);
 			const inserted = await queryFirst(
 				db.raw.sql`
 					INSERT INTO "Transaction" (
 						"amount",
+						"categoryId",
 						"date",
 						"description",
 						"destinationFinancialAccountId",
@@ -102,6 +113,7 @@ export async function materializeSalaryTransactions(userId: string) {
 					)
 					VALUES (
 						${param(numeric<12, 2>(salary.amount), { codecId: "pg/numeric@1" })},
+						${param(tagIds[0] ?? null, { codecId: "sql/varchar@1" })},
 						${param(new Date(date), { codecId: "pg/date@1" })},
 						${param(salary.source, { codecId: "sql/varchar@1" })},
 						${param(salary.financialAccountId, { codecId: "sql/varchar@1" })},
@@ -116,6 +128,11 @@ export async function materializeSalaryTransactions(userId: string) {
 					.build(),
 			);
 			if (!inserted) continue;
+			await replaceEntityTags({
+				entityIds: [inserted.id],
+				entityType: tagEntityType.transaction,
+				tagIds,
+			});
 
 			const amount = param(numeric<12, 2>(salary.amount), { codecId: "pg/numeric@1" });
 			await executeStatement(

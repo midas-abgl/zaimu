@@ -900,6 +900,7 @@ export const dataService = {
 			payDay: number;
 			source: string;
 			startDate: string;
+			tagIds?: string[];
 		}): Promise<Salary> {
 			const userId = getUserId();
 			if (isGuestMode()) {
@@ -952,8 +953,26 @@ export const dataService = {
 			if (isGuestMode()) {
 				const existing = await localSalaries.getById(id);
 				if (!existing) throw new Error("Salary not found");
-				const updated: Salary = { ...existing.data, ...data };
-				await localSalaries.put(updated, id);
+				const hasTagChanges = data.tagIds !== undefined || data.categoryId !== undefined;
+				const tagIds = data.tagIds ?? (data.categoryId ? [data.categoryId] : []);
+				const updated: Salary = {
+					...existing.data,
+					...data,
+					...(hasTagChanges && { categoryId: tagIds[0], tagIds }),
+				};
+				await Promise.all([
+					localSalaries.put(updated, id),
+					...(hasTagChanges
+						? (await localTransactions.getAll())
+								.filter(transaction => transaction.data.salaryId === id)
+								.map(transaction =>
+									localTransactions.put(
+										{ ...transaction.data, categoryId: tagIds[0], tagIds },
+										transaction.localId,
+									),
+								)
+						: []),
+				]);
 				return updated;
 			}
 			const salary = await fetchWithAuth<Salary>(`/salaries/${id}`, {
@@ -1024,8 +1043,26 @@ export const dataService = {
 			if (isGuestMode()) {
 				const existing = await localSubscriptions.getById(id);
 				if (!existing) throw new Error("Subscription not found");
-				const updated: Subscription = { ...existing.data, ...data };
-				await localSubscriptions.put(updated, id);
+				const hasTagChanges = data.tagIds !== undefined || data.categoryId !== undefined;
+				const tagIds = data.tagIds ?? (data.categoryId ? [data.categoryId] : []);
+				const updated: Subscription = {
+					...existing.data,
+					...data,
+					...(hasTagChanges && { categoryId: tagIds[0], tagIds }),
+				};
+				await Promise.all([
+					localSubscriptions.put(updated, id),
+					...(hasTagChanges
+						? (await localTransactions.getAll())
+								.filter(transaction => transaction.data.subscriptionId === id)
+								.map(transaction =>
+									localTransactions.put(
+										{ ...transaction.data, categoryId: tagIds[0], tagIds },
+										transaction.localId,
+									),
+								)
+						: []),
+				]);
 				return updated;
 			}
 			const subscription = await fetchWithAuth<Subscription>(`/subscriptions/${id}`, {
@@ -1251,12 +1288,15 @@ export const dataService = {
 		async create(data: Omit<Transaction, "id" | "createdAt">): Promise<Transaction> {
 			if (isGuestMode()) {
 				const hasExplicitTags = data.tagIds !== undefined || data.categoryId !== undefined;
-				const recurringPayment = data.recurrenceId
-					? (await localRecurringPayments.getById(data.recurrenceId))?.data
-					: undefined;
+				const [recurringPayment, salary, subscription] = await Promise.all([
+					data.recurrenceId ? localRecurringPayments.getById(data.recurrenceId) : undefined,
+					data.salaryId ? localSalaries.getById(data.salaryId) : undefined,
+					data.subscriptionId ? localSubscriptions.getById(data.subscriptionId) : undefined,
+				]);
+				const linkedRecurrence = recurringPayment?.data ?? salary?.data ?? subscription?.data;
 				const tagIds = hasExplicitTags
 					? (data.tagIds ?? (data.categoryId ? [data.categoryId] : []))
-					: (recurringPayment?.tagIds ?? (recurringPayment?.categoryId ? [recurringPayment.categoryId] : []));
+					: (linkedRecurrence?.tagIds ?? (linkedRecurrence?.categoryId ? [linkedRecurrence.categoryId] : []));
 				const newTransaction: Transaction = {
 					...data,
 					categoryId: tagIds[0],

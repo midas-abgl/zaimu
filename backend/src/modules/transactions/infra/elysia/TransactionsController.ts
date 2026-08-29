@@ -357,11 +357,18 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				await assertBalanceAccountOwnership(body.destinationFinancialAccountId, userId);
 			}
 			const hasExplicitTags = body.tagIds !== undefined || body.categoryId !== undefined;
+			const linkedTagSource = body.recurrenceId
+				? { entityId: body.recurrenceId, entityType: tagEntityType.recurringPayment }
+				: body.salaryId
+					? { entityId: body.salaryId, entityType: tagEntityType.salary }
+					: body.subscriptionId
+						? { entityId: body.subscriptionId, entityType: tagEntityType.subscription }
+						: undefined;
 			const tagIds = hasExplicitTags
 				? await assertTagOwnership(body.tagIds ?? (body.categoryId ? [body.categoryId] : []), userId)
-				: body.recurrenceId
-					? ((await getTagsByEntity(tagEntityType.recurringPayment, [body.recurrenceId]))
-							.get(body.recurrenceId)
+				: linkedTagSource
+					? ((await getTagsByEntity(linkedTagSource.entityType, [linkedTagSource.entityId]))
+							.get(linkedTagSource.entityId)
 							?.map(tag => tag.id) ?? [])
 					: [];
 			if (
