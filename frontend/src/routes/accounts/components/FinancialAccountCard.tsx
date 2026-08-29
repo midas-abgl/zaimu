@@ -31,11 +31,12 @@ export function FinancialAccountCard({
 	const config = accountType[account.type];
 	const Icon = config.icon;
 	const accountRepeatsInstitution =
-		account.name &&
+		account.name?.trim() &&
 		account.institution &&
 		normalizeInstitutionName(account.name) === normalizeInstitutionName(account.institution.name);
 	const displayName = getFinancialAccountDisplayName(account);
 	const typeLabel = getFinancialAccountTypeLabel(account.type);
+	const listName = account.name?.trim() && !accountRepeatsInstitution ? displayName : typeLabel;
 	return (
 		<article className="group rounded-2xl border bg-card p-5 shadow-card transition hover:-translate-y-0.5 hover:border-primary/30">
 			<div className="flex items-start justify-between gap-4">
@@ -44,10 +45,8 @@ export function FinancialAccountCard({
 						<Icon className="size-5" />
 					</span>
 					<div className="min-w-0">
-						<h2 className="truncate font-bold text-base">
-							{accountRepeatsInstitution ? typeLabel : displayName}
-						</h2>
-						{account.name && !accountRepeatsInstitution && (
+						<h2 className="truncate font-bold text-base">{listName}</h2>
+						{account.name?.trim() && !accountRepeatsInstitution && (
 							<Badge className="mt-1" variant="secondary">
 								{typeLabel}
 							</Badge>
