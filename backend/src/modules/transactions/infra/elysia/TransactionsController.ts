@@ -223,7 +223,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						id: f.CreditPurchase.id,
 						installmentAmount: f.CreditPurchase.installmentAmount,
 						installments: f.CreditPurchase.installments,
-						originAccountType: "CREDIT_CARD" as const,
+						originAccountType: fn.raw`'CREDIT_CARD'`.returns("sql/varchar@1"),
 						originFinancialAccountId: f.FinancialAccount.id,
 						sourceName:
 							fn.raw`COALESCE(${f.FinancialAccount.name}, ${f.FinancialInstitution.name}, 'Cartão de crédito')`.returns(
