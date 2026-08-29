@@ -1,11 +1,7 @@
 import { addDays, addWeeks, addYears, format, isAfter, startOfDay } from "date-fns";
-import { db, executeStatement, numeric, param, queryRows } from "~/shared/infra/sql";
+import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
 
 type SalaryFrequency = "BIWEEKLY" | "DAILY" | "MONTHLY" | "WEEKLY" | "YEARLY";
-
-function isUniqueViolation(error: unknown) {
-	return typeof error === "object" && error !== null && "code" in error && error.code === "23505";
-}
 
 export function salaryOccurrenceDates(
 	frequency: SalaryFrequency,
@@ -93,24 +89,34 @@ export async function materializeSalaryTransactions(userId: string) {
 		).filter(date => date >= format(salary.autoGenerateFrom, "yyyy-MM-dd") && !scheduledDates.has(date));
 
 		for (const date of dates) {
-			try {
-				await executeStatement(
-					db.sql.public.Transaction.insert([
-						{
-							amount: String(salary.amount),
-							date: new Date(date),
-							description: salary.source,
-							destinationFinancialAccountId: salary.financialAccountId,
-							salaryId: salary.id,
-							salaryOccurrenceDate: new Date(date),
-							type: "INCOME",
-						},
-					]).build(),
-				);
-			} catch (error) {
-				if (isUniqueViolation(error)) continue;
-				throw error;
-			}
+			const inserted = await queryFirst(
+				db.raw.sql`
+					INSERT INTO "Transaction" (
+						"amount",
+						"date",
+						"description",
+						"destinationFinancialAccountId",
+						"salaryId",
+						"salaryOccurrenceDate",
+						"type"
+					)
+					VALUES (
+						${param(numeric<12, 2>(salary.amount), { codecId: "pg/numeric@1" })},
+						${param(new Date(date), { codecId: "pg/date@1" })},
+						${param(salary.source, { codecId: "sql/varchar@1" })},
+						${param(salary.financialAccountId, { codecId: "sql/varchar@1" })},
+						${param(salary.id, { codecId: "sql/varchar@1" })},
+						${param(new Date(date), { codecId: "pg/date@1" })},
+						${param("INCOME", { codecId: "pg/text@1" })}::"TransactionType"
+					)
+					ON CONFLICT ("salaryId", "salaryOccurrenceDate") DO NOTHING
+					RETURNING "id"
+				`
+					.returnsRow({ id: db.sql.public.Transaction.columns.id })
+					.build(),
+			);
+			if (!inserted) continue;
+
 			const amount = param(numeric<12, 2>(salary.amount), { codecId: "pg/numeric@1" });
 			await executeStatement(
 				db.sql.public.FinancialAccount.update((fields, functions) => ({
