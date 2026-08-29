@@ -1,7 +1,8 @@
 import { type SyntheticEvent, useState } from "react";
-import { LuLandmark, LuPencil, LuWalletCards } from "react-icons/lu";
+import { LuLandmark, LuPencil, LuTrash2, LuWalletCards } from "react-icons/lu";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import {
 	Dialog,
 	DialogContent,
@@ -27,6 +28,7 @@ export function FinancialInstitutionGroup({
 	onDelete,
 	onUpdate,
 	onUpdateInstitution,
+	onDeleteInstitution,
 	pending,
 }: {
 	accounts: FinancialAccount[];
@@ -36,6 +38,7 @@ export function FinancialInstitutionGroup({
 	onDelete: (account: FinancialAccount) => void | Promise<void>;
 	onUpdate: NonNullable<Parameters<typeof CreateFinancialAccountDialog>[0]["onUpdate"]>;
 	onUpdateInstitution: (institution: FinancialInstitution, name: string) => Promise<unknown>;
+	onDeleteInstitution: (institution: FinancialInstitution) => Promise<unknown>;
 	pending: boolean;
 }) {
 	const balance = accounts
@@ -63,7 +66,13 @@ export function FinancialInstitutionGroup({
 					</div>
 				</div>
 				<div className="ml-auto flex items-center gap-2">
-					{institution && <EditInstitutionDialog institution={institution} onUpdate={onUpdateInstitution} />}
+					{institution && (
+						<InstitutionActions
+							institution={institution}
+							onDelete={onDeleteInstitution}
+							onUpdate={onUpdateInstitution}
+						/>
+					)}
 					<CreateFinancialAccountDialog
 						contextual
 						defaultInstitutionId={institution?.id ?? null}
@@ -85,6 +94,34 @@ export function FinancialInstitutionGroup({
 				))}
 			</div>
 		</section>
+	);
+}
+
+function InstitutionActions({
+	institution,
+	onDelete,
+	onUpdate,
+}: {
+	institution: FinancialInstitution;
+	onDelete: (institution: FinancialInstitution) => Promise<unknown>;
+	onUpdate: (institution: FinancialInstitution, name: string) => Promise<unknown>;
+}) {
+	return (
+		<>
+			<EditInstitutionDialog institution={institution} onUpdate={onUpdate} />
+			<ConfirmActionButton
+				aria-label={`Excluir ${institution.name}`}
+				className="cursor-pointer"
+				confirmation={`Excluir ${institution.name}? Produtos serão mantidos sem instituição.`}
+				onConfirm={async () => {
+					await onDelete(institution);
+				}}
+				size="sm"
+				variant="destructive"
+			>
+				<LuTrash2 /> Excluir
+			</ConfirmActionButton>
+		</>
 	);
 }
 

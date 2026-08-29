@@ -708,6 +708,23 @@ export const dataService = {
 		},
 	},
 	financialInstitutions: {
+		async delete(id: string): Promise<void> {
+			if (isGuestMode()) {
+				const accounts = await localAccounts.getAll();
+				await Promise.all(
+					accounts
+						.filter(item => item.data.institutionId === id)
+						.map(item =>
+							localAccounts.put(
+								{ ...item.data, institution: null, institutionId: null, updatedAt: new Date().toISOString() },
+								item.localId,
+							),
+						),
+				);
+				return;
+			}
+			await fetchWithAuth(`/financial-institutions/${id}`, { method: "DELETE" });
+		},
 		async update(id: string, name: string): Promise<FinancialInstitution> {
 			if (isGuestMode()) {
 				const accounts = await localAccounts.getAll();
@@ -887,22 +904,6 @@ export const dataService = {
 			const salaries = (await fetchWithAuth<Salary[]>("/salaries")).map(normalizeSalary);
 			await localSalaries.bulkPut(salaries.map(s => ({ data: s, localId: s.id, syncedAt: Date.now() })));
 			return salaries;
-		},
-
-		async recordPayment(
-			salaryId: string,
-			data: { amount: number; date: string; financialAccountId: string },
-		) {
-			if (isGuestMode()) {
-				const account = await localAccounts.getById(data.financialAccountId);
-				if (!account) throw new Error("Conta financeira não encontrada");
-				await localAccounts.put(
-					{ ...account.data, balance: (account.data.balance ?? 0) + data.amount },
-					data.financialAccountId,
-				);
-				return;
-			}
-			await fetchWithAuth(`/salaries/${salaryId}/payments`, { body: JSON.stringify(data), method: "POST" });
 		},
 
 		async update(id: string, data: Partial<Salary>): Promise<Salary> {

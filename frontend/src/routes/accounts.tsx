@@ -22,12 +22,18 @@ function AccountsPage() {
 		queryFn: () => dataService.accounts.getAll(),
 		queryKey: ["financial-accounts"],
 	});
+	const invalidateAccountData = async () => {
+		await Promise.all([
+			queryClient.invalidateQueries({ queryKey: ["financial-accounts"] }),
+			queryClient.invalidateQueries({ queryKey: ["credit-cards"] }),
+			queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+		]);
+	};
 	const createAccount = useMutation({
 		mutationFn: dataService.accounts.create,
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
-			await queryClient.invalidateQueries({ queryKey: ["credit-cards"] });
+			await invalidateAccountData();
 			showToast("Conta cadastrada.", "positive");
 		},
 	});
@@ -35,7 +41,7 @@ function AccountsPage() {
 		mutationFn: dataService.accounts.delete,
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
+			await invalidateAccountData();
 			showToast("Conta excluída.", "positive");
 		},
 	});
@@ -44,8 +50,7 @@ function AccountsPage() {
 			dataService.accounts.update(id, data),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
-			await queryClient.invalidateQueries({ queryKey: ["credit-cards"] });
+			await invalidateAccountData();
 			showToast("Conta atualizada.", "positive");
 		},
 	});
@@ -54,8 +59,16 @@ function AccountsPage() {
 			dataService.financialInstitutions.update(id, name),
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ["financial-accounts"] });
+			await invalidateAccountData();
 			showToast("Instituição atualizada.", "positive");
+		},
+	});
+	const deleteInstitution = useMutation({
+		mutationFn: dataService.financialInstitutions.delete,
+		onError: error => showToast(error.message, "negative"),
+		onSuccess: async () => {
+			await invalidateAccountData();
+			showToast("Instituição excluída.", "positive");
 		},
 	});
 	const totalBalance =
@@ -125,6 +138,7 @@ function AccountsPage() {
 								await createAccount.mutateAsync(data);
 							}}
 							onDelete={account => deleteAccount.mutateAsync(account.id)}
+							onDeleteInstitution={institution => deleteInstitution.mutateAsync(institution.id)}
 							onUpdate={(id, data) => updateAccount.mutateAsync({ data, id })}
 							onUpdateInstitution={(institution, name) =>
 								updateInstitution.mutateAsync({ id: institution.id, name })
