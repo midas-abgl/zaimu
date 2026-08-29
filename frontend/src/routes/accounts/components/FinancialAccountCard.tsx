@@ -1,11 +1,22 @@
-import { LuBanknote, LuCreditCard, LuLandmark, LuPiggyBank, LuTrash2, LuWallet } from "react-icons/lu";
+import { useState } from "react";
+import {
+	LuBanknote,
+	LuCreditCard,
+	LuLandmark,
+	LuPiggyBank,
+	LuReceiptText,
+	LuTrash2,
+	LuWallet,
+} from "react-icons/lu";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import { getFinancialAccountDisplayName, getFinancialAccountTypeLabel } from "@/lib/financial-account";
 import { normalizeInstitutionName } from "@/lib/financial-institution";
 import { CreateFinancialAccountDialog } from "./CreateFinancialAccountDialog";
 import { CreditCardAccountSummary } from "./CreditCardAccountSummary";
+import { FinancialAccountStatementDialog } from "./FinancialAccountStatementDialog";
 
 const accountType = {
 	CASH: { icon: LuBanknote },
@@ -28,6 +39,7 @@ export function FinancialAccountCard({
 	onDelete: () => void | Promise<void>;
 	onUpdate: Parameters<typeof CreateFinancialAccountDialog>[0]["onUpdate"];
 }) {
+	const [statementOpen, setStatementOpen] = useState(false);
 	const config = accountType[account.type];
 	const Icon = config.icon;
 	const accountRepeatsInstitution =
@@ -92,6 +104,23 @@ export function FinancialAccountCard({
 					</>
 				)}
 			</div>
+			{account.type !== "CREDIT_CARD" ? (
+				<>
+					<Button
+						className="mt-4 w-full cursor-pointer"
+						onClick={() => setStatementOpen(true)}
+						size="sm"
+						variant="outline"
+					>
+						<LuReceiptText /> Extrato
+					</Button>
+					<FinancialAccountStatementDialog
+						account={account}
+						onOpenChange={setStatementOpen}
+						open={statementOpen}
+					/>
+				</>
+			) : null}
 		</article>
 	);
 }
