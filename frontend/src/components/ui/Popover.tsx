@@ -13,23 +13,24 @@ function PopoverTrigger(props: ComponentProps<typeof PopoverPrimitive.Trigger>) 
 function PopoverContent({
 	className,
 	align = "center",
+	portal = true,
 	sideOffset = 4,
 	...props
-}: ComponentProps<typeof PopoverPrimitive.Content>) {
-	return (
-		<PopoverPrimitive.Portal>
-			<PopoverPrimitive.Content
-				align={align}
-				className={cn(
-					"data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-closed:fade-out-0 data-closed:zoom-out-95 data-open:fade-in-0 data-open:zoom-in-95 pointer-events-auto z-50 flex w-72 origin-(--radix-popover-content-transform-origin) flex-col gap-4 rounded-2xl bg-popover p-4 text-popover-foreground text-sm shadow-2xl outline-hidden ring-1 ring-foreground/5 duration-100 data-closed:animate-out data-open:animate-in",
-					className,
-				)}
-				data-slot="popover-content"
-				sideOffset={sideOffset}
-				{...props}
-			/>
-		</PopoverPrimitive.Portal>
+}: ComponentProps<typeof PopoverPrimitive.Content> & { portal?: boolean }) {
+	const content = (
+		<PopoverPrimitive.Content
+			align={align}
+			className={cn(
+				"data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-closed:fade-out-0 data-closed:zoom-out-95 data-open:fade-in-0 data-open:zoom-in-95 pointer-events-auto z-50 flex w-72 origin-(--radix-popover-content-transform-origin) flex-col gap-4 rounded-2xl bg-popover p-4 text-popover-foreground text-sm shadow-2xl outline-hidden ring-1 ring-foreground/5 duration-100 data-closed:animate-out data-open:animate-in",
+				className,
+			)}
+			data-slot="popover-content"
+			sideOffset={sideOffset}
+			{...props}
+		/>
 	);
+
+	return portal ? <PopoverPrimitive.Portal>{content}</PopoverPrimitive.Portal> : content;
 }
 
 function PopoverAnchor(props: ComponentProps<typeof PopoverPrimitive.Anchor>) {

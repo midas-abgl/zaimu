@@ -93,7 +93,11 @@ export function TagPicker({
 						<LuChevronDown className="shrink-0 text-muted-foreground" />
 					</Button>
 				</PopoverTrigger>
-				<PopoverContent align="start" className="w-(--radix-popover-trigger-width) min-w-72 gap-3 p-3">
+				<PopoverContent
+					align="start"
+					className="w-(--radix-popover-trigger-width) min-w-72 gap-3 p-3"
+					portal={false}
+				>
 					<div className="flex gap-2">
 						<Input
 							autoComplete="off"
