@@ -323,7 +323,7 @@ suite("Prisma 8 SQL query builder", () => {
 				amount: 45,
 				billingDay: 15,
 				name: "Assinatura atualizada",
-				updateUneditedTransactions: true,
+				tagIds: [category.id],
 			},
 			owner.cookie,
 		);
@@ -340,31 +340,14 @@ suite("Prisma 8 SQL query builder", () => {
 				amount: number;
 				date: string;
 				description: string;
+				tagIds: string[];
 			},
-		).toMatchObject({ amount: 45, date: "2026-08-15T00:00:00.000Z", description: "Assinatura atualizada" });
-		const manuallyEditSubscriptionTransactionResponse = await jsonRequest(
-			`/transactions/${subscriptionTransaction.id}`,
-			"PATCH",
-			{ date: "2026-08-18" },
-			owner.cookie,
-		);
-		expect(manuallyEditSubscriptionTransactionResponse.status).toBe(200);
-		const reupdateSubscriptionResponse = await jsonRequest(
-			`/subscriptions/${subscription.id}`,
-			"PATCH",
-			{ billingDay: 20, updateUneditedTransactions: true },
-			owner.cookie,
-		);
-		expect(reupdateSubscriptionResponse.status).toBe(200);
-		const manuallyEditedSubscriptionTransactionResponse = await jsonRequest(
-			`/transactions/${subscriptionTransaction.id}`,
-			"GET",
-			undefined,
-			owner.cookie,
-		);
-		expect(
-			(await manuallyEditedSubscriptionTransactionResponse.json()) as { date: string; source: string },
-		).toMatchObject({ date: "2026-08-18T00:00:00.000Z", source: "FINANCIAL_ACCOUNT" });
+		).toMatchObject({
+			amount: 30,
+			date: "2026-08-10T00:00:00.000Z",
+			description: "Assinatura com tags",
+			tagIds: [secondCategory.id],
+		});
 
 		const incomeResponse = await jsonRequest(
 			"/transactions/",

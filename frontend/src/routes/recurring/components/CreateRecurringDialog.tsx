@@ -3,7 +3,6 @@ import { format } from "date-fns";
 import { useEffect, useState } from "react";
 import { TagPicker } from "@/components/tags";
 import { Button } from "@/components/ui/Button";
-import { Checkbox } from "@/components/ui/Checkbox";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import {
@@ -59,7 +58,6 @@ export function CreateRecurringDialog({
 }) {
 	const queryClient = useQueryClient();
 	const [draft, setDraft] = useState(() => initialDraft(item));
-	const [updateUneditedTransactions, setUpdateUneditedTransactions] = useState(true);
 	const isEditing = Boolean(item);
 	const [isPastTransactionsDialogOpen, setIsPastTransactionsDialogOpen] = useState(false);
 	const accountsQuery = useQuery({ queryFn: () => dataService.accounts.getAll(), queryKey: ["accounts"] });
@@ -105,7 +103,6 @@ export function CreateRecurringDialog({
 						payDay: day,
 						source: draft.name.trim(),
 						tagIds: draft.tagIds,
-						updateUneditedTransactions,
 					});
 				}
 				if (item.source === "subscription") {
@@ -117,7 +114,6 @@ export function CreateRecurringDialog({
 						name: draft.name.trim(),
 						paymentMethod: draft.paymentMethod,
 						tagIds: draft.tagIds,
-						updateUneditedTransactions,
 					});
 				}
 				return dataService.recurringPayments.update(item.id, {
@@ -128,7 +124,6 @@ export function CreateRecurringDialog({
 					name: draft.name.trim(),
 					paymentMethod: draft.paymentMethod,
 					tagIds: draft.tagIds,
-					updateUneditedTransactions,
 				});
 			}
 			if (draft.source === "salary") {
@@ -238,9 +233,7 @@ export function CreateRecurringDialog({
 			]);
 			showToast(
 				isEditing
-					? updateUneditedTransactions
-						? "Recorrência e histórico automático atualizados."
-						: "Recorrência atualizada."
+					? "Recorrência atualizada."
 					: addPastTransactions
 						? `${successMessages[draft.source].replace(".", "")} e transações passadas adicionadas.`
 						: successMessages[draft.source],
@@ -419,24 +412,6 @@ export function CreateRecurringDialog({
 							/>
 						)}
 						<TagPicker onValueChange={tagIds => setField("tagIds", tagIds)} value={draft.tagIds} />
-						{isEditing && (
-							<label
-								className="flex cursor-pointer items-start gap-3 rounded-xl border p-3"
-								htmlFor="update-automatic-history"
-							>
-								<Checkbox
-									checked={updateUneditedTransactions}
-									id="update-automatic-history"
-									onCheckedChange={checked => setUpdateUneditedTransactions(checked === true)}
-								/>
-								<span className="space-y-0.5 text-sm">
-									<span className="block font-medium">Atualizar histórico automático</span>
-									<span className="block text-muted-foreground">
-										Atualiza valor, nome e dia das transações sem edição manual.
-									</span>
-								</span>
-							</label>
-						)}
 					</div>
 					<DialogFooter>
 						<Button className="cursor-pointer" onClick={() => handleOpenChange(false)} variant="outline">

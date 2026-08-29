@@ -187,7 +187,6 @@ export interface Salary {
 	autoGenerateFrom: string;
 	endDate?: string;
 	isActive: boolean;
-	updateUneditedTransactions?: boolean;
 	categoryId?: string;
 	tagIds?: string[];
 	tags?: Tag[];
@@ -205,7 +204,6 @@ export interface Subscription {
 	startDate: string;
 	endDate?: string;
 	isActive: boolean;
-	updateUneditedTransactions?: boolean;
 	categoryId?: string;
 	tagIds?: string[];
 	tags?: Tag[];
@@ -232,7 +230,6 @@ export interface RecurringPayment {
 	tags?: Tag[];
 	day?: number;
 	type?: "INCOME" | "EXPENSE";
-	updateUneditedTransactions?: boolean;
 }
 
 export interface CreditCardStatement {

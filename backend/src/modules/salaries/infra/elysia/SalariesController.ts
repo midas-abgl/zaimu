@@ -33,13 +33,6 @@ const RecurrenceFrequency = t.Union([
 	t.Literal("YEARLY"),
 ]);
 
-function dateWithDayOfMonth(date: Date, dayOfMonth: number): Date {
-	const year = date.getUTCFullYear();
-	const month = date.getUTCMonth();
-	const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-	return new Date(Date.UTC(year, month, Math.min(dayOfMonth, lastDay)));
-}
-
 export const SalariesController = new Elysia({ prefix: "/salaries" })
 	.get(
 		"/",
@@ -238,62 +231,7 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 			);
 			if (!salary) throw new HttpException("Salary not found", 404);
 			if (tagIds !== undefined) {
-				const linkedTransactions = await queryRows(
-					db.sql.public.Transaction.select("id")
-						.where((fields, functions) => functions.eq(fields.salaryId, salary.id))
-						.build(),
-				);
 				await replaceEntityTags({ entityIds: [salary.id], entityType: tagEntityType.salary, tagIds });
-				await executeStatement(
-					db.sql.public.Transaction.update({ categoryId: tagIds[0] ?? null, updatedAt: new Date() } as never)
-						.where((fields, functions) => functions.eq(fields.salaryId, salary.id))
-						.build(),
-				);
-				await replaceEntityTags({
-					entityIds: linkedTransactions.map(transaction => transaction.id),
-					entityType: tagEntityType.transaction,
-					tagIds,
-				});
-			}
-			if (body.updateUneditedTransactions) {
-				const transactions = await queryRows(
-					db.sql.public.Transaction.select("id", "date", "destinationFinancialAccountId")
-						.where((fields, functions) => functions.eq(fields.salaryId, salary.id))
-						.build(),
-				);
-				const histories = transactions.length
-					? await queryRows(
-							db.sql.public.TransactionHistory.select("transactionId")
-								.where((fields, functions) =>
-									functions.in(
-										fields.transactionId,
-										transactions.map(transaction => transaction.id),
-									),
-								)
-								.build(),
-						)
-					: [];
-				const manuallyEditedIds = new Set(histories.map(history => history.transactionId));
-				const automaticTransactions = transactions.filter(
-					transaction => !manuallyEditedIds.has(transaction.id),
-				);
-				await Promise.all(
-					automaticTransactions.map(transaction =>
-						executeStatement(
-							db.sql.public.Transaction.update({
-								...(body.amount !== undefined && { amount: String(body.amount) }),
-								...(body.source !== undefined && { description: body.source }),
-								...(body.payDay !== undefined && {
-									date: dateWithDayOfMonth(transaction.date, body.payDay),
-									salaryOccurrenceDate: dateWithDayOfMonth(transaction.date, body.payDay),
-								}),
-								updatedAt: new Date(),
-							} as never)
-								.where((fields, functions) => functions.eq(fields.id, transaction.id))
-								.build(),
-						),
-					),
-				);
 			}
 
 			const tagsBySalary = await getTagsByEntity(tagEntityType.salary, [salary.id]);
@@ -311,7 +249,6 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 				payDay: t.Optional(t.Number({ maximum: 31, minimum: 1 })),
 				source: t.Optional(t.String({ maxLength: 100 })),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
-				updateUneditedTransactions: t.Optional(t.Boolean()),
 			}),
 			detail: { tags: ["Salaries"] },
 			params: t.Object({

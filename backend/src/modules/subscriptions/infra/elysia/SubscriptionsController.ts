@@ -43,13 +43,6 @@ const PaymentMethod = t.Union([
 	t.Literal("BOLETO"),
 ]);
 
-function dateWithDayOfMonth(date: Date, dayOfMonth: number): Date {
-	const year = date.getUTCFullYear();
-	const month = date.getUTCMonth();
-	const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-	return new Date(Date.UTC(year, month, Math.min(dayOfMonth, lastDay)));
-}
-
 export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 	.get(
 		"/",
@@ -293,64 +286,11 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 			);
 			if (!subscription) throw new HttpException("Subscription not found", 404);
 			if (tagIds !== undefined) {
-				const linkedTransactions = await queryRows(
-					db.sql.public.Transaction.select("id")
-						.where((fields, functions) => functions.eq(fields.subscriptionId, subscription.id))
-						.build(),
-				);
 				await replaceEntityTags({
 					entityIds: [subscription.id],
 					entityType: tagEntityType.subscription,
 					tagIds,
 				});
-				await executeStatement(
-					db.sql.public.Transaction.update({ categoryId: tagIds[0] ?? null, updatedAt: new Date() } as never)
-						.where((fields, functions) => functions.eq(fields.subscriptionId, subscription.id))
-						.build(),
-				);
-				await replaceEntityTags({
-					entityIds: linkedTransactions.map(transaction => transaction.id),
-					entityType: tagEntityType.transaction,
-					tagIds,
-				});
-			}
-			if (body.updateUneditedTransactions) {
-				const transactions = await queryRows(
-					db.sql.public.Transaction.select("id", "date")
-						.where((fields, functions) => functions.eq(fields.subscriptionId, subscription.id))
-						.build(),
-				);
-				const histories = transactions.length
-					? await queryRows(
-							db.sql.public.TransactionHistory.select("transactionId")
-								.where((fields, functions) =>
-									functions.in(
-										fields.transactionId,
-										transactions.map(transaction => transaction.id),
-									),
-								)
-								.build(),
-						)
-					: [];
-				const manuallyEditedIds = new Set(histories.map(history => history.transactionId));
-				await Promise.all(
-					transactions
-						.filter(transaction => !manuallyEditedIds.has(transaction.id))
-						.map(transaction =>
-							executeStatement(
-								db.sql.public.Transaction.update({
-									...(body.amount !== undefined && { amount: String(body.amount) }),
-									...(body.name !== undefined && { description: body.name }),
-									...(typeof body.billingDay === "number" && {
-										date: dateWithDayOfMonth(transaction.date, body.billingDay),
-									}),
-									updatedAt: new Date(),
-								} as never)
-									.where((fields, functions) => functions.eq(fields.id, transaction.id))
-									.build(),
-							),
-						),
-				);
 			}
 
 			const tagsBySubscription = await getTagsByEntity(tagEntityType.subscription, [subscription.id]);
@@ -369,7 +309,6 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 				name: t.Optional(t.String({ maxLength: 100 })),
 				paymentMethod: t.Optional(PaymentMethod),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
-				updateUneditedTransactions: t.Optional(t.Boolean()),
 			}),
 			detail: { tags: ["Subscriptions"] },
 			params: t.Object({

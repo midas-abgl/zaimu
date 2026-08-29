@@ -55,13 +55,6 @@ function normalizeSalary(salary: LegacySalary): Salary {
 	return normalized;
 }
 
-function dateWithDayOfMonth(date: string, dayOfMonth: number): string {
-	const value = new Date(date);
-	const lastDay = new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth() + 1, 0)).getUTCDate();
-	value.setUTCDate(Math.min(dayOfMonth, lastDay));
-	return value.toISOString();
-}
-
 export type FinancialAccountDraft = Omit<
 	FinancialAccount,
 	"balance" | "createdAt" | "creditCard" | "id" | "institution" | "institutionId" | "updatedAt" | "userId"
@@ -894,23 +887,7 @@ export const dataService = {
 					...(hasTagChanges && { categoryId: tagIds[0], tagIds }),
 					updatedAt: new Date().toISOString(),
 				};
-				await Promise.all([
-					localRecurringPayments.put(payment, id),
-					...(hasTagChanges
-						? (await localTransactions.getAll())
-								.filter(transaction => transaction.data.recurrenceId === id)
-								.map(transaction =>
-									localTransactions.put(
-										{
-											...transaction.data,
-											categoryId: tagIds[0],
-											tagIds,
-										},
-										transaction.localId,
-									),
-								)
-						: []),
-				]);
+				await localRecurringPayments.put(payment, id);
 				return payment;
 			}
 			return fetchWithAuth<RecurringPayment>(`/recurring/${id}`, {
@@ -991,19 +968,7 @@ export const dataService = {
 					...data,
 					...(hasTagChanges && { categoryId: tagIds[0], tagIds }),
 				};
-				await Promise.all([
-					localSalaries.put(updated, id),
-					...(hasTagChanges
-						? (await localTransactions.getAll())
-								.filter(transaction => transaction.data.salaryId === id)
-								.map(transaction =>
-									localTransactions.put(
-										{ ...transaction.data, categoryId: tagIds[0], tagIds },
-										transaction.localId,
-									),
-								)
-						: []),
-				]);
+				await localSalaries.put(updated, id);
 				return updated;
 			}
 			const salary = await fetchWithAuth<Salary>(`/salaries/${id}`, {
@@ -1081,37 +1046,7 @@ export const dataService = {
 					...data,
 					...(hasTagChanges && { categoryId: tagIds[0], tagIds }),
 				};
-				const linkedTransactions = (await localTransactions.getAll()).filter(
-					transaction => transaction.data.subscriptionId === id,
-				);
-				await Promise.all([
-					localSubscriptions.put(updated, id),
-					...(hasTagChanges
-						? (await localTransactions.getAll())
-								.filter(transaction => transaction.data.subscriptionId === id)
-								.map(transaction =>
-									localTransactions.put(
-										{ ...transaction.data, categoryId: tagIds[0], tagIds },
-										transaction.localId,
-									),
-								)
-						: []),
-					...(data.updateUneditedTransactions
-						? linkedTransactions.map(transaction =>
-								localTransactions.put(
-									{
-										...transaction.data,
-										...(data.amount !== undefined && { amount: data.amount }),
-										...(data.name !== undefined && { description: data.name }),
-										...(data.billingDay !== undefined && {
-											date: dateWithDayOfMonth(transaction.data.date, data.billingDay),
-										}),
-									},
-									transaction.localId,
-								),
-							)
-						: []),
-				]);
+				await localSubscriptions.put(updated, id);
 				return updated;
 			}
 			const subscription = await fetchWithAuth<Subscription>(`/subscriptions/${id}`, {
