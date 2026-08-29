@@ -25,10 +25,12 @@ export function salaryToListItem(salary: Salary, accounts: FinancialAccount[] = 
 		amount: Number(salary.amount),
 		day: salary.payDay,
 		direction: "INCOME",
+		financialAccountId: salary.financialAccountId ?? undefined,
 		frequency: salary.frequency,
 		id: salary.id,
 		monthlyAmount: toMonthlyAmount(Number(salary.amount), salary.frequency),
 		source: "salary",
+		startDate: salary.startDate,
 		title: salary.source,
 	};
 }
@@ -44,6 +46,7 @@ export function subscriptionToListItem(subscription: Subscription): RecurringLis
 		monthlyAmount: toMonthlyAmount(Number(subscription.amount), subscription.frequency),
 		paymentMethod: subscription.paymentMethod,
 		source: "subscription",
+		startDate: subscription.startDate,
 		title: subscription.name,
 	};
 }
@@ -59,6 +62,7 @@ export function recurringPaymentToListItem(payment: RecurringPayment): Recurring
 		monthlyAmount: toMonthlyAmount(Number(payment.amount), payment.frequency),
 		paymentMethod: payment.paymentMethod,
 		source: "recurring",
+		startDate: payment.startDate,
 		tags: payment.tags,
 		title: payment.name,
 	};

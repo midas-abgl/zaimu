@@ -4,7 +4,7 @@ import { salaryOccurrenceDates } from "./materialize-salary-transactions";
 describe("salaryOccurrenceDates", () => {
 	test("creates one occurrence for each scheduled day through today", () => {
 		expect(
-			salaryOccurrenceDates("MONTHLY", new Date("2026-01-03"), undefined, new Date("2026-08-28")),
+			salaryOccurrenceDates("MONTHLY", new Date("2026-01-04"), 3, undefined, new Date("2026-08-28")),
 		).toEqual([
 			"2026-01-03",
 			"2026-02-03",

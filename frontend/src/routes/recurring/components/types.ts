@@ -5,6 +5,7 @@ export type RecurringDirection = "INCOME" | "EXPENSE";
 export type RecurrenceFrequency = Salary["frequency"];
 
 export interface RecurringListItemData {
+	financialAccountId?: string;
 	accountName?: string;
 	active: boolean;
 	amount: number;
@@ -15,6 +16,7 @@ export interface RecurringListItemData {
 	monthlyAmount: number;
 	paymentMethod?: Subscription["paymentMethod"] | RecurringPayment["paymentMethod"];
 	source: RecurringSource;
+	startDate: string;
 	tags?: RecurringPayment["tags"];
 	title: string;
 }

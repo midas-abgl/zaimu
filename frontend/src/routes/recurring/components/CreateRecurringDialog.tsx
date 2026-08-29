@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { useState } from "react";
 import { TagPicker } from "@/components/tags";
 import { Button } from "@/components/ui/Button";
+import { Checkbox } from "@/components/ui/Checkbox";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import {
@@ -25,18 +26,18 @@ import { DebouncedFormField } from "./DebouncedFormField";
 import { DebouncedMoneyField } from "./DebouncedMoneyField";
 import { PastTransactionsDialog } from "./PastTransactionsDialog";
 import { getPastRecurrenceDates } from "./recurrence-dates";
-import type { RecurrenceFrequency, RecurringDraft, RecurringSource } from "./types";
+import type { RecurrenceFrequency, RecurringDraft, RecurringListItemData, RecurringSource } from "./types";
 
-const initialDraft = (): RecurringDraft => ({
-	amount: "",
-	day: "",
-	financialAccountId: "",
-	frequency: "MONTHLY",
-	name: "",
-	paymentMethod: "CREDIT",
-	source: "subscription",
-	startDate: new Date().toISOString().slice(0, 10),
-	tagIds: [],
+const initialDraft = (item?: RecurringListItemData): RecurringDraft => ({
+	amount: item ? String(item.amount) : "",
+	day: item?.day ? String(item.day) : "",
+	financialAccountId: item?.financialAccountId ?? "",
+	frequency: item?.frequency ?? "MONTHLY",
+	name: item?.title ?? "",
+	paymentMethod: item?.paymentMethod ?? "CREDIT",
+	source: item?.source ?? "subscription",
+	startDate: item?.startDate.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+	tagIds: item?.tags?.map(tag => tag.id) ?? [],
 });
 
 const successMessages: Record<RecurringSource, string> = {
@@ -48,12 +49,16 @@ const successMessages: Record<RecurringSource, string> = {
 export function CreateRecurringDialog({
 	onOpenChange,
 	open,
+	item,
 }: {
 	onOpenChange: (open: boolean) => void;
 	open: boolean;
+	item?: RecurringListItemData;
 }) {
 	const queryClient = useQueryClient();
-	const [draft, setDraft] = useState(initialDraft);
+	const [draft, setDraft] = useState(() => initialDraft(item));
+	const [updateUneditedTransactions, setUpdateUneditedTransactions] = useState(true);
+	const isEditing = Boolean(item);
 	const [isPastTransactionsDialogOpen, setIsPastTransactionsDialogOpen] = useState(false);
 	const accountsQuery = useQuery({ queryFn: () => dataService.accounts.getAll(), queryKey: ["accounts"] });
 	const balanceAccounts =
@@ -66,7 +71,7 @@ export function CreateRecurringDialog({
 	const handleOpenChange = (nextOpen: boolean) => {
 		onOpenChange(nextOpen);
 		if (!nextOpen) {
-			setDraft(initialDraft());
+			setDraft(initialDraft(item));
 			setIsPastTransactionsDialogOpen(false);
 		}
 	};
@@ -75,6 +80,36 @@ export function CreateRecurringDialog({
 		mutationFn: async (addPastTransactions = false) => {
 			const amount = Number.parseFloat(draft.amount);
 			const day = Number.parseInt(draft.day, 10);
+			if (item) {
+				if (item.source === "salary") {
+					return dataService.salaries.update(item.id, {
+						amount,
+						financialAccountId: draft.financialAccountId,
+						frequency: draft.frequency,
+						payDay: day,
+						source: draft.name.trim(),
+						updateUneditedTransactions,
+					});
+				}
+				if (item.source === "subscription") {
+					return dataService.subscriptions.update(item.id, {
+						amount,
+						billingDay: day,
+						frequency: draft.frequency,
+						name: draft.name.trim(),
+						paymentMethod: draft.paymentMethod,
+					});
+				}
+				return dataService.recurringPayments.update(item.id, {
+					amount,
+					dayOfMonth: day,
+					frequency: draft.frequency,
+					name: draft.name.trim(),
+					paymentMethod: draft.paymentMethod,
+					tagIds: draft.tagIds,
+					updateUneditedTransactions,
+				});
+			}
 			if (draft.source === "salary") {
 				const autoGenerateFrom = addPastTransactions ? draft.startDate : format(new Date(), "yyyy-MM-dd");
 				const salary = await dataService.salaries.create({
@@ -88,7 +123,7 @@ export function CreateRecurringDialog({
 				});
 				if (addPastTransactions) {
 					await Promise.all(
-						getPastRecurrenceDates(draft.frequency, draft.startDate).map(date =>
+						getPastRecurrenceDates(draft.frequency, draft.startDate, day).map(date =>
 							dataService.transactions.create({
 								amount,
 								date,
@@ -124,7 +159,7 @@ export function CreateRecurringDialog({
 			});
 			if (addPastTransactions) {
 				await Promise.all(
-					getPastRecurrenceDates(draft.frequency, draft.startDate).map(date =>
+					getPastRecurrenceDates(draft.frequency, draft.startDate, day).map(date =>
 						dataService.transactions.create({
 							amount,
 							date,
@@ -147,9 +182,13 @@ export function CreateRecurringDialog({
 				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
 			]);
 			showToast(
-				addPastTransactions
-					? `${successMessages[draft.source].replace(".", "")} e transações passadas adicionadas.`
-					: successMessages[draft.source],
+				isEditing
+					? updateUneditedTransactions && (draft.source === "recurring" || draft.source === "salary")
+						? "Recorrência e histórico automático atualizados."
+						: "Recorrência atualizada."
+					: addPastTransactions
+						? `${successMessages[draft.source].replace(".", "")} e transações passadas adicionadas.`
+						: successMessages[draft.source],
 				"positive",
 			);
 			handleOpenChange(false);
@@ -176,7 +215,7 @@ export function CreateRecurringDialog({
 	const isStartDateInPast = draft.startDate < format(new Date(), "yyyy-MM-dd");
 	const canAddPastTransactions = draft.source !== "subscription";
 	const handleSave = () => {
-		if (isStartDateInPast && canAddPastTransactions) {
+		if (!isEditing && isStartDateInPast && canAddPastTransactions) {
 			setIsPastTransactionsDialogOpen(true);
 			return;
 		}
@@ -188,18 +227,24 @@ export function CreateRecurringDialog({
 			<Dialog onOpenChange={handleOpenChange} open={open}>
 				<DialogContent className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-lg">
 					<DialogHeader>
-						<DialogTitle>Nova recorrência</DialogTitle>
-						<DialogDescription>Cadastre uma entrada ou saída que se repete.</DialogDescription>
+						<DialogTitle>{isEditing ? "Editar recorrência" : "Nova recorrência"}</DialogTitle>
+						<DialogDescription>
+							{isEditing
+								? "Atualize os dados da recorrência."
+								: "Cadastre uma entrada ou saída que se repete."}
+						</DialogDescription>
 					</DialogHeader>
 					<div className="scrollbar-themed grid min-h-0 gap-4 overflow-y-auto pr-1">
-						<CustomSelect
-							label="Tipo"
-							onValueChange={value => setField("source", value as RecurringSource)}
-							options={sourceOptions}
-							placeholder="Selecione o tipo"
-							required
-							value={draft.source}
-						/>
+						{!isEditing && (
+							<CustomSelect
+								label="Tipo"
+								onValueChange={value => setField("source", value as RecurringSource)}
+								options={sourceOptions}
+								placeholder="Selecione o tipo"
+								required
+								value={draft.source}
+							/>
+						)}
 						<DebouncedFormField
 							autoComplete={draft.source === "salary" ? "organization" : "off"}
 							id="recurring-name"
@@ -267,16 +312,36 @@ export function CreateRecurringDialog({
 								value={draft.paymentMethod}
 							/>
 						)}
-						<DateField
-							id="recurring-start-date"
-							label="Data inicial"
-							name="start-date"
-							onChange={event => setField("startDate", event.currentTarget.value)}
-							required
-							value={draft.startDate}
-						/>
+						{!isEditing && (
+							<DateField
+								id="recurring-start-date"
+								label="Data inicial"
+								name="start-date"
+								onChange={event => setField("startDate", event.currentTarget.value)}
+								required
+								value={draft.startDate}
+							/>
+						)}
 						{draft.source === "recurring" && (
 							<TagPicker onValueChange={tagIds => setField("tagIds", tagIds)} value={draft.tagIds} />
+						)}
+						{isEditing && draft.source !== "subscription" && (
+							<label
+								className="flex cursor-pointer items-start gap-3 rounded-xl border p-3"
+								htmlFor="update-automatic-history"
+							>
+								<Checkbox
+									checked={updateUneditedTransactions}
+									id="update-automatic-history"
+									onCheckedChange={checked => setUpdateUneditedTransactions(checked === true)}
+								/>
+								<span className="space-y-0.5 text-sm">
+									<span className="block font-medium">Atualizar histórico automático</span>
+									<span className="block text-muted-foreground">
+										Atualiza valor, nome e dia das transações sem edição manual.
+									</span>
+								</span>
+							</label>
 						)}
 					</div>
 					<DialogFooter>

@@ -32,6 +32,7 @@ function RecurringPage() {
 	const queryClient = useQueryClient();
 	const [filter, setFilter] = useState<DirectionFilter>("all");
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
+	const [editingItem, setEditingItem] = useState<RecurringListItemData>();
 	const salariesQuery = useQuery({ queryFn: () => dataService.salaries.getAll(), queryKey: ["salaries"] });
 	const accountsQuery = useQuery({ queryFn: () => dataService.accounts.getAll(), queryKey: ["accounts"] });
 	const subscriptionsQuery = useQuery({
@@ -109,6 +110,7 @@ function RecurringPage() {
 			item={item}
 			key={`${item.source}:${item.id}`}
 			onDelete={() => remove.mutate(item)}
+			onEdit={() => setEditingItem(item)}
 			onToggle={() => toggle.mutate(item)}
 			toggling={toggle.isPending && toggle.variables?.id === item.id}
 		/>
@@ -202,6 +204,16 @@ function RecurringPage() {
 			)}
 
 			<CreateRecurringDialog onOpenChange={setIsCreateOpen} open={isCreateOpen} />
+			{editingItem && (
+				<CreateRecurringDialog
+					item={editingItem}
+					key={`${editingItem.source}:${editingItem.id}`}
+					onOpenChange={open => {
+						if (!open) setEditingItem(undefined);
+					}}
+					open
+				/>
+			)}
 		</PageContainer>
 	);
 }

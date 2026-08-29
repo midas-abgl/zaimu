@@ -1,4 +1,4 @@
-import { HiArrowDown, HiArrowUp, HiCheck, HiPause, HiPlay, HiTrash } from "react-icons/hi2";
+import { HiArrowDown, HiArrowUp, HiCheck, HiPause, HiPencil, HiPlay, HiTrash } from "react-icons/hi2";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
@@ -11,12 +11,14 @@ export function RecurringListItem({
 	deleting,
 	item,
 	onDelete,
+	onEdit,
 	onToggle,
 	toggling,
 }: {
 	deleting: boolean;
 	item: RecurringListItemData;
 	onDelete: () => void;
+	onEdit: () => void;
 	onToggle: () => void;
 	toggling: boolean;
 }) {
@@ -61,6 +63,15 @@ export function RecurringListItem({
 				</p>
 			</div>
 			<div className="flex shrink-0 items-center justify-end gap-2">
+				<Button
+					className="cursor-pointer disabled:cursor-not-allowed"
+					disabled={toggling || deleting}
+					onClick={onEdit}
+					size="sm"
+					variant="outline"
+				>
+					<HiPencil /> Editar
+				</Button>
 				<Button
 					className="cursor-pointer disabled:cursor-not-allowed"
 					disabled={toggling || deleting}

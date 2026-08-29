@@ -43,6 +43,13 @@ const PaymentMethod = t.Union([
 	t.Literal("BOLETO"),
 ]);
 
+function dateWithDayOfMonth(date: Date, dayOfMonth: number): Date {
+	const year = date.getUTCFullYear();
+	const month = date.getUTCMonth();
+	const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+	return new Date(Date.UTC(year, month, Math.min(dayOfMonth, lastDay)));
+}
+
 export const RecurringController = new Elysia({ prefix: "/recurring" })
 	.get(
 		"/",
@@ -261,6 +268,45 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 				});
 			}
 
+			if (body.updateUneditedTransactions) {
+				const transactions = await queryRows(
+					db.sql.public.Transaction.select("id", "date")
+						.where((fields, functions) => functions.eq(fields.recurrenceId, payment.id))
+						.build(),
+				);
+				const histories = transactions.length
+					? await queryRows(
+							db.sql.public.TransactionHistory.select("transactionId")
+								.where((fields, functions) =>
+									functions.in(
+										fields.transactionId,
+										transactions.map(transaction => transaction.id),
+									),
+								)
+								.build(),
+						)
+					: [];
+				const manuallyEditedIds = new Set(histories.map(history => history.transactionId));
+				await Promise.all(
+					transactions
+						.filter(transaction => !manuallyEditedIds.has(transaction.id))
+						.map(transaction =>
+							executeStatement(
+								db.sql.public.Transaction.update({
+									...(body.amount !== undefined && { amount: String(body.amount) }),
+									...(body.name !== undefined && { description: body.name }),
+									...(typeof body.dayOfMonth === "number" && {
+										date: dateWithDayOfMonth(transaction.date, body.dayOfMonth),
+									}),
+									updatedAt: new Date(),
+								} as never)
+									.where((fields, functions) => functions.eq(fields.id, transaction.id))
+									.build(),
+							),
+						),
+				);
+			}
+
 			const tagsByPayment = await getTagsByEntity(tagEntityType.recurringPayment, [payment.id]);
 			const tags = tagsByPayment.get(payment.id) ?? [];
 			return { ...payment, tagIds: tags.map(tag => tag.id), tags };
@@ -277,6 +323,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 				name: t.Optional(t.String({ maxLength: 100 })),
 				paymentMethod: t.Optional(PaymentMethod),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
+				updateUneditedTransactions: t.Optional(t.Boolean()),
 			}),
 			detail: { tags: ["Recurring Payments"] },
 			params: t.Object({

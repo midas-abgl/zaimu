@@ -1,7 +1,7 @@
 import Elysia, { t } from "elysia";
 import { assertBalanceAccountOwnership, assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
-import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
+import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
 
 const salaryColumns = [
 	"id",
@@ -25,6 +25,13 @@ const RecurrenceFrequency = t.Union([
 	t.Literal("MONTHLY"),
 	t.Literal("YEARLY"),
 ]);
+
+function dateWithDayOfMonth(date: Date, dayOfMonth: number): Date {
+	const year = date.getUTCFullYear();
+	const month = date.getUTCMonth();
+	const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+	return new Date(Date.UTC(year, month, Math.min(dayOfMonth, lastDay)));
+}
 
 export const SalariesController = new Elysia({ prefix: "/salaries" })
 	.get(
@@ -202,6 +209,66 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 					.build(),
 			);
 			if (!salary) throw new HttpException("Salary not found", 404);
+			if (body.updateUneditedTransactions) {
+				const transactions = await queryRows(
+					db.sql.public.Transaction.select("id", "date", "destinationFinancialAccountId")
+						.where((fields, functions) => functions.eq(fields.salaryId, salary.id))
+						.build(),
+				);
+				const histories = transactions.length
+					? await queryRows(
+							db.sql.public.TransactionHistory.select("transactionId")
+								.where((fields, functions) =>
+									functions.in(
+										fields.transactionId,
+										transactions.map(transaction => transaction.id),
+									),
+								)
+								.build(),
+						)
+					: [];
+				const manuallyEditedIds = new Set(histories.map(history => history.transactionId));
+				const automaticTransactions = transactions.filter(
+					transaction => !manuallyEditedIds.has(transaction.id),
+				);
+				await Promise.all(
+					automaticTransactions.map(transaction =>
+						executeStatement(
+							db.sql.public.Transaction.update({
+								...(body.amount !== undefined && { amount: String(body.amount) }),
+								...(body.source !== undefined && { description: body.source }),
+								...(body.payDay !== undefined && {
+									date: dateWithDayOfMonth(transaction.date, body.payDay),
+									salaryOccurrenceDate: dateWithDayOfMonth(transaction.date, body.payDay),
+								}),
+								updatedAt: new Date(),
+							} as never)
+								.where((fields, functions) => functions.eq(fields.id, transaction.id))
+								.build(),
+						),
+					),
+				);
+				if (body.amount !== undefined) {
+					const difference = body.amount - Number(existing.amount);
+					await Promise.all(
+						automaticTransactions
+							.filter(transaction => transaction.destinationFinancialAccountId)
+							.map(transaction => {
+								const amount = param(numeric<12, 2>(difference), { codecId: "pg/numeric@1" });
+								return executeStatement(
+									db.sql.public.FinancialAccount.update((fields, functions) => ({
+										balance: functions.raw`${fields.balance} + ${amount}`.returns("pg/numeric@1"),
+										updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
+									}))
+										.where((fields, functions) =>
+											functions.eq(fields.id, transaction.destinationFinancialAccountId!),
+										)
+										.build(),
+								);
+							}),
+					);
+				}
+			}
 
 			return salary;
 		},
@@ -214,6 +281,7 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 				isActive: t.Optional(t.Boolean()),
 				payDay: t.Optional(t.Number({ maximum: 31, minimum: 1 })),
 				source: t.Optional(t.String({ maxLength: 100 })),
+				updateUneditedTransactions: t.Optional(t.Boolean()),
 			}),
 			detail: { tags: ["Salaries"] },
 			params: t.Object({

@@ -1,4 +1,4 @@
-import { addDays, addMonths, addWeeks, addYears, format, isAfter, startOfDay } from "date-fns";
+import { addDays, addWeeks, addYears, format, isAfter, startOfDay } from "date-fns";
 import { db, executeStatement, numeric, param, queryRows } from "~/shared/infra/sql";
 
 type SalaryFrequency = "BIWEEKLY" | "DAILY" | "MONTHLY" | "WEEKLY" | "YEARLY";
@@ -10,13 +10,16 @@ function isUniqueViolation(error: unknown) {
 export function salaryOccurrenceDates(
 	frequency: SalaryFrequency,
 	startDate: Date,
+	payDay: number,
 	endDate?: Date | null,
 	today = new Date(),
 ): string[] {
 	const occurrences: string[] = [];
 	const currentDay = startOfDay(today);
 	const end = endDate ? startOfDay(endDate) : currentDay;
-	let occurrence = startOfDay(startDate);
+	const start = startOfDay(startDate);
+	let monthOffset = 0;
+	let occurrence = frequency === "MONTHLY" ? monthlyOccurrence(start, payDay) : start;
 
 	while (!isAfter(occurrence, currentDay) && !isAfter(occurrence, end)) {
 		occurrences.push(format(occurrence, "yyyy-MM-dd"));
@@ -31,7 +34,8 @@ export function salaryOccurrenceDates(
 				occurrence = addWeeks(occurrence, 2);
 				break;
 			case "MONTHLY":
-				occurrence = addMonths(occurrence, 1);
+				monthOffset += 1;
+				occurrence = monthlyOccurrence(start, payDay, monthOffset);
 				break;
 			case "YEARLY":
 				occurrence = addYears(occurrence, 1);
@@ -40,6 +44,12 @@ export function salaryOccurrenceDates(
 	}
 
 	return occurrences;
+}
+
+function monthlyOccurrence(start: Date, payDay: number, monthOffset = 0): Date {
+	const month = new Date(start.getFullYear(), start.getMonth() + monthOffset, 1);
+	const lastDay = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+	return new Date(month.getFullYear(), month.getMonth(), Math.min(payDay, lastDay));
 }
 
 export async function materializeSalaryTransactions(userId: string) {
@@ -51,6 +61,7 @@ export async function materializeSalaryTransactions(userId: string) {
 			"endDate",
 			"financialAccountId",
 			"frequency",
+			"payDay",
 			"source",
 			"startDate",
 		)
@@ -77,6 +88,7 @@ export async function materializeSalaryTransactions(userId: string) {
 		const dates = salaryOccurrenceDates(
 			salary.frequency as SalaryFrequency,
 			salary.startDate,
+			salary.payDay,
 			salary.endDate,
 		).filter(date => date >= format(salary.autoGenerateFrom, "yyyy-MM-dd") && !scheduledDates.has(date));
 
