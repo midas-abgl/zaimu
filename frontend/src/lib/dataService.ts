@@ -889,6 +889,22 @@ export const dataService = {
 			return salaries;
 		},
 
+		async recordPayment(
+			salaryId: string,
+			data: { amount: number; date: string; financialAccountId: string },
+		) {
+			if (isGuestMode()) {
+				const account = await localAccounts.getById(data.financialAccountId);
+				if (!account) throw new Error("Conta financeira não encontrada");
+				await localAccounts.put(
+					{ ...account.data, balance: (account.data.balance ?? 0) + data.amount },
+					data.financialAccountId,
+				);
+				return;
+			}
+			await fetchWithAuth(`/salaries/${salaryId}/payments`, { body: JSON.stringify(data), method: "POST" });
+		},
+
 		async update(id: string, data: Partial<Salary>): Promise<Salary> {
 			if (isGuestMode()) {
 				const existing = await localSalaries.getById(id);

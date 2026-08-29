@@ -88,6 +88,7 @@ export interface Transaction {
 	categoryId?: string;
 	categoryName?: string;
 	categoryColor?: string;
+	recurrenceId?: string;
 	tagIds?: string[];
 	tags?: Tag[];
 	originFinancialAccountId?: string;
