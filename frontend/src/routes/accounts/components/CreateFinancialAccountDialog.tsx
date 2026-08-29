@@ -168,7 +168,6 @@ export function CreateFinancialAccountDialog({
 							{ label: "Sem instituição", value: NO_INSTITUTION },
 						]}
 						placeholder="Selecione uma instituição"
-						required
 						value={institutionId}
 					/>
 					{institutionId === NEW_INSTITUTION && (
@@ -294,7 +293,6 @@ export function CreateFinancialAccountDialog({
 							className="cursor-pointer disabled:cursor-not-allowed"
 							disabled={
 								pending ||
-								!institutionId ||
 								(institutionId === NEW_INSTITUTION && !newInstitutionName.trim()) ||
 								(type === "CREDIT_CARD" && !creditLimit) ||
 								(type === "CREDIT_CARD" && hasInvalidBillingDays)
