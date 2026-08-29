@@ -292,6 +292,22 @@
 		scrollbar-color: var(--primary-300) transparent;
 		scrollbar-width: thin;
 	}
+	.scrollbar-themed::-webkit-scrollbar {
+		width: 0.5rem;
+		height: 0.5rem;
+	}
+	.scrollbar-themed::-webkit-scrollbar-track:vertical {
+		margin-block: 0.75rem;
+	}
+	.scrollbar-themed::-webkit-scrollbar-track:horizontal {
+		margin-inline: 0.75rem;
+	}
+	.scrollbar-themed::-webkit-scrollbar-thumb {
+		background-color: var(--primary-300);
+		background-clip: content-box;
+		border: 2px solid transparent;
+		border-radius: 9999px;
+	}
 }
 
 @layer utilities {
