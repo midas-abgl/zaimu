@@ -315,49 +315,40 @@ export const dataService = {
 			if (!card) throw new Error("Cartão não encontrado");
 			const installments = Math.max(1, data.installments ?? 1);
 			const installmentAmount = data.totalAmount / installments;
-			const purchases: CreditPurchase[] = [];
-			for (let index = 0; index < installments; index++) {
-				const installmentDate = new Date(`${data.purchaseDate}T12:00:00`);
-				installmentDate.setMonth(installmentDate.getMonth() + index);
-				if (installmentDate.getDate() > card.statementDay)
-					installmentDate.setMonth(installmentDate.getMonth() + 1);
-				const statementDate = new Date(
-					installmentDate.getFullYear(),
-					installmentDate.getMonth(),
-					card.statementDay,
-				);
-				const statementKey = `${cardId}:${statementDate.toISOString().slice(0, 10)}`;
-				const storedStatement = await localCreditCardStatements.getById(statementKey);
-				const dueDate = new Date(statementDate.getFullYear(), statementDate.getMonth(), card.dueDay);
-				if (dueDate <= statementDate) dueDate.setMonth(dueDate.getMonth() + 1);
-				const statement: CreditCardStatement = storedStatement?.data ?? {
-					creditCardId: cardId,
-					dueDate: dueDate.toISOString(),
-					id: statementKey,
-					isPaid: false,
-					paidAmount: 0,
-					statementDate: statementDate.toISOString(),
-					totalAmount: 0,
-				};
-				statement.totalAmount += installmentAmount;
-				await localCreditCardStatements.put(statement, statement.id);
-				const purchase: CreditPurchase = {
-					categoryId: data.tagIds?.[0] ?? data.categoryId,
-					currentInstallment: index + 1,
-					description: data.description,
-					id: crypto.randomUUID(),
-					installmentAmount,
-					installments,
-					parentId: purchases[0]?.id,
-					purchaseDate: data.purchaseDate,
-					statementId: statement.id,
-					tagIds: data.tagIds,
-					totalAmount: data.totalAmount,
-				};
-				await localCreditPurchases.put(purchase, purchase.id);
-				purchases.push(purchase);
-			}
-			return purchases;
+			const purchaseDate = new Date(`${data.purchaseDate}T12:00:00`);
+			if (purchaseDate.getDate() > card.statementDay) purchaseDate.setMonth(purchaseDate.getMonth() + 1);
+			const statementDate = new Date(purchaseDate.getFullYear(), purchaseDate.getMonth(), card.statementDay);
+			const statementKey = `${cardId}:${statementDate.toISOString().slice(0, 10)}`;
+			const storedStatement = await localCreditCardStatements.getById(statementKey);
+			const dueDate = new Date(statementDate.getFullYear(), statementDate.getMonth(), card.dueDay);
+			if (dueDate <= statementDate) dueDate.setMonth(dueDate.getMonth() + 1);
+			const statement: CreditCardStatement = storedStatement?.data ?? {
+				creditCardId: cardId,
+				dueDate: dueDate.toISOString(),
+				id: statementKey,
+				isPaid: false,
+				paidAmount: 0,
+				statementDate: statementDate.toISOString(),
+				totalAmount: 0,
+			};
+			statement.totalAmount += installmentAmount;
+			const purchase: CreditPurchase = {
+				categoryId: data.tagIds?.[0] ?? data.categoryId,
+				currentInstallment: 1,
+				description: data.description,
+				id: crypto.randomUUID(),
+				installmentAmount,
+				installments,
+				purchaseDate: data.purchaseDate,
+				statementId: statement.id,
+				tagIds: data.tagIds,
+				totalAmount: data.totalAmount,
+			};
+			await Promise.all([
+				localCreditCardStatements.put(statement, statement.id),
+				localCreditPurchases.put(purchase, purchase.id),
+			]);
+			return [purchase];
 		},
 		async createFromAccount(
 			account: FinancialAccount,

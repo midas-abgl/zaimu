@@ -243,6 +243,7 @@ export interface CreditCardStatement {
 	totalAmount: number;
 	paidAmount: number;
 	isPaid: boolean;
+	isForecast?: boolean;
 }
 
 export interface CreditPurchase {
@@ -260,6 +261,7 @@ export interface CreditPurchase {
 	tagIds?: string[];
 	tags?: Tag[];
 	parentId?: string;
+	isForecast?: boolean;
 }
 
 export interface CreditCardStatementDetail extends CreditCardStatement {

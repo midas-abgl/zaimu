@@ -122,7 +122,7 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 						<div className="grid gap-2">
 							{detail.data.purchases.map(purchase => (
 								<CreditPurchaseRow
-									disabled={statement.isPaid || deletePurchase.isPending}
+									disabled={statement.isPaid || statement.isForecast === true || deletePurchase.isPending}
 									key={purchase.id}
 									onDelete={() => deletePurchase.mutateAsync(purchase.id)}
 									onEdit={() => setEditingPurchase(purchase)}

@@ -23,6 +23,7 @@ export function CreditPurchaseRow({
 				<p className="truncate font-medium">{purchase.description}</p>
 				<p className="text-muted-foreground text-xs">
 					{formatLocalDate(purchase.purchaseDate)}
+					{purchase.isForecast ? " · Previsão" : ""}
 					{purchase.tags?.length
 						? ` · ${purchase.tags.map(tag => tag.name).join(" · ")}`
 						: purchase.categoryName
