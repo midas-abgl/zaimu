@@ -79,7 +79,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				.outerLeftJoin(db.sql.public.RecurringPayment, (f, fn) =>
 					fn.eq(f.Transaction.recurrenceId, f.RecurringPayment.id),
 				)
-				.select(f => ({
+				.select((f, fn) => ({
 					amount: f.Transaction.amount,
 					categoryColor: f.Category.color,
 					categoryName: f.Category.name,
