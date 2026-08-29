@@ -512,10 +512,11 @@ export const dataService = {
 			data: {
 				creditCardId?: string;
 				description: string;
+				installments: number;
 				storeName?: string | null;
-				installmentAmount: number;
 				purchaseDate: string;
 				tagIds: string[];
+				totalAmount: number;
 			},
 		): Promise<CreditPurchase> {
 			if (!isGuestMode()) {
@@ -532,6 +533,8 @@ export const dataService = {
 			const targetCardId = data.creditCardId ?? cardId;
 			const targetCard = (await localCreditCards.getById(targetCardId))?.data;
 			if (!targetCard) throw new Error("Cartão não encontrado");
+			const installments = Math.max(1, data.installments);
+			const installmentAmount = data.totalAmount / installments;
 			const purchaseDate = new Date(`${data.purchaseDate}T12:00:00`);
 			const statementMonth = new Date(purchaseDate);
 			if (purchaseDate.getDate() > targetCard.statementDay)
@@ -565,18 +568,19 @@ export const dataService = {
 				categoryId: data.tagIds[0],
 				description: data.description,
 				...(data.storeName !== undefined && { storeName: data.storeName }),
-				installmentAmount: data.installmentAmount,
+				installmentAmount,
+				installments,
 				purchaseDate: data.purchaseDate,
 				statementId: targetStatement.id,
 				tagIds: data.tagIds,
-				...(storedPurchase.data.installments === 1 && { totalAmount: data.installmentAmount }),
+				totalAmount: data.totalAmount,
 			};
 			const changedStatement = statement.id !== targetStatement.id;
 			if (changedStatement) {
 				statement.totalAmount = Math.max(0, statement.totalAmount - storedPurchase.data.installmentAmount);
-				targetStatement.totalAmount += data.installmentAmount;
+				targetStatement.totalAmount += installmentAmount;
 			} else {
-				statement.totalAmount += data.installmentAmount - storedPurchase.data.installmentAmount;
+				statement.totalAmount += installmentAmount - storedPurchase.data.installmentAmount;
 			}
 			await Promise.all([
 				localCreditPurchases.put(updatedPurchase, purchaseId),
