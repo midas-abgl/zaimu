@@ -40,6 +40,12 @@ export function getPastRecurrenceDates(
 	return dates;
 }
 
+export function isRecurrenceEnded(endDate?: string | null, today = new Date()): boolean {
+	if (!endDate) return false;
+
+	return isBefore(startOfDay(parseISO(endDate)), startOfDay(today));
+}
+
 function monthlyOccurrence(start: Date, dayOfMonth?: number, monthOffset = 0): Date {
 	if (!dayOfMonth) return new Date(start.getFullYear(), start.getMonth() + monthOffset, start.getDate());
 	const month = new Date(start.getFullYear(), start.getMonth() + monthOffset, 1);

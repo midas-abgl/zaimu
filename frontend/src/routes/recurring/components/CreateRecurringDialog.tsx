@@ -309,7 +309,7 @@ export function CreateRecurringDialog({
 	return (
 		<>
 			<Dialog onOpenChange={handleOpenChange} open={open}>
-				<DialogContent className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-lg">
+				<DialogContent className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-lg">
 					<DialogHeader>
 						<DialogTitle>{isEditing ? "Editar recorrência" : "Nova recorrência"}</DialogTitle>
 						<DialogDescription>

@@ -3,6 +3,7 @@ import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Toaster } from "@/components/ui/Sonner";
+import { TooltipProvider } from "@/components/ui/Tooltip";
 import { initializeDeepLinks } from "@/lib/deep-links";
 import { routeTree } from "./routeTree.gen";
 import "./index.css";
@@ -36,8 +37,10 @@ void initializeDeepLinks(router);
 createRoot(document.getElementById("root")!).render(
 	<StrictMode>
 		<QueryClientProvider client={queryClient}>
-			<RouterProvider router={router} />
-			<Toaster position="top-center" richColors />
+			<TooltipProvider>
+				<RouterProvider router={router} />
+				<Toaster position="top-center" richColors />
+			</TooltipProvider>
 		</QueryClientProvider>
 	</StrictMode>,
 );

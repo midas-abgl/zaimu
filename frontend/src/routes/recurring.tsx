@@ -12,6 +12,7 @@ import { showToast } from "@/stores";
 import {
 	CreateRecurringDialog,
 	DeleteRecurringDialog,
+	isRecurrenceEnded,
 	type RecurringDirection,
 	RecurringListItem,
 	type RecurringListItemData,
@@ -129,7 +130,9 @@ function RecurringPage() {
 			key={`${item.source}:${item.id}`}
 			onDelete={() => setDeletingItem(item)}
 			onEdit={() => setEditingItem(item)}
-			onToggle={() => toggle.mutate(item)}
+			onToggle={() => {
+				if (!isRecurrenceEnded(item.endDate)) toggle.mutate(item);
+			}}
 			toggling={toggle.isPending && toggle.variables?.id === item.id}
 		/>
 	);
