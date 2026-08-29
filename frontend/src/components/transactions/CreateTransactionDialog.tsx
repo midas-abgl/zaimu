@@ -1,9 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { TagPicker } from "@/components/tags";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
-import { DateField } from "@/components/ui/DateField";
 import {
 	Dialog,
 	DialogContent,
@@ -12,8 +10,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
-import { FormField } from "@/components/ui/FormField";
-import { MoneyField } from "@/components/ui/MoneyField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { Transaction } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
@@ -21,6 +17,7 @@ import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
 import { getFinancialAccountDisplayName } from "@/lib/financial-account";
 import { showToast } from "@/stores";
+import { TransactionDetailsFields } from "./TransactionDetailsFields";
 
 const initialDraft = () => ({
 	amount: "",
@@ -124,53 +121,25 @@ export function CreateTransactionDialog({
 					<DialogDescription>Informe os dados da movimentação.</DialogDescription>
 				</DialogHeader>
 				<div className="scrollbar-themed grid min-h-0 gap-4 overflow-y-auto pr-1">
-					<CustomSelect
-						label="Tipo"
-						onValueChange={value =>
+					<TransactionDetailsFields
+						amount={draft.amount}
+						date={draft.date}
+						description={description}
+						onAmountChange={amount => setDraft(current => ({ ...current, amount }))}
+						onDateChange={date => setDraft(current => ({ ...current, date }))}
+						onDescriptionChange={setDescription}
+						onTagIdsChange={tagIds => setDraft(current => ({ ...current, tagIds }))}
+						onTypeChange={type =>
 							setDraft(current => ({
 								...current,
-								creditCardStatementId: value === "EXPENSE" ? current.creditCardStatementId : "",
-								type: value as Transaction["type"],
+								creditCardStatementId: type === "EXPENSE" ? current.creditCardStatementId : "",
+								type,
 							}))
 						}
-						options={[
-							{ label: "Saída", value: "EXPENSE" },
-							{ label: "Entrada", value: "INCOME" },
-							{ label: "Transferência", value: "TRANSFER" },
-						]}
-						placeholder="Selecione o tipo"
-						required
-						value={draft.type}
-					/>
-					<MoneyField
-						id="transaction-amount"
-						label="Valor"
-						onValueChange={amount => setDraft(current => ({ ...current, amount }))}
-						required
-						value={draft.amount}
-					/>
-					{!selectedStatement && (
-						<FormField
-							autoComplete="off"
-							id="transaction-description"
-							label="Descrição"
-							name="description"
-							onChange={event => setDescription(event.currentTarget.value)}
-							placeholder="Ex: Mercado do mês"
-							type="text"
-							value={description}
-						/>
-					)}
-					<DateField
-						id="transaction-date"
-						label="Data"
-						name="date"
-						onChange={event => {
-							const date = event.currentTarget.value;
-							setDraft(current => ({ ...current, date }));
-						}}
-						required
-						value={draft.date}
+						showDescription={!selectedStatement}
+						showTags={draft.type !== "TRANSFER" && !selectedStatement}
+						tagIds={draft.tagIds}
+						type={draft.type}
 					/>
 					{draft.type === "EXPENSE" && payableStatementsQuery.data?.length ? (
 						<CustomSelect
@@ -186,12 +155,6 @@ export function CreateTransactionDialog({
 							value={draft.creditCardStatementId}
 						/>
 					) : null}
-					{draft.type !== "TRANSFER" && !selectedStatement && (
-						<TagPicker
-							onValueChange={tagIds => setDraft(current => ({ ...current, tagIds }))}
-							value={draft.tagIds}
-						/>
-					)}
 					{balanceAccounts.length > 0 && (
 						<CustomSelect
 							label={

@@ -1,4 +1,6 @@
-import { LuDollarSign, LuLandmark } from "react-icons/lu";
+import { LuDollarSign, LuLandmark, LuPencil, LuTrash2 } from "react-icons/lu";
+import { Button } from "@/components/ui/Button";
+import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import type { Transaction } from "@/lib/api";
 import { TransactionAccounts } from "./TransactionAccounts";
 import { TransactionTags } from "./TransactionTags";
@@ -7,7 +9,17 @@ function formatCurrency(value: number) {
 	return new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(value);
 }
 
-export function TransactionListItem({ transaction }: { transaction: Transaction }) {
+export function TransactionListItem({
+	deleting = false,
+	onDelete,
+	onEdit,
+	transaction,
+}: {
+	deleting?: boolean;
+	onDelete?: () => void;
+	onEdit?: () => void;
+	transaction: Transaction;
+}) {
 	const amountPrefix = transaction.type === "INCOME" ? "+" : transaction.type === "EXPENSE" ? "−" : "";
 	const isCreditCardPurchase = transaction.source === "CREDIT_CARD";
 	const amountColor =
@@ -43,10 +55,38 @@ export function TransactionListItem({ transaction }: { transaction: Transaction 
 					<TransactionTags fallback={fallbackTag} tags={transaction.tags} />
 				</div>
 			</div>
-			<p className={`shrink-0 whitespace-nowrap pt-0.5 font-bold ${amountColor}`}>
-				{amountPrefix}
-				{formatCurrency(Number(transaction.amount))}
-			</p>
+			<div className="flex shrink-0 items-start gap-2">
+				<p className={`whitespace-nowrap pt-0.5 font-bold ${amountColor}`}>
+					{amountPrefix}
+					{formatCurrency(Number(transaction.amount))}
+				</p>
+				{onEdit && onDelete ? (
+					<div className="flex gap-1">
+						<Button
+							aria-label="Editar transação"
+							className="cursor-pointer"
+							disabled={deleting}
+							onClick={onEdit}
+							size="icon"
+							variant="outline"
+						>
+							<LuPencil />
+						</Button>
+						<ConfirmActionButton
+							aria-label="Excluir transação"
+							className="cursor-pointer disabled:cursor-not-allowed"
+							confirmation="Excluir esta transação permanentemente?"
+							confirmChildren={<LuTrash2 />}
+							disabled={deleting}
+							onConfirm={onDelete}
+							size="icon"
+							variant="destructive"
+						>
+							<LuTrash2 />
+						</ConfirmActionButton>
+					</div>
+				) : null}
+			</div>
 		</div>
 	);
 }

@@ -462,6 +462,9 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (!existing) {
 				throw new HttpException("Transaction not found", 404);
 			}
+			if (body.amount !== undefined && body.amount <= 0) {
+				throw new HttpException("Informe um valor maior que zero", 400);
+			}
 
 			// Record history for changed fields
 			const historyEntries: Array<{
@@ -490,6 +493,31 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 
 			if (historyEntries.length > 0) {
 				await executeStatement(db.sql.public.TransactionHistory.insert(historyEntries as never).build());
+			}
+			if (body.amount !== undefined && body.amount !== Number(existing.amount)) {
+				const difference = param(numeric<12, 2>(body.amount - Number(existing.amount)), {
+					codecId: "pg/numeric@1",
+				});
+				if (existing.originFinancialAccountId) {
+					await executeStatement(
+						db.sql.public.FinancialAccount.update((f, fn) => ({
+							balance: fn.raw`${f.balance} - ${difference}`.returns("pg/numeric@1"),
+							updatedAt: fn.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
+						}))
+							.where((f, fn) => fn.eq(f.id, existing.originFinancialAccountId!))
+							.build(),
+					);
+				}
+				if (existing.destinationFinancialAccountId) {
+					await executeStatement(
+						db.sql.public.FinancialAccount.update((f, fn) => ({
+							balance: fn.raw`${f.balance} + ${difference}`.returns("pg/numeric@1"),
+							updatedAt: fn.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
+						}))
+							.where((f, fn) => fn.eq(f.id, existing.destinationFinancialAccountId!))
+							.build(),
+					);
+				}
 			}
 
 			const transaction = await queryFirst(

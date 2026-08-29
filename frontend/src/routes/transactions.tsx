@@ -1,8 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { HiArrowDown, HiArrowsRightLeft, HiArrowUp, HiPlus } from "react-icons/hi2";
-import { CreateTransactionDialog, TransactionListItem } from "@/components/transactions";
+import {
+	CreateTransactionDialog,
+	EditTransactionDialog,
+	TransactionListItem,
+} from "@/components/transactions";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
@@ -10,6 +14,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
+import { showToast } from "@/stores";
 
 const typeOptions = [
 	{ icon: null, id: "all", label: "Todas" },
@@ -20,7 +25,9 @@ const typeOptions = [
 
 function TransactionsPage() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 	const [filterType, setFilterType] = useState<string>("all");
+	const queryClient = useQueryClient();
 
 	const transactionsQuery = useQuery({
 		queryFn: () =>
@@ -40,6 +47,18 @@ function TransactionsPage() {
 		},
 		{},
 	);
+	const remove = useMutation({
+		mutationFn: (id: string) => dataService.transactions.delete(id),
+		onError: error => showToast(error.message, "negative"),
+		onSuccess: async () => {
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: ["accounts"] }),
+				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+			]);
+			showToast("Transação excluída.", "positive");
+		},
+	});
 
 	return (
 		<PageContainer className="space-y-6">
@@ -102,7 +121,19 @@ function TransactionsPage() {
 							</h2>
 							<div className="divide-y rounded-2xl border bg-card shadow-sm">
 								{transactions.map(transaction => (
-									<TransactionListItem key={transaction.id} transaction={transaction} />
+									<TransactionListItem
+										deleting={remove.isPending && remove.variables === transaction.id}
+										key={transaction.id}
+										onDelete={
+											transaction.source === "CREDIT_CARD" ? undefined : () => remove.mutate(transaction.id)
+										}
+										onEdit={
+											transaction.source === "CREDIT_CARD"
+												? undefined
+												: () => setEditingTransaction(transaction)
+										}
+										transaction={transaction}
+									/>
 								))}
 							</div>
 						</section>
@@ -111,6 +142,11 @@ function TransactionsPage() {
 			)}
 
 			<CreateTransactionDialog onOpenChange={setIsModalOpen} open={isModalOpen} />
+			<EditTransactionDialog
+				onOpenChange={open => !open && setEditingTransaction(null)}
+				open={editingTransaction !== null}
+				transaction={editingTransaction}
+			/>
 		</PageContainer>
 	);
 }
