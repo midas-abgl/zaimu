@@ -53,7 +53,9 @@ export function CreateTransactionDialog({
 					statements: await dataService.creditCards.getStatements(card.id, false),
 				})),
 			);
-			return statements.flatMap(({ card, statements }) => statements.map(statement => ({ card, statement })));
+			return statements
+				.flatMap(({ card, statements }) => statements.map(statement => ({ card, statement })))
+				.toSorted((left, right) => left.statement.dueDate.localeCompare(right.statement.dueDate));
 		},
 		queryKey: ["credit-card-statements", "payable"],
 	});
