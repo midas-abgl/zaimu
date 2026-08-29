@@ -72,6 +72,7 @@ export interface CreditCard {
 	financialAccountId: string;
 	creditLimit: number;
 	securityDeposit?: number | null;
+	excludeFromTotals: boolean;
 	statementDay: number;
 	dueDay: number;
 	workingDueDate: boolean;

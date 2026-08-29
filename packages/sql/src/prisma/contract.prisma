@@ -127,6 +127,7 @@ namespace public {
     financialAccountId   VarChar(36)
     creditLimit          Numeric(12, 2)
     securityDeposit      Numeric(12, 2)?
+    excludeFromTotals    Boolean               @default(false)
     statementDay         SmallInt
     dueDay               SmallInt
     workingDueDate       Boolean               @default(false)

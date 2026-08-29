@@ -77,6 +77,7 @@ export function CreateFinancialAccountDialog({
 	const [statementDay, setStatementDay] = useState(String(account?.creditCard?.statementDay ?? 10));
 	const [dueDay, setDueDay] = useState(String(account?.creditCard?.dueDay ?? 17));
 	const [workingDueDate, setWorkingDueDate] = useState(account?.creditCard?.workingDueDate ?? false);
+	const [excludeFromTotals, setExcludeFromTotals] = useState(account?.creditCard?.excludeFromTotals ?? false);
 	const hasInvalidBillingDays = Number(statementDay) >= Number(dueDay);
 
 	const reset = () => {
@@ -90,6 +91,7 @@ export function CreateFinancialAccountDialog({
 		setStatementDay(String(account?.creditCard?.statementDay ?? 10));
 		setDueDay(String(account?.creditCard?.dueDay ?? 17));
 		setWorkingDueDate(account?.creditCard?.workingDueDate ?? false);
+		setExcludeFromTotals(account?.creditCard?.excludeFromTotals ?? false);
 	};
 	const handleOpenChange = (nextOpen: boolean) => {
 		setInternalOpen(nextOpen);
@@ -111,6 +113,7 @@ export function CreateFinancialAccountDialog({
 						? {
 								creditLimit: Number(creditLimit),
 								dueDay: Number(dueDay),
+								excludeFromTotals,
 								securityDeposit: securityDeposit ? Number(securityDeposit) : undefined,
 								statementDay: Number(statementDay),
 								workingDueDate,
@@ -276,6 +279,20 @@ export function CreateFinancialAccountDialog({
 								<span>
 									<strong className="block">Ajustar para dia útil</strong>
 									<span className="text-muted-foreground">Move vencimentos que caem em fim de semana.</span>
+								</span>
+							</label>
+							<label className="flex cursor-pointer items-start gap-3 text-sm" htmlFor="exclude-from-totals">
+								<Checkbox
+									checked={excludeFromTotals}
+									className="mt-0.5 cursor-pointer"
+									id="exclude-from-totals"
+									onCheckedChange={checked => setExcludeFromTotals(checked === true)}
+								/>
+								<span>
+									<strong className="block">Não considerar nos totais</strong>
+									<span className="text-muted-foreground">
+										Use para cartão de outra pessoa: acompanhe compras e faturas sem somá-lo aos seus limites.
+									</span>
 								</span>
 							</label>
 						</div>

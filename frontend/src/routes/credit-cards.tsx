@@ -54,7 +54,9 @@ function CreditCardsPage() {
 			showToast("Cartão cadastrado.", "positive");
 		},
 	});
-	const totalLimit = cards.data?.reduce((sum, card) => sum + card.creditLimit, 0) ?? 0;
+	const totalLimit =
+		cards.data?.reduce((sum, card) => sum + (card.excludeFromTotals ? 0 : card.creditLimit), 0) ?? 0;
+	const ownCardsCount = cards.data?.filter(card => !card.excludeFromTotals).length ?? 0;
 
 	return (
 		<PageContainer className="grid gap-8">
@@ -74,8 +76,8 @@ function CreditCardsPage() {
 					<p className="mt-2 font-bold text-3xl">{currency.format(totalLimit)}</p>
 				</div>
 				<div className="rounded-2xl border bg-card p-5 shadow-card">
-					<p className="text-muted-foreground text-sm">Cartões cadastrados</p>
-					<p className="mt-2 font-bold text-3xl">{cards.data?.length ?? 0}</p>
+					<p className="text-muted-foreground text-sm">Seus cartões</p>
+					<p className="mt-2 font-bold text-3xl">{ownCardsCount}</p>
 				</div>
 			</section>
 			{cards.isPending ? (

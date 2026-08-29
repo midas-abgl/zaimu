@@ -61,7 +61,7 @@ export type FinancialAccountDraft = Omit<
 	balance?: number;
 	creditCard?: Pick<
 		CreditCard,
-		"creditLimit" | "dueDay" | "securityDeposit" | "statementDay" | "workingDueDate"
+		"creditLimit" | "dueDay" | "excludeFromTotals" | "securityDeposit" | "statementDay" | "workingDueDate"
 	>;
 	institutionName?: string;
 };
@@ -361,6 +361,7 @@ export const dataService = {
 				accountName: account.name,
 				creditLimit: details.creditLimit,
 				dueDay: details.dueDay,
+				excludeFromTotals: details.excludeFromTotals ?? false,
 				financialAccountId: account.id,
 				id: crypto.randomUUID(),
 				securityDeposit: details.securityDeposit ?? null,

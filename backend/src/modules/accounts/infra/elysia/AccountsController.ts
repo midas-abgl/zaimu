@@ -47,6 +47,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 							"financialAccountId",
 							"creditLimit",
 							"securityDeposit",
+							"excludeFromTotals",
 							"statementDay",
 							"dueDay",
 							"workingDueDate",
@@ -126,6 +127,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						"financialAccountId",
 						"creditLimit",
 						"securityDeposit",
+						"excludeFromTotals",
 						"statementDay",
 						"dueDay",
 						"workingDueDate",
@@ -208,6 +210,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						{
 							creditLimit: String(body.creditCard.creditLimit),
 							dueDay: body.creditCard.dueDay,
+							excludeFromTotals: body.creditCard.excludeFromTotals ?? false,
 							financialAccountId: account.id,
 							...(body.creditCard.securityDeposit !== undefined && {
 								securityDeposit: String(body.creditCard.securityDeposit),
@@ -221,6 +224,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 							"financialAccountId",
 							"creditLimit",
 							"securityDeposit",
+							"excludeFromTotals",
 							"statementDay",
 							"dueDay",
 							"workingDueDate",
@@ -243,6 +247,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					t.Object({
 						creditLimit: t.Number({ minimum: 0 }),
 						dueDay: t.Number({ maximum: 31, minimum: 1 }),
+						excludeFromTotals: t.Optional(t.Boolean()),
 						securityDeposit: t.Optional(t.Number({ minimum: 0 })),
 						statementDay: t.Number({ maximum: 31, minimum: 1 }),
 						workingDueDate: t.Optional(t.Boolean()),
@@ -352,6 +357,9 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						...(body.creditCard.dueDay !== undefined && {
 							dueDay: body.creditCard.dueDay,
 						}),
+						...(body.creditCard.excludeFromTotals !== undefined && {
+							excludeFromTotals: body.creditCard.excludeFromTotals,
+						}),
 						...(body.creditCard.workingDueDate !== undefined && {
 							workingDueDate: body.creditCard.workingDueDate,
 						}),
@@ -366,6 +374,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 							"financialAccountId",
 							"creditLimit",
 							"securityDeposit",
+							"excludeFromTotals",
 							"statementDay",
 							"dueDay",
 							"workingDueDate",
@@ -388,6 +397,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					t.Object({
 						creditLimit: t.Optional(t.Number({ minimum: 0 })),
 						dueDay: t.Optional(t.Number({ maximum: 31, minimum: 1 })),
+						excludeFromTotals: t.Optional(t.Boolean()),
 						securityDeposit: t.Optional(t.Number({ minimum: 0 })),
 						statementDay: t.Optional(t.Number({ maximum: 31, minimum: 1 })),
 						workingDueDate: t.Optional(t.Boolean()),

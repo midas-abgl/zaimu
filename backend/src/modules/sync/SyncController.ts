@@ -52,6 +52,7 @@ const cardColumns = [
 	"financialAccountId",
 	"creditLimit",
 	"securityDeposit",
+	"excludeFromTotals",
 	"statementDay",
 	"dueDay",
 	"workingDueDate",
@@ -247,6 +248,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 			const values = {
 				creditLimit: String(value<number>(entity, "creditLimit")),
 				dueDay: Number(value<number>(entity, "dueDay")),
+				excludeFromTotals: value<boolean>(entity, "excludeFromTotals") ?? false,
 				financialAccountId,
 				securityDeposit: nullableNumeric<12, 2>(
 					value<number | null | undefined>(entity, "securityDeposit") ?? null,
