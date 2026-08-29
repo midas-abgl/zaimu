@@ -1,6 +1,7 @@
 import { type SyntheticEvent, useState } from "react";
 import { TagPicker } from "@/components/tags";
 import { Button } from "@/components/ui/Button";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import {
 	Dialog,
@@ -13,9 +14,11 @@ import {
 import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
-import type { CreditPurchase } from "@/lib/api";
+import type { CreditCard, CreditPurchase } from "@/lib/api";
+import { getCreditCardDisplayName } from "@/lib/credit-card";
 
 interface CreditPurchaseUpdate {
+	creditCardId?: string;
 	description: string;
 	installmentAmount: number;
 	purchaseDate: string;
@@ -28,7 +31,11 @@ export function EditCreditPurchaseDialog({
 	open,
 	pending,
 	purchase,
+	cards,
+	creditCardId,
 }: {
+	cards?: CreditCard[];
+	creditCardId?: string;
 	onOpenChange: (open: boolean) => void;
 	onSubmit: (data: CreditPurchaseUpdate) => Promise<void>;
 	open: boolean;
@@ -39,11 +46,13 @@ export function EditCreditPurchaseDialog({
 	const [amount, setAmount] = useState(String(purchase.installmentAmount));
 	const [date, setDate] = useState(purchase.purchaseDate.slice(0, 10));
 	const [tagIds, setTagIds] = useState(purchase.tagIds ?? (purchase.categoryId ? [purchase.categoryId] : []));
+	const [selectedCardId, setSelectedCardId] = useState(creditCardId ?? "");
 	const numericAmount = Number(amount);
 
 	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		await onSubmit({
+			...(selectedCardId && selectedCardId !== creditCardId && { creditCardId: selectedCardId }),
 			description: description.trim(),
 			installmentAmount: numericAmount,
 			purchaseDate: date,
@@ -61,6 +70,16 @@ export function EditCreditPurchaseDialog({
 					</DialogDescription>
 				</DialogHeader>
 				<form className="grid gap-5" onSubmit={submit}>
+					{cards?.length && creditCardId ? (
+						<CustomSelect
+							label="Cartão"
+							onValueChange={setSelectedCardId}
+							options={cards.map(card => ({ label: getCreditCardDisplayName(card), value: card.id }))}
+							placeholder="Selecione o cartão"
+							required
+							value={selectedCardId}
+						/>
+					) : null}
 					<FormField
 						autoComplete="off"
 						id="credit-purchase-description"

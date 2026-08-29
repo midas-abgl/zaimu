@@ -50,6 +50,15 @@ interface CreditPurchaseRow {
 	updatedAt: Date;
 }
 
+function getStatementDates(card: { dueDay: number; statementDay: number }, purchaseDate: Date) {
+	const statementMonth =
+		purchaseDate.getDate() > card.statementDay ? addMonths(purchaseDate, 1) : purchaseDate;
+	const statementDate = new Date(statementMonth.getFullYear(), statementMonth.getMonth(), card.statementDay);
+	const dueDate = new Date(statementMonth.getFullYear(), statementMonth.getMonth(), card.dueDay);
+	if (dueDate <= statementDate) dueDate.setMonth(dueDate.getMonth() + 1);
+	return { dueDate, statementDate };
+}
+
 const findPurchaseForCard = (creditCardId: string, purchaseId: string) =>
 	queryFirst(
 		db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
@@ -398,10 +407,46 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const purchase = await findPurchaseForCard(params.id, params.purchaseId);
 			if (!purchase) throw new HttpException("Purchase not found", 404);
 			if (purchase.isPaid) throw new HttpException("Paid statement purchases cannot be edited", 409);
+			if (body.creditCardId) await assertCreditCardOwnership(body.creditCardId, userId);
 
 			const tagIds = body.tagIds === undefined ? undefined : await assertTagOwnership(body.tagIds, userId);
 			const previousAmount = Number(purchase.installmentAmount);
 			const nextAmount = body.installmentAmount ?? previousAmount;
+			const nextPurchaseDate = body.purchaseDate ? new Date(body.purchaseDate) : purchase.purchaseDate;
+			let nextStatementId = purchase.statementId;
+			if (body.creditCardId && body.creditCardId !== params.id) {
+				const card = await queryFirst(
+					db.sql.public.CreditCard.select("dueDay", "statementDay")
+						.where((fields, functions) => functions.eq(fields.id, body.creditCardId!))
+						.limit(1)
+						.build(),
+				);
+				if (!card) throw new HttpException("Credit card not found", 404);
+				const { dueDate, statementDate } = getStatementDates(card, nextPurchaseDate);
+				let statement = await queryFirst(
+					db.sql.public.CreditCardStatement.select(...statementColumns)
+						.where((fields, functions) =>
+							functions.and(
+								functions.eq(fields.creditCardId, body.creditCardId!),
+								functions.eq(fields.statementDate, statementDate),
+							),
+						)
+						.limit(1)
+						.build(),
+				);
+				if (!statement) {
+					statement = await queryFirst(
+						db.sql.public.CreditCardStatement.insert([
+							{ creditCardId: body.creditCardId, dueDate, statementDate, totalAmount: "0" },
+						])
+							.returning(...statementColumns)
+							.build(),
+					);
+				}
+				if (!statement) throw new HttpException("Statement not created", 500);
+				if (statement.isPaid) throw new HttpException("Cannot move a purchase to a paid statement", 409);
+				nextStatementId = statement.id;
+			}
 			const updatedPurchase = await queryFirst(
 				db.sql.public.CreditPurchase.update({
 					...(body.description !== undefined && { description: body.description }),
@@ -409,7 +454,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						installmentAmount: String(body.installmentAmount),
 						...(purchase.installments === 1 && { totalAmount: String(body.installmentAmount) }),
 					}),
-					...(body.purchaseDate !== undefined && { purchaseDate: new Date(body.purchaseDate) }),
+					...(body.purchaseDate !== undefined && { purchaseDate: nextPurchaseDate }),
+					...(nextStatementId !== purchase.statementId && { statementId: nextStatementId }),
 					...(tagIds !== undefined && { categoryId: tagIds[0] ?? null }),
 					updatedAt: new Date(),
 				} as never)
@@ -419,9 +465,32 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			);
 			if (!updatedPurchase) throw new HttpException("Purchase not found", 404);
 
-			const difference = nextAmount - previousAmount;
-			if (difference !== 0) {
-				const amount = param(numeric<12, 2>(difference), { codecId: "pg/numeric@1" });
+			if (nextStatementId !== purchase.statementId) {
+				const previousStatementAmount = param(numeric<12, 2>(previousAmount), { codecId: "pg/numeric@1" });
+				const nextStatementAmount = param(numeric<12, 2>(nextAmount), { codecId: "pg/numeric@1" });
+				await executeStatement(
+					db.sql.public.CreditCardStatement.update((fields, functions) => ({
+						totalAmount:
+							functions.raw`GREATEST(0, ${fields.totalAmount} - ${previousStatementAmount})`.returns(
+								"pg/numeric@1",
+							),
+						updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
+					}))
+						.where((fields, functions) => functions.eq(fields.id, purchase.statementId))
+						.build(),
+				);
+				await executeStatement(
+					db.sql.public.CreditCardStatement.update((fields, functions) => ({
+						totalAmount: functions.raw`${fields.totalAmount} + ${nextStatementAmount}`.returns(
+							"pg/numeric@1",
+						),
+						updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
+					}))
+						.where((fields, functions) => functions.eq(fields.id, nextStatementId))
+						.build(),
+				);
+			} else if (nextAmount !== previousAmount) {
+				const amount = param(numeric<12, 2>(nextAmount - previousAmount), { codecId: "pg/numeric@1" });
 				await executeStatement(
 					db.sql.public.CreditCardStatement.update((fields, functions) => ({
 						totalAmount: functions.raw`${fields.totalAmount} + ${amount}`.returns("pg/numeric@1"),
@@ -445,6 +514,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 		},
 		{
 			body: t.Object({
+				creditCardId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				description: t.Optional(t.String({ maxLength: 500, minLength: 1 })),
 				installmentAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
 				purchaseDate: t.Optional(t.String()),

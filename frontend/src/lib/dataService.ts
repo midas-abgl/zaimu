@@ -522,6 +522,7 @@ export const dataService = {
 			cardId: string,
 			purchaseId: string,
 			data: {
+				creditCardId?: string;
 				description: string;
 				installmentAmount: number;
 				purchaseDate: string;
@@ -539,19 +540,58 @@ export const dataService = {
 			const statement = (await localCreditCardStatements.getById(storedPurchase.data.statementId))?.data;
 			if (!statement || statement.creditCardId !== cardId) throw new Error("Fatura não encontrada");
 			if (statement.isPaid) throw new Error("Compras de faturas pagas não podem ser editadas");
+			const targetCardId = data.creditCardId ?? cardId;
+			const targetCard = (await localCreditCards.getById(targetCardId))?.data;
+			if (!targetCard) throw new Error("Cartão não encontrado");
+			const purchaseDate = new Date(`${data.purchaseDate}T12:00:00`);
+			const statementMonth = new Date(purchaseDate);
+			if (purchaseDate.getDate() > targetCard.statementDay)
+				statementMonth.setMonth(statementMonth.getMonth() + 1);
+			const targetStatementDate = new Date(
+				statementMonth.getFullYear(),
+				statementMonth.getMonth(),
+				targetCard.statementDay,
+			);
+			const targetStatementId = `${targetCardId}:${targetStatementDate.toISOString().slice(0, 10)}`;
+			const storedTargetStatement = await localCreditCardStatements.getById(targetStatementId);
+			const targetDueDate = new Date(
+				targetStatementDate.getFullYear(),
+				targetStatementDate.getMonth(),
+				targetCard.dueDay,
+			);
+			if (targetDueDate <= targetStatementDate) targetDueDate.setMonth(targetDueDate.getMonth() + 1);
+			const targetStatement: CreditCardStatement = storedTargetStatement?.data ?? {
+				creditCardId: targetCardId,
+				dueDate: targetDueDate.toISOString(),
+				id: targetStatementId,
+				isPaid: false,
+				paidAmount: 0,
+				statementDate: targetStatementDate.toISOString(),
+				totalAmount: 0,
+			};
+			if (targetStatement.isPaid && targetStatement.id !== statement.id)
+				throw new Error("Não é possível mover uma compra para uma fatura paga");
 			const updatedPurchase: CreditPurchase = {
 				...storedPurchase.data,
 				categoryId: data.tagIds[0],
 				description: data.description,
 				installmentAmount: data.installmentAmount,
 				purchaseDate: data.purchaseDate,
+				statementId: targetStatement.id,
 				tagIds: data.tagIds,
 				...(storedPurchase.data.installments === 1 && { totalAmount: data.installmentAmount }),
 			};
-			statement.totalAmount += data.installmentAmount - storedPurchase.data.installmentAmount;
+			const changedStatement = statement.id !== targetStatement.id;
+			if (changedStatement) {
+				statement.totalAmount = Math.max(0, statement.totalAmount - storedPurchase.data.installmentAmount);
+				targetStatement.totalAmount += data.installmentAmount;
+			} else {
+				statement.totalAmount += data.installmentAmount - storedPurchase.data.installmentAmount;
+			}
 			await Promise.all([
 				localCreditPurchases.put(updatedPurchase, purchaseId),
 				localCreditCardStatements.put(statement, statement.id),
+				...(changedStatement ? [localCreditCardStatements.put(targetStatement, targetStatement.id)] : []),
 			]);
 			return updatedPurchase;
 		},

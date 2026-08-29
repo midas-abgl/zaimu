@@ -39,6 +39,11 @@ function TransactionsPage() {
 			}),
 		queryKey: ["transactions", filterType],
 	});
+	const creditCardsQuery = useQuery({
+		enabled: editingPurchase !== null,
+		queryFn: () => dataService.creditCards.getAll(),
+		queryKey: ["credit-cards"],
+	});
 
 	const groupedTransactions = transactionsQuery.data?.reduce<Record<string, Transaction[]>>(
 		(groups, transaction) => {
@@ -197,6 +202,8 @@ function TransactionsPage() {
 			/>
 			{editingPurchase?.creditCardId && editingPurchase.installmentAmount !== undefined ? (
 				<EditCreditPurchaseDialog
+					cards={creditCardsQuery.data}
+					creditCardId={editingPurchase.creditCardId}
 					onOpenChange={open => !open && setEditingPurchase(null)}
 					onSubmit={async data => {
 						await updatePurchase.mutateAsync({ data, transaction: editingPurchase });
