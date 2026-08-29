@@ -8,8 +8,22 @@ const financialAccountTypeLabels = {
 	SAVINGS: "Poupança",
 } as const;
 
-export function getFinancialAccountDisplayName(account: Pick<FinancialAccount, "name" | "type">) {
-	return account.name ?? financialAccountTypeLabels[account.type];
+const displayNameCollator = new Intl.Collator("pt-BR", { sensitivity: "base" });
+
+export function getFinancialAccountDisplayName(
+	account: Pick<FinancialAccount, "institution" | "name" | "type">,
+) {
+	return account.name?.trim() || account.institution?.name || financialAccountTypeLabels[account.type];
+}
+
+export function compareFinancialAccountsByDisplayName(
+	left: Pick<FinancialAccount, "institution" | "name" | "type">,
+	right: Pick<FinancialAccount, "institution" | "name" | "type">,
+) {
+	return displayNameCollator.compare(
+		getFinancialAccountDisplayName(left),
+		getFinancialAccountDisplayName(right),
+	);
 }
 
 export function getFinancialAccountTypeLabel(type: FinancialAccount["type"]) {

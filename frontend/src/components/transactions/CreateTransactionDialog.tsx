@@ -40,7 +40,12 @@ export function CreateTransactionDialog({
 	const [draft, setDraft] = useState(initialDraft);
 	const [description, setDescription] = useDebouncedInput("", () => undefined);
 	const accountsQuery = useQuery({ queryFn: () => dataService.accounts.getAll(), queryKey: ["accounts"] });
-	const balanceAccounts = accountsQuery.data?.filter(account => account.type !== "CREDIT_CARD") ?? [];
+	const balanceAccounts =
+		accountsQuery.data
+			?.filter(account => account.type !== "CREDIT_CARD")
+			.toSorted((left, right) =>
+				getFinancialAccountDisplayName(left).localeCompare(getFinancialAccountDisplayName(right), "pt-BR"),
+			) ?? [];
 	const primaryAccountId =
 		draft.type === "INCOME" ? draft.destinationFinancialAccountId : draft.originFinancialAccountId;
 	const reset = () => {

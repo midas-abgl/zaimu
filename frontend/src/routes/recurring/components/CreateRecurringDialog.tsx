@@ -13,7 +13,10 @@ import {
 	DialogTitle,
 } from "@/components/ui/Dialog";
 import { dataService } from "@/lib/dataService";
-import { getFinancialAccountDisplayName } from "@/lib/financial-account";
+import {
+	compareFinancialAccountsByDisplayName,
+	getFinancialAccountDisplayName,
+} from "@/lib/financial-account";
 import { showToast } from "@/stores";
 import { frequencyOptions, paymentMethodOptions, sourceOptions } from "./constants";
 import { DebouncedFormField } from "./DebouncedFormField";
@@ -48,7 +51,10 @@ export function CreateRecurringDialog({
 	const queryClient = useQueryClient();
 	const [draft, setDraft] = useState(initialDraft);
 	const accountsQuery = useQuery({ queryFn: () => dataService.accounts.getAll(), queryKey: ["accounts"] });
-	const balanceAccounts = accountsQuery.data?.filter(account => account.type !== "CREDIT_CARD") ?? [];
+	const balanceAccounts =
+		accountsQuery.data
+			?.filter(account => account.type !== "CREDIT_CARD")
+			.toSorted(compareFinancialAccountsByDisplayName) ?? [];
 	const setField = <Key extends keyof RecurringDraft>(field: Key, value: RecurringDraft[Key]) => {
 		setDraft(current => ({ ...current, [field]: value }));
 	};
