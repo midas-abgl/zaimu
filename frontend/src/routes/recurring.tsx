@@ -90,8 +90,12 @@ function RecurringPage() {
 		salariesQuery.isError || accountsQuery.isError || subscriptionsQuery.isError || recurringQuery.isError;
 	const items = [
 		...(salariesQuery.data ?? []).map(salary => salaryToListItem(salary, accountsQuery.data ?? [])),
-		...(subscriptionsQuery.data ?? []).map(subscriptionToListItem),
-		...(recurringQuery.data ?? []).map(recurringPaymentToListItem),
+		...(subscriptionsQuery.data ?? []).map(subscription =>
+			subscriptionToListItem(subscription, accountsQuery.data ?? []),
+		),
+		...(recurringQuery.data ?? []).map(payment =>
+			recurringPaymentToListItem(payment, accountsQuery.data ?? []),
+		),
 	].sort(
 		(left, right) => Number(right.active) - Number(left.active) || left.title.localeCompare(right.title),
 	);

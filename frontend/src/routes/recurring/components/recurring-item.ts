@@ -35,12 +35,18 @@ export function salaryToListItem(salary: Salary, accounts: FinancialAccount[] = 
 	};
 }
 
-export function subscriptionToListItem(subscription: Subscription): RecurringListItemData {
+export function subscriptionToListItem(
+	subscription: Subscription,
+	accounts: FinancialAccount[] = [],
+): RecurringListItemData {
+	const account = accounts.find(item => item.id === subscription.financialAccountId);
 	return {
+		accountName: account ? getFinancialAccountDisplayName(account) : undefined,
 		active: subscription.isActive,
 		amount: Number(subscription.amount),
 		day: subscription.billingDay,
 		direction: "EXPENSE",
+		financialAccountId: subscription.financialAccountId ?? undefined,
 		frequency: subscription.frequency,
 		id: subscription.id,
 		monthlyAmount: toMonthlyAmount(Number(subscription.amount), subscription.frequency),
@@ -51,12 +57,18 @@ export function subscriptionToListItem(subscription: Subscription): RecurringLis
 	};
 }
 
-export function recurringPaymentToListItem(payment: RecurringPayment): RecurringListItemData {
+export function recurringPaymentToListItem(
+	payment: RecurringPayment,
+	accounts: FinancialAccount[] = [],
+): RecurringListItemData {
+	const account = accounts.find(item => item.id === payment.financialAccountId);
 	return {
+		accountName: account ? getFinancialAccountDisplayName(account) : undefined,
 		active: payment.isActive,
 		amount: Number(payment.amount),
 		day: payment.dayOfMonth ?? payment.day ?? null,
 		direction: "EXPENSE",
+		financialAccountId: payment.financialAccountId ?? undefined,
 		frequency: payment.frequency,
 		id: payment.id,
 		monthlyAmount: toMonthlyAmount(Number(payment.amount), payment.frequency),

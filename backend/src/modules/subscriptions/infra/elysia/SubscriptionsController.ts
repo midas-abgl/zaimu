@@ -1,5 +1,5 @@
 import Elysia, { t } from "elysia";
-import { assertDirectOwnership, requireUserId } from "~/modules/auth";
+import { assertDirectOwnership, assertPaymentAccountOwnership, requireUserId } from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 
@@ -11,6 +11,7 @@ const subscriptionColumns = [
 	"billingDay",
 	"frequency",
 	"paymentMethod",
+	"financialAccountId",
 	"startDate",
 	"endDate",
 	"isActive",
@@ -138,12 +139,15 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 		"/",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
+			if (body.financialAccountId)
+				await assertPaymentAccountOwnership(body.financialAccountId, body.paymentMethod ?? "CREDIT", userId);
 			const subscription = await queryFirst(
 				db.sql.public.Subscription.insert([
 					{
 						amount: String(body.amount),
 						billingDay: body.billingDay,
 						endDate: body.endDate ? new Date(body.endDate) : undefined,
+						financialAccountId: body.financialAccountId,
 						frequency: body.frequency ?? "MONTHLY",
 						isActive: body.isActive ?? true,
 						name: body.name,
@@ -164,6 +168,7 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 				amount: t.Number(),
 				billingDay: t.Number({ maximum: 31, minimum: 1 }),
 				endDate: t.Optional(t.String()),
+				financialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				frequency: t.Optional(RecurrenceFrequency),
 				isActive: t.Optional(t.Boolean()),
 				name: t.String({ maxLength: 100 }),
@@ -188,6 +193,12 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 			if (!existing) {
 				throw new HttpException("Subscription not found", 404);
 			}
+			if (body.financialAccountId)
+				await assertPaymentAccountOwnership(
+					body.financialAccountId,
+					body.paymentMethod ?? existing.paymentMethod,
+					userId,
+				);
 
 			// Record history
 			const historyEntries: Array<{
@@ -224,6 +235,9 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 					...(body.amount !== undefined && { amount: String(body.amount) }),
 					...(body.billingDay !== undefined && { billingDay: body.billingDay }),
 					...(body.frequency && { frequency: body.frequency }),
+					...(body.financialAccountId !== undefined && {
+						financialAccountId: body.financialAccountId || null,
+					}),
 					...(body.paymentMethod && { paymentMethod: body.paymentMethod }),
 					...(body.endDate !== undefined && {
 						endDate: body.endDate ? new Date(body.endDate) : null,
@@ -244,6 +258,7 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 				amount: t.Optional(t.Number()),
 				billingDay: t.Optional(t.Number({ maximum: 31, minimum: 1 })),
 				endDate: t.Optional(t.Nullable(t.String())),
+				financialAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				frequency: t.Optional(RecurrenceFrequency),
 				isActive: t.Optional(t.Boolean()),
 				name: t.Optional(t.String({ maxLength: 100 })),

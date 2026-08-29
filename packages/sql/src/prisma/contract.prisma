@@ -110,6 +110,8 @@ namespace public {
     creditCards             CreditCard[]
     loanPayments            LoanPayment[]
     salaries                Salary[]
+    recurringPayments       RecurringPayment[]
+    subscriptions           Subscription[]
     user                    User                          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Account_userId_fkey", index: false)
     institution             FinancialInstitution?          @relation(fields: [institutionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "FinancialAccount_institutionId_fkey", index: false)
     transactions            Transaction[]                 @relation(name: "Transaction_destinationId_fkey")
@@ -301,6 +303,7 @@ namespace public {
     startDate                 Date
     endDate                   Date?
     categoryId                VarChar(36)?
+    financialAccountId        VarChar(36)?
     paymentMethod             pg.enum(PaymentMethod)       @default("DEBIT")
     isActive                  Boolean                      @default(true)
     createdAt                 Timestamp(3)                 @default(now())
@@ -308,7 +311,9 @@ namespace public {
     recurringPaymentHistories RecurringPaymentHistory[]
     transactions              Transaction[]
     category                  Category?                    @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "RecurringPayment_categoryId_fkey", index: false)
+    financialAccount          FinancialAccount?            @relation(fields: [financialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "RecurringPayment_financialAccountId_fkey", index: false)
 
+    @@index([financialAccountId], map: "RecurringPayment_financialAccountId_idx")
     @@map("RecurringPayment")
   }
 
@@ -383,6 +388,7 @@ namespace public {
     billingDay            SmallInt
     frequency             pg.enum(RecurrenceFrequency) @default("MONTHLY")
     paymentMethod         pg.enum(PaymentMethod)       @default("CREDIT")
+    financialAccountId    VarChar(36)?
     startDate             Date
     endDate               Date?
     isActive              Boolean                      @default(true)
@@ -390,7 +396,9 @@ namespace public {
     updatedAt             Timestamp(3)                 @default(now())
     subscriptionHistories SubscriptionHistory[]
     user                  User                         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Subscription_userId_fkey", index: false)
+    financialAccount      FinancialAccount?            @relation(fields: [financialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Subscription_financialAccountId_fkey", index: false)
 
+    @@index([financialAccountId], map: "Subscription_financialAccountId_idx")
     @@map("Subscription")
   }
 

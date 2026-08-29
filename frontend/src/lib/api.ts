@@ -191,6 +191,7 @@ export interface Subscription {
 	billingDay: number;
 	frequency: "DAILY" | "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "YEARLY";
 	paymentMethod: "DEBIT" | "CREDIT" | "PIX" | "CASH" | "TRANSFER" | "BOLETO";
+	financialAccountId?: string | null;
 	startDate: string;
 	endDate?: string;
 	isActive: boolean;
@@ -208,6 +209,7 @@ export interface RecurringPayment {
 	endDate?: string;
 	categoryId?: string;
 	paymentMethod: "DEBIT" | "CREDIT" | "PIX" | "CASH" | "TRANSFER" | "BOLETO";
+	financialAccountId?: string | null;
 	isActive: boolean;
 	createdAt: string;
 	updatedAt: string;

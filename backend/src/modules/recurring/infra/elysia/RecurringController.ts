@@ -1,5 +1,5 @@
 import Elysia, { t } from "elysia";
-import { assertDirectOwnership, requireUserId } from "~/modules/auth";
+import { assertDirectOwnership, assertPaymentAccountOwnership, requireUserId } from "~/modules/auth";
 import {
 	assertTagOwnership,
 	getTagsByEntity,
@@ -20,6 +20,7 @@ const recurringColumns = [
 	"startDate",
 	"endDate",
 	"categoryId",
+	"financialAccountId",
 	"paymentMethod",
 	"isActive",
 	"createdAt",
@@ -140,6 +141,8 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 		"/",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
+			if (body.financialAccountId)
+				await assertPaymentAccountOwnership(body.financialAccountId, body.paymentMethod ?? "DEBIT", userId);
 			const tagIds = await assertTagOwnership(
 				body.tagIds ?? (body.categoryId ? [body.categoryId] : []),
 				userId,
@@ -152,6 +155,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 						dayOfMonth: body.dayOfMonth,
 						dayOfWeek: body.dayOfWeek,
 						endDate: body.endDate ? new Date(body.endDate) : undefined,
+						financialAccountId: body.financialAccountId,
 						frequency: body.frequency,
 						isActive: body.isActive ?? true,
 						name: body.name,
@@ -181,6 +185,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 				dayOfMonth: t.Optional(t.Number({ maximum: 31, minimum: 1 })),
 				dayOfWeek: t.Optional(t.Number({ maximum: 6, minimum: 0 })),
 				endDate: t.Optional(t.String()),
+				financialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				frequency: RecurrenceFrequency,
 				isActive: t.Optional(t.Boolean()),
 				name: t.String({ maxLength: 100 }),
@@ -210,6 +215,12 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 			if (!existing) {
 				throw new HttpException("Recurring payment not found", 404);
 			}
+			if (body.financialAccountId)
+				await assertPaymentAccountOwnership(
+					body.financialAccountId,
+					body.paymentMethod ?? existing.paymentMethod,
+					userId,
+				);
 
 			// Record history
 			const historyEntries: Array<{
@@ -251,6 +262,9 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 						endDate: body.endDate ? new Date(body.endDate) : null,
 					}),
 					...(tagIds !== undefined && { categoryId: tagIds[0] ?? null }),
+					...(body.financialAccountId !== undefined && {
+						financialAccountId: body.financialAccountId || null,
+					}),
 					...(body.paymentMethod && { paymentMethod: body.paymentMethod }),
 					...(body.isActive !== undefined && { isActive: body.isActive }),
 					updatedAt: new Date(),
@@ -318,6 +332,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 				dayOfMonth: t.Optional(t.Nullable(t.Number({ maximum: 31, minimum: 1 }))),
 				dayOfWeek: t.Optional(t.Nullable(t.Number({ maximum: 6, minimum: 0 }))),
 				endDate: t.Optional(t.Nullable(t.String())),
+				financialAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				frequency: t.Optional(RecurrenceFrequency),
 				isActive: t.Optional(t.Boolean()),
 				name: t.Optional(t.String({ maxLength: 100 })),

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TagPicker } from "@/components/tags";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
@@ -40,6 +40,8 @@ const initialDraft = (item?: RecurringListItemData): RecurringDraft => ({
 	tagIds: item?.tags?.map(tag => tag.id) ?? [],
 });
 
+const noFinancialAccountValue = "__no-financial-account__";
+
 const successMessages: Record<RecurringSource, string> = {
 	recurring: "Recorrência criada.",
 	salary: "Salário criado.",
@@ -65,6 +67,18 @@ export function CreateRecurringDialog({
 		accountsQuery.data
 			?.filter(account => account.type !== "CREDIT_CARD")
 			.toSorted(compareFinancialAccountsByDisplayName) ?? [];
+	const compatibleAccounts =
+		draft.source === "salary" || draft.paymentMethod !== "CREDIT"
+			? balanceAccounts
+			: (accountsQuery.data
+					?.filter(account => account.type === "CREDIT_CARD")
+					.toSorted(compareFinancialAccountsByDisplayName) ?? []);
+	useEffect(() => {
+		if (draft.financialAccountId || compatibleAccounts.length !== 1) return;
+		setDraft(current =>
+			current.financialAccountId ? current : { ...current, financialAccountId: compatibleAccounts[0].id },
+		);
+	}, [compatibleAccounts, draft.financialAccountId]);
 	const setField = <Key extends keyof RecurringDraft>(field: Key, value: RecurringDraft[Key]) => {
 		setDraft(current => ({ ...current, [field]: value }));
 	};
@@ -95,6 +109,7 @@ export function CreateRecurringDialog({
 					return dataService.subscriptions.update(item.id, {
 						amount,
 						billingDay: day,
+						financialAccountId: draft.financialAccountId || null,
 						frequency: draft.frequency,
 						name: draft.name.trim(),
 						paymentMethod: draft.paymentMethod,
@@ -103,6 +118,7 @@ export function CreateRecurringDialog({
 				return dataService.recurringPayments.update(item.id, {
 					amount,
 					dayOfMonth: day,
+					financialAccountId: draft.financialAccountId || null,
 					frequency: draft.frequency,
 					name: draft.name.trim(),
 					paymentMethod: draft.paymentMethod,
@@ -142,6 +158,7 @@ export function CreateRecurringDialog({
 				return dataService.subscriptions.create({
 					amount,
 					billingDay: day,
+					financialAccountId: draft.financialAccountId || undefined,
 					frequency: draft.frequency,
 					name: draft.name.trim(),
 					paymentMethod: draft.paymentMethod,
@@ -151,6 +168,7 @@ export function CreateRecurringDialog({
 			const payment = await dataService.recurringPayments.create({
 				amount,
 				dayOfMonth: day,
+				financialAccountId: draft.financialAccountId || undefined,
 				frequency: draft.frequency,
 				name: draft.name.trim(),
 				paymentMethod: draft.paymentMethod,
@@ -205,13 +223,14 @@ export function CreateRecurringDialog({
 	const dayLabel = draft.source === "salary" ? "Dia do pagamento" : "Dia da cobrança";
 	const day = Number.parseInt(draft.day, 10);
 	const dayError = draft.day && (day < 1 || day > 31) ? "Informe um dia entre 1 e 31." : undefined;
+	const requiresFinancialAccount = draft.source === "salary" || draft.paymentMethod === "CREDIT";
 	const canSubmit =
 		draft.name.trim() &&
 		draft.amount &&
 		draft.day &&
 		!dayError &&
 		draft.startDate &&
-		(draft.source !== "salary" || draft.financialAccountId);
+		(!requiresFinancialAccount || draft.financialAccountId);
 	const isStartDateInPast = draft.startDate < format(new Date(), "yyyy-MM-dd");
 	const canAddPastTransactions = draft.source !== "subscription";
 	const handleSave = () => {
@@ -238,7 +257,13 @@ export function CreateRecurringDialog({
 						{!isEditing && (
 							<CustomSelect
 								label="Tipo"
-								onValueChange={value => setField("source", value as RecurringSource)}
+								onValueChange={value =>
+									setDraft(current => ({
+										...current,
+										financialAccountId: "",
+										source: value as RecurringSource,
+									}))
+								}
 								options={sourceOptions}
 								placeholder="Selecione o tipo"
 								required
@@ -269,13 +294,42 @@ export function CreateRecurringDialog({
 							<CustomSelect
 								label="Conta de destino"
 								onValueChange={value => setField("financialAccountId", value)}
-								options={balanceAccounts.map(account => ({
+								options={compatibleAccounts.map(account => ({
 									label: getFinancialAccountDisplayName(account),
 									value: account.id,
 								}))}
 								placeholder={accountsQuery.isPending ? "Carregando contas…" : "Selecione a conta"}
 								required
 								value={draft.financialAccountId}
+							/>
+						)}
+						{draft.source !== "salary" && compatibleAccounts.length > 0 && (
+							<CustomSelect
+								label={draft.paymentMethod === "CREDIT" ? "Cartão de cobrança" : "Conta de saída"}
+								onValueChange={value =>
+									setField("financialAccountId", value === noFinancialAccountValue ? "" : value)
+								}
+								options={[
+									...(draft.paymentMethod === "CREDIT"
+										? []
+										: [{ label: "Sem conta específica", value: noFinancialAccountValue }]),
+									...compatibleAccounts.map(account => ({
+										label: getFinancialAccountDisplayName(account),
+										value: account.id,
+									})),
+								]}
+								placeholder={
+									accountsQuery.isPending
+										? "Carregando contas…"
+										: draft.paymentMethod === "CREDIT"
+											? "Selecione o cartão"
+											: "Selecione a conta"
+								}
+								required={draft.paymentMethod === "CREDIT"}
+								value={
+									draft.financialAccountId ||
+									(draft.paymentMethod === "CREDIT" ? undefined : noFinancialAccountValue)
+								}
 							/>
 						)}
 						<div className="grid gap-4 sm:grid-cols-2">
@@ -305,7 +359,13 @@ export function CreateRecurringDialog({
 						{draft.source !== "salary" && (
 							<CustomSelect
 								label="Forma de pagamento"
-								onValueChange={value => setField("paymentMethod", value as RecurringDraft["paymentMethod"])}
+								onValueChange={value =>
+									setDraft(current => ({
+										...current,
+										financialAccountId: "",
+										paymentMethod: value as RecurringDraft["paymentMethod"],
+									}))
+								}
 								options={[...paymentMethodOptions]}
 								placeholder="Selecione a forma"
 								required

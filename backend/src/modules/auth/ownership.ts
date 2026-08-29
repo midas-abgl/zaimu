@@ -82,6 +82,27 @@ export const assertBalanceAccountOwnership = async (accountId: string, userId: s
 		throw new HttpException("Cartão de crédito não possui saldo próprio", 400);
 };
 
+export const assertPaymentAccountOwnership = async (
+	accountId: string,
+	paymentMethod: "BOLETO" | "CASH" | "CREDIT" | "DEBIT" | "PIX" | "TRANSFER",
+	userId: string,
+) => {
+	const account = await queryFirst(
+		db.sql.public.FinancialAccount.select("id", "type")
+			.where((fields, functions) =>
+				functions.and(functions.eq(fields.id, accountId), functions.eq(fields.userId, userId)),
+			)
+			.limit(1)
+			.build(),
+	);
+
+	if (!account) throw new HttpException("Conta financeira não encontrada", 404);
+	if (paymentMethod === "CREDIT" && account.type !== "CREDIT_CARD")
+		throw new HttpException("Selecione um cartão de crédito", 400);
+	if (paymentMethod !== "CREDIT" && account.type === "CREDIT_CARD")
+		throw new HttpException("Selecione uma conta com saldo", 400);
+};
+
 export const assertTransactionOwnership = async (transactionId: string, userId: string) => {
 	const origin = db.sql.public.FinancialAccount.select("id", "userId").as("origin");
 	const destination = db.sql.public.FinancialAccount.select("id", "userId").as("destination");
