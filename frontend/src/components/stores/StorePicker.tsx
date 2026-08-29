@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { LuChevronDown, LuPlus, LuStore } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -19,6 +20,7 @@ export function StorePicker({
 	value: string;
 }) {
 	const queryClient = useQueryClient();
+	const [open, setOpen] = useState(false);
 	const [searchInput, setSearchInput] = useDebouncedInput("", () => undefined);
 	const storesQuery = useQuery({
 		queryFn: () => dataService.stores.getAll(),
@@ -39,6 +41,7 @@ export function StorePicker({
 	const selectStore = (storeName: string) => {
 		onValueChange(storeName);
 		setSearchInput("");
+		setOpen(false);
 	};
 	const createStore = useMutation({
 		mutationFn: (name: string) => dataService.stores.create(name),
@@ -63,7 +66,7 @@ export function StorePicker({
 	return (
 		<div className="grid gap-2">
 			<p className="font-medium text-sm">Loja</p>
-			<Popover>
+			<Popover onOpenChange={setOpen} open={open}>
 				<PopoverTrigger asChild>
 					<Button
 						aria-label="Selecionar loja"
