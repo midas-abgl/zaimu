@@ -13,7 +13,10 @@ import {
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
-import { getFinancialAccountDisplayName } from "@/lib/financial-account";
+import {
+	compareFinancialAccountsByOptionLabel,
+	getFinancialAccountOptionLabel,
+} from "@/lib/financial-account";
 import { showToast } from "@/stores";
 import { TransactionDetailsFields } from "./TransactionDetailsFields";
 
@@ -81,9 +84,7 @@ export function EditTransactionDialog({
 	const balanceAccounts =
 		accountsQuery.data
 			?.filter(account => account.type !== "CREDIT_CARD")
-			.toSorted((left, right) =>
-				getFinancialAccountDisplayName(left).localeCompare(getFinancialAccountDisplayName(right), "pt-BR"),
-			) ?? [];
+			.toSorted(compareFinancialAccountsByOptionLabel) ?? [];
 	const primaryAccountId =
 		draft.type === "INCOME" ? draft.destinationFinancialAccountId : draft.originFinancialAccountId;
 
@@ -132,7 +133,7 @@ export function EditTransactionDialog({
 								)
 							}
 							options={balanceAccounts.map(account => ({
-								label: getFinancialAccountDisplayName(account),
+								label: getFinancialAccountOptionLabel(account),
 								value: account.id,
 							}))}
 							placeholder="Selecione a conta"
@@ -148,7 +149,7 @@ export function EditTransactionDialog({
 							}
 							options={balanceAccounts
 								.filter(account => account.id !== draft.originFinancialAccountId)
-								.map(account => ({ label: getFinancialAccountDisplayName(account), value: account.id }))}
+								.map(account => ({ label: getFinancialAccountOptionLabel(account), value: account.id }))}
 							placeholder="Selecione o destino"
 							required
 							value={draft.destinationFinancialAccountId}

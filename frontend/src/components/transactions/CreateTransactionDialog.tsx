@@ -15,7 +15,10 @@ import type { Transaction } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
-import { getFinancialAccountDisplayName } from "@/lib/financial-account";
+import {
+	compareFinancialAccountsByOptionLabel,
+	getFinancialAccountOptionLabel,
+} from "@/lib/financial-account";
 import { showToast } from "@/stores";
 import { TransactionDetailsFields } from "./TransactionDetailsFields";
 
@@ -59,9 +62,7 @@ export function CreateTransactionDialog({
 	const balanceAccounts =
 		accountsQuery.data
 			?.filter(account => account.type !== "CREDIT_CARD")
-			.toSorted((left, right) =>
-				getFinancialAccountDisplayName(left).localeCompare(getFinancialAccountDisplayName(right), "pt-BR"),
-			) ?? [];
+			.toSorted(compareFinancialAccountsByOptionLabel) ?? [];
 	const selectedStatement = payableStatementsQuery.data?.find(
 		item => item.statement.id === draft.creditCardStatementId,
 	);
@@ -177,7 +178,7 @@ export function CreateTransactionDialog({
 								)
 							}
 							options={balanceAccounts.map(account => ({
-								label: getFinancialAccountDisplayName(account),
+								label: getFinancialAccountOptionLabel(account),
 								value: account.id,
 							}))}
 							placeholder="Selecione a conta"
@@ -193,7 +194,7 @@ export function CreateTransactionDialog({
 							}
 							options={balanceAccounts
 								.filter(account => account.id !== draft.originFinancialAccountId)
-								.map(account => ({ label: getFinancialAccountDisplayName(account), value: account.id }))}
+								.map(account => ({ label: getFinancialAccountOptionLabel(account), value: account.id }))}
 							placeholder="Selecione o destino"
 							required
 							value={draft.destinationFinancialAccountId}

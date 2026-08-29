@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test";
 import {
 	calculateFinancialAccountBalances,
 	compareFinancialAccountsByDisplayName,
+	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountDisplayName,
+	getFinancialAccountOptionLabel,
 } from "./financial-account";
 
 describe("getFinancialAccountDisplayName", () => {
@@ -43,6 +45,31 @@ describe("getFinancialAccountDisplayName", () => {
 	});
 });
 
+describe("getFinancialAccountOptionLabel", () => {
+	test("prefixes the account type to distinguish accounts in selectors", () => {
+		expect(
+			getFinancialAccountOptionLabel({
+				institution: { id: "mercado-pago-id", name: "Mercado Pago" },
+				name: null,
+				type: "SAVINGS",
+			}),
+		).toBe("Poupança Mercado Pago");
+		expect(
+			getFinancialAccountOptionLabel({
+				institution: { id: "mercado-pago-id", name: "Mercado Pago" },
+				name: null,
+				type: "CHECKING",
+			}),
+		).toBe("Conta Mercado Pago");
+	});
+
+	test("does not repeat the type when it is the only available account name", () => {
+		expect(getFinancialAccountOptionLabel({ institution: null, name: null, type: "SAVINGS" })).toBe(
+			"Poupança",
+		);
+	});
+});
+
 describe("compareFinancialAccountsByDisplayName", () => {
 	test("sorts accounts alphabetically by their final display names", () => {
 		const accounts = [
@@ -54,6 +81,20 @@ describe("compareFinancialAccountsByDisplayName", () => {
 		expect(
 			accounts.toSorted(compareFinancialAccountsByDisplayName).map(getFinancialAccountDisplayName),
 		).toEqual(["Ágil", "Banco Central", "Zeta"]);
+	});
+});
+
+describe("compareFinancialAccountsByOptionLabel", () => {
+	test("sorts accounts alphabetically by their selector labels", () => {
+		const accounts = [
+			{ institution: { id: "mercado-id", name: "Mercado Pago" }, name: null, type: "SAVINGS" as const },
+			{ institution: { id: "nubank-id", name: "Nubank" }, name: null, type: "CHECKING" as const },
+			{ institution: { id: "inter-id", name: "Inter" }, name: null, type: "CHECKING" as const },
+		];
+
+		expect(
+			accounts.toSorted(compareFinancialAccountsByOptionLabel).map(getFinancialAccountOptionLabel),
+		).toEqual(["Conta Inter", "Conta Nubank", "Poupança Mercado Pago"]);
 	});
 });
 

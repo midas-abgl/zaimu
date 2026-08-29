@@ -43,12 +43,39 @@ const financialAccountTypeLabels = {
 	SAVINGS: "Poupança",
 } as const;
 
+const financialAccountOptionPrefixes = {
+	CASH: "Dinheiro",
+	CHECKING: "Conta",
+	CREDIT_CARD: "Cartão",
+	INVESTMENT: "Investimentos",
+	SAVINGS: "Poupança",
+} as const;
+
 const displayNameCollator = new Intl.Collator("pt-BR", { sensitivity: "base" });
 
 export function getFinancialAccountDisplayName(
 	account: Pick<FinancialAccount, "institution" | "name" | "type">,
 ) {
 	return account.name?.trim() || account.institution?.name || financialAccountTypeLabels[account.type];
+}
+
+export function getFinancialAccountOptionLabel(
+	account: Pick<FinancialAccount, "institution" | "name" | "type">,
+) {
+	const displayName = getFinancialAccountDisplayName(account);
+	return displayName === financialAccountTypeLabels[account.type]
+		? displayName
+		: `${financialAccountOptionPrefixes[account.type]} ${displayName}`;
+}
+
+export function compareFinancialAccountsByOptionLabel(
+	left: Pick<FinancialAccount, "institution" | "name" | "type">,
+	right: Pick<FinancialAccount, "institution" | "name" | "type">,
+) {
+	return displayNameCollator.compare(
+		getFinancialAccountOptionLabel(left),
+		getFinancialAccountOptionLabel(right),
+	);
 }
 
 export function compareFinancialAccountsByDisplayName(

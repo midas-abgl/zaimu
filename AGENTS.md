@@ -1,3 +1,0 @@
-# Future Financial Periods
-
-Recurring salaries, subscriptions, recurring payments, and installments must predict future balances and visible card statements from scheduling rules. A future occurrence is a calculated forecast, never a persisted `Transaction`, `CreditPurchase`, or other concrete historical record. Materialize one concrete record only when its pay day arrives, or during an explicitly requested past backfill. Pausing, changing, or deleting a recurrence must immediately update later forecasts while preserving past concrete records. Never pre-create future installments or recurrence occurrences merely to display future months.
