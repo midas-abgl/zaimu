@@ -315,7 +315,7 @@ export const api = {
 	addCreditPurchase: (
 		cardId: string,
 		data: {
-			description: string;
+			description?: string;
 			totalAmount: number;
 			installments?: number;
 			purchaseDate: string;

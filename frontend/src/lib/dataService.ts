@@ -291,7 +291,7 @@ export const dataService = {
 			cardId: string,
 			data: {
 				categoryId?: string;
-				description: string;
+				description?: string;
 				installments?: number;
 				purchaseDate: string;
 				tagIds?: string[];
@@ -328,7 +328,7 @@ export const dataService = {
 			const purchase: CreditPurchase = {
 				categoryId: data.tagIds?.[0] ?? data.categoryId,
 				currentInstallment: 1,
-				description: data.description,
+				description: data.description ?? "",
 				id: crypto.randomUUID(),
 				installmentAmount,
 				installments,

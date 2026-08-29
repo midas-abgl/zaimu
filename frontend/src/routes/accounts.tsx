@@ -78,12 +78,22 @@ function AccountsPage() {
 	const organization = useMemo(() => {
 		const allAccounts = accounts.data ?? [];
 		const institutions = getFinancialInstitutions(allAccounts);
+		const compareAccountNames = (left: FinancialAccount, right: FinancialAccount) =>
+			(left.name ?? left.institution?.name ?? "").localeCompare(
+				right.name ?? right.institution?.name ?? "",
+				"pt-BR",
+				{
+					sensitivity: "base",
+				},
+			);
 		const groups: Array<{ accounts: FinancialAccount[]; institution: FinancialInstitution | null }> =
 			institutions.map(institution => ({
-				accounts: allAccounts.filter(account => account.institutionId === institution.id),
+				accounts: allAccounts
+					.filter(account => account.institutionId === institution.id)
+					.toSorted(compareAccountNames),
 				institution,
 			}));
-		const unassigned = allAccounts.filter(account => !account.institutionId);
+		const unassigned = allAccounts.filter(account => !account.institutionId).toSorted(compareAccountNames);
 		if (unassigned.length) groups.push({ accounts: unassigned, institution: null });
 		return { groups, institutions };
 	}, [accounts.data]);

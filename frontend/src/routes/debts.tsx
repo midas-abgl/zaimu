@@ -178,11 +178,15 @@ function DívidasPage() {
 			result[debt.personName] = current;
 			return result;
 		}, {}),
-	).filter(item => item.netBalance !== 0);
+	)
+		.filter(item => item.netBalance !== 0)
+		.toSorted((left, right) => left.person.localeCompare(right.person, "pt-BR", { sensitivity: "base" }));
 
-	const owedToMeDívidas = debts.filter(d => d.isOwedToMe && !d.isPaid);
-	const iOweDívidas = debts.filter(d => !d.isOwedToMe && !d.isPaid);
-	const settledDívidas = debts.filter(d => d.isPaid);
+	const compareDebtsByPerson = (left: Debt, right: Debt) =>
+		left.personName.localeCompare(right.personName, "pt-BR", { sensitivity: "base" });
+	const owedToMeDívidas = debts.filter(d => d.isOwedToMe && !d.isPaid).toSorted(compareDebtsByPerson);
+	const iOweDívidas = debts.filter(d => !d.isOwedToMe && !d.isPaid).toSorted(compareDebtsByPerson);
+	const settledDívidas = debts.filter(d => d.isPaid).toSorted(compareDebtsByPerson);
 
 	const getDisplayDívidas = () => {
 		switch (activeTab) {

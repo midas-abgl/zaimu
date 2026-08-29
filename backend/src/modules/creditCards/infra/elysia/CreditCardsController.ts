@@ -778,7 +778,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					{
 						categoryId: tagIds[0],
 						currentInstallment: 1,
-						description: body.description,
+						description: body.description ?? "",
 						installmentAmount: String(installmentAmount),
 						installments,
 						purchaseDate,
@@ -825,7 +825,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 		{
 			body: t.Object({
 				categoryId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
-				description: t.String({ maxLength: 500 }),
+				description: t.Optional(t.String({ maxLength: 500 })),
 				installments: t.Optional(t.Number({ maximum: 48, minimum: 1 })),
 				purchaseDate: t.String(),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
@@ -953,7 +953,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 		{
 			body: t.Object({
 				creditCardId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
-				description: t.Optional(t.String({ maxLength: 500, minLength: 1 })),
+				description: t.Optional(t.String({ maxLength: 500 })),
 				installmentAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
 				purchaseDate: t.Optional(t.String()),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),

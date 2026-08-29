@@ -11,6 +11,7 @@ export function CustomSelect({
 	options,
 	placeholder,
 	required,
+	sortOptions = true,
 	value,
 }: {
 	label: string;
@@ -18,8 +19,15 @@ export function CustomSelect({
 	options: Option[];
 	placeholder: string;
 	required?: boolean;
+	sortOptions?: boolean;
 	value?: string;
 }) {
+	const displayedOptions = sortOptions
+		? options.toSorted((left, right) =>
+				left.label.localeCompare(right.label, "pt-BR", { sensitivity: "base" }),
+			)
+		: options;
+
 	return (
 		<div className="grid gap-2">
 			<p className="font-medium text-sm">
@@ -30,7 +38,7 @@ export function CustomSelect({
 					<SelectValue placeholder={placeholder} />
 				</SelectTrigger>
 				<SelectContent>
-					{options.map(option => (
+					{displayedOptions.map(option => (
 						<SelectItem className="cursor-pointer" key={option.value} value={option.value}>
 							{option.label}
 						</SelectItem>

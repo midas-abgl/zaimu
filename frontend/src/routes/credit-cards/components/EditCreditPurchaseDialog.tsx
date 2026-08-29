@@ -87,7 +87,6 @@ export function EditCreditPurchaseDialog({
 						name="credit-purchase-description"
 						onChange={event => setDescription(event.currentTarget.value)}
 						placeholder="Ex: Supermercado do mês"
-						required
 						type="text"
 						value={description}
 					/>
@@ -120,7 +119,7 @@ export function EditCreditPurchaseDialog({
 						</Button>
 						<Button
 							className="cursor-pointer"
-							disabled={pending || !description.trim() || numericAmount <= 0 || !date}
+							disabled={pending || numericAmount <= 0 || !date}
 							type="submit"
 						>
 							{pending ? "Salvando…" : "Salvar"}

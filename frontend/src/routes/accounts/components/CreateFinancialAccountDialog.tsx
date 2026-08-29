@@ -241,6 +241,7 @@ export function CreateFinancialAccountDialog({
 									options={days}
 									placeholder="Dia da fatura"
 									required
+									sortOptions={false}
 									value={statementDay}
 								/>
 								<CustomSelect
@@ -249,6 +250,7 @@ export function CreateFinancialAccountDialog({
 									options={days}
 									placeholder="Dia do vencimento"
 									required
+									sortOptions={false}
 									value={dueDay}
 								/>
 							</div>

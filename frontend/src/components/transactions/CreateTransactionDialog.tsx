@@ -153,6 +153,7 @@ export function CreateTransactionDialog({
 								value: statement.id,
 							}))}
 							placeholder="Nenhuma fatura selecionada"
+							sortOptions={false}
 							value={draft.creditCardStatementId}
 						/>
 					) : null}

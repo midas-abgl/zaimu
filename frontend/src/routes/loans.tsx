@@ -186,8 +186,12 @@ function EmpréstimosPage() {
 		});
 	};
 
-	const activeEmpréstimos = loans?.filter(l => (l.remainingInstallments || 0) > 0) || [];
-	const paidEmpréstimos = loans?.filter(l => (l.remainingInstallments || 0) === 0) || [];
+	const compareLoansByLender = (left: Loan, right: Loan) =>
+		left.lender.localeCompare(right.lender, "pt-BR", { sensitivity: "base" });
+	const activeEmpréstimos =
+		loans?.filter(l => (l.remainingInstallments || 0) > 0).toSorted(compareLoansByLender) || [];
+	const paidEmpréstimos =
+		loans?.filter(l => (l.remainingInstallments || 0) === 0).toSorted(compareLoansByLender) || [];
 
 	const totalRemaining =
 		activeEmpréstimos.reduce((sum, l) => {

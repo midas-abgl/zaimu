@@ -90,7 +90,6 @@ export function CreatePurchaseDialog({
 						name="purchase-description"
 						onChange={event => setDescription(event.currentTarget.value)}
 						placeholder="Ex: Supermercado do mês"
-						required
 						type="text"
 						value={description}
 					/>
@@ -146,7 +145,6 @@ export function CreatePurchaseDialog({
 							disabled={
 								pending ||
 								!cardId ||
-								!description.trim() ||
 								total <= 0 ||
 								!Number.isInteger(installmentCount) ||
 								installmentCount < 1 ||

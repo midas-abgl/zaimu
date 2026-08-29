@@ -39,7 +39,9 @@ export function TagPicker({
 		},
 	});
 	const normalizedSearch = searchInput.trim().toLocaleLowerCase("pt-BR");
-	const tags = tagsQuery.data ?? [];
+	const tags = (tagsQuery.data ?? []).toSorted((left, right) =>
+		left.name.localeCompare(right.name, "pt-BR", { sensitivity: "base" }),
+	);
 	const filteredTags = tags.filter(tag => tag.name.toLocaleLowerCase("pt-BR").includes(normalizedSearch));
 	const selectedTags = tags.filter(tag => value.includes(tag.id));
 	const exactMatch = tags.find(tag => tag.name.toLocaleLowerCase("pt-BR") === normalizedSearch);

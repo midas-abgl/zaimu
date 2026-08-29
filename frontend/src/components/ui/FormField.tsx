@@ -21,7 +21,7 @@ export function FormField({
 	...inputProps
 }: FormFieldProps) {
 	return (
-		<div className="grid gap-2">
+		<div className="grid content-start gap-2">
 			<Label htmlFor={id}>
 				<span>
 					{label} {required && <RequiredMark />}
