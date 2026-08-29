@@ -76,8 +76,10 @@ export function CreateRecurringDialog({
 			const amount = Number.parseFloat(draft.amount);
 			const day = Number.parseInt(draft.day, 10);
 			if (draft.source === "salary") {
+				const autoGenerateFrom = addPastTransactions ? draft.startDate : format(new Date(), "yyyy-MM-dd");
 				const salary = await dataService.salaries.create({
 					amount,
+					autoGenerateFrom,
 					financialAccountId: draft.financialAccountId,
 					frequency: draft.frequency,
 					payDay: day,
@@ -87,10 +89,14 @@ export function CreateRecurringDialog({
 				if (addPastTransactions) {
 					await Promise.all(
 						getPastRecurrenceDates(draft.frequency, draft.startDate).map(date =>
-							dataService.salaries.recordPayment(salary.id, {
+							dataService.transactions.create({
 								amount,
 								date,
-								financialAccountId: draft.financialAccountId,
+								description: draft.name.trim(),
+								destinationFinancialAccountId: draft.financialAccountId,
+								salaryId: salary.id,
+								salaryOccurrenceDate: date,
+								type: "INCOME",
 							}),
 						),
 					);
@@ -137,6 +143,7 @@ export function CreateRecurringDialog({
 				queryClient.invalidateQueries({ queryKey: ["recurring-payments"] }),
 				queryClient.invalidateQueries({ queryKey: ["salaries"] }),
 				queryClient.invalidateQueries({ queryKey: ["subscriptions"] }),
+				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
 				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
 			]);
 			showToast(

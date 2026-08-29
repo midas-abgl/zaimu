@@ -89,6 +89,8 @@ export interface Transaction {
 	categoryName?: string;
 	categoryColor?: string;
 	recurrenceId?: string;
+	salaryId?: string;
+	salaryOccurrenceDate?: string;
 	tagIds?: string[];
 	tags?: Tag[];
 	originFinancialAccountId?: string;
@@ -175,6 +177,7 @@ export interface Salary {
 	frequency: "DAILY" | "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "YEARLY";
 	payDay: number;
 	startDate: string;
+	autoGenerateFrom: string;
 	endDate?: string;
 	isActive: boolean;
 }
@@ -514,11 +517,6 @@ export const api = {
 			body: data,
 			method: "POST",
 		}),
-
-	recordSalaryPayment: (
-		salaryId: string,
-		data: { financialAccountId: string; amount: number; date: string; notes?: string },
-	) => fetchApi(`/salaries/${salaryId}/payments`, { body: data, method: "POST" }),
 
 	updateDebt: (id: string, data: Partial<Debt>) =>
 		fetchApi<Debt>(`/debts/${id}`, { body: data, method: "PATCH" }),

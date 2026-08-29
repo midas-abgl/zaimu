@@ -1,7 +1,7 @@
 import Elysia, { t } from "elysia";
 import { assertBalanceAccountOwnership, assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
-import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
+import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 
 const salaryColumns = [
 	"id",
@@ -12,21 +12,12 @@ const salaryColumns = [
 	"frequency",
 	"payDay",
 	"startDate",
+	"autoGenerateFrom",
 	"endDate",
 	"isActive",
 	"createdAt",
 	"updatedAt",
 ] as const;
-const salaryPaymentColumns = [
-	"id",
-	"salaryId",
-	"financialAccountId",
-	"amount",
-	"date",
-	"notes",
-	"createdAt",
-] as const;
-
 const RecurrenceFrequency = t.Union([
 	t.Literal("DAILY"),
 	t.Literal("WEEKLY"),
@@ -75,15 +66,7 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 				throw new HttpException("Salary not found", 404);
 			}
 
-			// Get payment history
-			const payments = await queryRows(
-				db.sql.public.SalaryPayment.select(...salaryPaymentColumns)
-					.where((fields, functions) => functions.eq(fields.salaryId, params.id))
-					.orderBy("date", { direction: "desc" })
-					.build(),
-			);
-
-			return { ...salary, payments };
+			return salary;
 		},
 		{
 			detail: { tags: ["Salaries"] },
@@ -122,6 +105,7 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 				db.sql.public.Salary.insert([
 					{
 						amount: String(body.amount),
+						autoGenerateFrom: new Date(body.autoGenerateFrom ?? body.startDate),
 						endDate: body.endDate ? new Date(body.endDate) : undefined,
 						financialAccountId: body.financialAccountId,
 						frequency: body.frequency ?? "MONTHLY",
@@ -142,6 +126,7 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 		{
 			body: t.Object({
 				amount: t.Number({ exclusiveMinimum: 0 }),
+				autoGenerateFrom: t.Optional(t.String()),
 				endDate: t.Optional(t.String()),
 				financialAccountId: t.String({ maxLength: 36, minLength: 1 }),
 				frequency: t.Optional(RecurrenceFrequency),
@@ -151,64 +136,6 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 				startDate: t.String(),
 			}),
 			detail: { tags: ["Salaries"] },
-		},
-	)
-	.post(
-		"/:id/payments",
-		async ({ params, body, request }) => {
-			const userId = await requireUserId(request);
-			await assertDirectOwnership("Salary", params.id, userId);
-			await assertBalanceAccountOwnership(body.financialAccountId, userId);
-			const salary = await queryFirst(
-				db.sql.public.Salary.select("id")
-					.where((fields, functions) => functions.eq(fields.id, params.id))
-					.limit(1)
-					.build(),
-			);
-
-			if (!salary) {
-				throw new HttpException("Salary not found", 404);
-			}
-
-			const payment = await queryFirst(
-				db.sql.public.SalaryPayment.insert([
-					{
-						amount: String(body.amount),
-						date: new Date(body.date),
-						financialAccountId: body.financialAccountId,
-						notes: body.notes,
-						salaryId: params.id,
-					},
-				])
-					.returning(...salaryPaymentColumns)
-					.build(),
-			);
-			if (!payment) throw new HttpException("Salary payment not created", 500);
-
-			// Update account balance
-			const amount = param(numeric<12, 2>(body.amount), { codecId: "pg/numeric@1" });
-			await executeStatement(
-				db.sql.public.FinancialAccount.update((fields, functions) => ({
-					balance: functions.raw`${fields.balance} + ${amount}`.returns("pg/numeric@1"),
-					updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
-				}))
-					.where((fields, functions) => functions.eq(fields.id, body.financialAccountId))
-					.build(),
-			);
-
-			return payment;
-		},
-		{
-			body: t.Object({
-				amount: t.Number(),
-				date: t.String(),
-				financialAccountId: t.String({ maxLength: 36, minLength: 1 }),
-				notes: t.Optional(t.String({ maxLength: 500 })),
-			}),
-			detail: { tags: ["Salaries"] },
-			params: t.Object({
-				id: t.String({ maxLength: 36, minLength: 1 }),
-			}),
 		},
 	)
 	.patch(

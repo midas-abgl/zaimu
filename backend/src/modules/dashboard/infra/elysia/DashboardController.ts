@@ -1,12 +1,14 @@
 import { endOfMonth, startOfMonth, subMonths } from "date-fns";
 import Elysia from "elysia";
 import { requireUserId } from "~/modules/auth";
+import { materializeSalaryTransactions } from "~/modules/salaries/application/materialize-salary-transactions";
 import { db, queryFirst, queryRows } from "~/shared/infra/sql";
 
 export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 	"/",
 	async ({ request }) => {
 		const userId = await requireUserId(request);
+		await materializeSalaryTransactions(userId);
 		const now = new Date();
 		const currentMonthStart = startOfMonth(now);
 		const currentMonthEnd = endOfMonth(now);

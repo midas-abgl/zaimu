@@ -862,6 +862,7 @@ export const dataService = {
 			amount: number;
 			financialAccountId: string;
 			frequency: Salary["frequency"];
+			autoGenerateFrom: string;
 			isActive?: boolean;
 			payDay: number;
 			source: string;

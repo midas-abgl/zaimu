@@ -11,6 +11,7 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
+import { materializeSalaryTransactions } from "~/modules/salaries/application/materialize-salary-transactions";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
 
@@ -22,6 +23,8 @@ const transactionColumns = [
 	"type",
 	"categoryId",
 	"recurrenceId",
+	"salaryId",
+	"salaryOccurrenceDate",
 	"originFinancialAccountId",
 	"destinationFinancialAccountId",
 	"createdAt",
@@ -35,6 +38,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 		"/",
 		async ({ query, request }) => {
 			const userId = await requireUserId(request);
+			await materializeSalaryTransactions(userId);
 			if (query.financialAccountId) {
 				await assertDirectOwnership("FinancialAccount", query.financialAccountId, userId);
 			}
@@ -79,6 +83,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				.outerLeftJoin(db.sql.public.RecurringPayment, (f, fn) =>
 					fn.eq(f.Transaction.recurrenceId, f.RecurringPayment.id),
 				)
+				.outerLeftJoin(db.sql.public.Salary, (f, fn) => fn.eq(f.Transaction.salaryId, f.Salary.id))
 				.select((f, fn) => ({
 					amount: f.Transaction.amount,
 					categoryColor: f.Category.color,
@@ -102,6 +107,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						fn.eq(f.origin.userId, userId),
 						fn.eq(f.destination.userId, userId),
 						fn.eq(f.RecurringPayment.userId, userId),
+						fn.eq(f.Salary.userId, userId),
 					),
 				);
 
@@ -311,7 +317,13 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				userId,
 			);
 			if (body.recurrenceId) await assertDirectOwnership("RecurringPayment", body.recurrenceId, userId);
-			if (!body.originFinancialAccountId && !body.destinationFinancialAccountId && !body.recurrenceId) {
+			if (body.salaryId) await assertDirectOwnership("Salary", body.salaryId, userId);
+			if (
+				!body.originFinancialAccountId &&
+				!body.destinationFinancialAccountId &&
+				!body.recurrenceId &&
+				!body.salaryId
+			) {
 				throw new HttpException("Informe uma conta financeira ou recorrência", 400);
 			}
 			const transaction = await queryFirst(
@@ -324,6 +336,8 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						destinationFinancialAccountId: body.destinationFinancialAccountId,
 						originFinancialAccountId: body.originFinancialAccountId,
 						recurrenceId: body.recurrenceId,
+						salaryId: body.salaryId,
+						salaryOccurrenceDate: body.salaryOccurrenceDate ? new Date(body.salaryOccurrenceDate) : undefined,
 						type: body.type ?? "EXPENSE",
 					},
 				])
@@ -375,6 +389,8 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				destinationFinancialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				originFinancialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				recurrenceId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
+				salaryId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
+				salaryOccurrenceDate: t.Optional(t.String()),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
 				type: t.Optional(TransactionType),
 			}),

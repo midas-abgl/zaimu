@@ -109,7 +109,6 @@ namespace public {
     updatedAt               Timestamp(3)                  @default(now())
     creditCards             CreditCard[]
     loanPayments            LoanPayment[]
-    salaryPayments          SalaryPayment[]
     salaries                Salary[]
     user                    User                          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Account_userId_fkey", index: false)
     institution             FinancialInstitution?          @relation(fields: [institutionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "FinancialAccount_institutionId_fkey", index: false)
@@ -334,12 +333,13 @@ namespace public {
     frequency       pg.enum(RecurrenceFrequency) @default("MONTHLY")
     payDay          SmallInt
     startDate       Date
+    autoGenerateFrom Date                @default(dbgenerated("CURRENT_DATE"))
     endDate         Date?
     isActive        Boolean                      @default(true)
     createdAt       Timestamp(3)                 @default(now())
     updatedAt       Timestamp(3)                 @default(now())
     salaryHistories SalaryHistory[]
-    salaryPayments  SalaryPayment[]
+    transactions    Transaction[]
     financialAccount FinancialAccount?          @relation(fields: [financialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Salary_financialAccountId_fkey", index: false)
     user            User                         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Salary_userId_fkey", index: false)
 
@@ -357,20 +357,6 @@ namespace public {
     salary    Salary       @relation(fields: [salaryId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "SalaryHistory_salaryId_fkey", index: false)
 
     @@map("SalaryHistory")
-  }
-
-  model SalaryPayment {
-    id                 VarChar(36)      @id(map: "SalaryPayment_pkey") @default(dbgenerated("cuid2()"))
-    salaryId           VarChar(36)
-    financialAccountId VarChar(36)
-    amount             Numeric(12, 2)
-    date               Date
-    notes              VarChar(500)?
-    createdAt          Timestamp(3)     @default(now())
-    financialAccount   FinancialAccount @relation(fields: [financialAccountId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "SalaryPayment_accountId_fkey", index: false)
-    salary             Salary           @relation(fields: [salaryId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "SalaryPayment_salaryId_fkey", index: false)
-
-    @@map("SalaryPayment")
   }
 
   model Session {
@@ -428,6 +414,8 @@ namespace public {
     type                          pg.enum(TransactionType) @default("EXPENSE")
     categoryId                    VarChar(36)?
     recurrenceId                  VarChar(36)?
+    salaryId                      VarChar(36)?
+    salaryOccurrenceDate          Date?
     originFinancialAccountId      VarChar(36)?
     destinationFinancialAccountId VarChar(36)?
     createdAt                     Timestamp(3)             @default(now())
@@ -437,7 +425,9 @@ namespace public {
     destinationFinancialAccount   FinancialAccount?        @relation(name: "Transaction_destinationId_fkey", fields: [destinationFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_destinationId_fkey", index: false)
     originFinancialAccount        FinancialAccount?        @relation(name: "Transaction_originId_fkey", fields: [originFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_originId_fkey", index: false)
     recurrence                    RecurringPayment?        @relation(fields: [recurrenceId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_recurrenceId_fkey", index: false)
+    salary                        Salary?                  @relation(fields: [salaryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_salaryId_fkey", index: false)
 
+    @@index([salaryId, salaryOccurrenceDate], map: "Transaction_salaryId_occurrenceDate_key", unique: true)
     @@map("Transaction")
   }
 

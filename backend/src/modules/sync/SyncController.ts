@@ -92,6 +92,8 @@ const transactionColumns = [
 	"type",
 	"categoryId",
 	"recurrenceId",
+	"salaryId",
+	"salaryOccurrenceDate",
 	"originFinancialAccountId",
 	"destinationFinancialAccountId",
 	"createdAt",
@@ -106,6 +108,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 		const accountIds = new Set<string>();
 		const categoryIds = new Set<string>();
 		const recurringIds = new Set<string>();
+		const salaryIds = new Set<string>();
 		const cardIds = new Set<string>();
 		const statementIds = new Set<string>();
 
@@ -408,6 +411,9 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				throw new Error(`Conta financeira ${financialAccountId} indisponível`);
 			const values = {
 				amount: String(value<number>(entity, "amount")),
+				autoGenerateFrom: new Date(
+					value<string | undefined>(entity, "autoGenerateFrom") ?? value<string>(entity, "startDate"),
+				),
 				endDate: optionalDate(entity, "endDate"),
 				financialAccountId,
 				frequency:
@@ -425,6 +431,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 						.build(),
 				);
 			else await executeStatement(db.sql.public.Salary.insert([{ ...values, id, userId }] as never).build());
+			salaryIds.add(id);
 		});
 
 		await sync("subscriptions", body.subscriptions, async entity => {
@@ -471,12 +478,14 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				"destinationFinancialAccountId",
 			);
 			const recurrenceId = value<string | undefined>(entity, "recurrenceId");
+			const salaryId = value<string | undefined>(entity, "salaryId");
 			if (originFinancialAccountId && !accountIds.has(originFinancialAccountId))
 				throw new Error(`Conta de origem ${originFinancialAccountId} indisponível`);
 			if (destinationFinancialAccountId && !accountIds.has(destinationFinancialAccountId))
 				throw new Error(`Conta de destino ${destinationFinancialAccountId} indisponível`);
 			if (recurrenceId && !recurringIds.has(recurrenceId))
 				throw new Error(`Recorrência ${recurrenceId} indisponível`);
+			if (salaryId && !salaryIds.has(salaryId)) throw new Error(`Salário ${salaryId} indisponível`);
 			const existing = await queryFirst(
 				db.sql.public.Transaction.select("id")
 					.where((f, fn) => fn.eq(f.id, id))
@@ -496,6 +505,8 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 							id,
 							originFinancialAccountId,
 							recurrenceId,
+							salaryId,
+							salaryOccurrenceDate: optionalDate(entity, "salaryOccurrenceDate"),
 							type: value<"EXPENSE" | "INCOME" | "TRANSFER">(entity, "type") ?? "EXPENSE",
 						},
 					]).build(),
@@ -662,6 +673,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 						"frequency",
 						"payDay",
 						"startDate",
+						"autoGenerateFrom",
 						"endDate",
 						"isActive",
 						"createdAt",
