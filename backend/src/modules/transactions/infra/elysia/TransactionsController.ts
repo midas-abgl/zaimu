@@ -312,6 +312,9 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 		"/",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
+			if (body.recurrenceId) await assertDirectOwnership("RecurringPayment", body.recurrenceId, userId);
+			if (body.salaryId) await assertDirectOwnership("Salary", body.salaryId, userId);
+			if (body.subscriptionId) await assertDirectOwnership("Subscription", body.subscriptionId, userId);
 			let originFinancialAccountId = body.originFinancialAccountId;
 			let inheritedPaymentAccount = false;
 			if (!originFinancialAccountId && !body.destinationFinancialAccountId && body.recurrenceId) {
@@ -342,13 +345,14 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (body.destinationFinancialAccountId) {
 				await assertBalanceAccountOwnership(body.destinationFinancialAccountId, userId);
 			}
-			const tagIds = await assertTagOwnership(
-				body.tagIds ?? (body.categoryId ? [body.categoryId] : []),
-				userId,
-			);
-			if (body.recurrenceId) await assertDirectOwnership("RecurringPayment", body.recurrenceId, userId);
-			if (body.salaryId) await assertDirectOwnership("Salary", body.salaryId, userId);
-			if (body.subscriptionId) await assertDirectOwnership("Subscription", body.subscriptionId, userId);
+			const hasExplicitTags = body.tagIds !== undefined || body.categoryId !== undefined;
+			const tagIds = hasExplicitTags
+				? await assertTagOwnership(body.tagIds ?? (body.categoryId ? [body.categoryId] : []), userId)
+				: body.recurrenceId
+					? ((await getTagsByEntity(tagEntityType.recurringPayment, [body.recurrenceId]))
+							.get(body.recurrenceId)
+							?.map(tag => tag.id) ?? [])
+					: [];
 			if (
 				!originFinancialAccountId &&
 				!body.destinationFinancialAccountId &&

@@ -194,6 +194,66 @@ suite("Prisma 8 SQL query builder", () => {
 		);
 		expect(categoryResponse.status).toBe(200);
 		const category = (await categoryResponse.json()) as { id: string };
+		const secondCategoryResponse = await jsonRequest(
+			"/categories/",
+			"POST",
+			{ name: `Categoria ${crypto.randomUUID()}` },
+			owner.cookie,
+		);
+		expect(secondCategoryResponse.status).toBe(200);
+		const secondCategory = (await secondCategoryResponse.json()) as { id: string };
+
+		const recurringResponse = await jsonRequest(
+			"/recurring/",
+			"POST",
+			{
+				amount: 80,
+				dayOfMonth: 10,
+				frequency: "MONTHLY",
+				name: "Recorrência com tags",
+				startDate: "2026-08-01",
+				tagIds: [category.id, secondCategory.id],
+			},
+			owner.cookie,
+		);
+		expect(recurringResponse.status).toBe(200);
+		const recurring = (await recurringResponse.json()) as { id: string; tagIds: string[] };
+		expect(recurring.tagIds).toEqual(expect.arrayContaining([category.id, secondCategory.id]));
+
+		const recurringTransactionResponse = await jsonRequest(
+			"/transactions/",
+			{
+				amount: 80,
+				date: "2026-08-10",
+				recurrenceId: recurring.id,
+				type: "EXPENSE",
+			},
+			owner.cookie,
+		);
+		expect(recurringTransactionResponse.status).toBe(200);
+		const recurringTransaction = (await recurringTransactionResponse.json()) as {
+			id: string;
+			tagIds: string[];
+		};
+		expect(recurringTransaction.tagIds).toEqual(expect.arrayContaining([category.id, secondCategory.id]));
+
+		const updatedRecurringResponse = await jsonRequest(
+			`/recurring/${recurring.id}`,
+			"PATCH",
+			{ tagIds: [secondCategory.id] },
+			owner.cookie,
+		);
+		expect(updatedRecurringResponse.status).toBe(200);
+		const updatedRecurringTransactionResponse = await jsonRequest(
+			`/transactions/${recurringTransaction.id}`,
+			"GET",
+			undefined,
+			owner.cookie,
+		);
+		expect(updatedRecurringTransactionResponse.status).toBe(200);
+		expect(((await updatedRecurringTransactionResponse.json()) as { tagIds: string[] }).tagIds).toEqual([
+			secondCategory.id,
+		]);
 
 		const incomeResponse = await jsonRequest(
 			"/transactions/",

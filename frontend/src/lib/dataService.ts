@@ -855,8 +855,31 @@ export const dataService = {
 			if (isGuestMode()) {
 				const existing = await localRecurringPayments.getById(id);
 				if (!existing) throw new Error("Recorrência não encontrada");
-				const payment = { ...existing.data, ...changes, updatedAt: new Date().toISOString() };
-				await localRecurringPayments.put(payment, id);
+				const hasTagChanges = changes.tagIds !== undefined || changes.categoryId !== undefined;
+				const tagIds = changes.tagIds ?? (changes.categoryId ? [changes.categoryId] : []);
+				const payment = {
+					...existing.data,
+					...changes,
+					...(hasTagChanges && { categoryId: tagIds[0], tagIds }),
+					updatedAt: new Date().toISOString(),
+				};
+				await Promise.all([
+					localRecurringPayments.put(payment, id),
+					...(hasTagChanges
+						? (await localTransactions.getAll())
+								.filter(transaction => transaction.data.recurrenceId === id)
+								.map(transaction =>
+									localTransactions.put(
+										{
+											...transaction.data,
+											categoryId: tagIds[0],
+											tagIds,
+										},
+										transaction.localId,
+									),
+								)
+						: []),
+				]);
 				return payment;
 			}
 			return fetchWithAuth<RecurringPayment>(`/recurring/${id}`, {
@@ -1227,10 +1250,19 @@ export const dataService = {
 	transactions: {
 		async create(data: Omit<Transaction, "id" | "createdAt">): Promise<Transaction> {
 			if (isGuestMode()) {
+				const hasExplicitTags = data.tagIds !== undefined || data.categoryId !== undefined;
+				const recurringPayment = data.recurrenceId
+					? (await localRecurringPayments.getById(data.recurrenceId))?.data
+					: undefined;
+				const tagIds = hasExplicitTags
+					? (data.tagIds ?? (data.categoryId ? [data.categoryId] : []))
+					: (recurringPayment?.tagIds ?? (recurringPayment?.categoryId ? [recurringPayment.categoryId] : []));
 				const newTransaction: Transaction = {
 					...data,
+					categoryId: tagIds[0],
 					createdAt: new Date().toISOString(),
 					id: crypto.randomUUID(),
+					tagIds,
 				};
 				await localTransactions.put(newTransaction, newTransaction.id);
 				return newTransaction;

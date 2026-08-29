@@ -281,6 +281,24 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 					entityType: tagEntityType.recurringPayment,
 					tagIds,
 				});
+				const linkedTransactions = await queryRows(
+					db.sql.public.Transaction.select("id")
+						.where((fields, functions) => functions.eq(fields.recurrenceId, payment.id))
+						.build(),
+				);
+				await executeStatement(
+					db.sql.public.Transaction.update({
+						categoryId: tagIds[0] ?? null,
+						updatedAt: new Date(),
+					} as never)
+						.where((fields, functions) => functions.eq(fields.recurrenceId, payment.id))
+						.build(),
+				);
+				await replaceEntityTags({
+					entityIds: linkedTransactions.map(transaction => transaction.id),
+					entityType: tagEntityType.transaction,
+					tagIds,
+				});
 			}
 
 			if (body.updateUneditedTransactions) {
