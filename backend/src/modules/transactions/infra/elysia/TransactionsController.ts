@@ -45,15 +45,23 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				await assertDirectOwnership("FinancialAccount", query.financialAccountId, userId);
 			}
 			if (query.categoryId) await assertDirectOwnership("Category", query.categoryId, userId);
-			const origin = db.sql.public.FinancialAccount.select("id", "institutionId", "userId", "name").as(
-				"origin",
-			);
+			const origin = db.sql.public.FinancialAccount.select(
+				"id",
+				"institutionId",
+				"userId",
+				"name",
+				"type",
+			).as("origin");
 			const originInstitution = db.sql.public.FinancialInstitution.select("id", "name").as(
 				"originInstitution",
 			);
-			const destination = db.sql.public.FinancialAccount.select("id", "institutionId", "userId", "name").as(
-				"destination",
-			);
+			const destination = db.sql.public.FinancialAccount.select(
+				"id",
+				"institutionId",
+				"userId",
+				"name",
+				"type",
+			).as("destination");
 			const destinationInstitution = db.sql.public.FinancialInstitution.select("id", "name").as(
 				"destinationInstitution",
 			);
@@ -96,11 +104,13 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					createdAt: f.Transaction.createdAt,
 					date: f.Transaction.date,
 					description: f.Transaction.description,
+					destinationAccountType: f.destination.type,
 					destinationFinancialAccountId: f.Transaction.destinationFinancialAccountId,
 					destinationName: fn.raw`COALESCE(${f.destination.name}, ${f.destinationInstitution.name})`.returns(
 						"sql/varchar@1",
 					),
 					id: f.Transaction.id,
+					originAccountType: f.origin.type,
 					originFinancialAccountId: f.Transaction.originFinancialAccountId,
 					originName: fn.raw`COALESCE(${f.origin.name}, ${f.originInstitution.name})`.returns(
 						"sql/varchar@1",
@@ -146,9 +156,19 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 
 			const normalizedTransactions = transactions.map(transaction => {
 				const tags = tagsByTransaction.get(transaction.id) ?? [];
+				const paymentAccountType =
+					transaction.type === "INCOME" ? transaction.destinationAccountType : transaction.originAccountType;
+				const {
+					destinationAccountType: _destinationAccountType,
+					originAccountType: _originAccountType,
+					...data
+				} = transaction;
 				return {
-					...transaction,
-					source: "FINANCIAL_ACCOUNT" as const,
+					...data,
+					source:
+						transaction.type !== "TRANSFER" && paymentAccountType === "CREDIT_CARD"
+							? ("CREDIT_CARD" as const)
+							: ("FINANCIAL_ACCOUNT" as const),
 					sourceName: transaction.type === "INCOME" ? transaction.destinationName : transaction.originName,
 					tagIds: tags.map(tag => tag.id),
 					tags,

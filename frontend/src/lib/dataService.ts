@@ -1440,12 +1440,16 @@ export const dataService = {
 							: undefined;
 						const originName = originAccount?.name || originAccount?.institution?.name;
 						const destinationName = destinationAccount?.name || destinationAccount?.institution?.name;
+						const paymentAccount = item.data.type === "INCOME" ? destinationAccount : originAccount;
 
 						return {
 							...item.data,
 							destinationName,
 							originName,
-							source: "FINANCIAL_ACCOUNT" as const,
+							source:
+								item.data.type !== "TRANSFER" && paymentAccount?.type === "CREDIT_CARD"
+									? ("CREDIT_CARD" as const)
+									: ("FINANCIAL_ACCOUNT" as const),
 							sourceName: item.data.type === "INCOME" ? destinationName : originName,
 						};
 					}),
