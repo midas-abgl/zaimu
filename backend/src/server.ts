@@ -6,6 +6,7 @@ import { DebtsController } from "./modules/debts/infra";
 import { LoansController } from "./modules/loans/infra";
 import { RecurringController } from "./modules/recurring/infra";
 import { SalariesController } from "./modules/salaries/infra";
+import { StoresController } from "./modules/stores/infra";
 import { SubscriptionsController } from "./modules/subscriptions/infra";
 import { SyncController } from "./modules/sync";
 import { TransactionsController } from "./modules/transactions/infra";
@@ -22,6 +23,7 @@ export const server = app.use([
 	SubscriptionsController,
 	RecurringController,
 	CategoriesController,
+	StoresController,
 	DashboardController,
 	SyncController,
 ]);

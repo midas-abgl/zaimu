@@ -12,6 +12,7 @@ import {
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
 import { materializeSalaryTransactions } from "~/modules/salaries/application/materialize-salary-transactions";
+import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 
@@ -412,6 +413,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (body.storeName && (body.type ?? "EXPENSE") !== "EXPENSE") {
 				throw new HttpException("Loja só pode ser informada em transações de saída", 400);
 			}
+			if (body.storeName) await resolveStore(userId, body.storeName);
 			const transaction = await queryFirst(
 				db.sql.public.Transaction.insert([
 					{
@@ -495,6 +497,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (body.storeName && (body.type ?? existing.type) !== "EXPENSE") {
 				throw new HttpException("Loja só pode ser informada em transações de saída", 400);
 			}
+			if (body.storeName) await resolveStore(userId, body.storeName);
 
 			// Record history for changed fields
 			const historyEntries: Array<{

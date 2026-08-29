@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { LuChevronDown, LuPlus, LuStore } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { dataService } from "@/lib/dataService";
+import { showToast } from "@/stores";
 
 export function StorePicker({
 	disabled,
@@ -17,16 +18,17 @@ export function StorePicker({
 	onValueChange: (storeName: string) => void;
 	value: string;
 }) {
+	const queryClient = useQueryClient();
 	const [searchInput, setSearchInput] = useDebouncedInput("", () => undefined);
-	const transactionsQuery = useQuery({
-		queryFn: () => dataService.transactions.getAll({ limit: 500, type: "EXPENSE" }),
-		queryKey: ["transactions", "stores"],
+	const storesQuery = useQuery({
+		queryFn: () => dataService.stores.getAll(),
+		queryKey: ["stores"],
 	});
 	const normalizedSearch = searchInput.trim().toLocaleLowerCase("pt-BR");
 	const stores = [
 		...new Set(
-			(transactionsQuery.data ?? [])
-				.map(transaction => transaction.storeName?.trim())
+			(storesQuery.data ?? [])
+				.map(store => store.name.trim())
 				.filter((storeName): storeName is string => Boolean(storeName)),
 		),
 	].toSorted((left, right) => left.localeCompare(right, "pt-BR", { sensitivity: "base" }));
@@ -38,9 +40,24 @@ export function StorePicker({
 		onValueChange(storeName);
 		setSearchInput("");
 	};
+	const createStore = useMutation({
+		mutationFn: (name: string) => dataService.stores.create(name),
+		onError: error =>
+			showToast(error instanceof Error ? error.message : "Não foi possível criar a loja.", "negative"),
+		onSuccess: async store => {
+			selectStore(store.name);
+			await queryClient.invalidateQueries({ queryKey: ["stores"] });
+			showToast(`Loja “${store.name}” criada.`, "positive");
+		},
+	});
 	const createOrSelectStore = () => {
 		const storeName = searchInput.trim();
-		if (storeName) selectStore(exactMatch ?? storeName);
+		if (!storeName) return;
+		if (exactMatch) {
+			selectStore(exactMatch);
+			return;
+		}
+		createStore.mutate(storeName);
 	};
 
 	return (
@@ -82,7 +99,7 @@ export function StorePicker({
 						<Button
 							aria-label={exactMatch ? "Selecionar loja" : "Adicionar loja"}
 							className="cursor-pointer"
-							disabled={!searchInput.trim()}
+							disabled={!searchInput.trim() || createStore.isPending}
 							onClick={createOrSelectStore}
 							size="icon"
 							type="button"
@@ -91,7 +108,7 @@ export function StorePicker({
 						</Button>
 					</div>
 					<ScrollArea className="h-52 pr-3">
-						{transactionsQuery.isPending ? (
+						{storesQuery.isPending ? (
 							<div className="grid gap-2">
 								{[1, 2, 3].map(item => (
 									<Skeleton className="h-9 rounded-xl" key={item} />

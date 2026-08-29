@@ -19,6 +19,7 @@ import type {
 	Loan,
 	RecurringPayment,
 	Salary,
+	Store,
 	Subscription,
 	Transaction,
 } from "./api";
@@ -36,6 +37,7 @@ import {
 	localMeta,
 	localRecurringPayments,
 	localSalaries,
+	localStores,
 	localSubscriptions,
 	localTransactions,
 } from "./localStorage";
@@ -982,6 +984,30 @@ export const dataService = {
 			});
 			await localSalaries.put(salary, salary.id);
 			return salary;
+		},
+	},
+
+	// ============== STORES ==============
+	stores: {
+		async create(name: string): Promise<Store> {
+			if (isGuestMode()) {
+				const store: Store = { id: crypto.randomUUID(), name, userId: getUserId() };
+				await localStores.put(store, store.id);
+				return store;
+			}
+			const store = await fetchWithAuth<Store>("/stores", {
+				body: JSON.stringify({ name }),
+				method: "POST",
+			});
+			await localStores.put(store, store.id);
+			return store;
+		},
+
+		async getAll(): Promise<Store[]> {
+			if (isGuestMode()) return (await localStores.getAll()).map(item => item.data);
+			const stores = await fetchWithAuth<Store[]>("/stores");
+			await localStores.bulkPut(stores.map(store => ({ data: store, localId: store.id })));
+			return stores;
 		},
 	},
 

@@ -8,12 +8,13 @@ import type {
 	Loan,
 	RecurringPayment,
 	Salary,
+	Store,
 	Subscription,
 	Transaction,
 } from "@/lib/api";
 
 const DB_NAME = "zaimu-local";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 // Store names
 const STORES = {
@@ -27,6 +28,7 @@ const STORES = {
 	meta: "meta", // For sync timestamps, etc.
 	recurringPayments: "recurringPayments",
 	salaries: "salaries",
+	stores: "stores",
 	subscriptions: "subscriptions",
 	transactions: "transactions",
 } as const;
@@ -249,6 +251,16 @@ export const localCategories = {
 	getById: (id: string) => getById<Category>(STORES.categories, id),
 	getModifiedSince: (since: number) => getModifiedSince<Category>(STORES.categories, since),
 	put: (data: Category, id?: string) => put(STORES.categories, data, id),
+};
+
+export const localStores = {
+	bulkPut: (items: Array<{ data: Store; localId: string; syncedAt?: number }>) =>
+		bulkPut(STORES.stores, items),
+	clear: () => clearStore(STORES.stores),
+	delete: (id: string) => softDelete(STORES.stores, id),
+	getAll: () => getAll<Store>(STORES.stores),
+	getById: (id: string) => getById<Store>(STORES.stores, id),
+	put: (data: Store, id?: string) => put(STORES.stores, data, id),
 };
 
 export const localTransactions = {

@@ -7,6 +7,7 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
+import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
 
@@ -751,6 +752,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 
 			const purchaseDate = new Date(body.purchaseDate);
 			const installments = body.installments ?? 1;
+			if (body.storeName) await resolveStore(userId, body.storeName);
 			const installmentAmount = body.totalAmount / installments;
 
 			const { dueDate, statementDate } = getStatementDates(card, purchaseDate);
@@ -851,6 +853,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			if (purchase.isPaid) throw new HttpException("Paid statement purchases cannot be edited", 409);
 			if (body.creditCardId) await assertCreditCardOwnership(body.creditCardId, userId);
 
+			if (body.storeName) await resolveStore(userId, body.storeName);
 			const tagIds = body.tagIds === undefined ? undefined : await assertTagOwnership(body.tagIds, userId);
 			const previousAmount = Number(purchase.installmentAmount);
 			const nextAmount = body.installmentAmount ?? previousAmount;

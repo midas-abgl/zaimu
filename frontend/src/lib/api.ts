@@ -67,6 +67,12 @@ export interface FinancialInstitution {
 	name: string;
 }
 
+export interface Store {
+	id: string;
+	name: string;
+	userId: string;
+}
+
 export interface CreditCard {
 	id: string;
 	financialAccountId: string;
