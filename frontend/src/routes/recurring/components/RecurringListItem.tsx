@@ -4,6 +4,7 @@ import { TransactionTags } from "@/components/transactions/TransactionListItem/T
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
+import { ListItemLayout } from "@/components/ui/ListItemLayout";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { formatLocalDate } from "@/lib/date";
 import { frequencyLabels, paymentMethodLabels, sourceLabels } from "./constants";
@@ -32,45 +33,9 @@ export function RecurringListItem({
 	const paymentMethod = item.paymentMethod ? paymentMethodLabels[item.paymentMethod] : undefined;
 
 	return (
-		<div className={`grid grid-cols-[auto_minmax(0,1fr)] gap-4 px-4 py-5 ${item.active ? "" : "opacity-60"}`}>
-			<div
-				className={`flex size-11 shrink-0 items-center justify-center rounded-2xl ${
-					isIncome ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600"
-				}`}
-			>
-				{isIncome ? <HiArrowDown aria-hidden="true" /> : <HiArrowUp aria-hidden="true" />}
-			</div>
-			<div className="min-w-0 space-y-2.5">
-				<div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
-					<div className="flex min-w-0 flex-wrap items-center gap-2">
-						<p className="min-w-0 flex-1 truncate font-semibold leading-6">{item.title}</p>
-						<Badge variant="outline">{sourceLabels[item.source]}</Badge>
-						{!item.active && <Badge variant="secondary">Pausada</Badge>}
-						{hasEnded && <Badge variant="secondary">Encerrada</Badge>}
-					</div>
-					<p className={`whitespace-nowrap font-bold ${isIncome ? "text-emerald-600" : "text-rose-600"}`}>
-						{isIncome ? "+" : "−"}
-						{currency.format(item.amount)}
-					</p>
-				</div>
-				<div className="flex min-w-0 flex-wrap items-center gap-1.5">
-					<span className="text-muted-foreground text-xs">
-						{frequencyLabels[item.frequency]}
-						{item.day ? ` · dia ${item.day}` : ""}
-						{paymentMethod ? ` · ${paymentMethod}` : ""}
-						{item.startDate ? ` · inicia ${formatLocalDate(item.startDate)}` : ""}
-						{item.endDate ? ` · até ${formatLocalDate(item.endDate)}` : ""}
-					</span>
-					{item.accountName ? (
-						<Badge className="h-7 max-w-full gap-1.5 px-2.5 font-normal" variant="outline">
-							<LuLandmark aria-hidden="true" />
-							<span className="text-muted-foreground">Conta:</span>
-							<span className="truncate">{item.accountName}</span>
-						</Badge>
-					) : null}
-					<TransactionTags tags={item.tags} />
-				</div>
-				<div className="flex flex-wrap justify-end gap-2 border-t pt-3">
+		<ListItemLayout
+			actions={
+				<>
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button
@@ -122,8 +87,51 @@ export function RecurringListItem({
 						</TooltipTrigger>
 						<TooltipContent>Excluir</TooltipContent>
 					</Tooltip>
+				</>
+			}
+			amount={
+				<p className={`whitespace-nowrap font-bold ${isIncome ? "text-emerald-600" : "text-rose-600"}`}>
+					{isIncome ? "+" : "−"}
+					{currency.format(item.amount)}
+				</p>
+			}
+			className={item.active ? undefined : "opacity-60"}
+			icon={
+				<div
+					className={`flex size-11 shrink-0 items-center justify-center rounded-2xl ${
+						isIncome ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600"
+					}`}
+				>
+					{isIncome ? <HiArrowDown aria-hidden="true" /> : <HiArrowUp aria-hidden="true" />}
 				</div>
-			</div>
-		</div>
+			}
+			metadata={
+				<>
+					<span className="text-muted-foreground text-xs">
+						{frequencyLabels[item.frequency]}
+						{item.day ? ` · dia ${item.day}` : ""}
+						{paymentMethod ? ` · ${paymentMethod}` : ""}
+						{item.startDate ? ` · inicia ${formatLocalDate(item.startDate)}` : ""}
+						{item.endDate ? ` · até ${formatLocalDate(item.endDate)}` : ""}
+					</span>
+					{item.accountName ? (
+						<Badge className="h-7 max-w-full gap-1.5 px-2.5 font-normal" variant="outline">
+							<LuLandmark aria-hidden="true" />
+							<span className="text-muted-foreground">Conta:</span>
+							<span className="truncate">{item.accountName}</span>
+						</Badge>
+					) : null}
+				</>
+			}
+			tags={<TransactionTags tags={item.tags} />}
+			title={
+				<div className="flex min-w-0 flex-wrap items-center gap-2">
+					<p className="min-w-0 flex-1 truncate font-semibold leading-6">{item.title}</p>
+					<Badge variant="outline">{sourceLabels[item.source]}</Badge>
+					{!item.active && <Badge variant="secondary">Pausada</Badge>}
+					{hasEnded && <Badge variant="secondary">Encerrada</Badge>}
+				</div>
+			}
+		/>
 	);
 }
