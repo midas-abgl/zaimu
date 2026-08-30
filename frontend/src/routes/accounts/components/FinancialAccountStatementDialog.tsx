@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { LuLandmark } from "react-icons/lu";
 import { TransactionListItem } from "@/components/transactions";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -55,7 +56,11 @@ export function FinancialAccountStatementDialog({
 						))}
 					</div>
 				) : statement.isError ? (
-					<EmptyState description="Tente novamente em instantes." title="Não foi possível carregar extrato" />
+					<EmptyState
+						description="Tente novamente em instantes."
+						icon={<LuLandmark className="size-7" />}
+						title="Não foi possível carregar extrato"
+					/>
 				) : statement.data?.length ? (
 					<ScrollArea className="h-[min(34rem,calc(100dvh-14rem))] pr-3">
 						<div className="space-y-5">
@@ -76,6 +81,7 @@ export function FinancialAccountStatementDialog({
 				) : (
 					<EmptyState
 						description="Nenhuma entrada, saída ou transferência vinculada a esta conta."
+						icon={<LuLandmark className="size-7" />}
 						title="Extrato vazio"
 					/>
 				)}
