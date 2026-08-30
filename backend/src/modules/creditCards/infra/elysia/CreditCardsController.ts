@@ -435,6 +435,7 @@ async function forecastSubscriptionPurchases(
 				parentId: null,
 				purchaseDate: occurrenceDate,
 				statementId: forecastStatementId(statementDate),
+				storeName: null,
 				totalAmount: Number(subscription.amount),
 				updatedAt: new Date(),
 			});
@@ -957,11 +958,13 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			if (!purchase) throw new HttpException("Purchase not found", 404);
 			if (purchase.isPaid) throw new HttpException("Paid statement purchases cannot be edited", 409);
 			if (body.creditCardId) await assertCreditCardOwnership(body.creditCardId, userId);
-
 			if (body.storeName) await resolveStore(userId, body.storeName);
 			const tagIds = body.tagIds === undefined ? undefined : await assertTagOwnership(body.tagIds, userId);
 			const previousAmount = Number(purchase.installmentAmount);
-			const nextAmount = body.installmentAmount ?? previousAmount;
+
+			const nextInstallments = body.installments ?? purchase.installments;
+			const nextTotalAmount = body.totalAmount ?? Number(purchase.totalAmount);
+			const nextAmount = nextTotalAmount / nextInstallments;
 			const nextPurchaseDate = body.purchaseDate ? new Date(body.purchaseDate) : purchase.purchaseDate;
 			let nextStatementId = purchase.statementId;
 			if (body.creditCardId && body.creditCardId !== params.id) {
@@ -1001,9 +1004,10 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				db.sql.public.CreditPurchase.update({
 					...(body.description !== undefined && { description: body.description }),
 					...(body.storeName !== undefined && { storeName: body.storeName }),
-					...(body.installmentAmount !== undefined && {
-						installmentAmount: String(body.installmentAmount),
-						...(purchase.installments === 1 && { totalAmount: String(body.installmentAmount) }),
+					...((body.totalAmount !== undefined || body.installments !== undefined) && {
+						installmentAmount: String(nextAmount),
+						installments: nextInstallments,
+						totalAmount: String(nextTotalAmount),
 					}),
 					...(body.purchaseDate !== undefined && { purchaseDate: nextPurchaseDate }),
 					...(nextStatementId !== purchase.statementId && { statementId: nextStatementId }),
@@ -1067,10 +1071,11 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			body: t.Object({
 				creditCardId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				description: t.Optional(t.String({ maxLength: 500 })),
-				installmentAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
+				installments: t.Optional(t.Number({ maximum: 48, minimum: 1 })),
 				purchaseDate: t.Optional(t.String()),
 				storeName: t.Optional(t.Nullable(t.String({ maxLength: 200 }))),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
+				totalAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
 			}),
 			detail: { tags: ["Credit Cards"] },
 			params: t.Object({

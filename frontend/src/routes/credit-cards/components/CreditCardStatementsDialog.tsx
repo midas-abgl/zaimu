@@ -5,11 +5,15 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs } from "@/components/ui/Tabs";
-import type { CreditCard } from "@/lib/api";
+import type { CreditCard, CreditCardStatement } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { getLocalMonthKey } from "@/lib/date";
 import { CreditCardStatementDetails } from "./CreditCardStatementDetails";
 import { CreditCardStatementTabs } from "./CreditCardStatementTabs";
+
+function getStatementReferenceDate(statement: CreditCardStatement) {
+	return statement.isPaid ? statement.statementDate : statement.dueDate;
+}
 
 export function CreditCardStatementsDialog({
 	card,
@@ -26,11 +30,11 @@ export function CreditCardStatementsDialog({
 	});
 	const currentMonth = getLocalMonthKey(new Date());
 	const visibleStatements = useMemo(
-		() => statements.data?.toSorted((left, right) => left.statementDate.localeCompare(right.statementDate)),
+		() => statements.data?.toSorted((left, right) => left.dueDate.localeCompare(right.dueDate)),
 		[statements.data],
 	);
 	const currentStatement = visibleStatements?.find(
-		statement => getLocalMonthKey(statement.statementDate) === currentMonth,
+		statement => getLocalMonthKey(getStatementReferenceDate(statement)) === currentMonth,
 	);
 	const selectedStatement =
 		visibleStatements?.find(statement => statement.id === selectedStatementId) ??
@@ -67,11 +71,7 @@ export function CreditCardStatementsDialog({
 						value={selectedStatement.id}
 					>
 						<CreditCardStatementTabs selectedId={selectedStatement.id} statements={visibleStatements ?? []} />
-						<CreditCardStatementDetails
-							card={card!}
-							key={selectedStatement.id}
-							statement={selectedStatement}
-						/>
+						<CreditCardStatementDetails key={selectedStatement.id} statement={selectedStatement} />
 					</Tabs>
 				) : (
 					<EmptyState

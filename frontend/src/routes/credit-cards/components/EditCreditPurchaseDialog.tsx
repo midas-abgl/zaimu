@@ -22,10 +22,11 @@ import { getCreditCardDisplayName } from "@/lib/credit-card";
 interface CreditPurchaseUpdate {
 	creditCardId?: string;
 	description: string;
+	installments: number;
 	storeName?: string | null;
-	installmentAmount: number;
 	purchaseDate: string;
 	tagIds: string[];
+	totalAmount: number;
 }
 
 export function EditCreditPurchaseDialog({
@@ -46,7 +47,8 @@ export function EditCreditPurchaseDialog({
 	purchase: CreditPurchase;
 }) {
 	const [description, setDescription] = useDebouncedInput(purchase.description, () => undefined);
-	const [amount, setAmount] = useState(String(purchase.installmentAmount));
+	const [amount, setAmount] = useState(String(purchase.totalAmount));
+	const [count, setCount] = useDebouncedInput(String(purchase.installments), () => undefined);
 	const [date, setDate] = useState(purchase.purchaseDate.slice(0, 10));
 	const [tagIds, setTagIds] = useState(purchase.tagIds ?? (purchase.categoryId ? [purchase.categoryId] : []));
 	const [storeName, setStoreName] = useState(purchase.storeName ?? "");
@@ -56,17 +58,20 @@ export function EditCreditPurchaseDialog({
 		if (!open) return;
 		setStoreName(purchase.storeName ?? "");
 	}, [open, purchase.storeName]);
-	const numericAmount = Number(amount);
+	const totalAmount = Number(amount);
+	const installments = Number.parseInt(count, 10);
+	const installmentAmount = totalAmount / (installments || 1);
 
 	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		await onSubmit({
 			...(selectedCardId && selectedCardId !== creditCardId && { creditCardId: selectedCardId }),
 			description: description.trim(),
-			installmentAmount: numericAmount,
+			installments,
 			purchaseDate: date,
 			storeName: storeName.trim() || null,
 			tagIds,
+			totalAmount,
 		});
 	};
 
@@ -76,9 +81,9 @@ export function EditCreditPurchaseDialog({
 				<ScrollArea className="h-full sm:max-h-[calc(100dvh-2rem)]">
 					<div className="grid gap-6 p-6">
 						<DialogHeader>
-							<DialogTitle>Editar transação</DialogTitle>
+							<DialogTitle>Editar compra</DialogTitle>
 							<DialogDescription>
-								As alterações afetam somente esta {purchase.installments > 1 ? "parcela" : "compra"}.
+								As alterações afetam a compra inteira e suas próximas parcelas.
 							</DialogDescription>
 						</DialogHeader>
 						<form className="grid gap-5" onSubmit={submit}>
@@ -105,21 +110,45 @@ export function EditCreditPurchaseDialog({
 							<StorePicker onValueChange={setStoreName} value={storeName} />
 							<MoneyField
 								id="credit-purchase-amount"
-								label={purchase.installments > 1 ? "Valor da parcela" : "Valor"}
+								label="Valor total"
 								onValueChange={setAmount}
 								placeholder="R$ 120,00"
 								required
 								value={amount}
 							/>
-							<DateField
-								autoComplete="off"
-								id="credit-purchase-date"
-								label="Data da compra"
-								name="credit-purchase-date"
-								onChange={event => setDate(event.currentTarget.value)}
-								required
-								value={date}
-							/>
+							<div className="grid gap-4 sm:grid-cols-2">
+								<FormField
+									autoComplete="off"
+									id="credit-purchase-installments"
+									inputMode="numeric"
+									label="Parcelas"
+									name="credit-purchase-installments"
+									onChange={event => setCount(event.currentTarget.value.replace(/\D/g, "").slice(0, 2))}
+									placeholder="Ex: 12"
+									required
+									type="text"
+									value={count}
+								/>
+								<DateField
+									autoComplete="off"
+									id="credit-purchase-date"
+									label="Data da compra"
+									name="credit-purchase-date"
+									onChange={event => setDate(event.currentTarget.value)}
+									required
+									value={date}
+								/>
+							</div>
+							{installments > 1 && totalAmount > 0 ? (
+								<div className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-sm">
+									<strong>
+										{installments}x de{" "}
+										{new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(
+											installmentAmount,
+										)}
+									</strong>
+								</div>
+							) : null}
 							<TagPicker disabled={pending} onValueChange={setTagIds} value={tagIds} />
 							<DialogFooter>
 								<Button
@@ -132,7 +161,14 @@ export function EditCreditPurchaseDialog({
 								</Button>
 								<Button
 									className="cursor-pointer"
-									disabled={pending || numericAmount <= 0 || !date}
+									disabled={
+										pending ||
+										totalAmount <= 0 ||
+										!Number.isInteger(installments) ||
+										installments < 1 ||
+										installments > 48 ||
+										!date
+									}
 									type="submit"
 								>
 									{pending ? "Salvando…" : "Salvar"}
