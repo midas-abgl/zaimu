@@ -32,7 +32,7 @@ function ScrollBar({
 	return (
 		<ScrollAreaPrimitive.ScrollAreaScrollbar
 			className={cn(
-				"flex touch-none select-none p-px transition-colors data-horizontal:h-2.5 data-vertical:h-full data-vertical:w-2.5 data-horizontal:flex-col data-horizontal:border-t data-horizontal:border-t-transparent data-vertical:border-l data-vertical:border-l-transparent",
+				"absolute flex touch-none select-none p-px transition-colors data-horizontal:inset-x-3 data-vertical:inset-y-3 data-vertical:right-0 data-horizontal:bottom-0 data-horizontal:h-2.5 data-vertical:w-2.5 data-horizontal:flex-col data-horizontal:border-t data-horizontal:border-t-transparent data-vertical:border-l data-vertical:border-l-transparent",
 				className,
 			)}
 			data-orientation={orientation}

@@ -308,6 +308,14 @@
 		border: 2px solid transparent;
 		border-radius: 9999px;
 	}
+	@media (pointer: coarse) {
+		.scrollbar-themed {
+			scrollbar-width: none;
+		}
+		.scrollbar-themed::-webkit-scrollbar {
+			display: none;
+		}
+	}
 }
 
 @layer utilities {

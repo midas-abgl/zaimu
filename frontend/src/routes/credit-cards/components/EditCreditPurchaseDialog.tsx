@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/Dialog";
 import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { CreditCard, CreditPurchase } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
@@ -71,71 +72,75 @@ export function EditCreditPurchaseDialog({
 
 	return (
 		<Dialog onOpenChange={onOpenChange} open={open}>
-			<DialogContent className="sm:max-w-lg">
-				<DialogHeader>
-					<DialogTitle>Editar transação</DialogTitle>
-					<DialogDescription>
-						As alterações afetam somente esta {purchase.installments > 1 ? "parcela" : "compra"}.
-					</DialogDescription>
-				</DialogHeader>
-				<form className="grid gap-5" onSubmit={submit}>
-					{cards?.length && creditCardId ? (
-						<CustomSelect
-							label="Cartão"
-							onValueChange={setSelectedCardId}
-							options={cards.map(card => ({ label: getCreditCardDisplayName(card), value: card.id }))}
-							placeholder="Selecione o cartão"
-							required
-							value={selectedCardId}
-						/>
-					) : null}
-					<FormField
-						autoComplete="off"
-						id="credit-purchase-description"
-						label="Descrição"
-						name="credit-purchase-description"
-						onChange={event => setDescription(event.currentTarget.value)}
-						placeholder="Ex: Supermercado do mês"
-						type="text"
-						value={description}
-					/>
-					<StorePicker onValueChange={setStoreName} value={storeName} />
-					<MoneyField
-						id="credit-purchase-amount"
-						label={purchase.installments > 1 ? "Valor da parcela" : "Valor"}
-						onValueChange={setAmount}
-						placeholder="R$ 120,00"
-						required
-						value={amount}
-					/>
-					<DateField
-						autoComplete="off"
-						id="credit-purchase-date"
-						label="Data da compra"
-						name="credit-purchase-date"
-						onChange={event => setDate(event.currentTarget.value)}
-						required
-						value={date}
-					/>
-					<TagPicker disabled={pending} onValueChange={setTagIds} value={tagIds} />
-					<DialogFooter>
-						<Button
-							className="cursor-pointer"
-							onClick={() => onOpenChange(false)}
-							type="button"
-							variant="outline"
-						>
-							Descartar
-						</Button>
-						<Button
-							className="cursor-pointer"
-							disabled={pending || numericAmount <= 0 || !date}
-							type="submit"
-						>
-							{pending ? "Salvando…" : "Salvar"}
-						</Button>
-					</DialogFooter>
-				</form>
+			<DialogContent className="h-[92dvh] overflow-hidden p-0 sm:h-auto sm:max-w-lg">
+				<ScrollArea className="h-full sm:max-h-[calc(100dvh-2rem)]">
+					<div className="grid gap-6 p-6">
+						<DialogHeader>
+							<DialogTitle>Editar transação</DialogTitle>
+							<DialogDescription>
+								As alterações afetam somente esta {purchase.installments > 1 ? "parcela" : "compra"}.
+							</DialogDescription>
+						</DialogHeader>
+						<form className="grid gap-5" onSubmit={submit}>
+							{cards?.length && creditCardId ? (
+								<CustomSelect
+									label="Cartão"
+									onValueChange={setSelectedCardId}
+									options={cards.map(card => ({ label: getCreditCardDisplayName(card), value: card.id }))}
+									placeholder="Selecione o cartão"
+									required
+									value={selectedCardId}
+								/>
+							) : null}
+							<FormField
+								autoComplete="off"
+								id="credit-purchase-description"
+								label="Descrição"
+								name="credit-purchase-description"
+								onChange={event => setDescription(event.currentTarget.value)}
+								placeholder="Ex: Supermercado do mês"
+								type="text"
+								value={description}
+							/>
+							<StorePicker onValueChange={setStoreName} value={storeName} />
+							<MoneyField
+								id="credit-purchase-amount"
+								label={purchase.installments > 1 ? "Valor da parcela" : "Valor"}
+								onValueChange={setAmount}
+								placeholder="R$ 120,00"
+								required
+								value={amount}
+							/>
+							<DateField
+								autoComplete="off"
+								id="credit-purchase-date"
+								label="Data da compra"
+								name="credit-purchase-date"
+								onChange={event => setDate(event.currentTarget.value)}
+								required
+								value={date}
+							/>
+							<TagPicker disabled={pending} onValueChange={setTagIds} value={tagIds} />
+							<DialogFooter>
+								<Button
+									className="cursor-pointer"
+									onClick={() => onOpenChange(false)}
+									type="button"
+									variant="outline"
+								>
+									Descartar
+								</Button>
+								<Button
+									className="cursor-pointer"
+									disabled={pending || numericAmount <= 0 || !date}
+									type="submit"
+								>
+									{pending ? "Salvando…" : "Salvar"}
+								</Button>
+							</DialogFooter>
+						</form>
+					</div>
+				</ScrollArea>
 			</DialogContent>
 		</Dialog>
 	);
