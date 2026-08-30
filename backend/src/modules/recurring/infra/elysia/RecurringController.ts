@@ -212,7 +212,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 			if (body.financialAccountId)
 				await assertPaymentAccountOwnership(
 					body.financialAccountId,
-					body.paymentMethod ?? existing.paymentMethod,
+					(body.paymentMethod ?? existing.paymentMethod) as typeof PaymentMethod.static,
 					userId,
 				);
 

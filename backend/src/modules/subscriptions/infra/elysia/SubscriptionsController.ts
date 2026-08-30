@@ -231,7 +231,7 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 			if (body.financialAccountId)
 				await assertPaymentAccountOwnership(
 					body.financialAccountId,
-					body.paymentMethod ?? existing.paymentMethod,
+					(body.paymentMethod ?? existing.paymentMethod) as typeof PaymentMethod.static,
 					userId,
 				);
 

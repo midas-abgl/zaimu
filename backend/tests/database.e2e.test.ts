@@ -35,7 +35,7 @@ const createSession = async (label: string) => {
 	});
 	if (signup.status !== 200) throw new Error(`Signup failed with ${signup.status}`);
 
-	const user = await db.orm.public.User.where(fields => fields.email.eq(email)).update({
+	const user = await db.orm.public.User.where(fields => fields.email.eq(email as never)).update({
 		emailVerified: true,
 	});
 	const userId = user?.id;
@@ -59,7 +59,8 @@ suite("Prisma 8 SQL query builder", () => {
 	});
 
 	afterAll(async () => {
-		if (userIds.length > 0) await db.orm.public.User.where(fields => fields.id.in(userIds)).deleteAndCount();
+		if (userIds.length > 0)
+			await db.orm.public.User.where(fields => fields.id.in(userIds as never)).deleteAndCount();
 		await closeDatabase();
 	});
 
@@ -221,6 +222,7 @@ suite("Prisma 8 SQL query builder", () => {
 
 		const recurringTransactionResponse = await jsonRequest(
 			"/transactions/",
+			"POST",
 			{
 				amount: 80,
 				date: "2026-08-10",
@@ -256,6 +258,7 @@ suite("Prisma 8 SQL query builder", () => {
 
 		const salaryResponse = await jsonRequest(
 			"/salaries/",
+			"POST",
 			{
 				amount: 5000,
 				financialAccountId: account.id,
@@ -285,6 +288,7 @@ suite("Prisma 8 SQL query builder", () => {
 
 		const salaryTransactionResponse = await jsonRequest(
 			"/transactions/",
+			"POST",
 			{
 				amount: 5000,
 				date: "2026-08-10",
@@ -298,6 +302,7 @@ suite("Prisma 8 SQL query builder", () => {
 
 		const subscriptionResponse = await jsonRequest(
 			"/subscriptions/",
+			"POST",
 			{
 				amount: 30,
 				billingDay: 10,
@@ -315,6 +320,7 @@ suite("Prisma 8 SQL query builder", () => {
 
 		const subscriptionTransactionResponse = await jsonRequest(
 			"/transactions/",
+			"POST",
 			{
 				amount: 30,
 				date: "2026-08-10",
