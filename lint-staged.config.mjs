@@ -4,14 +4,19 @@ import { lintStagedConfig } from "@hyoretsu/configs/lint-staged";
 
 const sharedConfig = lintStagedConfig();
 
-const isAgentFile = filename => {
+const isIgnoredFile = filename => {
 	const path = relative(cwd(), filename).replaceAll("\\", "/");
 
-	return path.startsWith(".agents/") || path.startsWith(".claude/") || path === "skills-lock.json";
+	return (
+		path.startsWith(".agents/") ||
+		path.startsWith(".claude/") ||
+		path === "skills-lock.json" ||
+		path.endsWith(".gen.ts")
+	);
 };
 
 const commandForProductFiles = (command, filenames) => {
-	const productFiles = filenames.filter(filename => !isAgentFile(filename));
+	const productFiles = filenames.filter(filename => !isIgnoredFile(filename));
 
 	if (productFiles.length === 0) return [];
 
