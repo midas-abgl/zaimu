@@ -156,11 +156,49 @@ function getStatementDates(card: { dueDay: number; statementDay: number }, purch
 	return { dueDate, statementDate };
 }
 
-async function materializeDueInstallments(
+async function materializeMonthlyStatements(
 	creditCardId: string,
-	card: { dueDay: number; statementDay: number },
+	card: { createdAt: Date; dueDay: number; statementDay: number },
 	today = new Date(),
 ) {
+	const oldestStatement = await queryFirst(
+		db.sql.public.CreditCardStatement.select("statementDate")
+			.where((fields, functions) => functions.eq(fields.creditCardId, creditCardId))
+			.orderBy("statementDate", { direction: "asc" })
+			.limit(1)
+			.build(),
+	);
+	const firstStatementDate =
+		oldestStatement?.statementDate ?? getStatementDates(card, card.createdAt).statementDate;
+	const lastStatementDate = getStatementDates(card, today).statementDate;
+	let month = new Date(firstStatementDate.getFullYear(), firstStatementDate.getMonth(), 1);
+	const lastMonth = new Date(lastStatementDate.getFullYear(), lastStatementDate.getMonth(), 1);
+
+	while (month <= lastMonth) {
+		const { dueDate, statementDate } = getStatementDates(card, month);
+		const statement = await queryFirst(
+			db.sql.public.CreditCardStatement.select("id")
+				.where((fields, functions) =>
+					functions.and(
+						functions.eq(fields.creditCardId, creditCardId),
+						functions.eq(fields.statementDate, statementDate),
+					),
+				)
+				.limit(1)
+				.build(),
+		);
+		if (!statement) {
+			await executeStatement(
+				db.sql.public.CreditCardStatement.insert([
+					{ creditCardId, dueDate, statementDate, totalAmount: "0" },
+				]).build(),
+			);
+		}
+		month = addMonths(month, 1);
+	}
+}
+
+async function materializeInstallments(creditCardId: string, card: { dueDay: number; statementDay: number }) {
 	const purchases = (await queryRows(
 		db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
 			functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
@@ -187,7 +225,7 @@ async function materializeDueInstallments(
 	for (const root of purchases.filter(purchase => !purchase.parentId && purchase.installments > 1)) {
 		for (let installment = 2; installment <= root.installments; installment++) {
 			const occurrenceDate = addMonths(root.purchaseDate, installment - 1);
-			if (occurrenceDate > today || materialized.has(`${root.id}:${installment}`)) continue;
+			if (materialized.has(`${root.id}:${installment}`)) continue;
 			const { dueDate, statementDate } = getStatementDates(card, occurrenceDate);
 			let statement = await queryFirst(
 				db.sql.public.CreditCardStatement.select(...statementColumns)
@@ -541,14 +579,15 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const userId = await requireUserId(request);
 			await assertCreditCardOwnership(params.id, userId);
 			const card = await queryFirst(
-				db.sql.public.CreditCard.select("dueDay", "financialAccountId", "statementDay")
+				db.sql.public.CreditCard.select("createdAt", "dueDay", "financialAccountId", "statementDay")
 					.where((fields, functions) => functions.eq(fields.id, params.id))
 					.limit(1)
 					.build(),
 			);
 			if (!card) throw new HttpException("Credit card not found", 404);
+			await materializeMonthlyStatements(params.id, card);
 			await Promise.all([
-				materializeDueInstallments(params.id, card),
+				materializeInstallments(params.id, card),
 				materializeDueSubscriptionPurchases(params.id, card.financialAccountId, card),
 			]);
 			let queryBuilder = db.sql.public.CreditCardStatement.select(...statementColumns).where(
@@ -629,14 +668,15 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				const statementDate = new Date(`${params.statementId.slice("forecast-".length)}T12:00:00Z`);
 				if (Number.isNaN(statementDate.getTime())) throw new HttpException("Statement not found", 404);
 				const card = await queryFirst(
-					db.sql.public.CreditCard.select("dueDay", "financialAccountId", "statementDay")
+					db.sql.public.CreditCard.select("createdAt", "dueDay", "financialAccountId", "statementDay")
 						.where((fields, functions) => functions.eq(fields.id, params.id))
 						.limit(1)
 						.build(),
 				);
 				if (!card) throw new HttpException("Credit card not found", 404);
+				await materializeMonthlyStatements(params.id, card);
 				await Promise.all([
-					materializeDueInstallments(params.id, card),
+					materializeInstallments(params.id, card),
 					materializeDueSubscriptionPurchases(params.id, card.financialAccountId, card),
 				]);
 				const purchases = (await queryRows(

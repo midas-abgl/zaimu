@@ -472,6 +472,15 @@ suite("Prisma 8 SQL query builder", () => {
 		);
 		const cardAccount = (await cardAccountResponse.json()) as { creditCard: { id: string } };
 		expect(cardAccountResponse.status).toBe(200);
+		const emptyStatementsResponse = await jsonRequest(
+			`/credit-cards/${cardAccount.creditCard.id}/statements`,
+			"GET",
+			undefined,
+			owner.cookie,
+		);
+		const emptyStatements = (await emptyStatementsResponse.json()) as Array<{ totalAmount: number }>;
+		expect(emptyStatementsResponse.status).toBe(200);
+		expect(emptyStatements).toEqual(expect.arrayContaining([expect.objectContaining({ totalAmount: 0 })]));
 
 		const purchaseResponse = await jsonRequest(
 			`/credit-cards/${cardAccount.creditCard.id}/purchases`,
@@ -495,7 +504,7 @@ suite("Prisma 8 SQL query builder", () => {
 		}>;
 		expect(purchaseResponse.status).toBe(200);
 		expect(purchases).toHaveLength(2);
-		expect(new Set(purchases.map(purchase => purchase.statementId))).toHaveSize(2);
+		expect(new Set(purchases.map(purchase => purchase.statementId)).size).toBe(2);
 		expect(purchases[0]?.categoryId).toBeNull();
 		expect(purchases[0]?.installmentAmount).toBe(49.95);
 		expect(purchases[0]?.storeName).toBe("Livraria Central");
@@ -522,7 +531,7 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(statement.map(item => item.id)).toEqual(
 			expect.arrayContaining(purchases.map(purchase => purchase.statementId)),
 		);
-		const statementToPay = statement[0]!;
+		const statementToPay = statement.find(item => item.totalAmount > 0)!;
 		const statementPaymentResponse = await jsonRequest(
 			`/credit-cards/${cardAccount.creditCard.id}/statements/${statementToPay.id}/pay`,
 			"POST",

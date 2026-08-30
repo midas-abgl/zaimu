@@ -26,11 +26,8 @@ export function CreditCardStatementsDialog({
 	});
 	const currentMonth = getLocalMonthKey(new Date());
 	const visibleStatements = useMemo(
-		() =>
-			statements.data
-				?.filter(statement => getLocalMonthKey(statement.statementDate) >= currentMonth)
-				.toSorted((left, right) => left.statementDate.localeCompare(right.statementDate)),
-		[currentMonth, statements.data],
+		() => statements.data?.toSorted((left, right) => left.statementDate.localeCompare(right.statementDate)),
+		[statements.data],
 	);
 	const currentStatement = visibleStatements?.find(
 		statement => getLocalMonthKey(statement.statementDate) === currentMonth,
@@ -38,7 +35,7 @@ export function CreditCardStatementsDialog({
 	const selectedStatement =
 		visibleStatements?.find(statement => statement.id === selectedStatementId) ??
 		currentStatement ??
-		visibleStatements?.[0];
+		visibleStatements?.at(-1);
 
 	return (
 		<Dialog onOpenChange={onOpenChange} open={Boolean(card)}>
