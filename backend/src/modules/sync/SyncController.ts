@@ -86,6 +86,7 @@ const transactionColumns = [
 	"type",
 	"categoryId",
 	"recurrenceId",
+	"recurrenceOccurrenceDate",
 	"salaryId",
 	"salaryOccurrenceDate",
 	"subscriptionId",
@@ -490,6 +491,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				"destinationFinancialAccountId",
 			);
 			const recurrenceId = value<string | undefined>(entity, "recurrenceId");
+			const recurrenceOccurrenceDate = optionalDate(entity, "recurrenceOccurrenceDate");
 			const salaryId = value<string | undefined>(entity, "salaryId");
 			const subscriptionId = value<string | undefined>(entity, "subscriptionId");
 			if (originFinancialAccountId && !accountIds.has(originFinancialAccountId))
@@ -520,6 +522,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 							id,
 							originFinancialAccountId,
 							recurrenceId,
+							recurrenceOccurrenceDate,
 							salaryId,
 							salaryOccurrenceDate: optionalDate(entity, "salaryOccurrenceDate"),
 							storeName: value<string | undefined>(entity, "storeName"),
@@ -596,6 +599,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				id: f.Transaction.id,
 				originFinancialAccountId: f.Transaction.originFinancialAccountId,
 				recurrenceId: f.Transaction.recurrenceId,
+				recurrenceOccurrenceDate: f.Transaction.recurrenceOccurrenceDate,
 				salaryId: f.Transaction.salaryId,
 				salaryOccurrenceDate: f.Transaction.salaryOccurrenceDate,
 				storeName: f.Transaction.storeName,

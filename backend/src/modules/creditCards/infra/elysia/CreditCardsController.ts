@@ -1,6 +1,11 @@
 import { addDays, addMonths, addWeeks, addYears, isAfter, startOfDay } from "date-fns";
 import Elysia, { t } from "elysia";
-import { assertBalanceAccountOwnership, assertCreditCardOwnership, requireUserId } from "~/modules/auth";
+import {
+	assertBalanceAccountOwnership,
+	assertCreditCardOwnership,
+	assertDirectOwnership,
+	requireUserId,
+} from "~/modules/auth";
 import {
 	assertTagOwnership,
 	getTagsByEntity,
@@ -32,12 +37,24 @@ const purchaseColumns = [
 	"currentInstallment",
 	"installmentAmount",
 	"purchaseDate",
+	"time",
 	"categoryId",
 	"parentId",
+	"subscriptionId",
+	"subscriptionOccurrenceDate",
 	"createdAt",
 	"updatedAt",
 ] as const;
 const forecastStatementId = (statementDate: Date) => `forecast-${statementDate.toISOString().slice(0, 10)}`;
+const timePattern = /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
+
+function resolvePurchaseTime(value: string | undefined): string {
+	if (value !== undefined) {
+		if (!timePattern.test(value)) throw new HttpException("Informe um horário válido", 400);
+		return value;
+	}
+	return new Date().toTimeString().slice(0, 5);
+}
 
 function forecastInstallments(
 	card: { dueDay: number; statementDay: number },
@@ -76,8 +93,11 @@ interface CreditPurchaseRow {
 	currentInstallment: number;
 	installmentAmount: number;
 	purchaseDate: Date;
+	time: string | null;
 	categoryId: string | null;
 	parentId: string | null;
+	subscriptionId?: string | null;
+	subscriptionOccurrenceDate?: Date | null;
 	createdAt: Date;
 	updatedAt: Date;
 }
@@ -176,26 +196,40 @@ async function materializeMonthlyStatements(
 
 	while (month <= lastMonth) {
 		const { dueDate, statementDate } = getStatementDates(card, month);
-		const statement = await queryFirst(
-			db.sql.public.CreditCardStatement.select("id")
-				.where((fields, functions) =>
-					functions.and(
-						functions.eq(fields.creditCardId, creditCardId),
-						functions.eq(fields.statementDate, statementDate),
-					),
-				)
-				.limit(1)
-				.build(),
-		);
-		if (!statement) {
-			await executeStatement(
-				db.sql.public.CreditCardStatement.insert([
-					{ creditCardId, dueDate, statementDate, totalAmount: "0" },
-				]).build(),
-			);
-		}
+		await getOrCreateStatement(creditCardId, dueDate, statementDate);
 		month = addMonths(month, 1);
 	}
+}
+
+async function getOrCreateStatement(creditCardId: string, dueDate: Date, statementDate: Date) {
+	await queryFirst(
+		db.raw.sql`
+			INSERT INTO "CreditCardStatement" ("creditCardId", "dueDate", "statementDate", "totalAmount")
+			VALUES (
+				${param(creditCardId, { codecId: "sql/varchar@1" })},
+				${param(dueDate, { codecId: "pg/date@1" })},
+				${param(statementDate, { codecId: "pg/date@1" })},
+				0
+			)
+			ON CONFLICT ("creditCardId", "statementDate") DO NOTHING
+			RETURNING "id"
+		`
+			.returnsRow({ id: db.sql.public.CreditCardStatement.columns.id })
+			.build(),
+	);
+	const statement = await queryFirst(
+		db.sql.public.CreditCardStatement.select(...statementColumns)
+			.where((fields, functions) =>
+				functions.and(
+					functions.eq(fields.creditCardId, creditCardId),
+					functions.eq(fields.statementDate, statementDate),
+				),
+			)
+			.limit(1)
+			.build(),
+	);
+	if (!statement) throw new HttpException("Statement not created", 500);
+	return statement;
 }
 
 async function materializeInstallments(creditCardId: string, card: { dueDay: number; statementDay: number }) {
@@ -212,6 +246,7 @@ async function materializeInstallments(creditCardId: string, card: { dueDay: num
 				installments: fields.CreditPurchase.installments,
 				parentId: fields.CreditPurchase.parentId,
 				purchaseDate: fields.CreditPurchase.purchaseDate,
+				time: fields.CreditPurchase.time,
 				totalAmount: fields.CreditPurchase.totalAmount,
 			}))
 			.where((fields, functions) => functions.eq(fields.CreditCardStatement.creditCardId, creditCardId))
@@ -227,27 +262,7 @@ async function materializeInstallments(creditCardId: string, card: { dueDay: num
 			const occurrenceDate = addMonths(root.purchaseDate, installment - 1);
 			if (materialized.has(`${root.id}:${installment}`)) continue;
 			const { dueDate, statementDate } = getStatementDates(card, occurrenceDate);
-			let statement = await queryFirst(
-				db.sql.public.CreditCardStatement.select(...statementColumns)
-					.where((fields, functions) =>
-						functions.and(
-							functions.eq(fields.creditCardId, creditCardId),
-							functions.eq(fields.statementDate, statementDate),
-						),
-					)
-					.limit(1)
-					.build(),
-			);
-			if (!statement) {
-				statement = await queryFirst(
-					db.sql.public.CreditCardStatement.insert([
-						{ creditCardId, dueDate, statementDate, totalAmount: "0" },
-					])
-						.returning(...statementColumns)
-						.build(),
-				);
-			}
-			if (!statement) throw new HttpException("Statement not created", 500);
+			const statement = await getOrCreateStatement(creditCardId, dueDate, statementDate);
 			await executeStatement(
 				db.sql.public.CreditPurchase.insert([
 					{
@@ -259,6 +274,7 @@ async function materializeInstallments(creditCardId: string, card: { dueDay: num
 						parentId: root.id,
 						purchaseDate: root.purchaseDate,
 						statementId: statement.id,
+						time: root.time,
 						totalAmount: String(root.totalAmount),
 					},
 				]).build(),
@@ -289,8 +305,10 @@ async function materializeDueSubscriptionPurchases(
 			"endDate",
 			"frequency",
 			"id",
+			"materializedThrough",
 			"name",
 			"startDate",
+			"storeName",
 		)
 			.where((fields, functions) =>
 				functions.and(
@@ -328,6 +346,7 @@ async function materializeDueSubscriptionPurchases(
 			subscription as typeof subscription & { frequency: SubscriptionFrequency },
 			today,
 		)) {
+			if (!isAfter(occurrenceDate, startOfDay(subscription.materializedThrough))) continue;
 			const occurrenceKey = `${subscription.id}:${occurrenceDate.toISOString().slice(0, 10)}`;
 			if (materialized.has(occurrenceKey)) continue;
 			const { dueDate, statementDate } = getStatementDates(card, occurrenceDate);
@@ -353,23 +372,39 @@ async function materializeDueSubscriptionPurchases(
 			}
 			if (!statement) throw new HttpException("Statement not created", 500);
 			const purchase = await queryFirst(
-				db.sql.public.CreditPurchase.insert([
-					{
-						currentInstallment: 1,
-						description: subscription.name,
-						installmentAmount: String(subscription.amount),
-						installments: 1,
-						purchaseDate: occurrenceDate,
-						statementId: statement.id,
-						subscriptionId: subscription.id,
-						subscriptionOccurrenceDate: occurrenceDate,
-						totalAmount: String(subscription.amount),
-					},
-				])
-					.returning("id")
+				db.raw.sql`
+					INSERT INTO "CreditPurchase" (
+						"currentInstallment",
+						"description",
+						"installmentAmount",
+						"installments",
+						"purchaseDate",
+						"statementId",
+						"storeName",
+						"subscriptionId",
+						"subscriptionOccurrenceDate",
+						"totalAmount"
+					)
+					VALUES (
+						1,
+						${param(subscription.name, { codecId: "sql/varchar@1" })},
+						${param(numeric<12, 2>(subscription.amount), { codecId: "pg/numeric@1" })},
+						1,
+						${param(occurrenceDate, { codecId: "pg/date@1" })},
+						${param(statement.id, { codecId: "sql/varchar@1" })},
+						${param(subscription.storeName, { codecId: "sql/varchar@1" })},
+						${param(subscription.id, { codecId: "sql/varchar@1" })},
+						${param(occurrenceDate, { codecId: "pg/date@1" })},
+						${param(numeric<12, 2>(subscription.amount), { codecId: "pg/numeric@1" })}
+					)
+					ON CONFLICT ("subscriptionId", "subscriptionOccurrenceDate") DO NOTHING
+					RETURNING "id"
+				`
+					.returnsRow({ id: db.sql.public.CreditPurchase.columns.id })
 					.build(),
 			);
 			if (!purchase) continue;
+			materialized.add(occurrenceKey);
 			const tagIds = (tagsBySubscription.get(subscription.id) ?? []).map(tag => tag.id);
 			await replaceEntityTags({
 				entityIds: [purchase.id],
@@ -386,6 +421,11 @@ async function materializeDueSubscriptionPurchases(
 					.build(),
 			);
 		}
+		await executeStatement(
+			db.sql.public.Subscription.update({ materializedThrough: startOfDay(today) } as never)
+				.where((fields, functions) => functions.eq(fields.id, subscription.id))
+				.build(),
+		);
 	}
 }
 
@@ -403,6 +443,7 @@ async function forecastSubscriptionPurchases(
 			"id",
 			"name",
 			"startDate",
+			"storeName",
 		)
 			.where((fields, functions) =>
 				functions.and(
@@ -435,7 +476,10 @@ async function forecastSubscriptionPurchases(
 				parentId: null,
 				purchaseDate: occurrenceDate,
 				statementId: forecastStatementId(statementDate),
-				storeName: null,
+				storeName: subscription.storeName,
+				subscriptionId: subscription.id,
+				subscriptionOccurrenceDate: occurrenceDate,
+				time: null,
 				totalAmount: Number(subscription.amount),
 				updatedAt: new Date(),
 			});
@@ -618,6 +662,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						parentId: fields.CreditPurchase.parentId,
 						purchaseDate: fields.CreditPurchase.purchaseDate,
 						statementId: fields.CreditPurchase.statementId,
+						time: fields.CreditPurchase.time,
 						totalAmount: fields.CreditPurchase.totalAmount,
 						updatedAt: fields.CreditPurchase.updatedAt,
 					}))
@@ -695,6 +740,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 							parentId: fields.CreditPurchase.parentId,
 							purchaseDate: fields.CreditPurchase.purchaseDate,
 							statementId: fields.CreditPurchase.statementId,
+							time: fields.CreditPurchase.time,
 							totalAmount: fields.CreditPurchase.totalAmount,
 							updatedAt: fields.CreditPurchase.updatedAt,
 						}))
@@ -781,7 +827,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				userId,
 			);
 			const card = await queryFirst(
-				db.sql.public.CreditCard.select("id", "statementDay", "dueDay")
+				db.sql.public.CreditCard.select("id", "statementDay", "dueDay", "financialAccountId")
 					.where((fields, functions) => functions.eq(fields.id, params.id))
 					.limit(1)
 					.build(),
@@ -790,8 +836,53 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			if (!card) {
 				throw new HttpException("Credit card not found", 404);
 			}
+			if ((body.subscriptionId === undefined) !== (body.subscriptionOccurrenceDate === undefined)) {
+				throw new HttpException("Informe a assinatura e a data da ocorrência juntas", 400);
+			}
+			if (body.subscriptionId && body.subscriptionOccurrenceDate) {
+				await assertDirectOwnership("Subscription", body.subscriptionId, userId);
+				const subscription = await queryFirst(
+					db.sql.public.Subscription.select("financialAccountId")
+						.where((fields, functions) => functions.eq(fields.id, body.subscriptionId!))
+						.limit(1)
+						.build(),
+				);
+				if (subscription?.financialAccountId !== card.financialAccountId) {
+					throw new HttpException("A assinatura não pertence a este cartão", 400);
+				}
+				if ((body.installments ?? 1) !== 1) {
+					throw new HttpException("Uma ocorrência de assinatura não pode ser parcelada", 400);
+				}
+				const existingPurchase = await queryFirst(
+					db.sql.public.CreditPurchase.select(...purchaseColumns)
+						.where((fields, functions) =>
+							functions.and(
+								functions.eq(fields.subscriptionId, body.subscriptionId!),
+								functions.eq(fields.subscriptionOccurrenceDate, new Date(body.subscriptionOccurrenceDate!)),
+							),
+						)
+						.limit(1)
+						.build(),
+				);
+				if (existingPurchase) {
+					const tags =
+						(await getTagsByEntity(tagEntityType.creditPurchase, [existingPurchase.id])).get(
+							existingPurchase.id,
+						) ?? [];
+					return [
+						{
+							...existingPurchase,
+							installmentAmount: Number(existingPurchase.installmentAmount),
+							tagIds: tags.map(tag => tag.id),
+							tags,
+							totalAmount: Number(existingPurchase.totalAmount),
+						},
+					];
+				}
+			}
 
 			const purchaseDate = new Date(body.purchaseDate);
+			const time = resolvePurchaseTime(body.time);
 			const installments = body.installments ?? 1;
 			if (body.storeName) await resolveStore(userId, body.storeName);
 			const installmentAmount = body.totalAmount / installments;
@@ -809,32 +900,109 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					.build(),
 			);
 			if (!statement) {
-				statement = await queryFirst(
-					db.sql.public.CreditCardStatement.insert([
-						{ creditCardId: params.id, dueDate, statementDate, totalAmount: "0" },
-					])
-						.returning(...statementColumns)
-						.build(),
-				);
+				try {
+					statement = await queryFirst(
+						db.sql.public.CreditCardStatement.insert([
+							{ creditCardId: params.id, dueDate, statementDate, totalAmount: "0" },
+						])
+							.returning(...statementColumns)
+							.build(),
+					);
+				} catch {
+					statement = await queryFirst(
+						db.sql.public.CreditCardStatement.select(...statementColumns)
+							.where((fields, functions) =>
+								functions.and(
+									functions.eq(fields.creditCardId, params.id),
+									functions.eq(fields.statementDate, statementDate),
+								),
+							)
+							.limit(1)
+							.build(),
+					);
+				}
 				if (!statement) throw new HttpException("Statement not created", 500);
 			}
-			const purchase = await queryFirst(
-				db.sql.public.CreditPurchase.insert([
-					{
-						categoryId: tagIds[0],
-						currentInstallment: 1,
-						description: body.description ?? "",
-						installmentAmount: String(installmentAmount),
-						installments,
-						purchaseDate,
-						statementId: statement.id,
-						storeName: body.storeName,
-						totalAmount: String(body.totalAmount),
-					},
-				])
-					.returning(...purchaseColumns)
-					.build(),
-			);
+			let purchase = body.subscriptionId
+				? undefined
+				: await queryFirst(
+						db.sql.public.CreditPurchase.insert([
+							{
+								categoryId: tagIds[0],
+								currentInstallment: 1,
+								description: body.description ?? "",
+								installmentAmount: String(installmentAmount),
+								installments,
+								purchaseDate,
+								statementId: statement.id,
+								storeName: body.storeName,
+								time,
+								totalAmount: String(body.totalAmount),
+							},
+						])
+							.returning(...purchaseColumns)
+							.build(),
+					);
+			if (body.subscriptionId && body.subscriptionOccurrenceDate) {
+				const inserted = await queryFirst(
+					db.raw.sql`
+						INSERT INTO "CreditPurchase" (
+							"categoryId", "currentInstallment", "description", "installmentAmount", "installments",
+							"purchaseDate", "statementId", "storeName", "subscriptionId",
+							"subscriptionOccurrenceDate", "time", "totalAmount"
+						)
+						VALUES (
+							${param(tagIds[0] ?? null, { codecId: "sql/varchar@1" })}, 1,
+							${param(body.description ?? "", { codecId: "sql/varchar@1" })},
+							${param(numeric<12, 2>(installmentAmount), { codecId: "pg/numeric@1" })}, 1,
+							${param(purchaseDate, { codecId: "pg/date@1" })},
+							${param(statement.id, { codecId: "sql/varchar@1" })},
+							${param(body.storeName ?? null, { codecId: "sql/varchar@1" })},
+							${param(body.subscriptionId, { codecId: "sql/varchar@1" })},
+							${param(new Date(body.subscriptionOccurrenceDate), { codecId: "pg/date@1" })},
+							${param(time, { codecId: "pg/time@1" })},
+							${param(numeric<12, 2>(body.totalAmount), { codecId: "pg/numeric@1" })}
+						)
+						ON CONFLICT ("subscriptionId", "subscriptionOccurrenceDate") DO NOTHING
+						RETURNING "id"
+					`
+						.returnsRow({ id: db.sql.public.CreditPurchase.columns.id })
+						.build(),
+				);
+				if (!inserted) {
+					const existingPurchase = await queryFirst(
+						db.sql.public.CreditPurchase.select(...purchaseColumns)
+							.where((fields, functions) =>
+								functions.and(
+									functions.eq(fields.subscriptionId, body.subscriptionId!),
+									functions.eq(fields.subscriptionOccurrenceDate, new Date(body.subscriptionOccurrenceDate!)),
+								),
+							)
+							.limit(1)
+							.build(),
+					);
+					if (!existingPurchase) throw new HttpException("Purchase not created", 500);
+					const tags =
+						(await getTagsByEntity(tagEntityType.creditPurchase, [existingPurchase.id])).get(
+							existingPurchase.id,
+						) ?? [];
+					return [
+						{
+							...existingPurchase,
+							installmentAmount: Number(existingPurchase.installmentAmount),
+							tagIds: tags.map(tag => tag.id),
+							tags,
+							totalAmount: Number(existingPurchase.totalAmount),
+						},
+					];
+				}
+				purchase = await queryFirst(
+					db.sql.public.CreditPurchase.select(...purchaseColumns)
+						.where((fields, functions) => functions.eq(fields.id, inserted.id))
+						.limit(1)
+						.build(),
+				);
+			}
 			if (!purchase) throw new HttpException("Purchase not created", 500);
 			const createdPurchases: CreditPurchaseRow[] = [
 				{
@@ -896,6 +1064,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 							purchaseDate,
 							statementId: installmentStatement.id,
 							storeName: body.storeName,
+							time,
 							totalAmount: String(body.totalAmount),
 						},
 					])
@@ -940,7 +1109,10 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				installments: t.Optional(t.Number({ maximum: 48, minimum: 1 })),
 				purchaseDate: t.String(),
 				storeName: t.Optional(t.String({ maxLength: 200 })),
+				subscriptionId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
+				subscriptionOccurrenceDate: t.Optional(t.String()),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
+				time: t.Optional(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" })),
 				totalAmount: t.Number(),
 			}),
 			detail: { tags: ["Credit Cards"] },
@@ -1010,6 +1182,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						totalAmount: String(nextTotalAmount),
 					}),
 					...(body.purchaseDate !== undefined && { purchaseDate: nextPurchaseDate }),
+					...(body.time !== undefined && { time: body.time }),
 					...(nextStatementId !== purchase.statementId && { statementId: nextStatementId }),
 					...(tagIds !== undefined && { categoryId: tagIds[0] ?? null }),
 					updatedAt: new Date(),
@@ -1075,6 +1248,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				purchaseDate: t.Optional(t.String()),
 				storeName: t.Optional(t.Nullable(t.String({ maxLength: 200 }))),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
+				time: t.Optional(t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" }))),
 				totalAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
 			}),
 			detail: { tags: ["Credit Cards"] },
@@ -1179,6 +1353,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						date: new Date(body.date),
 						description: `Pagamento da fatura — ${card.accountName}`,
 						originFinancialAccountId: body.financialAccountId,
+						time: resolvePurchaseTime(body.time),
 						type: "EXPENSE",
 					},
 				])
@@ -1205,6 +1380,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				amount: t.Optional(t.Number()),
 				date: t.String(),
 				financialAccountId: t.String({ maxLength: 36, minLength: 1 }),
+				time: t.Optional(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" })),
 			}),
 			detail: { tags: ["Credit Cards"] },
 			params: t.Object({

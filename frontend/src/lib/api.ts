@@ -89,6 +89,7 @@ export interface Transaction {
 	id: string;
 	amount: number;
 	date: string;
+	time?: string | null;
 	description?: string;
 	storeName?: string | null;
 	type: "INCOME" | "EXPENSE" | "TRANSFER";
@@ -96,6 +97,7 @@ export interface Transaction {
 	categoryName?: string;
 	categoryColor?: string;
 	recurrenceId?: string;
+	recurrenceOccurrenceDate?: string;
 	salaryId?: string;
 	salaryOccurrenceDate?: string;
 	subscriptionId?: string;
@@ -210,6 +212,7 @@ export interface Subscription {
 	frequency: "DAILY" | "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "YEARLY";
 	paymentMethod: "DEBIT" | "CREDIT" | "PIX" | "CASH" | "TRANSFER" | "BOLETO";
 	financialAccountId?: string | null;
+	storeName?: string | null;
 	startDate: string;
 	endDate?: string | null;
 	isActive: boolean;
@@ -231,6 +234,7 @@ export interface RecurringPayment {
 	categoryId?: string;
 	paymentMethod: "DEBIT" | "CREDIT" | "PIX" | "CASH" | "TRANSFER" | "BOLETO";
 	financialAccountId?: string | null;
+	storeName?: string | null;
 	isActive: boolean;
 	createdAt: string;
 	updatedAt: string;
@@ -262,12 +266,15 @@ export interface CreditPurchase {
 	currentInstallment: number;
 	installmentAmount: number;
 	purchaseDate: string;
+	time?: string | null;
 	categoryId?: string;
 	categoryName?: string;
 	categoryColor?: string;
 	tagIds?: string[];
 	tags?: Tag[];
 	parentId?: string;
+	subscriptionId?: string;
+	subscriptionOccurrenceDate?: string;
 	isForecast?: boolean;
 }
 
@@ -330,6 +337,7 @@ export const api = {
 			totalAmount: number;
 			installments?: number;
 			purchaseDate: string;
+			time?: string;
 			categoryId?: string;
 			tagIds?: string[];
 		},
@@ -425,6 +433,7 @@ export const api = {
 	createTransaction: (data: {
 		amount: number;
 		date: string;
+		time?: string;
 		description?: string;
 		type?: Transaction["type"];
 		categoryId?: string;
@@ -538,7 +547,7 @@ export const api = {
 	payStatement: (
 		cardId: string,
 		statementId: string,
-		data: { amount?: number; date: string; financialAccountId: string },
+		data: { amount?: number; date: string; financialAccountId: string; time?: string },
 	) =>
 		fetchApi(`/credit-cards/${cardId}/statements/${statementId}/pay`, {
 			body: data,

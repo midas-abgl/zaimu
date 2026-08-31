@@ -21,6 +21,7 @@ export function salaryToListItem(salary: Salary, accounts: FinancialAccount[] = 
 	const account = accounts.find(item => item.id === salary.financialAccountId);
 	return {
 		accountName: account ? getFinancialAccountDisplayName(account) : undefined,
+		accountType: account?.type,
 		active: salary.isActive,
 		amount: Number(salary.amount),
 		day: salary.payDay,
@@ -44,6 +45,7 @@ export function subscriptionToListItem(
 	const account = accounts.find(item => item.id === subscription.financialAccountId);
 	return {
 		accountName: account ? getFinancialAccountDisplayName(account) : undefined,
+		accountType: account?.type,
 		active: subscription.isActive,
 		amount: Number(subscription.amount),
 		day: subscription.billingDay,
@@ -56,6 +58,7 @@ export function subscriptionToListItem(
 		paymentMethod: subscription.paymentMethod,
 		source: "subscription",
 		startDate: subscription.startDate,
+		storeName: subscription.storeName,
 		tags: subscription.tags,
 		title: subscription.name,
 	};
@@ -68,6 +71,7 @@ export function recurringPaymentToListItem(
 	const account = accounts.find(item => item.id === payment.financialAccountId);
 	return {
 		accountName: account ? getFinancialAccountDisplayName(account) : undefined,
+		accountType: account?.type,
 		active: payment.isActive,
 		amount: Number(payment.amount),
 		day: payment.dayOfMonth ?? payment.day ?? null,
@@ -80,6 +84,7 @@ export function recurringPaymentToListItem(
 		paymentMethod: payment.paymentMethod,
 		source: "recurring",
 		startDate: payment.startDate,
+		storeName: payment.storeName,
 		tags: payment.tags,
 		title: payment.name,
 	};

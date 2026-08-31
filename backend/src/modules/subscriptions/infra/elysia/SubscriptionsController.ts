@@ -1,3 +1,4 @@
+import { startOfDay, subDays } from "date-fns";
 import Elysia, { t } from "elysia";
 import { assertDirectOwnership, assertPaymentAccountOwnership, requireUserId } from "~/modules/auth";
 import {
@@ -6,6 +7,7 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
+import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { deleteLinkedTransactions } from "~/modules/transactions/application/delete-linked-transactions";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
@@ -19,6 +21,7 @@ const subscriptionColumns = [
 	"frequency",
 	"paymentMethod",
 	"financialAccountId",
+	"storeName",
 	"startDate",
 	"endDate",
 	"isActive",
@@ -160,6 +163,7 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 			const userId = await requireUserId(request);
 			if (body.financialAccountId)
 				await assertPaymentAccountOwnership(body.financialAccountId, body.paymentMethod ?? "CREDIT", userId);
+			if (body.storeName) await resolveStore(userId, body.storeName);
 			const tagIds = await assertTagOwnership(
 				body.tagIds ?? (body.categoryId ? [body.categoryId] : []),
 				userId,
@@ -176,6 +180,7 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 						name: body.name,
 						paymentMethod: body.paymentMethod ?? "CREDIT",
 						startDate: new Date(body.startDate),
+						storeName: body.storeName,
 						userId,
 					},
 				])
@@ -204,6 +209,7 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 				name: t.String({ maxLength: 100 }),
 				paymentMethod: t.Optional(PaymentMethod),
 				startDate: t.String(),
+				storeName: t.Optional(t.String({ maxLength: 200 })),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
 			}),
 			detail: { tags: ["Subscriptions"] },
@@ -234,6 +240,7 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 					(body.paymentMethod ?? existing.paymentMethod) as typeof PaymentMethod.static,
 					userId,
 				);
+			if (body.storeName) await resolveStore(userId, body.storeName);
 
 			// Record history
 			const historyEntries: Array<{
@@ -263,7 +270,6 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 			if (historyEntries.length > 0) {
 				await executeStatement(db.sql.public.SubscriptionHistory.insert(historyEntries as never).build());
 			}
-
 			const subscription = await queryFirst(
 				db.sql.public.Subscription.update({
 					...(body.name && { name: body.name }),
@@ -274,10 +280,12 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 						financialAccountId: body.financialAccountId || null,
 					}),
 					...(body.paymentMethod && { paymentMethod: body.paymentMethod }),
+					...(body.storeName !== undefined && { storeName: body.storeName }),
 					...(body.endDate !== undefined && {
 						endDate: body.endDate ? new Date(body.endDate) : null,
 					}),
 					...(body.isActive !== undefined && { isActive: body.isActive }),
+					materializedThrough: subDays(startOfDay(new Date()), 1),
 					updatedAt: new Date(),
 				} as never)
 					.where((fields, functions) => functions.eq(fields.id, params.id))
@@ -308,6 +316,7 @@ export const SubscriptionsController = new Elysia({ prefix: "/subscriptions" })
 				isActive: t.Optional(t.Boolean()),
 				name: t.Optional(t.String({ maxLength: 100 })),
 				paymentMethod: t.Optional(PaymentMethod),
+				storeName: t.Optional(t.Nullable(t.String({ maxLength: 200 }))),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
 			}),
 			detail: { tags: ["Subscriptions"] },

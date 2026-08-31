@@ -1,17 +1,12 @@
 import { HiArrowDown, HiArrowUp, HiCheck, HiPause, HiPencil, HiPlay, HiTrash } from "react-icons/hi2";
-import { LuLandmark } from "react-icons/lu";
-import { TransactionTags } from "@/components/transactions/TransactionListItem/TransactionTags";
+import { TransactionListItem } from "@/components/transactions";
+import type { ItemAction } from "@/components/transactions/TransactionListItem/ItemActions";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
-import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
-import { ListItemLayout } from "@/components/ui/ListItemLayout";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
+import type { Transaction } from "@/lib/api";
 import { formatLocalDate } from "@/lib/date";
 import { frequencyLabels, paymentMethodLabels, sourceLabels } from "./constants";
 import { isRecurrenceEnded } from "./recurrence-dates";
 import type { RecurringListItemData } from "./types";
-
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 export function RecurringListItem({
 	deleting,
@@ -31,71 +26,68 @@ export function RecurringListItem({
 	const isIncome = item.direction === "INCOME";
 	const hasEnded = isRecurrenceEnded(item.endDate);
 	const paymentMethod = item.paymentMethod ? paymentMethodLabels[item.paymentMethod] : undefined;
+	const actionItems: ItemAction[] = [
+		{
+			ariaLabel: "Editar recorrência",
+			disabled: toggling || deleting,
+			icon: <HiPencil />,
+			onClick: onEdit,
+			text: "Editar",
+		},
+		...(!hasEnded
+			? [
+					{
+						ariaLabel: item.active ? "Pausar recorrência" : "Retomar recorrência",
+						disabled: toggling || deleting,
+						icon: item.active ? <HiPause /> : <HiPlay />,
+						onClick: onToggle,
+						text: item.active ? "Pausar" : "Retomar",
+					},
+				]
+			: []),
+		{
+			ariaLabel: "Excluir recorrência",
+			color: "destructive",
+			confirmation: `Excluir ${item.title} permanentemente?`,
+			confirmIcon: <HiCheck />,
+			disabled: toggling || deleting,
+			icon: <HiTrash />,
+			onConfirm: onDelete,
+			text: "Excluir",
+		},
+	];
+	const transaction: Transaction = {
+		amount: item.amount,
+		createdAt: item.startDate,
+		date: item.startDate,
+		id: item.id,
+		...(item.direction === "INCOME"
+			? {
+					destinationAccountType: item.accountType,
+					destinationFinancialAccountId: item.financialAccountId,
+					destinationName: item.accountName,
+				}
+			: {
+					originAccountType: item.accountType,
+					originFinancialAccountId: item.financialAccountId,
+					originName: item.accountName,
+				}),
+		storeName: item.storeName,
+		tags: item.tags,
+		type: item.direction,
+	};
 
 	return (
-		<ListItemLayout
-			actions={
-				<>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								aria-label="Editar recorrência"
-								className="cursor-pointer disabled:cursor-not-allowed"
-								disabled={toggling || deleting}
-								onClick={onEdit}
-								size="icon-sm"
-								variant="outline"
-							>
-								<HiPencil />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Editar</TooltipContent>
-					</Tooltip>
-					{!hasEnded ? (
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									aria-label={item.active ? "Pausar recorrência" : "Retomar recorrência"}
-									className="cursor-pointer disabled:cursor-not-allowed"
-									disabled={toggling || deleting}
-									onClick={onToggle}
-									size="icon-sm"
-									variant="outline"
-								>
-									{item.active ? <HiPause /> : <HiPlay />}
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent>{item.active ? "Pausar" : "Retomar"}</TooltipContent>
-						</Tooltip>
-					) : null}
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<span>
-								<ConfirmActionButton
-									aria-label="Excluir recorrência"
-									className="cursor-pointer disabled:cursor-not-allowed"
-									confirmation={`Excluir ${item.title} permanentemente?`}
-									confirmChildren={<HiCheck />}
-									disabled={toggling || deleting}
-									onConfirm={onDelete}
-									size="icon-sm"
-									variant="destructive"
-								>
-									<HiTrash />
-								</ConfirmActionButton>
-							</span>
-						</TooltipTrigger>
-						<TooltipContent>Excluir</TooltipContent>
-					</Tooltip>
-				</>
-			}
+		<TransactionListItem
+			actionItems={actionItems}
 			amount={
 				<p className={`whitespace-nowrap font-bold ${isIncome ? "text-emerald-600" : "text-rose-600"}`}>
 					{isIncome ? "+" : "−"}
-					{currency.format(item.amount)}
+					{new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(item.amount)}
 				</p>
 			}
 			className={item.active ? undefined : "opacity-60"}
+			deleting={deleting || toggling}
 			icon={
 				<div
 					className={`flex size-11 shrink-0 items-center justify-center rounded-2xl ${
@@ -105,25 +97,15 @@ export function RecurringListItem({
 					{isIncome ? <HiArrowDown aria-hidden="true" /> : <HiArrowUp aria-hidden="true" />}
 				</div>
 			}
-			metadata={
-				<>
-					<span className="text-muted-foreground text-xs">
-						{frequencyLabels[item.frequency]}
-						{item.day ? ` · dia ${item.day}` : ""}
-						{paymentMethod ? ` · ${paymentMethod}` : ""}
-						{item.startDate ? ` · inicia ${formatLocalDate(item.startDate)}` : ""}
-						{item.endDate ? ` · até ${formatLocalDate(item.endDate)}` : ""}
-					</span>
-					{item.accountName ? (
-						<Badge className="h-7 max-w-full gap-1.5 px-2.5 font-normal" variant="outline">
-							<LuLandmark aria-hidden="true" />
-							<span className="text-muted-foreground">Conta:</span>
-							<span className="truncate">{item.accountName}</span>
-						</Badge>
-					) : null}
-				</>
+			metadataPrefix={
+				<span className="text-muted-foreground text-xs">
+					{frequencyLabels[item.frequency]}
+					{item.day ? ` · dia ${item.day}` : ""}
+					{paymentMethod ? ` · ${paymentMethod}` : ""}
+					{item.startDate ? ` · inicia ${formatLocalDate(item.startDate)}` : ""}
+					{item.endDate ? ` · até ${formatLocalDate(item.endDate)}` : ""}
+				</span>
 			}
-			tags={<TransactionTags tags={item.tags} />}
 			title={
 				<div className="flex min-w-0 flex-wrap items-center gap-2">
 					<p className="min-w-0 flex-1 truncate font-semibold leading-6">{item.title}</p>
@@ -132,6 +114,7 @@ export function RecurringListItem({
 					{hasEnded && <Badge variant="secondary">Encerrada</Badge>}
 				</div>
 			}
+			transaction={transaction}
 		/>
 	);
 }

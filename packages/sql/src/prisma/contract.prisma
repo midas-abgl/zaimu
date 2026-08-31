@@ -197,6 +197,7 @@ namespace public {
     currentInstallment      SmallInt                @default(1)
     installmentAmount       Numeric(12, 2)
     purchaseDate            Date
+    time                    Time(3)?
     categoryId              VarChar(36)?
     parentId                VarChar(36)?
 		subscriptionId          VarChar(36)?
@@ -324,6 +325,7 @@ namespace public {
     endDate                   Date?
     categoryId                VarChar(36)?
     financialAccountId        VarChar(36)?
+    storeName                 VarChar(200)?
     paymentMethod             pg.enum(PaymentMethod)       @default("DEBIT")
     isActive                  Boolean                      @default(true)
     createdAt                 Timestamp(3)                 @default(now())
@@ -359,6 +361,7 @@ namespace public {
     payDay          SmallInt
     startDate       Date
     autoGenerateFrom Date                @default(dbgenerated("CURRENT_DATE"))
+    materializedThrough Date             @default(dbgenerated("CURRENT_DATE - 1"))
     endDate         Date?
     isActive        Boolean                      @default(true)
     createdAt       Timestamp(3)                 @default(now())
@@ -409,7 +412,9 @@ namespace public {
     frequency             pg.enum(RecurrenceFrequency) @default("MONTHLY")
     paymentMethod         pg.enum(PaymentMethod)       @default("CREDIT")
     financialAccountId    VarChar(36)?
+    storeName             VarChar(200)?
     startDate             Date
+    materializedThrough   Date                         @default(dbgenerated("CURRENT_DATE - 1"))
     endDate               Date?
     isActive              Boolean                      @default(true)
     createdAt             Timestamp(3)                 @default(now())
@@ -440,11 +445,13 @@ namespace public {
     id                            VarChar(36)              @id(map: "Transaction_pkey") @default(dbgenerated("cuid2()"))
     amount                        Numeric(12, 2)
     date                          Date
+    time                          Time(3)?
     description                   VarChar(1000)?
     storeName                     VarChar(200)?
     type                          pg.enum(TransactionType) @default("EXPENSE")
     categoryId                    VarChar(36)?
     recurrenceId                  VarChar(36)?
+    recurrenceOccurrenceDate      Date?
     salaryId                      VarChar(36)?
     salaryOccurrenceDate          Date?
     subscriptionId                VarChar(36)?
@@ -461,6 +468,7 @@ namespace public {
     salary                        Salary?                  @relation(fields: [salaryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_salaryId_fkey", index: false)
     subscription                  Subscription?            @relation(fields: [subscriptionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_subscriptionId_fkey", index: false)
 
+    @@index([recurrenceId, recurrenceOccurrenceDate], map: "Transaction_recurrenceId_occurrenceDate_key", unique: true)
     @@index([salaryId, salaryOccurrenceDate], map: "Transaction_salaryId_occurrenceDate_key", unique: true)
     @@index([subscriptionId, subscriptionOccurrenceDate], map: "Transaction_subscriptionId_occurrenceDate_key", unique: true)
     @@map("Transaction")

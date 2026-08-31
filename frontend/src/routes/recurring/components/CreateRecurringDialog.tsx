@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
+import { StorePicker } from "@/components/stores";
 import { TagPicker } from "@/components/tags";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
@@ -37,6 +38,7 @@ const initialDraft = (item?: RecurringListItemData): RecurringDraft => ({
 	paymentMethod: item?.paymentMethod ?? "CREDIT",
 	source: item?.source ?? "subscription",
 	startDate: item?.startDate.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+	storeName: item?.storeName ?? "",
 	tagIds: item?.tags?.map(tag => tag.id) ?? [],
 });
 
@@ -118,6 +120,7 @@ export function CreateRecurringDialog({
 						frequency: draft.frequency,
 						name: draft.name.trim(),
 						paymentMethod: draft.paymentMethod,
+						storeName: draft.storeName.trim() || null,
 						tagIds: draft.tagIds,
 					});
 				}
@@ -129,6 +132,7 @@ export function CreateRecurringDialog({
 					frequency: draft.frequency,
 					name: draft.name.trim(),
 					paymentMethod: draft.paymentMethod,
+					storeName: draft.storeName.trim() || null,
 					tagIds: draft.tagIds,
 				});
 			}
@@ -178,6 +182,7 @@ export function CreateRecurringDialog({
 					name: draft.name.trim(),
 					paymentMethod: draft.paymentMethod,
 					startDate: draft.startDate,
+					storeName: draft.storeName.trim() || undefined,
 					tagIds: draft.tagIds,
 				});
 				if (addPastTransactions) {
@@ -194,6 +199,9 @@ export function CreateRecurringDialog({
 								dataService.creditCards.addPurchase(selectedCreditCardId, {
 									description: draft.name.trim(),
 									purchaseDate,
+									storeName: draft.storeName.trim() || undefined,
+									subscriptionId: subscription.id,
+									subscriptionOccurrenceDate: purchaseDate,
 									tagIds: draft.tagIds,
 									totalAmount: amount,
 								}),
@@ -206,6 +214,7 @@ export function CreateRecurringDialog({
 									amount,
 									date,
 									description: draft.name.trim(),
+									storeName: draft.storeName.trim() || undefined,
 									subscriptionId: subscription.id,
 									subscriptionOccurrenceDate: date,
 									type: "EXPENSE",
@@ -225,6 +234,7 @@ export function CreateRecurringDialog({
 				name: draft.name.trim(),
 				paymentMethod: draft.paymentMethod,
 				startDate: draft.startDate,
+				storeName: draft.storeName.trim() || undefined,
 				tagIds: draft.tagIds,
 			});
 			if (addPastTransactions) {
@@ -241,6 +251,8 @@ export function CreateRecurringDialog({
 							date,
 							description: draft.name.trim(),
 							recurrenceId: payment.id,
+							recurrenceOccurrenceDate: date,
+							storeName: draft.storeName.trim() || undefined,
 							type: "EXPENSE",
 						}),
 					),
@@ -454,6 +466,12 @@ export function CreateRecurringDialog({
 							value={draft.endDate}
 						/>
 						<TagPicker onValueChange={tagIds => setField("tagIds", tagIds)} value={draft.tagIds} />
+						{draft.source !== "salary" && (
+							<StorePicker
+								onValueChange={storeName => setField("storeName", storeName)}
+								value={draft.storeName}
+							/>
+						)}
 					</div>
 					<DialogFooter>
 						<Button className="cursor-pointer" onClick={() => handleOpenChange(false)} variant="outline">

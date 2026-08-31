@@ -4,7 +4,7 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
-import { db, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
+import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
 
 type SalaryFrequency = "BIWEEKLY" | "DAILY" | "MONTHLY" | "WEEKLY" | "YEARLY";
 
@@ -54,14 +54,15 @@ function monthlyOccurrence(start: Date, payDay: number, monthOffset = 0): Date {
 }
 
 export async function materializeSalaryTransactions(userId: string) {
+	const today = startOfDay(new Date());
 	const salaries = await queryRows(
 		db.sql.public.Salary.select(
 			"id",
 			"amount",
-			"autoGenerateFrom",
 			"endDate",
 			"financialAccountId",
 			"frequency",
+			"materializedThrough",
 			"payDay",
 			"source",
 			"startDate",
@@ -95,7 +96,8 @@ export async function materializeSalaryTransactions(userId: string) {
 			salary.startDate,
 			salary.payDay,
 			salary.endDate,
-		).filter(date => date >= format(salary.autoGenerateFrom, "yyyy-MM-dd") && !scheduledDates.has(date));
+			today,
+		).filter(date => date > format(salary.materializedThrough, "yyyy-MM-dd") && !scheduledDates.has(date));
 
 		for (const date of dates) {
 			const tagIds = (tagsBySalary.get(salary.id) ?? []).map(tag => tag.id);
@@ -134,5 +136,10 @@ export async function materializeSalaryTransactions(userId: string) {
 				tagIds,
 			});
 		}
+		await executeStatement(
+			db.sql.public.Salary.update({ materializedThrough: today } as never)
+				.where((fields, functions) => functions.eq(fields.id, salary.id))
+				.build(),
+		);
 	}
 }

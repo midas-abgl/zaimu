@@ -20,11 +20,13 @@ const transactionColumns = [
 	"id",
 	"amount",
 	"date",
+	"time",
 	"description",
 	"storeName",
 	"type",
 	"categoryId",
 	"recurrenceId",
+	"recurrenceOccurrenceDate",
 	"salaryId",
 	"salaryOccurrenceDate",
 	"subscriptionId",
@@ -36,6 +38,15 @@ const transactionColumns = [
 ] as const;
 
 const TransactionType = t.Union([t.Literal("INCOME"), t.Literal("EXPENSE"), t.Literal("TRANSFER")]);
+const timePattern = /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
+
+function resolveTransactionTime(value: string | undefined): string {
+	if (value !== undefined) {
+		if (!timePattern.test(value)) throw new HttpException("Informe um horário válido", 400);
+		return value;
+	}
+	return new Date().toTimeString().slice(0, 5);
+}
 
 export const TransactionsController = new Elysia({ prefix: "/transactions" })
 	.get(
@@ -118,9 +129,13 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						"sql/varchar@1",
 					),
 					recurrenceId: f.Transaction.recurrenceId,
+					recurrenceOccurrenceDate: f.Transaction.recurrenceOccurrenceDate,
 					salaryId: f.Transaction.salaryId,
+					salaryOccurrenceDate: f.Transaction.salaryOccurrenceDate,
 					storeName: f.Transaction.storeName,
 					subscriptionId: f.Transaction.subscriptionId,
+					subscriptionOccurrenceDate: f.Transaction.subscriptionOccurrenceDate,
+					time: f.Transaction.time,
 					type: f.Transaction.type,
 				}))
 				.where((f, fn) =>
@@ -195,6 +210,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				originFinancialAccountId: string;
 				statementId: string;
 				storeName: string | null;
+				time: string | null;
 				sourceName: string;
 			}> = [];
 			if (!query.type || query.type === "EXPENSE") {
@@ -232,6 +248,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 							),
 						statementId: f.CreditPurchase.statementId,
 						storeName: f.CreditPurchase.storeName,
+						time: f.CreditPurchase.time,
 					}))
 					.where((f, fn) =>
 						fn.and(fn.eq(f.FinancialAccount.userId, userId), fn.eq(f.CreditPurchase.currentInstallment, 1)),
@@ -356,25 +373,32 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (body.subscriptionId) await assertDirectOwnership("Subscription", body.subscriptionId, userId);
 			let originFinancialAccountId = body.originFinancialAccountId;
 			let inheritedPaymentAccount = false;
-			if (!originFinancialAccountId && !body.destinationFinancialAccountId && body.recurrenceId) {
+			let inheritedStoreName: string | null | undefined;
+			if (body.recurrenceId) {
 				const recurringPayment = await queryFirst(
-					db.sql.public.RecurringPayment.select("financialAccountId")
+					db.sql.public.RecurringPayment.select("financialAccountId", "storeName")
 						.where((fields, functions) => functions.eq(fields.id, body.recurrenceId!))
 						.limit(1)
 						.build(),
 				);
-				originFinancialAccountId = recurringPayment?.financialAccountId ?? undefined;
-				inheritedPaymentAccount = Boolean(originFinancialAccountId);
+				inheritedStoreName = recurringPayment?.storeName;
+				if (!originFinancialAccountId && !body.destinationFinancialAccountId) {
+					originFinancialAccountId = recurringPayment?.financialAccountId ?? undefined;
+					inheritedPaymentAccount = Boolean(originFinancialAccountId);
+				}
 			}
-			if (!originFinancialAccountId && !body.destinationFinancialAccountId && body.subscriptionId) {
+			if (body.subscriptionId) {
 				const subscription = await queryFirst(
-					db.sql.public.Subscription.select("financialAccountId")
+					db.sql.public.Subscription.select("financialAccountId", "storeName")
 						.where((fields, functions) => functions.eq(fields.id, body.subscriptionId!))
 						.limit(1)
 						.build(),
 				);
-				originFinancialAccountId = subscription?.financialAccountId ?? undefined;
-				inheritedPaymentAccount = Boolean(originFinancialAccountId);
+				inheritedStoreName = subscription?.storeName;
+				if (!originFinancialAccountId && !body.destinationFinancialAccountId) {
+					originFinancialAccountId = subscription?.financialAccountId ?? undefined;
+					inheritedPaymentAccount = Boolean(originFinancialAccountId);
+				}
 			}
 			if (originFinancialAccountId) {
 				if (inheritedPaymentAccount)
@@ -408,39 +432,103 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			) {
 				throw new HttpException("Informe uma conta financeira ou recorrência", 400);
 			}
-			if (body.storeName && (body.type ?? "EXPENSE") !== "EXPENSE") {
+			const storeName = body.storeName ?? inheritedStoreName;
+			if (storeName && (body.type ?? "EXPENSE") !== "EXPENSE") {
 				throw new HttpException("Loja só pode ser informada em transações de saída", 400);
 			}
-			if (body.storeName) await resolveStore(userId, body.storeName);
-			const transaction = await queryFirst(
-				db.sql.public.Transaction.insert([
-					{
-						amount: String(body.amount),
-						categoryId: tagIds[0],
-						date: new Date(body.date),
-						description: body.description,
-						destinationFinancialAccountId: body.destinationFinancialAccountId,
-						originFinancialAccountId,
-						recurrenceId: body.recurrenceId,
-						salaryId: body.salaryId,
-						salaryOccurrenceDate: body.salaryOccurrenceDate ? new Date(body.salaryOccurrenceDate) : undefined,
-						storeName: body.storeName,
-						subscriptionId: body.subscriptionId,
-						subscriptionOccurrenceDate: body.subscriptionOccurrenceDate
-							? new Date(body.subscriptionOccurrenceDate)
-							: undefined,
-						type: body.type ?? "EXPENSE",
-					},
-				])
-					.returning(...transactionColumns)
-					.build(),
-			);
+			if (storeName) await resolveStore(userId, storeName);
+			const salaryOccurrenceDate = body.salaryId
+				? new Date(body.salaryOccurrenceDate ?? body.date)
+				: undefined;
+			const recurrenceOccurrenceDate = body.recurrenceId
+				? new Date(body.recurrenceOccurrenceDate ?? body.date)
+				: undefined;
+			const subscriptionOccurrenceDate = body.subscriptionId
+				? new Date(body.subscriptionOccurrenceDate ?? body.date)
+				: undefined;
+			const findExistingOccurrence = () => {
+				if (body.recurrenceId && recurrenceOccurrenceDate) {
+					return queryFirst(
+						db.sql.public.Transaction.select(...transactionColumns)
+							.where((fields, functions) =>
+								functions.and(
+									functions.eq(fields.recurrenceId, body.recurrenceId!),
+									functions.eq(fields.recurrenceOccurrenceDate, recurrenceOccurrenceDate),
+								),
+							)
+							.limit(1)
+							.build(),
+					);
+				}
+				if (body.salaryId && salaryOccurrenceDate) {
+					return queryFirst(
+						db.sql.public.Transaction.select(...transactionColumns)
+							.where((fields, functions) =>
+								functions.and(
+									functions.eq(fields.salaryId, body.salaryId!),
+									functions.eq(fields.salaryOccurrenceDate, salaryOccurrenceDate),
+								),
+							)
+							.limit(1)
+							.build(),
+					);
+				}
+				if (body.subscriptionId && subscriptionOccurrenceDate) {
+					return queryFirst(
+						db.sql.public.Transaction.select(...transactionColumns)
+							.where((fields, functions) =>
+								functions.and(
+									functions.eq(fields.subscriptionId, body.subscriptionId!),
+									functions.eq(fields.subscriptionOccurrenceDate, subscriptionOccurrenceDate),
+								),
+							)
+							.limit(1)
+							.build(),
+					);
+				}
+				return Promise.resolve(undefined);
+			};
+			let transaction = await findExistingOccurrence();
+			let wasCreated = false;
+			if (!transaction) {
+				try {
+					transaction = await queryFirst(
+						db.sql.public.Transaction.insert([
+							{
+								amount: String(body.amount),
+								categoryId: tagIds[0],
+								date: new Date(body.date),
+								description: body.description,
+								destinationFinancialAccountId: body.destinationFinancialAccountId,
+								originFinancialAccountId,
+								recurrenceId: body.recurrenceId,
+								recurrenceOccurrenceDate,
+								salaryId: body.salaryId,
+								salaryOccurrenceDate,
+								storeName,
+								subscriptionId: body.subscriptionId,
+								subscriptionOccurrenceDate,
+								time: resolveTransactionTime(body.time),
+								type: body.type ?? "EXPENSE",
+							},
+						])
+							.returning(...transactionColumns)
+							.build(),
+					);
+					wasCreated = Boolean(transaction);
+				} catch (error) {
+					transaction = await findExistingOccurrence();
+					if (!transaction) throw error;
+				}
+			}
 			if (!transaction) throw new HttpException("Transaction not created", 500);
-			await replaceEntityTags({
-				entityIds: [transaction.id],
-				entityType: tagEntityType.transaction,
-				tagIds,
-			});
+			if (wasCreated) {
+				await replaceEntityTags({
+					entityIds: [transaction.id],
+					entityType: tagEntityType.transaction,
+					tagIds,
+				});
+			}
 
 			const tagsByTransaction = await getTagsByEntity(tagEntityType.transaction, [transaction.id]);
 			const tags = tagsByTransaction.get(transaction.id) ?? [];
@@ -455,12 +543,14 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				destinationFinancialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				originFinancialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				recurrenceId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
+				recurrenceOccurrenceDate: t.Optional(t.String()),
 				salaryId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				salaryOccurrenceDate: t.Optional(t.String()),
 				storeName: t.Optional(t.String({ maxLength: 200 })),
 				subscriptionId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				subscriptionOccurrenceDate: t.Optional(t.String()),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
+				time: t.Optional(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" })),
 				type: t.Optional(TransactionType),
 			}),
 			detail: { tags: ["Transactions"] },
@@ -545,6 +635,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				db.sql.public.Transaction.update({
 					...(body.amount !== undefined && { amount: String(body.amount) }),
 					...(body.date && { date: new Date(body.date) }),
+					...(body.time !== undefined && { time: body.time }),
 					...(body.description !== undefined && { description: body.description }),
 					...(body.storeName !== undefined && { storeName: body.storeName }),
 					...(body.type && { type: body.type }),
@@ -584,6 +675,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				originFinancialAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				storeName: t.Optional(t.Nullable(t.String({ maxLength: 200 }))),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
+				time: t.Optional(t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" }))),
 				type: t.Optional(TransactionType),
 			}),
 			detail: { tags: ["Transactions"] },

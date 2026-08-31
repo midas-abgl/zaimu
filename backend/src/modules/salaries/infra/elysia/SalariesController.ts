@@ -1,3 +1,4 @@
+import { startOfDay, subDays } from "date-fns";
 import Elysia, { t } from "elysia";
 import { assertCheckingAccountOwnership, assertDirectOwnership, requireUserId } from "~/modules/auth";
 import {
@@ -211,7 +212,6 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 			if (historyEntries.length > 0) {
 				await executeStatement(db.sql.public.SalaryHistory.insert(historyEntries as never).build());
 			}
-
 			const salary = await queryFirst(
 				db.sql.public.Salary.update({
 					...(body.source && { source: body.source }),
@@ -223,6 +223,7 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 						endDate: body.endDate ? new Date(body.endDate) : null,
 					}),
 					...(body.isActive !== undefined && { isActive: body.isActive }),
+					materializedThrough: subDays(startOfDay(new Date()), 1),
 					updatedAt: new Date(),
 				} as never)
 					.where((fields, functions) => functions.eq(fields.id, params.id))

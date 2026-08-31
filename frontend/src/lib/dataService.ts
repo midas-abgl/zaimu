@@ -23,6 +23,7 @@ import type {
 	Subscription,
 	Transaction,
 } from "./api";
+import { getCurrentLocalTime } from "./date";
 import { calculateFinancialAccountBalances } from "./financial-account";
 import { normalizeInstitutionName } from "./financial-institution";
 import {
@@ -297,6 +298,9 @@ export const dataService = {
 				storeName?: string;
 				installments?: number;
 				purchaseDate: string;
+				subscriptionId?: string;
+				subscriptionOccurrenceDate?: string;
+				time?: string;
 				tagIds?: string[];
 				totalAmount: number;
 			},
@@ -309,6 +313,17 @@ export const dataService = {
 			}
 			const card = (await localCreditCards.getById(cardId))?.data;
 			if (!card) throw new Error("Cartão não encontrado");
+			if ((data.subscriptionId === undefined) !== (data.subscriptionOccurrenceDate === undefined)) {
+				throw new Error("Informe a assinatura e a data da ocorrência juntas");
+			}
+			if (data.subscriptionId && data.subscriptionOccurrenceDate) {
+				const existing = (await localCreditPurchases.getAll()).find(
+					item =>
+						item.data.subscriptionId === data.subscriptionId &&
+						item.data.subscriptionOccurrenceDate === data.subscriptionOccurrenceDate,
+				);
+				if (existing) return [existing.data];
+			}
 			const installments = Math.max(1, data.installments ?? 1);
 			const installmentAmount = data.totalAmount / installments;
 			const purchaseDate = new Date(`${data.purchaseDate}T12:00:00`);
@@ -338,7 +353,10 @@ export const dataService = {
 				purchaseDate: data.purchaseDate,
 				statementId: statement.id,
 				storeName: data.storeName,
+				subscriptionId: data.subscriptionId,
+				subscriptionOccurrenceDate: data.subscriptionOccurrenceDate,
 				tagIds: data.tagIds,
+				time: data.time ?? getCurrentLocalTime(),
 				totalAmount: data.totalAmount,
 			};
 			await Promise.all([
@@ -451,7 +469,7 @@ export const dataService = {
 		async payStatement(
 			cardId: string,
 			statementId: string,
-			data: { amount?: number; date: string; financialAccountId: string },
+			data: { amount?: number; date: string; financialAccountId: string; time?: string },
 		): Promise<{ statement: CreditCardStatement; transaction: Transaction }> {
 			if (!isGuestMode()) {
 				const payment = await fetchWithAuth<{ statement: CreditCardStatement; transaction: Transaction }>(
@@ -498,6 +516,7 @@ export const dataService = {
 				description: `Pagamento da fatura — ${storedCard.data.accountName || "Cartão de crédito"}`,
 				id: crypto.randomUUID(),
 				originFinancialAccountId: data.financialAccountId,
+				time: data.time ?? getCurrentLocalTime(),
 				type: "EXPENSE",
 			};
 			await Promise.all([
@@ -515,6 +534,7 @@ export const dataService = {
 				installments: number;
 				storeName?: string | null;
 				purchaseDate: string;
+				time?: string | null;
 				tagIds: string[];
 				totalAmount: number;
 			},
@@ -573,6 +593,7 @@ export const dataService = {
 				purchaseDate: data.purchaseDate,
 				statementId: targetStatement.id,
 				tagIds: data.tagIds,
+				...(data.time !== undefined && { time: data.time }),
 				totalAmount: data.totalAmount,
 			};
 			const changedStatement = statement.id !== targetStatement.id;
@@ -1306,6 +1327,28 @@ export const dataService = {
 	transactions: {
 		async create(data: Omit<Transaction, "id" | "createdAt">): Promise<Transaction> {
 			if (isGuestMode()) {
+				const recurrenceOccurrenceDate = data.recurrenceId
+					? (data.recurrenceOccurrenceDate ?? data.date)
+					: undefined;
+				const salaryOccurrenceDate = data.salaryId ? (data.salaryOccurrenceDate ?? data.date) : undefined;
+				const subscriptionOccurrenceDate = data.subscriptionId
+					? (data.subscriptionOccurrenceDate ?? data.date)
+					: undefined;
+				if (recurrenceOccurrenceDate || salaryOccurrenceDate || subscriptionOccurrenceDate) {
+					const existing = (await localTransactions.getAll()).find(
+						item =>
+							(Boolean(recurrenceOccurrenceDate) &&
+								item.data.recurrenceId === data.recurrenceId &&
+								item.data.recurrenceOccurrenceDate === recurrenceOccurrenceDate) ||
+							(Boolean(salaryOccurrenceDate) &&
+								item.data.salaryId === data.salaryId &&
+								item.data.salaryOccurrenceDate === salaryOccurrenceDate) ||
+							(Boolean(subscriptionOccurrenceDate) &&
+								item.data.subscriptionId === data.subscriptionId &&
+								item.data.subscriptionOccurrenceDate === subscriptionOccurrenceDate),
+					);
+					if (existing) return existing.data;
+				}
 				const hasExplicitTags = data.tagIds !== undefined || data.categoryId !== undefined;
 				const [recurringPayment, salary, subscription] = await Promise.all([
 					data.recurrenceId ? localRecurringPayments.getById(data.recurrenceId) : undefined,
@@ -1321,7 +1364,11 @@ export const dataService = {
 					categoryId: tagIds[0],
 					createdAt: new Date().toISOString(),
 					id: crypto.randomUUID(),
+					recurrenceOccurrenceDate,
+					salaryOccurrenceDate,
+					subscriptionOccurrenceDate,
 					tagIds,
+					time: data.time ?? getCurrentLocalTime(),
 				};
 				await localTransactions.put(newTransaction, newTransaction.id);
 				return newTransaction;
@@ -1406,6 +1453,7 @@ export const dataService = {
 								storeName: purchase.storeName,
 								tagIds,
 								tags,
+								time: purchase.time,
 								type: "EXPENSE" as const,
 							},
 						];

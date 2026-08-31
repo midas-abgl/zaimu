@@ -1,4 +1,4 @@
-import type { RecurringPayment, Salary, Subscription } from "@/lib/api";
+import type { FinancialAccount, RecurringPayment, Salary, Subscription } from "@/lib/api";
 
 export type RecurringSource = "salary" | "subscription" | "recurring";
 export type RecurringDirection = "INCOME" | "EXPENSE";
@@ -7,6 +7,7 @@ export type RecurrenceFrequency = Salary["frequency"];
 export interface RecurringListItemData {
 	financialAccountId?: string;
 	accountName?: string;
+	accountType?: FinancialAccount["type"];
 	active: boolean;
 	amount: number;
 	day: number | null;
@@ -16,6 +17,7 @@ export interface RecurringListItemData {
 	monthlyAmount: number;
 	endDate?: string | null;
 	paymentMethod?: Subscription["paymentMethod"] | RecurringPayment["paymentMethod"];
+	storeName?: string | null;
 	source: RecurringSource;
 	startDate: string;
 	tags?: RecurringPayment["tags"] | Salary["tags"] | Subscription["tags"];
@@ -32,5 +34,6 @@ export interface RecurringDraft {
 	paymentMethod: Subscription["paymentMethod"];
 	source: RecurringSource;
 	startDate: string;
+	storeName: string;
 	tagIds: string[];
 }

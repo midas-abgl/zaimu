@@ -10,6 +10,7 @@ interface Server {
 let server: Server;
 let db: typeof import("sql")["db"];
 let closeDatabase: () => Promise<void>;
+let queryRows: typeof import("sql")["queryRows"];
 const userIds: string[] = [];
 
 const jsonRequest = (path: string, method: string, body?: unknown, cookie?: string) =>
@@ -55,7 +56,7 @@ suite("Prisma 8 SQL query builder", () => {
 		process.env.NODE_ENV = "test";
 		process.env.BETTER_AUTH_SECRET ??= "zaimu-e2e-secret-with-at-least-32-characters";
 		({ server } = await import("../src/server"));
-		({ closeDatabase, db } = await import("sql"));
+		({ closeDatabase, db, queryRows } = await import("sql"));
 	});
 
 	afterAll(async () => {
@@ -114,7 +115,7 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(creditCardResponse.status).toBe(200);
 		const creditCardAccount = (await creditCardResponse.json()) as {
 			balance: number | null;
-			creditCard: { securityDeposit: number | null };
+			creditCard: { id: string; securityDeposit: number | null };
 			id: string;
 			institution: { id: string };
 		};
@@ -212,13 +213,15 @@ suite("Prisma 8 SQL query builder", () => {
 				frequency: "MONTHLY",
 				name: "Recorrência com tags",
 				startDate: "2026-08-01",
+				storeName: "Academia do bairro",
 				tagIds: [category.id, secondCategory.id],
 			},
 			owner.cookie,
 		);
 		expect(recurringResponse.status).toBe(200);
-		const recurring = (await recurringResponse.json()) as { id: string; tagIds: string[] };
+		const recurring = (await recurringResponse.json()) as { id: string; storeName: string; tagIds: string[] };
 		expect(recurring.tagIds).toEqual(expect.arrayContaining([category.id, secondCategory.id]));
+		expect(recurring.storeName).toBe("Academia do bairro");
 
 		const recurringTransactionResponse = await jsonRequest(
 			"/transactions/",
@@ -234,9 +237,38 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(recurringTransactionResponse.status).toBe(200);
 		const recurringTransaction = (await recurringTransactionResponse.json()) as {
 			id: string;
+			storeName: string;
 			tagIds: string[];
 		};
 		expect(recurringTransaction.tagIds).toEqual(expect.arrayContaining([category.id, secondCategory.id]));
+		expect(recurringTransaction.storeName).toBe("Academia do bairro");
+		expect(
+			(
+				await jsonRequest(
+					`/transactions/${recurringTransaction.id}`,
+					"PATCH",
+					{ date: "2026-08-28" },
+					owner.cookie,
+				)
+			).status,
+		).toBe(200);
+		const repeatedRecurringTransactionResponse = await jsonRequest(
+			"/transactions/",
+			"POST",
+			{
+				amount: 80,
+				date: "2026-08-10",
+				recurrenceId: recurring.id,
+				recurrenceOccurrenceDate: "2026-08-10",
+				type: "EXPENSE",
+			},
+			owner.cookie,
+		);
+		expect(repeatedRecurringTransactionResponse.status).toBe(200);
+		expect(await repeatedRecurringTransactionResponse.json()).toMatchObject({
+			date: "2026-08-28T00:00:00.000Z",
+			id: recurringTransaction.id,
+		});
 
 		const updatedRecurringResponse = await jsonRequest(
 			`/recurring/${recurring.id}`,
@@ -298,7 +330,23 @@ suite("Prisma 8 SQL query builder", () => {
 			owner.cookie,
 		);
 		expect(salaryTransactionResponse.status).toBe(200);
-		expect(((await salaryTransactionResponse.json()) as { tagIds: string[] }).tagIds).toEqual([category.id]);
+		const salaryTransaction = (await salaryTransactionResponse.json()) as { id: string; tagIds: string[] };
+		expect(salaryTransaction.tagIds).toEqual([category.id]);
+		const repeatedSalaryTransactionResponse = await jsonRequest(
+			"/transactions/",
+			"POST",
+			{
+				amount: 5000,
+				date: "2026-08-10",
+				salaryId: salary.id,
+				type: "INCOME",
+			},
+			owner.cookie,
+		);
+		expect(repeatedSalaryTransactionResponse.status).toBe(200);
+		expect(((await repeatedSalaryTransactionResponse.json()) as { id: string }).id).toBe(
+			salaryTransaction.id,
+		);
 
 		const subscriptionResponse = await jsonRequest(
 			"/subscriptions/",
@@ -310,13 +358,89 @@ suite("Prisma 8 SQL query builder", () => {
 				frequency: "MONTHLY",
 				name: "Assinatura com tags",
 				startDate: "2026-08-01",
+				storeName: "Streaming Brasil",
 				tagIds: [secondCategory.id],
 			},
 			owner.cookie,
 		);
 		expect(subscriptionResponse.status).toBe(200);
-		const subscription = (await subscriptionResponse.json()) as { id: string; tagIds: string[] };
+		const subscription = (await subscriptionResponse.json()) as {
+			id: string;
+			storeName: string;
+			tagIds: string[];
+		};
 		expect(subscription.tagIds).toEqual([secondCategory.id]);
+		expect(subscription.storeName).toBe("Streaming Brasil");
+		const initialSubscriptionPurchaseResponse = await jsonRequest(
+			`/credit-cards/${creditCardAccount.creditCard.id}/purchases`,
+			"POST",
+			{
+				description: "Assinatura com tags",
+				purchaseDate: "2026-08-10",
+				storeName: "Streaming Brasil",
+				subscriptionId: subscription.id,
+				subscriptionOccurrenceDate: "2026-08-10",
+				totalAmount: 30,
+			},
+			owner.cookie,
+		);
+		expect(initialSubscriptionPurchaseResponse.status).toBe(200);
+		const [initialSubscriptionPurchase] = (await initialSubscriptionPurchaseResponse.json()) as Array<{
+			id: string;
+		}>;
+		const subscriptionStatementsResponse = await jsonRequest(
+			`/credit-cards/${creditCardAccount.creditCard.id}/statements`,
+			"GET",
+			undefined,
+			owner.cookie,
+		);
+		expect(subscriptionStatementsResponse.status).toBe(200);
+		const linkedSubscriptionPurchases = await queryRows(
+			db.sql.public.CreditPurchase.select("id", "subscriptionOccurrenceDate")
+				.where((fields, functions) => functions.eq(fields.subscriptionId, subscription.id))
+				.build(),
+		);
+		expect(linkedSubscriptionPurchases).toHaveLength(1);
+		expect(linkedSubscriptionPurchases[0]?.id).toBe(initialSubscriptionPurchase?.id);
+		const repeatedLinkedPurchaseResponse = await jsonRequest(
+			`/credit-cards/${creditCardAccount.creditCard.id}/purchases`,
+			"POST",
+			{
+				description: "Assinatura com tags",
+				purchaseDate: "2026-08-10",
+				storeName: "Streaming Brasil",
+				subscriptionId: subscription.id,
+				subscriptionOccurrenceDate: "2026-08-10",
+				totalAmount: 30,
+			},
+			owner.cookie,
+		);
+		expect(repeatedLinkedPurchaseResponse.status).toBe(200);
+		expect(((await repeatedLinkedPurchaseResponse.json()) as Array<{ id: string }>)[0]?.id).toBe(
+			initialSubscriptionPurchase?.id,
+		);
+		const futureStatement = (
+			(await subscriptionStatementsResponse.json()) as Array<{ id: string; isForecast?: boolean }>
+		).find(statement => statement.isForecast);
+		expect(futureStatement).toBeDefined();
+		const futureStatementResponse = await jsonRequest(
+			`/credit-cards/${creditCardAccount.creditCard.id}/statements/${futureStatement!.id}`,
+			"GET",
+			undefined,
+			owner.cookie,
+		);
+		expect(futureStatementResponse.status).toBe(200);
+		expect(
+			((await futureStatementResponse.json()) as { purchases: Array<{ id: string; storeName: string }> })
+				.purchases,
+		).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					id: expect.stringContaining(`subscription-${subscription.id}-`),
+					storeName: "Streaming Brasil",
+				}),
+			]),
+		);
 
 		const subscriptionTransactionResponse = await jsonRequest(
 			"/transactions/",
@@ -332,9 +456,11 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(subscriptionTransactionResponse.status).toBe(200);
 		const subscriptionTransaction = (await subscriptionTransactionResponse.json()) as {
 			id: string;
+			storeName: string;
 			tagIds: string[];
 		};
 		expect(subscriptionTransaction.tagIds).toEqual([secondCategory.id]);
+		expect(subscriptionTransaction.storeName).toBe("Streaming Brasil");
 		const updateSubscriptionResponse = await jsonRequest(
 			`/subscriptions/${subscription.id}`,
 			"PATCH",
@@ -347,6 +473,19 @@ suite("Prisma 8 SQL query builder", () => {
 			owner.cookie,
 		);
 		expect(updateSubscriptionResponse.status).toBe(200);
+		await jsonRequest(
+			`/credit-cards/${creditCardAccount.creditCard.id}/statements`,
+			"GET",
+			undefined,
+			owner.cookie,
+		);
+		expect(
+			await queryRows(
+				db.sql.public.CreditPurchase.select("id")
+					.where((fields, functions) => functions.eq(fields.subscriptionId, subscription.id))
+					.build(),
+			),
+		).toHaveLength(1);
 		const updatedSubscriptionTransactionResponse = await jsonRequest(
 			`/transactions/${subscriptionTransaction.id}`,
 			"GET",
@@ -368,6 +507,46 @@ suite("Prisma 8 SQL query builder", () => {
 			tagIds: [secondCategory.id],
 		});
 
+		const today = new Date().toISOString().slice(0, 10);
+		const dueTodaySubscriptionResponse = await jsonRequest(
+			"/subscriptions/",
+			"POST",
+			{
+				amount: 12.5,
+				billingDay: Number(today.slice(8, 10)),
+				financialAccountId: creditCardAccount.id,
+				frequency: "MONTHLY",
+				name: "Assinatura vencendo hoje",
+				startDate: today,
+				storeName: "Loja da ocorrência atual",
+			},
+			owner.cookie,
+		);
+		expect(dueTodaySubscriptionResponse.status).toBe(200);
+		const dueTodaySubscription = (await dueTodaySubscriptionResponse.json()) as { id: string };
+		await Promise.all([
+			jsonRequest(
+				`/credit-cards/${creditCardAccount.creditCard.id}/statements`,
+				"GET",
+				undefined,
+				owner.cookie,
+			),
+			jsonRequest(
+				`/credit-cards/${creditCardAccount.creditCard.id}/statements`,
+				"GET",
+				undefined,
+				owner.cookie,
+			),
+		]);
+		const dueTodayPurchases = await queryRows(
+			db.sql.public.CreditPurchase.select("storeName", "subscriptionOccurrenceDate")
+				.where((fields, functions) => functions.eq(fields.subscriptionId, dueTodaySubscription.id))
+				.build(),
+		);
+		expect(dueTodayPurchases).toHaveLength(1);
+		expect(dueTodayPurchases[0]).toMatchObject({ storeName: "Loja da ocorrência atual" });
+		expect(dueTodayPurchases[0]?.subscriptionOccurrenceDate?.toISOString().slice(0, 10)).toBe(today);
+
 		const incomeResponse = await jsonRequest(
 			"/transactions/",
 			"POST",
@@ -376,13 +555,15 @@ suite("Prisma 8 SQL query builder", () => {
 				categoryId: category.id,
 				date: "2026-08-23",
 				destinationFinancialAccountId: account.id,
+				time: "08:15",
 				type: "INCOME",
 			},
 			owner.cookie,
 		);
 		expect(incomeResponse.status).toBe(200);
-		const income = (await incomeResponse.json()) as { amount: number; id: string };
+		const income = (await incomeResponse.json()) as { amount: number; id: string; time: string };
 		expect(income.amount).toBe(19.75);
+		expect(income.time).toStartWith("08:15");
 
 		const transactionsResponse = await jsonRequest("/transactions/", "GET", undefined, owner.cookie);
 		expect(transactionsResponse.status).toBe(200);
@@ -496,6 +677,7 @@ suite("Prisma 8 SQL query builder", () => {
 				installments: 2,
 				purchaseDate: "2026-08-02",
 				storeName: "Livraria Central",
+				time: "14:30",
 				totalAmount: 99.9,
 			},
 			owner.cookie,
@@ -506,6 +688,7 @@ suite("Prisma 8 SQL query builder", () => {
 			installmentAmount: number;
 			statementId: string;
 			storeName: string;
+			time: string;
 			totalAmount: number;
 		}>;
 		expect(purchaseResponse.status).toBe(200);
@@ -514,15 +697,20 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(purchases[0]?.categoryId).toBeNull();
 		expect(purchases[0]?.installmentAmount).toBe(49.95);
 		expect(purchases[0]?.storeName).toBe("Livraria Central");
+		expect(purchases[0]?.time).toStartWith("14:30");
 
 		const purchaseTransactionsResponse = await jsonRequest("/transactions/", "GET", undefined, owner.cookie);
 		const purchaseTransactions = (await purchaseTransactionsResponse.json()) as Array<{
 			id: string;
 			storeName: string | null;
+			time: string | null;
 		}>;
 		expect(purchaseTransactionsResponse.status).toBe(200);
 		expect(purchaseTransactions.find(transaction => transaction.id === purchases[0]?.id)?.storeName).toBe(
 			"Livraria Central",
+		);
+		expect(purchaseTransactions.find(transaction => transaction.id === purchases[0]?.id)?.time).toStartWith(
+			"14:30",
 		);
 		expect(typeof purchases[0]?.totalAmount).toBe("number");
 
@@ -545,18 +733,20 @@ suite("Prisma 8 SQL query builder", () => {
 				amount: 20,
 				date: "2026-08-23",
 				financialAccountId: account.id,
+				time: "18:45",
 			},
 			owner.cookie,
 		);
 		expect(statementPaymentResponse.status).toBe(200);
 		const statementPayment = (await statementPaymentResponse.json()) as {
 			statement: { paidAmount: number };
-			transaction: { amount: number; description: string; type: string };
+			transaction: { amount: number; description: string; time: string; type: string };
 		};
 		expect(statementPayment.statement.paidAmount).toBe(20);
 		expect(statementPayment.transaction).toMatchObject({
 			amount: 20,
 			description: expect.stringContaining("Pagamento da fatura"),
+			time: expect.stringMatching(/^18:45/),
 			type: "EXPENSE",
 		});
 

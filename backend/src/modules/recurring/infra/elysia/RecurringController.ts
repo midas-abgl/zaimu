@@ -6,6 +6,7 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
+import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { deleteLinkedTransactions } from "~/modules/transactions/application/delete-linked-transactions";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
@@ -22,6 +23,7 @@ const recurringColumns = [
 	"endDate",
 	"categoryId",
 	"financialAccountId",
+	"storeName",
 	"paymentMethod",
 	"isActive",
 	"createdAt",
@@ -137,6 +139,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 			const userId = await requireUserId(request);
 			if (body.financialAccountId)
 				await assertPaymentAccountOwnership(body.financialAccountId, body.paymentMethod ?? "DEBIT", userId);
+			if (body.storeName) await resolveStore(userId, body.storeName);
 			const tagIds = await assertTagOwnership(
 				body.tagIds ?? (body.categoryId ? [body.categoryId] : []),
 				userId,
@@ -155,6 +158,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 						name: body.name,
 						paymentMethod: body.paymentMethod ?? "DEBIT",
 						startDate: new Date(body.startDate),
+						storeName: body.storeName,
 						userId,
 					},
 				])
@@ -185,6 +189,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 				name: t.String({ maxLength: 100 }),
 				paymentMethod: t.Optional(PaymentMethod),
 				startDate: t.String(),
+				storeName: t.Optional(t.String({ maxLength: 200 })),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
 			}),
 			detail: { tags: ["Recurring Payments"] },
@@ -215,6 +220,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 					(body.paymentMethod ?? existing.paymentMethod) as typeof PaymentMethod.static,
 					userId,
 				);
+			if (body.storeName) await resolveStore(userId, body.storeName);
 
 			// Record history
 			const historyEntries: Array<{
@@ -260,6 +266,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 						financialAccountId: body.financialAccountId || null,
 					}),
 					...(body.paymentMethod && { paymentMethod: body.paymentMethod }),
+					...(body.storeName !== undefined && { storeName: body.storeName }),
 					...(body.isActive !== undefined && { isActive: body.isActive }),
 					updatedAt: new Date(),
 				} as never)
@@ -292,6 +299,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 				isActive: t.Optional(t.Boolean()),
 				name: t.Optional(t.String({ maxLength: 100 })),
 				paymentMethod: t.Optional(PaymentMethod),
+				storeName: t.Optional(t.Nullable(t.String({ maxLength: 200 }))),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
 			}),
 			detail: { tags: ["Recurring Payments"] },
