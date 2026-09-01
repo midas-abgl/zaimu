@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Input } from "@/components/ui/Input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import { dataService } from "@/lib/dataService";
@@ -123,7 +124,7 @@ export function TagPicker({
 							<LuPlus />
 						</Button>
 					</div>
-					<div className="scrollbar-themed h-52 overflow-y-auto pr-3">
+					<ScrollArea className="h-52 pr-3">
 						{tagsQuery.isPending ? (
 							<div className="grid gap-2">
 								{[1, 2, 3].map(item => (
@@ -157,7 +158,7 @@ export function TagPicker({
 								Nenhuma tag encontrada. Use + para criar.
 							</p>
 						)}
-					</div>
+					</ScrollArea>
 				</PopoverContent>
 			</Popover>
 		</div>
