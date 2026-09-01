@@ -17,6 +17,7 @@ import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
 } from "@/lib/financial-account";
+import { getUpdatedStoreName } from "@/lib/store-name";
 import { showToast } from "@/stores";
 import { TransactionDetailsFields } from "./TransactionDetailsFields";
 
@@ -60,13 +61,17 @@ export function EditTransactionDialog({
 	const update = useMutation({
 		mutationFn: () => {
 			if (!transaction || !draft) throw new Error("Transação não encontrada");
+			const storeName = getUpdatedStoreName(
+				transaction.storeName,
+				draft.type === "EXPENSE" ? draft.storeName : null,
+			);
 			return dataService.transactions.update(transaction.id, {
 				amount: Number.parseFloat(draft.amount),
 				date: draft.date,
 				description: description.trim() || undefined,
 				destinationFinancialAccountId: draft.destinationFinancialAccountId || null,
 				originFinancialAccountId: draft.originFinancialAccountId || null,
-				storeName: draft.type === "EXPENSE" ? draft.storeName.trim() || null : null,
+				...(storeName !== undefined && { storeName }),
 				tagIds: draft.tagIds,
 				time: draft.time || null,
 				type: draft.type,

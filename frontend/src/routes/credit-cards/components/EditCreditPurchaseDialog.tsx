@@ -18,6 +18,7 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { CreditCard, CreditPurchase } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
+import { getUpdatedStoreName } from "@/lib/store-name";
 
 interface CreditPurchaseUpdate {
 	creditCardId?: string;
@@ -67,12 +68,13 @@ export function EditCreditPurchaseDialog({
 
 	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
+		const updatedStoreName = getUpdatedStoreName(purchase.storeName, storeName);
 		await onSubmit({
 			...(selectedCardId && selectedCardId !== creditCardId && { creditCardId: selectedCardId }),
 			description: description.trim(),
 			installments,
 			purchaseDate: date,
-			storeName: storeName.trim() || null,
+			...(updatedStoreName !== undefined && { storeName: updatedStoreName }),
 			tagIds,
 			time: time || null,
 			totalAmount,

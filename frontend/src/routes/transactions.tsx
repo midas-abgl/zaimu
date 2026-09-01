@@ -227,6 +227,7 @@ function TransactionsPage() {
 						installments: editingPurchase.installments ?? 1,
 						purchaseDate: editingPurchase.date,
 						statementId: editingPurchase.creditCardStatementId ?? "",
+						storeName: editingPurchase.storeName,
 						tagIds: editingPurchase.tagIds,
 						tags: editingPurchase.tags,
 						time: editingPurchase.time,
