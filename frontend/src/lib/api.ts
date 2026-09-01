@@ -337,7 +337,7 @@ export const api = {
 			totalAmount: number;
 			installments?: number;
 			purchaseDate: string;
-			time?: string;
+			time?: string | null;
 			categoryId?: string;
 			tagIds?: string[];
 		},
@@ -433,7 +433,7 @@ export const api = {
 	createTransaction: (data: {
 		amount: number;
 		date: string;
-		time?: string;
+		time?: string | null;
 		description?: string;
 		type?: Transaction["type"];
 		categoryId?: string;
@@ -547,7 +547,7 @@ export const api = {
 	payStatement: (
 		cardId: string,
 		statementId: string,
-		data: { amount?: number; date: string; financialAccountId: string; time?: string },
+		data: { amount?: number; date: string; financialAccountId: string; time?: string | null },
 	) =>
 		fetchApi(`/credit-cards/${cardId}/statements/${statementId}/pay`, {
 			body: data,

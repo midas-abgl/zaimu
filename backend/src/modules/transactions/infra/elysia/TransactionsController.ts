@@ -40,7 +40,8 @@ const transactionColumns = [
 const TransactionType = t.Union([t.Literal("INCOME"), t.Literal("EXPENSE"), t.Literal("TRANSFER")]);
 const timePattern = /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
 
-function resolveTransactionTime(value: string | undefined): string {
+function resolveTransactionTime(value: string | null | undefined): string | null {
+	if (value === null) return null;
 	if (value !== undefined) {
 		if (!timePattern.test(value)) throw new HttpException("Informe um horário válido", 400);
 		return value;
@@ -508,7 +509,10 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 								storeName,
 								subscriptionId: body.subscriptionId,
 								subscriptionOccurrenceDate,
-								time: resolveTransactionTime(body.time),
+								time:
+									body.recurrenceId || body.salaryId || body.subscriptionId
+										? null
+										: resolveTransactionTime(body.time),
 								type: body.type ?? "EXPENSE",
 							},
 						])
@@ -550,7 +554,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				subscriptionId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				subscriptionOccurrenceDate: t.Optional(t.String()),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
-				time: t.Optional(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" })),
+				time: t.Optional(t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" }))),
 				type: t.Optional(TransactionType),
 			}),
 			detail: { tags: ["Transactions"] },

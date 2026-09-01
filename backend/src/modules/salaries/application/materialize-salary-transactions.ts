@@ -111,6 +111,7 @@ export async function materializeSalaryTransactions(userId: string) {
 						"destinationFinancialAccountId",
 						"salaryId",
 						"salaryOccurrenceDate",
+						"time",
 						"type"
 					)
 					VALUES (
@@ -121,6 +122,7 @@ export async function materializeSalaryTransactions(userId: string) {
 						${param(salary.financialAccountId, { codecId: "sql/varchar@1" })},
 						${param(salary.id, { codecId: "sql/varchar@1" })},
 						${param(new Date(date), { codecId: "pg/date@1" })},
+						NULL,
 						${param("INCOME", { codecId: "pg/text@1" })}::"TransactionType"
 					)
 					ON CONFLICT ("salaryId", "salaryOccurrenceDate") DO NOTHING

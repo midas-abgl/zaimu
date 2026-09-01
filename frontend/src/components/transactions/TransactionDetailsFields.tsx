@@ -1,5 +1,6 @@
 import { StorePicker } from "@/components/stores";
 import { TagPicker } from "@/components/tags";
+import { Checkbox } from "@/components/ui/Checkbox";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import { FormField } from "@/components/ui/FormField";
@@ -12,6 +13,7 @@ export function TransactionDetailsFields({
 	description,
 	onAmountChange,
 	onDateChange,
+	onSendWithoutTimeChange,
 	onTimeChange,
 	onDescriptionChange,
 	onStoreNameChange,
@@ -21,6 +23,7 @@ export function TransactionDetailsFields({
 	showTags = true,
 	showStore = false,
 	storeName,
+	sendWithoutTime = false,
 	showType = true,
 	tagIds,
 	time,
@@ -31,6 +34,7 @@ export function TransactionDetailsFields({
 	description: string;
 	onAmountChange: (amount: string) => void;
 	onDateChange: (date: string) => void;
+	onSendWithoutTimeChange?: (sendWithoutTime: boolean) => void;
 	onTimeChange: (time: string) => void;
 	onDescriptionChange: (description: string) => void;
 	onStoreNameChange: (storeName: string) => void;
@@ -40,6 +44,7 @@ export function TransactionDetailsFields({
 	showTags?: boolean;
 	showStore?: boolean;
 	storeName: string;
+	sendWithoutTime?: boolean;
 	showType?: boolean;
 	tagIds: string[];
 	time: string;
@@ -91,14 +96,29 @@ export function TransactionDetailsFields({
 					value={date}
 				/>
 				<FormField
+					disabled={sendWithoutTime}
 					id="transaction-time"
-					label="Horário (opcional)"
+					label="Horário"
 					name="time"
 					onChange={event => onTimeChange(event.currentTarget.value)}
 					type="time"
-					value={time}
+					value={sendWithoutTime ? "" : time}
 				/>
 			</div>
+			{onSendWithoutTimeChange ? (
+				<label className="flex cursor-pointer items-start gap-3 text-sm" htmlFor="transaction-without-time">
+					<Checkbox
+						checked={sendWithoutTime}
+						className="mt-0.5 cursor-pointer"
+						id="transaction-without-time"
+						onCheckedChange={checked => onSendWithoutTimeChange(checked === true)}
+					/>
+					<span>
+						<strong className="block">Enviar sem horário</strong>
+						<span className="text-muted-foreground">Não inclui horário nesta transação.</span>
+					</span>
+				</label>
+			) : null}
 			{showTags ? <TagPicker onValueChange={onTagIdsChange} value={tagIds} /> : null}
 		</>
 	);

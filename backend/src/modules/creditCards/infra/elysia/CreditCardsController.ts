@@ -48,7 +48,8 @@ const purchaseColumns = [
 const forecastStatementId = (statementDate: Date) => `forecast-${statementDate.toISOString().slice(0, 10)}`;
 const timePattern = /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
 
-function resolvePurchaseTime(value: string | undefined): string {
+function resolvePurchaseTime(value: string | null | undefined): string | null {
+	if (value === null) return null;
 	if (value !== undefined) {
 		if (!timePattern.test(value)) throw new HttpException("Informe um horário válido", 400);
 		return value;
@@ -383,6 +384,7 @@ async function materializeDueSubscriptionPurchases(
 						"storeName",
 						"subscriptionId",
 						"subscriptionOccurrenceDate",
+						"time",
 						"totalAmount"
 					)
 					VALUES (
@@ -395,6 +397,7 @@ async function materializeDueSubscriptionPurchases(
 						${param(subscription.storeName, { codecId: "sql/varchar@1" })},
 						${param(subscription.id, { codecId: "sql/varchar@1" })},
 						${param(occurrenceDate, { codecId: "pg/date@1" })},
+						NULL,
 						${param(numeric<12, 2>(subscription.amount), { codecId: "pg/numeric@1" })}
 					)
 					ON CONFLICT ("subscriptionId", "subscriptionOccurrenceDate") DO NOTHING
@@ -882,7 +885,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			}
 
 			const purchaseDate = new Date(body.purchaseDate);
-			const time = resolvePurchaseTime(body.time);
+			const time = body.subscriptionId ? null : resolvePurchaseTime(body.time);
 			const installments = body.installments ?? 1;
 			if (body.storeName) await resolveStore(userId, body.storeName);
 			const installmentAmount = body.totalAmount / installments;
@@ -1112,7 +1115,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				subscriptionId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				subscriptionOccurrenceDate: t.Optional(t.String()),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
-				time: t.Optional(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" })),
+				time: t.Optional(t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" }))),
 				totalAmount: t.Number(),
 			}),
 			detail: { tags: ["Credit Cards"] },
@@ -1380,7 +1383,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				amount: t.Optional(t.Number()),
 				date: t.String(),
 				financialAccountId: t.String({ maxLength: 36, minLength: 1 }),
-				time: t.Optional(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" })),
+				time: t.Optional(t.Nullable(t.String({ pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" }))),
 			}),
 			detail: { tags: ["Credit Cards"] },
 			params: t.Object({

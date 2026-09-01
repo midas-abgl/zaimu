@@ -300,7 +300,7 @@ export const dataService = {
 				purchaseDate: string;
 				subscriptionId?: string;
 				subscriptionOccurrenceDate?: string;
-				time?: string;
+				time?: string | null;
 				tagIds?: string[];
 				totalAmount: number;
 			},
@@ -356,7 +356,7 @@ export const dataService = {
 				subscriptionId: data.subscriptionId,
 				subscriptionOccurrenceDate: data.subscriptionOccurrenceDate,
 				tagIds: data.tagIds,
-				time: data.time ?? getCurrentLocalTime(),
+				time: data.time === undefined ? getCurrentLocalTime() : data.time,
 				totalAmount: data.totalAmount,
 			};
 			await Promise.all([
@@ -469,7 +469,7 @@ export const dataService = {
 		async payStatement(
 			cardId: string,
 			statementId: string,
-			data: { amount?: number; date: string; financialAccountId: string; time?: string },
+			data: { amount?: number; date: string; financialAccountId: string; time?: string | null },
 		): Promise<{ statement: CreditCardStatement; transaction: Transaction }> {
 			if (!isGuestMode()) {
 				const payment = await fetchWithAuth<{ statement: CreditCardStatement; transaction: Transaction }>(
@@ -516,7 +516,7 @@ export const dataService = {
 				description: `Pagamento da fatura — ${storedCard.data.accountName || "Cartão de crédito"}`,
 				id: crypto.randomUUID(),
 				originFinancialAccountId: data.financialAccountId,
-				time: data.time ?? getCurrentLocalTime(),
+				time: data.time === undefined ? getCurrentLocalTime() : data.time,
 				type: "EXPENSE",
 			};
 			await Promise.all([
@@ -1368,7 +1368,7 @@ export const dataService = {
 					salaryOccurrenceDate,
 					subscriptionOccurrenceDate,
 					tagIds,
-					time: data.time ?? getCurrentLocalTime(),
+					time: data.time === undefined ? getCurrentLocalTime() : data.time,
 				};
 				await localTransactions.put(newTransaction, newTransaction.id);
 				return newTransaction;

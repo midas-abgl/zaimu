@@ -1,7 +1,8 @@
-import { type SyntheticEvent, useState } from "react";
+import { type SyntheticEvent, useEffect, useState } from "react";
 import { StorePicker } from "@/components/stores";
 import { TagPicker } from "@/components/tags";
 import { Button } from "@/components/ui/Button";
+import { Checkbox } from "@/components/ui/Checkbox";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import {
@@ -25,7 +26,7 @@ interface PurchaseDraft {
 	storeName?: string;
 	installments?: number;
 	purchaseDate: string;
-	time?: string;
+	time?: string | null;
 	tagIds?: string[];
 	totalAmount: number;
 }
@@ -50,12 +51,33 @@ export function CreatePurchaseDialog({
 	const [count, setCount] = useDebouncedInput("1", () => undefined);
 	const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
 	const [time, setTime] = useState(getCurrentLocalTime());
+	const [sendWithoutTime, setSendWithoutTime] = useState(false);
+	useEffect(() => {
+		if (!open) return;
+		setTime(getCurrentLocalTime());
+		setSendWithoutTime(false);
+	}, [open]);
 	const [tagIds, setTagIds] = useState<string[]>([]);
 	const [storeName, setStoreName] = useState("");
 	const [cardId, setCardId] = useState(initialCardId ?? "");
 	const total = Number(amount || 0);
 	const installmentCount = Number.parseInt(count, 10);
 	const installmentValue = total / (installmentCount || 1);
+	const reset = () => {
+		setDescription("");
+		setAmount("");
+		setCount("1");
+		setDate(new Date().toISOString().slice(0, 10));
+		setTime(getCurrentLocalTime());
+		setSendWithoutTime(false);
+		setTagIds([]);
+		setStoreName("");
+		setCardId(initialCardId ?? "");
+	};
+	const handleOpenChange = (nextOpen: boolean) => {
+		onOpenChange(nextOpen);
+		if (!nextOpen) reset();
+	};
 
 	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
@@ -66,20 +88,14 @@ export function CreatePurchaseDialog({
 			purchaseDate: date,
 			storeName: storeName.trim() || undefined,
 			tagIds,
-			time: time || undefined,
+			time: sendWithoutTime ? null : time || undefined,
 			totalAmount: total,
 		});
-		onOpenChange(false);
-		setDescription("");
-		setAmount("");
-		setCount("1");
-		setTagIds([]);
-		setStoreName("");
-		setTime(getCurrentLocalTime());
+		handleOpenChange(false);
 	};
 
 	return (
-		<Dialog onOpenChange={onOpenChange} open={open}>
+		<Dialog onOpenChange={handleOpenChange} open={open}>
 			<DialogContent className="h-[92dvh] overflow-hidden p-0 sm:h-auto sm:max-w-lg">
 				<ScrollArea className="h-full sm:max-h-[calc(100dvh-2rem)]">
 					<div className="grid gap-6 p-6">
@@ -139,14 +155,30 @@ export function CreatePurchaseDialog({
 									value={date}
 								/>
 								<FormField
+									disabled={sendWithoutTime}
 									id="purchase-time"
-									label="Horário (opcional)"
+									label="Horário"
 									name="purchase-time"
 									onChange={event => setTime(event.currentTarget.value)}
 									type="time"
-									value={time}
+									value={sendWithoutTime ? "" : time}
 								/>
 							</div>
+							<label
+								className="flex cursor-pointer items-start gap-3 text-sm"
+								htmlFor="purchase-without-time"
+							>
+								<Checkbox
+									checked={sendWithoutTime}
+									className="mt-0.5 cursor-pointer"
+									id="purchase-without-time"
+									onCheckedChange={checked => setSendWithoutTime(checked === true)}
+								/>
+								<span>
+									<strong className="block">Enviar sem horário</strong>
+									<span className="text-muted-foreground">Não inclui horário nesta compra.</span>
+								</span>
+							</label>
 							<TagPicker onValueChange={setTagIds} value={tagIds} />
 							{installmentCount > 1 && total > 0 && (
 								<div className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-sm">
@@ -160,7 +192,7 @@ export function CreatePurchaseDialog({
 								</div>
 							)}
 							<DialogFooter>
-								<Button onClick={() => onOpenChange(false)} type="button" variant="outline">
+								<Button onClick={() => handleOpenChange(false)} type="button" variant="outline">
 									Descartar
 								</Button>
 								<Button

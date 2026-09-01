@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import {
@@ -44,6 +44,12 @@ export function CreateTransactionDialog({
 	const queryClient = useQueryClient();
 	const [draft, setDraft] = useState(initialDraft);
 	const [description, setDescription] = useDebouncedInput("", () => undefined);
+	const [sendWithoutTime, setSendWithoutTime] = useState(false);
+	useEffect(() => {
+		if (!open) return;
+		setDraft(current => ({ ...current, time: getCurrentLocalTime() }));
+		setSendWithoutTime(false);
+	}, [open]);
 	const accountsQuery = useQuery({ queryFn: () => dataService.accounts.getAll(), queryKey: ["accounts"] });
 	const payableStatementsQuery = useQuery({
 		enabled: open && draft.type === "EXPENSE",
@@ -89,6 +95,7 @@ export function CreateTransactionDialog({
 	const reset = () => {
 		setDraft(initialDraft());
 		setDescription("");
+		setSendWithoutTime(false);
 	};
 	const handleOpenChange = (nextOpen: boolean) => {
 		onOpenChange(nextOpen);
@@ -105,7 +112,7 @@ export function CreateTransactionDialog({
 						amount,
 						date: draft.date,
 						financialAccountId: draft.originFinancialAccountId,
-						time: draft.time || undefined,
+						time: sendWithoutTime ? null : draft.time || undefined,
 					},
 				);
 			}
@@ -117,7 +124,7 @@ export function CreateTransactionDialog({
 				originFinancialAccountId: draft.originFinancialAccountId || undefined,
 				storeName: draft.type === "EXPENSE" ? draft.storeName.trim() || undefined : undefined,
 				tagIds: draft.tagIds,
-				time: draft.time || undefined,
+				time: sendWithoutTime ? null : draft.time || undefined,
 				type: draft.type,
 			});
 			return { statement: null, transaction };
@@ -150,6 +157,7 @@ export function CreateTransactionDialog({
 						onAmountChange={amount => setDraft(current => ({ ...current, amount }))}
 						onDateChange={date => setDraft(current => ({ ...current, date }))}
 						onDescriptionChange={setDescription}
+						onSendWithoutTimeChange={setSendWithoutTime}
 						onStoreNameChange={storeName => setDraft(current => ({ ...current, storeName }))}
 						onTagIdsChange={tagIds => setDraft(current => ({ ...current, tagIds }))}
 						onTimeChange={time => setDraft(current => ({ ...current, time }))}
@@ -160,6 +168,7 @@ export function CreateTransactionDialog({
 								type,
 							}))
 						}
+						sendWithoutTime={sendWithoutTime}
 						showDescription={!selectedStatement}
 						showStore={draft.type === "EXPENSE" && !selectedStatement}
 						showTags={draft.type !== "TRANSFER" && !selectedStatement}
