@@ -1,26 +1,37 @@
-import { LuDollarSign, LuLandmark, LuPencil, LuStore, LuTrash2 } from "react-icons/lu";
-import { Button } from "@/components/ui/Button";
-import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
+import type { ReactNode } from "react";
+import { LuDollarSign, LuLandmark, LuPencil, LuTrash2 } from "react-icons/lu";
 import { ListItemLayout } from "@/components/ui/ListItemLayout";
 import type { Transaction } from "@/lib/api";
 import { getTransactionTitle } from "@/lib/transaction-title";
 import { InstallmentPurchaseDetails } from "./InstallmentPurchaseDetails";
-import { TransactionAccounts } from "./TransactionAccounts";
-import { TransactionTags } from "./TransactionTags";
+import { type ItemAction, ItemActions } from "./ItemActions";
+import { type TransactionBadgeAccount, TransactionBadges } from "./TransactionBadges";
 
 function formatCurrency(value: number) {
 	return new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(value);
 }
 
 export function TransactionListItem({
+	actionItems,
+	amount,
+	className,
 	deleting = false,
+	icon,
+	metadataPrefix,
 	onDelete,
 	onEdit,
+	title,
 	transaction,
 }: {
+	actionItems?: ItemAction[];
+	amount?: ReactNode;
+	className?: string;
 	deleting?: boolean;
+	icon?: ReactNode;
+	metadataPrefix?: ReactNode;
 	onDelete?: () => void;
 	onEdit?: () => void;
+	title?: ReactNode;
 	transaction: Transaction;
 }) {
 	const isCreditCardPurchase = transaction.source === "CREDIT_CARD";
@@ -39,45 +50,67 @@ export function TransactionListItem({
 				name: transaction.categoryName,
 			}
 		: undefined;
+	const isCreditCard = transaction.source === "CREDIT_CARD";
+	const originName = transaction.originName || transaction.sourceName;
+	const destinationName =
+		transaction.destinationName || (transaction.type === "INCOME" ? transaction.sourceName : undefined);
+	const accounts: TransactionBadgeAccount[] =
+		transaction.type === "TRANSFER"
+			? [
+					{
+						id: transaction.originFinancialAccountId || "origin",
+						name: originName || "Conta de origem",
+						role: "Origem",
+						type: transaction.originAccountType ?? undefined,
+					},
+					{
+						id: transaction.destinationFinancialAccountId || "destination",
+						name: destinationName || "Conta de destino",
+						role: "Destino",
+						type: transaction.destinationAccountType ?? undefined,
+					},
+				]
+			: [
+					{
+						id:
+							transaction.originFinancialAccountId || transaction.destinationFinancialAccountId || "account",
+						name: (transaction.type === "INCOME" ? destinationName : originName) || "Conta sem nome",
+						type: isCreditCard
+							? "CREDIT_CARD"
+							: ((transaction.type === "INCOME"
+									? transaction.destinationAccountType
+									: transaction.originAccountType) ?? undefined),
+					},
+				];
+	const tags = transaction.tags?.length ? transaction.tags : fallbackTag ? [fallbackTag] : undefined;
+
+	const defaultActionItems: ItemAction[] = [
+		...(onEdit ? [{ disabled: deleting, icon: <LuPencil />, onClick: onEdit, text: "Editar" }] : []),
+		...(onDelete
+			? [
+					{
+						color: "destructive" as const,
+						confirmation: `Excluir ${isCreditCardPurchase ? "esta compra" : "esta transação"} permanentemente?`,
+						confirmIcon: <LuTrash2 />,
+						disabled: deleting,
+						icon: <LuTrash2 />,
+						onConfirm: onDelete,
+						text: "Excluir",
+					},
+				]
+			: []),
+	];
 
 	return (
 		<ListItemLayout
 			actions={
-				onEdit || onDelete ? (
-					<>
-						{onEdit ? (
-							<Button
-								className="cursor-pointer"
-								disabled={deleting}
-								onClick={onEdit}
-								size="sm"
-								variant="outline"
-							>
-								<LuPencil /> Editar
-							</Button>
-						) : null}
-						{onDelete ? (
-							<ConfirmActionButton
-								className="cursor-pointer disabled:cursor-not-allowed"
-								confirmation={`Excluir ${isCreditCardPurchase ? "esta compra" : "esta transação"} permanentemente?`}
-								confirmChildren={
-									<>
-										<LuTrash2 /> Excluir
-									</>
-								}
-								disabled={deleting}
-								onConfirm={onDelete}
-								size="sm"
-								variant="destructive"
-							>
-								<LuTrash2 /> Excluir
-							</ConfirmActionButton>
-						) : null}
-					</>
+				actionItems || defaultActionItems.length ? (
+					<ItemActions actions={actionItems ?? defaultActionItems} />
 				) : undefined
 			}
 			amount={
-				isCreditCardPurchase && transaction.installments && transaction.installmentAmount ? (
+				amount ??
+				(isCreditCardPurchase && transaction.installments && transaction.installmentAmount ? (
 					<InstallmentPurchaseDetails
 						installmentAmount={Number(transaction.installmentAmount)}
 						installments={transaction.installments}
@@ -88,29 +121,30 @@ export function TransactionListItem({
 						{amountPrefix}
 						{formatCurrency(Number(transaction.amount))}
 					</p>
-				)
+				))
 			}
+			className={className}
 			icon={
-				<div
-					className={`flex size-11 shrink-0 items-center justify-center rounded-2xl bg-muted ${amountColor}`}
-				>
-					{isCreditCardPurchase ? <LuDollarSign aria-hidden="true" /> : <LuLandmark aria-hidden="true" />}
-				</div>
+				icon ?? (
+					<div
+						className={`flex size-11 shrink-0 items-center justify-center rounded-2xl bg-muted ${amountColor}`}
+					>
+						{isCreditCardPurchase ? <LuDollarSign aria-hidden="true" /> : <LuLandmark aria-hidden="true" />}
+					</div>
+				)
 			}
 			metadata={
 				<div className="flex min-w-0 flex-wrap items-center gap-1.5">
-					<TransactionAccounts transaction={transaction} />
-					{transaction.storeName ? (
-						<span className="inline-flex min-w-0 shrink items-center gap-1 text-muted-foreground text-xs">
-							<LuStore aria-hidden="true" className="size-3.5 shrink-0" />
-							<span className="max-w-40 truncate">{transaction.storeName}</span>
-						</span>
-					) : null}
-					<TransactionTags fallback={fallbackTag} tags={transaction.tags} />
+					{metadataPrefix}
+					<TransactionBadges accounts={accounts} storeName={transaction.storeName} tags={tags} />
 				</div>
 			}
 			title={
-				<p className="min-w-0 flex-1 truncate font-semibold leading-6">{getTransactionTitle(transaction)}</p>
+				title ?? (
+					<p className="min-w-0 flex-1 truncate font-semibold leading-6">
+						{getTransactionTitle(transaction)}
+					</p>
+				)
 			}
 		/>
 	);
