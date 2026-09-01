@@ -60,13 +60,11 @@ export function TransactionListItem({
 					{
 						id: transaction.originFinancialAccountId || "origin",
 						name: originName || "Conta de origem",
-						role: "Origem",
 						type: transaction.originAccountType ?? undefined,
 					},
 					{
 						id: transaction.destinationFinancialAccountId || "destination",
 						name: destinationName || "Conta de destino",
-						role: "Destino",
 						type: transaction.destinationAccountType ?? undefined,
 					},
 				]

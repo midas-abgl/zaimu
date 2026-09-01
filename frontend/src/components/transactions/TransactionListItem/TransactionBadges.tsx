@@ -6,7 +6,6 @@ import { getFinancialAccountTypeLabel } from "@/lib/financial-account";
 export interface TransactionBadgeAccount {
 	id: string;
 	name: string;
-	role?: "Destino" | "Origem";
 	type?: FinancialAccount["type"];
 }
 
@@ -39,11 +38,7 @@ export function TransactionBadges({
 							<LuLandmark aria-hidden="true" />
 						)}
 						<span className="min-w-0 truncate">
-							<span className="text-muted-foreground">
-								{account.role
-									? `${account.role} · ${getAccountTypeLabel(account.type)}`
-									: getAccountTypeLabel(account.type)}
-							</span>{" "}
+							<span className="text-muted-foreground">{getAccountTypeLabel(account.type)}</span>{" "}
 							{account.name}
 						</span>
 					</Badge>
