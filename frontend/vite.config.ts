@@ -4,7 +4,16 @@ import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-const host = process.env.TAURI_DEV_HOST;
+const host = process.env.TAURI_DEV_HOST || "0.0.0.0";
+const port = Number(process.env.PORT || 5173);
+
+const isHttps = host.includes("https");
+
+const hmr = {
+	host: VITE_PUBLIC_WEB_URL || host,
+	port: isHttps ? 443 : port + 1,
+	protocol: isHttps ? "wss" : "ws",
+};
 
 export default defineConfig({
 	build: {
@@ -22,15 +31,9 @@ export default defineConfig({
 	},
 	server: {
 		allowedHosts: ["vite.hyoretsu.com"],
-		hmr: host
-			? {
-					host,
-					port: 5174,
-					protocol: "ws",
-				}
-			: undefined,
-		host: host || false,
-		port: 5173,
+		hmr,
+		host,
+		port,
 		strictPort: true,
 		watch: {
 			ignored: ["**/src-tauri/**"],
