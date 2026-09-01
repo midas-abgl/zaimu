@@ -14,7 +14,7 @@ import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { Transaction } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
-import { formatLocalDate } from "@/lib/date";
+import { formatLocalDate, getCurrentLocalTime } from "@/lib/date";
 import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
@@ -30,6 +30,7 @@ const initialDraft = () => ({
 	originFinancialAccountId: "",
 	storeName: "",
 	tagIds: [] as string[],
+	time: getCurrentLocalTime(),
 	type: "EXPENSE" as Transaction["type"],
 });
 
@@ -104,6 +105,7 @@ export function CreateTransactionDialog({
 						amount,
 						date: draft.date,
 						financialAccountId: draft.originFinancialAccountId,
+						time: draft.time || undefined,
 					},
 				);
 			}
@@ -115,6 +117,7 @@ export function CreateTransactionDialog({
 				originFinancialAccountId: draft.originFinancialAccountId || undefined,
 				storeName: draft.type === "EXPENSE" ? draft.storeName.trim() || undefined : undefined,
 				tagIds: draft.tagIds,
+				time: draft.time || undefined,
 				type: draft.type,
 			});
 			return { statement: null, transaction };
@@ -149,6 +152,7 @@ export function CreateTransactionDialog({
 						onDescriptionChange={setDescription}
 						onStoreNameChange={storeName => setDraft(current => ({ ...current, storeName }))}
 						onTagIdsChange={tagIds => setDraft(current => ({ ...current, tagIds }))}
+						onTimeChange={time => setDraft(current => ({ ...current, time }))}
 						onTypeChange={type =>
 							setDraft(current => ({
 								...current,
@@ -161,6 +165,7 @@ export function CreateTransactionDialog({
 						showTags={draft.type !== "TRANSFER" && !selectedStatement}
 						storeName={draft.storeName}
 						tagIds={draft.tagIds}
+						time={draft.time}
 						type={draft.type}
 					/>
 					{draft.type === "EXPENSE" && payableStatementsQuery.data?.length ? (

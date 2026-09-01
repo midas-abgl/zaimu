@@ -25,6 +25,7 @@ interface CreditPurchaseUpdate {
 	installments: number;
 	storeName?: string | null;
 	purchaseDate: string;
+	time?: string | null;
 	tagIds: string[];
 	totalAmount: number;
 }
@@ -50,6 +51,7 @@ export function EditCreditPurchaseDialog({
 	const [amount, setAmount] = useState(String(purchase.totalAmount));
 	const [count, setCount] = useDebouncedInput(String(purchase.installments), () => undefined);
 	const [date, setDate] = useState(purchase.purchaseDate.slice(0, 10));
+	const [time, setTime] = useState(purchase.time ?? "");
 	const [tagIds, setTagIds] = useState(purchase.tagIds ?? (purchase.categoryId ? [purchase.categoryId] : []));
 	const [storeName, setStoreName] = useState(purchase.storeName ?? "");
 	const [selectedCardId, setSelectedCardId] = useState(creditCardId ?? "");
@@ -57,7 +59,8 @@ export function EditCreditPurchaseDialog({
 	useEffect(() => {
 		if (!open) return;
 		setStoreName(purchase.storeName ?? "");
-	}, [open, purchase.storeName]);
+		setTime(purchase.time ?? "");
+	}, [open, purchase.storeName, purchase.time]);
 	const totalAmount = Number(amount);
 	const installments = Number.parseInt(count, 10);
 	const installmentAmount = totalAmount / (installments || 1);
@@ -71,6 +74,7 @@ export function EditCreditPurchaseDialog({
 			purchaseDate: date,
 			storeName: storeName.trim() || null,
 			tagIds,
+			time: time || null,
 			totalAmount,
 		});
 	};
@@ -116,7 +120,7 @@ export function EditCreditPurchaseDialog({
 								required
 								value={amount}
 							/>
-							<div className="grid gap-4 sm:grid-cols-2">
+							<div className="grid gap-4 sm:grid-cols-3">
 								<FormField
 									autoComplete="off"
 									id="credit-purchase-installments"
@@ -137,6 +141,14 @@ export function EditCreditPurchaseDialog({
 									onChange={event => setDate(event.currentTarget.value)}
 									required
 									value={date}
+								/>
+								<FormField
+									id="credit-purchase-time"
+									label="Horário (opcional)"
+									name="credit-purchase-time"
+									onChange={event => setTime(event.currentTarget.value)}
+									type="time"
+									value={time}
 								/>
 							</div>
 							{installments > 1 && totalAmount > 0 ? (

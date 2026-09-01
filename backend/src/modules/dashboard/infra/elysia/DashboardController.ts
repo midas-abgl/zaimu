@@ -166,6 +166,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 								date: f.Transaction.date,
 								description: f.Transaction.description,
 								id: f.Transaction.id,
+								time: f.Transaction.time,
 								type: f.Transaction.type,
 							}))
 							.where((f, fn) =>

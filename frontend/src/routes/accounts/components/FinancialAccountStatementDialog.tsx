@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { FinancialAccount, Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
+import { formatLocalTime } from "@/lib/date";
 import { getFinancialAccountDisplayName } from "@/lib/financial-account";
 
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
@@ -71,7 +72,17 @@ export function FinancialAccountStatementDialog({
 									</h3>
 									<div className="divide-y rounded-2xl border bg-card shadow-sm">
 										{transactions.map(transaction => (
-											<TransactionListItem key={transaction.id} transaction={transaction} />
+											<TransactionListItem
+												key={transaction.id}
+												metadataPrefix={
+													formatLocalTime(transaction.time) ? (
+														<span className="text-muted-foreground text-xs">
+															{formatLocalTime(transaction.time)}
+														</span>
+													) : undefined
+												}
+												transaction={transaction}
+											/>
 										))}
 									</div>
 								</section>

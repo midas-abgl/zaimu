@@ -18,12 +18,14 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { CreditCard } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
+import { getCurrentLocalTime } from "@/lib/date";
 
 interface PurchaseDraft {
 	description: string;
 	storeName?: string;
 	installments?: number;
 	purchaseDate: string;
+	time?: string;
 	tagIds?: string[];
 	totalAmount: number;
 }
@@ -47,6 +49,7 @@ export function CreatePurchaseDialog({
 	const [amount, setAmount] = useState("");
 	const [count, setCount] = useDebouncedInput("1", () => undefined);
 	const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+	const [time, setTime] = useState(getCurrentLocalTime());
 	const [tagIds, setTagIds] = useState<string[]>([]);
 	const [storeName, setStoreName] = useState("");
 	const [cardId, setCardId] = useState(initialCardId ?? "");
@@ -63,6 +66,7 @@ export function CreatePurchaseDialog({
 			purchaseDate: date,
 			storeName: storeName.trim() || undefined,
 			tagIds,
+			time: time || undefined,
 			totalAmount: total,
 		});
 		onOpenChange(false);
@@ -71,6 +75,7 @@ export function CreatePurchaseDialog({
 		setCount("1");
 		setTagIds([]);
 		setStoreName("");
+		setTime(getCurrentLocalTime());
 	};
 
 	return (
@@ -110,7 +115,7 @@ export function CreatePurchaseDialog({
 								required
 								value={amount}
 							/>
-							<div className="grid gap-4 sm:grid-cols-2">
+							<div className="grid gap-4 sm:grid-cols-3">
 								<FormField
 									autoComplete="off"
 									description="Informe 1 para compra à vista."
@@ -132,6 +137,14 @@ export function CreatePurchaseDialog({
 									onChange={event => setDate(event.currentTarget.value)}
 									required
 									value={date}
+								/>
+								<FormField
+									id="purchase-time"
+									label="Horário (opcional)"
+									name="purchase-time"
+									onChange={event => setTime(event.currentTarget.value)}
+									type="time"
+									value={time}
 								/>
 							</div>
 							<TagPicker onValueChange={setTagIds} value={tagIds} />

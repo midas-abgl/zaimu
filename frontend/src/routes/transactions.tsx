@@ -14,6 +14,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
+import { formatLocalTime } from "@/lib/date";
 import { EditCreditPurchaseDialog } from "@/routes/credit-cards/components/EditCreditPurchaseDialog";
 import { showToast } from "@/stores";
 
@@ -175,6 +176,13 @@ function TransactionsPage() {
 												: remove.variables) === transaction.id
 										}
 										key={transaction.id}
+										metadataPrefix={
+											formatLocalTime(transaction.time) ? (
+												<span className="text-muted-foreground text-xs">
+													{formatLocalTime(transaction.time)}
+												</span>
+											) : undefined
+										}
 										onDelete={
 											transaction.source === "CREDIT_CARD"
 												? () => removePurchase.mutate(transaction)
@@ -221,6 +229,7 @@ function TransactionsPage() {
 						statementId: editingPurchase.creditCardStatementId ?? "",
 						tagIds: editingPurchase.tagIds,
 						tags: editingPurchase.tags,
+						time: editingPurchase.time,
 						totalAmount: editingPurchase.amount,
 					}}
 				/>

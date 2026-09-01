@@ -2,7 +2,7 @@ import { LuPencil, LuTrash2 } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import type { CreditPurchase } from "@/lib/api";
-import { formatLocalDate } from "@/lib/date";
+import { formatLocalDate, formatLocalTime } from "@/lib/date";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
@@ -23,6 +23,7 @@ export function CreditPurchaseRow({
 				<p className="truncate font-medium">{purchase.description || purchase.storeName || "Compra"}</p>
 				<p className="text-muted-foreground text-xs">
 					{formatLocalDate(purchase.purchaseDate)}
+					{formatLocalTime(purchase.time) ? ` · ${formatLocalTime(purchase.time)}` : ""}
 					{purchase.storeName ? ` · ${purchase.storeName}` : ""}
 					{purchase.isForecast ? " · Previsão" : ""}
 					{purchase.tags?.length

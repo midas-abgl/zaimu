@@ -17,6 +17,7 @@ import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { dataService } from "@/lib/dataService";
+import { formatLocalTime } from "@/lib/date";
 import { type AuthState, useAuthStore } from "@/stores";
 import { DashboardQuickActions } from "./components";
 
@@ -147,7 +148,17 @@ function DashboardPage() {
 						) : (
 							<div className="divide-y">
 								{recentTransactions.map(transaction => (
-									<TransactionListItem key={transaction.id} transaction={transaction} />
+									<TransactionListItem
+										key={transaction.id}
+										metadataPrefix={
+											formatLocalTime(transaction.time) ? (
+												<span className="text-muted-foreground text-xs">
+													{formatLocalTime(transaction.time)}
+												</span>
+											) : undefined
+										}
+										transaction={transaction}
+									/>
 								))}
 							</div>
 						)}

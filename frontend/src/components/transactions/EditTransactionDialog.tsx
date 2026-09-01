@@ -28,6 +28,7 @@ function createDraft(transaction: Transaction) {
 		originFinancialAccountId: transaction.originFinancialAccountId ?? "",
 		storeName: transaction.storeName ?? "",
 		tagIds: transaction.tagIds ?? transaction.tags?.map(tag => tag.id) ?? [],
+		time: transaction.time ?? "",
 		type: transaction.type,
 	};
 }
@@ -67,6 +68,7 @@ export function EditTransactionDialog({
 				originFinancialAccountId: draft.originFinancialAccountId || null,
 				storeName: draft.type === "EXPENSE" ? draft.storeName.trim() || null : null,
 				tagIds: draft.tagIds,
+				time: draft.time || null,
 				type: draft.type,
 			});
 		},
@@ -109,6 +111,7 @@ export function EditTransactionDialog({
 							setDraft(current => (current ? { ...current, storeName } : current))
 						}
 						onTagIdsChange={tagIds => setDraft(current => (current ? { ...current, tagIds } : current))}
+						onTimeChange={time => setDraft(current => (current ? { ...current, time } : current))}
 						onTypeChange={type =>
 							setDraft(current =>
 								current
@@ -125,6 +128,7 @@ export function EditTransactionDialog({
 						showStore={draft.type === "EXPENSE"}
 						storeName={draft.storeName}
 						tagIds={draft.tagIds}
+						time={draft.time}
 						type={draft.type}
 					/>
 					{balanceAccounts.length > 0 ? (

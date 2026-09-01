@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { formatLocalDate, getLocalMonthKey, parseLocalDate } from "./date";
+import { formatLocalDate, formatLocalTime, getLocalMonthKey, parseLocalDate } from "./date";
 
 describe("local date formatting", () => {
 	test("preserves the calendar day from a date-only value", () => {
@@ -14,5 +14,10 @@ describe("local date formatting", () => {
 	test("identifies the reference month without UTC shifts", () => {
 		expect(getLocalMonthKey("2026-08-01T00:00:00.000Z")).toBe("2026-08");
 		expect(getLocalMonthKey(new Date(2026, 7, 25))).toBe("2026-08");
+	});
+
+	test("formats stored times to hours and minutes", () => {
+		expect(formatLocalTime("14:35:00")).toBe("14:35");
+		expect(formatLocalTime(undefined)).toBeUndefined();
 	});
 });

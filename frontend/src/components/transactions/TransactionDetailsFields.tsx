@@ -12,6 +12,7 @@ export function TransactionDetailsFields({
 	description,
 	onAmountChange,
 	onDateChange,
+	onTimeChange,
 	onDescriptionChange,
 	onStoreNameChange,
 	onTagIdsChange,
@@ -22,6 +23,7 @@ export function TransactionDetailsFields({
 	storeName,
 	showType = true,
 	tagIds,
+	time,
 	type,
 }: {
 	amount: string;
@@ -29,6 +31,7 @@ export function TransactionDetailsFields({
 	description: string;
 	onAmountChange: (amount: string) => void;
 	onDateChange: (date: string) => void;
+	onTimeChange: (time: string) => void;
 	onDescriptionChange: (description: string) => void;
 	onStoreNameChange: (storeName: string) => void;
 	onTagIdsChange: (tagIds: string[]) => void;
@@ -39,6 +42,7 @@ export function TransactionDetailsFields({
 	storeName: string;
 	showType?: boolean;
 	tagIds: string[];
+	time: string;
 	type: Transaction["type"];
 }) {
 	return (
@@ -77,14 +81,24 @@ export function TransactionDetailsFields({
 				/>
 			) : null}
 			{showStore ? <StorePicker onValueChange={onStoreNameChange} value={storeName} /> : null}
-			<DateField
-				id="transaction-date"
-				label="Data"
-				name="date"
-				onChange={event => onDateChange(event.currentTarget.value)}
-				required
-				value={date}
-			/>
+			<div className="grid gap-4 sm:grid-cols-2">
+				<DateField
+					id="transaction-date"
+					label="Data"
+					name="date"
+					onChange={event => onDateChange(event.currentTarget.value)}
+					required
+					value={date}
+				/>
+				<FormField
+					id="transaction-time"
+					label="Horário (opcional)"
+					name="time"
+					onChange={event => onTimeChange(event.currentTarget.value)}
+					type="time"
+					value={time}
+				/>
+			</div>
 			{showTags ? <TagPicker onValueChange={onTagIdsChange} value={tagIds} /> : null}
 		</>
 	);
