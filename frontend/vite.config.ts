@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { resolve } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
@@ -10,7 +11,7 @@ const port = Number(process.env.PORT || 5173);
 const isHttps = host.includes("https");
 
 const hmr = {
-	host: VITE_PUBLIC_WEB_URL || host,
+	host: (process.env.VITE_PUBLIC_WEB_URL || host).replace(/https?:\/\//, ""),
 	port: isHttps ? 443 : port + 1,
 	protocol: isHttps ? "wss" : "ws",
 };
@@ -30,7 +31,7 @@ export default defineConfig({
 		},
 	},
 	server: {
-		allowedHosts: ["vite.hyoretsu.com"],
+		allowedHosts: ["vite.hyoretsu.com", hmr.host],
 		hmr,
 		host,
 		port,
