@@ -361,7 +361,7 @@ namespace public {
     payDay          SmallInt
     startDate       Date
     autoGenerateFrom Date                @default(dbgenerated("CURRENT_DATE"))
-    materializedThrough Date             @default(dbgenerated("CURRENT_DATE - 1"))
+    materializedThrough Date             @default(dbgenerated("(CURRENT_DATE - 1)"))
     endDate         Date?
     isActive        Boolean                      @default(true)
     createdAt       Timestamp(3)                 @default(now())
@@ -414,7 +414,7 @@ namespace public {
     financialAccountId    VarChar(36)?
     storeName             VarChar(200)?
     startDate             Date
-    materializedThrough   Date                         @default(dbgenerated("CURRENT_DATE - 1"))
+    materializedThrough   Date                         @default(dbgenerated("(CURRENT_DATE - 1)"))
     endDate               Date?
     isActive              Boolean                      @default(true)
     createdAt             Timestamp(3)                 @default(now())
