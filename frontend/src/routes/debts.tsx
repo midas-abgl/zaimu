@@ -10,15 +10,8 @@ import { showToast } from "@/stores";
 import { CreateDebtDialog, DebtInvitations, type DebtOriginDraft, DebtPersonCard } from "./debts/components";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-const tabs = [
-	{ id: "receivable", label: "A receber" },
-	{ id: "payable", label: "A pagar" },
-	{ id: "settled", label: "Quitadas" },
-] as const;
-
 function DebtsPage() {
 	const queryClient = useQueryClient();
-	const [activeTab, setActiveTab] = useState<(typeof tabs)[number]["id"]>("receivable");
 	const [createOpen, setCreateOpen] = useState(false);
 	const [editing, setEditing] = useState<{ event: DebtEvent; personId: string } | null>(null);
 	const ledger = useQuery({ queryFn: () => dataService.debts.getLedger(), queryKey: ["debts"] });
@@ -56,13 +49,7 @@ function DebtsPage() {
 			showToast("Origem atualizada.", "positive");
 		},
 	});
-	const people = (ledger.data?.people ?? []).filter(person =>
-		activeTab === "receivable"
-			? person.balance > 0
-			: activeTab === "payable"
-				? person.balance < 0
-				: person.balance === 0,
-	);
+	const people = ledger.data?.people ?? [];
 
 	if (ledger.isPending)
 		return (
@@ -76,13 +63,19 @@ function DebtsPage() {
 
 	return (
 		<main className="mx-auto min-h-screen w-full max-w-5xl bg-background lg:py-10">
-			<header className="mx-4 rounded-3xl bg-gradient-to-br from-primary to-primary/75 p-6 text-primary-foreground shadow-lg lg:p-8">
-				<div className="flex items-center justify-between gap-3">
+			<header className="mx-4 rounded-3xl bg-gradient-to-br from-primary to-primary/75 p-5 text-primary-foreground shadow-lg sm:p-6 lg:p-8">
+				<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 					<div>
 						<p className="text-primary-foreground/70 text-sm">Saldo líquido</p>
-						<h1 className="font-bold text-3xl">{currency.format(ledger.data?.totals.net ?? 0)}</h1>
+						<h1 className="font-bold text-3xl sm:text-4xl">
+							{currency.format(ledger.data?.totals.net ?? 0)}
+						</h1>
 					</div>
-					<Button className="cursor-pointer" onClick={() => setCreateOpen(true)} variant="secondary">
+					<Button
+						className="w-full cursor-pointer sm:w-auto"
+						onClick={() => setCreateOpen(true)}
+						variant="secondary"
+					>
 						<LuPlus /> Adicionar origem
 					</Button>
 				</div>
@@ -100,19 +93,7 @@ function DebtsPage() {
 			<div className="mt-5">
 				<DebtInvitations />
 			</div>
-			<nav aria-label="Situação das dívidas" className="m-4 flex gap-1 rounded-2xl border bg-card p-2">
-				{tabs.map(tab => (
-					<Button
-						className="flex-1 cursor-pointer"
-						key={tab.id}
-						onClick={() => setActiveTab(tab.id)}
-						variant={activeTab === tab.id ? "default" : "outline"}
-					>
-						{tab.label}
-					</Button>
-				))}
-			</nav>
-			<section className="grid gap-3 px-4 pb-8">
+			<section className="grid gap-3 px-4 pt-4 pb-8">
 				{people.length ? (
 					people.map(person => (
 						<DebtPersonCard
@@ -126,7 +107,7 @@ function DebtsPage() {
 				) : (
 					<div className="rounded-2xl border bg-card py-12 text-center">
 						<LuUsersRound className="mx-auto size-10 text-muted-foreground" />
-						<p className="mt-3 font-semibold">Nenhuma pessoa nesta situação</p>
+						<p className="mt-3 font-semibold">Nenhuma dívida cadastrada</p>
 						<p className="text-muted-foreground text-sm">Adicione uma origem ou vincule uma movimentação.</p>
 					</div>
 				)}
