@@ -302,13 +302,18 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				})
 				.filter(purchase => !query.categoryId || purchase.tagIds.includes(query.categoryId));
 
-			return [...normalizedTransactions, ...normalizedPurchases]
-				.sort(
-					(left, right) =>
-						new Date(right.date).getTime() - new Date(left.date).getTime() ||
-						new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
-				)
-				.slice(query.offset ?? 0, (query.offset ?? 0) + (query.limit ?? 100));
+			const sortedTransactions = [...normalizedTransactions, ...normalizedPurchases].sort(
+				(left, right) =>
+					new Date(right.date).getTime() - new Date(left.date).getTime() ||
+					new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+			);
+
+			if (query.limit === undefined && query.offset === undefined) return sortedTransactions;
+
+			return sortedTransactions.slice(
+				query.offset ?? 0,
+				(query.offset ?? 0) + (query.limit ?? sortedTransactions.length),
+			);
 		},
 		{
 			detail: { tags: ["Transactions"] },

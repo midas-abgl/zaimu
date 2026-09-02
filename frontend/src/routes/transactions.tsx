@@ -36,7 +36,6 @@ function TransactionsPage() {
 	const transactionsQuery = useQuery({
 		queryFn: () =>
 			dataService.transactions.getAll({
-				limit: 50,
 				type: filterType === "all" ? undefined : (filterType as Transaction["type"]),
 			}),
 		queryKey: ["transactions", filterType],
