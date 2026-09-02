@@ -8,10 +8,11 @@ import { defineConfig } from "vite";
 const host = process.env.TAURI_DEV_HOST || "0.0.0.0";
 const port = Number(process.env.PORT || 5173);
 
-const isHttps = host.includes("https");
+const hmrHost = process.env.VITE_PUBLIC_WEB_URL || host;
+const isHttps = hmrHost.includes("https");
 
 const hmr = {
-	host: (process.env.VITE_PUBLIC_WEB_URL || host).replace(/https?:\/\//, ""),
+	host: hmrHost.replace(/https?:\/\//, ""),
 	port: isHttps ? 443 : port + 1,
 	protocol: isHttps ? "wss" : "ws",
 };
