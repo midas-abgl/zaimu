@@ -28,6 +28,7 @@ export function DashboardQuickActions() {
 				queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
 				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
 				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+				queryClient.invalidateQueries({ queryKey: ["debts"] }),
 			]);
 			showToast("Compra registrada e faturas recalculadas.", "positive");
 		},
