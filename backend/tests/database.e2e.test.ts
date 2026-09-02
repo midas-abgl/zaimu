@@ -47,7 +47,7 @@ const createSession = async (label: string) => {
 	if (signin.status !== 200) throw new Error(`Signin failed with ${signin.status}`);
 	const cookie = signin.headers.get("set-cookie")?.split(";")[0];
 	if (!cookie) throw new Error("Signin did not return a session cookie");
-	return { cookie: cookie!, userId: userId! };
+	return { cookie: cookie!, email, userId: userId! };
 };
 
 suite("Prisma 8 SQL query builder", () => {
@@ -882,5 +882,247 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(sync.status).toBe(200);
 		const syncBody = (await sync.json()) as { syncResults: Record<string, { synced: number }> };
 		expect(Object.values(syncBody.syncResults).every(result => result.synced === 0)).toBe(true);
+	});
+
+	test("shared debt ledger keeps one bilateral balance and sanitizes remote history", async () => {
+		const owner = await createSession("debt-owner");
+		const peer = await createSession("debt_peer");
+		const declinedPeer = await createSession("debt-declined");
+		const date = "2026-09-01";
+		const createPerson = await jsonRequest(
+			"/debts/people",
+			"POST",
+			{ name: "Pessoa compartilhada" },
+			owner.cookie,
+		);
+		expect(createPerson.status).toBe(200);
+		const ownerPerson = (await createPerson.json()) as { id: string };
+
+		for (const amount of [100, 50]) {
+			const origin = await jsonRequest(
+				"/debts/events",
+				"POST",
+				{ amount, date, description: `Origem ${amount}`, isOwedToMe: true, personId: ownerPerson.id },
+				owner.cookie,
+			);
+			expect(origin.status).toBe(200);
+		}
+
+		const wildcardEmail = peer.email.replace(/-[0-9a-f]/, "-_");
+		const wildcardLookup = await jsonRequest(
+			`/debts/people/${ownerPerson.id}/invite`,
+			"POST",
+			{ email: wildcardEmail },
+			owner.cookie,
+		);
+		expect(wildcardLookup.status).toBe(404);
+
+		const invitationResponse = await jsonRequest(
+			`/debts/people/${ownerPerson.id}/invite`,
+			"POST",
+			{ email: peer.email },
+			owner.cookie,
+		);
+		expect(invitationResponse.status).toBe(200);
+		const invitation = (await invitationResponse.json()) as { id: string };
+		const invitationsResponse = await jsonRequest("/debts/invitations", "GET", undefined, peer.cookie);
+		const invitations = (await invitationsResponse.json()) as Record<string, unknown>[];
+		expect(invitationsResponse.status).toBe(200);
+		expect(invitations[0]).toMatchObject({ direction: "RECEIVED", status: "PENDING" });
+		expect(invitations[0]).not.toHaveProperty("requesterEmail");
+
+		const privateLedger = await jsonRequest("/debts", "GET", undefined, peer.cookie);
+		expect((await privateLedger.json()) as { people: unknown[] }).toMatchObject({ people: [] });
+		const accept = await jsonRequest(`/debts/invitations/${invitation.id}/accept`, "POST", {}, peer.cookie);
+		expect(accept.status).toBe(200);
+
+		interface Ledger {
+			people: Array<{
+				balance: number;
+				events: Array<Record<string, unknown> & { amount: number; effect: number; id: string }>;
+				id: string;
+			}>;
+		}
+		const ownerLedgerResponse = await jsonRequest("/debts", "GET", undefined, owner.cookie);
+		const ownerLedger = (await ownerLedgerResponse.json()) as Ledger;
+		const peerLedgerResponse = await jsonRequest("/debts", "GET", undefined, peer.cookie);
+		const peerLedger = (await peerLedgerResponse.json()) as Ledger;
+		expect(ownerLedger.people[0]?.balance).toBe(150);
+		expect(peerLedger.people[0]?.balance).toBe(-150);
+		expect(peerLedger.people[0]?.events).toHaveLength(2);
+
+		const peerAccountResponse = await jsonRequest(
+			"/financial-accounts/",
+			"POST",
+			{ name: `Conta dívida ${crypto.randomUUID()}`, type: "CHECKING" },
+			peer.cookie,
+		);
+		const peerAccount = (await peerAccountResponse.json()) as { id: string };
+		const paymentResponse = await jsonRequest(
+			"/transactions",
+			"POST",
+			{
+				amount: 50,
+				date,
+				debtPersonId: peerLedger.people[0]!.id,
+				description: "Pagamento privado",
+				originFinancialAccountId: peerAccount.id,
+				storeName: "Metadado privado",
+				type: "EXPENSE",
+			},
+			peer.cookie,
+		);
+		expect(paymentResponse.status).toBe(200);
+		const payment = (await paymentResponse.json()) as { id: string };
+
+		const ledgerAfterPayment = (await (
+			await jsonRequest("/debts", "GET", undefined, owner.cookie)
+		).json()) as Ledger;
+		expect(ledgerAfterPayment.people[0]?.balance).toBe(100);
+		const sharedPayment = ledgerAfterPayment.people[0]?.events.find(
+			event => event.amount === 50 && event.effect === -50,
+		);
+		expect(sharedPayment).not.toHaveProperty("storeName");
+		expect(sharedPayment).not.toHaveProperty("originFinancialAccountId");
+
+		const ownerAccountResponse = await jsonRequest(
+			"/financial-accounts/",
+			"POST",
+			{ name: `Conta pareada ${crypto.randomUUID()}`, type: "CHECKING" },
+			owner.cookie,
+		);
+		const ownerAccount = (await ownerAccountResponse.json()) as { id: string };
+		const pairResponse = await jsonRequest(
+			"/transactions",
+			"POST",
+			{
+				amount: 50,
+				date,
+				destinationFinancialAccountId: ownerAccount.id,
+				matchDebtEventId: sharedPayment!.id,
+				type: "INCOME",
+			},
+			owner.cookie,
+		);
+		expect(pairResponse.status).toBe(200);
+		const ledgerAfterPair = (await (
+			await jsonRequest("/debts", "GET", undefined, owner.cookie)
+		).json()) as Ledger;
+		expect(ledgerAfterPair.people[0]?.balance).toBe(100);
+		expect(ledgerAfterPair.people[0]?.events).toHaveLength(3);
+
+		const overpayment = await jsonRequest(
+			"/transactions",
+			"POST",
+			{
+				amount: 150,
+				date,
+				debtPersonId: peerLedger.people[0]!.id,
+				originFinancialAccountId: peerAccount.id,
+				type: "EXPENSE",
+			},
+			peer.cookie,
+		);
+		expect(overpayment.status).toBe(200);
+		const crossedOwnerLedger = (await (
+			await jsonRequest("/debts", "GET", undefined, owner.cookie)
+		).json()) as Ledger;
+		const crossedPeerLedger = (await (
+			await jsonRequest("/debts", "GET", undefined, peer.cookie)
+		).json()) as Ledger;
+		expect(crossedOwnerLedger.people[0]?.balance).toBe(-50);
+		expect(crossedPeerLedger.people[0]?.balance).toBe(50);
+
+		const cardAccountResponse = await jsonRequest(
+			"/financial-accounts/",
+			"POST",
+			{
+				creditCard: { creditLimit: 1000, dueDay: 20, statementDay: 10 },
+				name: `Cartão dívida ${crypto.randomUUID()}`,
+				type: "CREDIT_CARD",
+			},
+			owner.cookie,
+		);
+		const cardAccount = (await cardAccountResponse.json()) as { creditCard: { id: string } };
+		const purchaseResponse = await jsonRequest(
+			`/credit-cards/${cardAccount.creditCard.id}/purchases`,
+			"POST",
+			{
+				debtPersonId: ownerPerson.id,
+				description: "Compra parcelada",
+				installments: 3,
+				purchaseDate: date,
+				totalAmount: 90,
+			},
+			owner.cookie,
+		);
+		expect(purchaseResponse.status).toBe(200);
+		const purchases = (await purchaseResponse.json()) as Array<{ currentInstallment: number; id: string }>;
+		expect(purchases).toHaveLength(3);
+		const afterInstallments = (await (
+			await jsonRequest("/debts", "GET", undefined, owner.cookie)
+		).json()) as Ledger;
+		expect(afterInstallments.people[0]?.balance).toBe(40);
+		expect(
+			afterInstallments.people[0]?.events.filter(event => event.amount === 90 && event.effect === 90),
+		).toHaveLength(1);
+		const rootPurchase = purchases.find(purchase => purchase.currentInstallment === 1)!;
+		expect(
+			(
+				await jsonRequest(
+					`/credit-cards/${cardAccount.creditCard.id}/purchases/${rootPurchase.id}`,
+					"DELETE",
+					undefined,
+					owner.cookie,
+				)
+			).status,
+		).toBe(200);
+		expect(
+			((await (await jsonRequest("/debts", "GET", undefined, owner.cookie)).json()) as Ledger).people[0]
+				?.balance,
+		).toBe(-50);
+
+		const declinedPersonResponse = await jsonRequest(
+			"/debts/people",
+			"POST",
+			{ name: "Convite recusado" },
+			owner.cookie,
+		);
+		const declinedPerson = (await declinedPersonResponse.json()) as { id: string };
+		const declinedInvitationResponse = await jsonRequest(
+			`/debts/people/${declinedPerson.id}/invite`,
+			"POST",
+			{ email: declinedPeer.email },
+			owner.cookie,
+		);
+		const declinedInvitation = (await declinedInvitationResponse.json()) as { id: string };
+		expect(
+			(
+				await jsonRequest(
+					`/debts/invitations/${declinedInvitation.id}/decline`,
+					"POST",
+					undefined,
+					declinedPeer.cookie,
+				)
+			).status,
+		).toBe(200);
+		expect(
+			((await (await jsonRequest("/debts", "GET", undefined, declinedPeer.cookie)).json()) as Ledger).people,
+		).toHaveLength(0);
+
+		expect((await jsonRequest(`/transactions/${payment.id}`, "DELETE", undefined, peer.cookie)).status).toBe(
+			200,
+		);
+		const afterCreatorDeletion = (await (
+			await jsonRequest("/debts", "GET", undefined, owner.cookie)
+		).json()) as Ledger;
+		expect(afterCreatorDeletion.people[0]?.events).toHaveLength(3);
+		expect(
+			(await jsonRequest(`/debts/people/${ownerPerson.id}`, "DELETE", undefined, owner.cookie)).status,
+		).toBe(200);
+		const peerAfterOwnerHide = (await (
+			await jsonRequest("/debts", "GET", undefined, peer.cookie)
+		).json()) as Ledger;
+		expect(peerAfterOwnerHide.people[0]?.events.length).toBe(3);
 	});
 });

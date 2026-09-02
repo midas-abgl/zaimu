@@ -20,12 +20,12 @@ Transformar dívidas em livro de saldo líquido por pessoa, com contatos locais,
 - [x] Implementar APIs, convites, projeções bilaterais e integrações financeiras.
 - [x] Atualizar sync, cache local e contratos frontend.
 - [x] Reformular modais, picker, listas e tela de dívidas.
-- [ ] Cobrir migração, saldo, privacidade, convites e pareamento com testes.
+- [x] Cobrir migração, saldo, privacidade, convites e pareamento com testes.
 
 ## Estado atual
 
-Sync e IndexedDB atualizados. Picker reutilizável, associação em transações/compras, pareamento sugerido, convites e tela agrupada por pessoa implementados.
+Implementação concluída. Build dos três pacotes, suíte unitária e validação da migração passaram. Cenário E2E bilateral adicionado; execução local aguarda `DATABASE_TEST_URL` descartável.
 
 ## Próximo passo
 
-Executar validação final dos pacotes afetados e fechar cobertura automatizada.
+Aplicar a migração no ambiente desejado e executar o E2E com `DATABASE_TEST_URL` antes do merge.
