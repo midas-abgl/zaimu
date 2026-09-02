@@ -8,14 +8,17 @@ import { defineConfig } from "vite";
 const host = process.env.TAURI_DEV_HOST || "0.0.0.0";
 const port = Number(process.env.PORT || 5173);
 
-const hmrHost = process.env.VITE_PUBLIC_WEB_URL || host;
-const isHttps = hmrHost.includes("https");
+const publicWebUrl = process.env.VITE_PUBLIC_WEB_URL ? new URL(process.env.VITE_PUBLIC_WEB_URL) : undefined;
 
-const hmr = {
-	host: hmrHost.replace(/https?:\/\//, ""),
-	port: isHttps ? 443 : port + 1,
-	protocol: isHttps ? "wss" : "ws",
-};
+// Vite owns the local dev-server port. The reverse proxy terminates TLS on 443,
+// so only the browser-facing HMR connection uses the public HTTPS port.
+const hmr = publicWebUrl
+	? {
+			clientPort: Number(publicWebUrl.port || (publicWebUrl.protocol === "https:" ? 443 : 80)),
+			host: publicWebUrl.hostname,
+			protocol: publicWebUrl.protocol === "https:" ? "wss" : "ws",
+		}
+	: undefined;
 
 export default defineConfig({
 	build: {
@@ -32,7 +35,9 @@ export default defineConfig({
 		},
 	},
 	server: {
-		allowedHosts: ["vite.hyoretsu.com", hmr.host],
+		allowedHosts: ["vite.hyoretsu.com", publicWebUrl?.hostname].filter((hostname): hostname is string =>
+			Boolean(hostname),
+		),
 		hmr,
 		host,
 		port,
