@@ -2,6 +2,7 @@ import { endOfMonth, startOfMonth, subMonths } from "date-fns";
 import Elysia from "elysia";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
 import { requireUserId } from "~/modules/auth";
+import { getDebtBalanceTotals } from "~/modules/debts/application";
 import { materializeSalaryTransactions } from "~/modules/salaries/application/materialize-salary-transactions";
 import { db, queryFirst, queryRows } from "~/shared/infra/sql";
 
@@ -131,25 +132,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 
 		const activeLoans = loansWithPayments.filter(l => l.remainingInstallments > 0);
 
-		// Get debts summary
-		const debts = await queryRows(
-			db.sql.public.Debt.select("amount", "isOwedToMe")
-				.where((f, fn) => fn.and(fn.eq(f.userId, userId), fn.eq(f.isPaid, false)))
-				.build(),
-		);
-
-		const debtsSummary = debts.reduce(
-			(acc, debt) => {
-				const amount = Number(debt.amount);
-				if (debt.isOwedToMe) {
-					acc.owedToMe += amount;
-				} else {
-					acc.iOwe += amount;
-				}
-				return acc;
-			},
-			{ iOwe: 0, owedToMe: 0 },
-		);
+		const debtsSummary = await getDebtBalanceTotals(userId);
 
 		// Recent transactions
 		const recentTransactions =

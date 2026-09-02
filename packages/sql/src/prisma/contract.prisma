@@ -13,6 +13,13 @@ namespace public {
     categories        Category[]
     stores            Store[]
     debts             Debt[]
+    debtPeople        DebtPerson[]
+    debtEvents        DebtEvent[]
+    debtEventVisibilities DebtEventVisibility[]
+    debtTransactionLinks DebtTransactionLink[]
+    debtPurchaseLinks DebtPurchaseLink[]
+    requestedDebtConnections DebtConnection[] @relation(name: "DebtConnection_requesterId_fkey")
+    receivedDebtConnections DebtConnection[] @relation(name: "DebtConnection_recipientId_fkey")
     financialAccounts FinancialAccount[]
     financialInstitutions FinancialInstitution[]
     loans             Loan[]
@@ -205,6 +212,7 @@ namespace public {
     createdAt               Timestamp(3)            @default(now())
     updatedAt               Timestamp(3)            @default(now())
     creditPurchaseHistories CreditPurchaseHistory[]
+    debtPurchaseLink        DebtPurchaseLink?
     category                Category?               @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchase_categoryId_fkey", index: false)
     parent                  CreditPurchase?         @relation(name: "CreditPurchase_parentId_fkey", fields: [parentId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchase_parentId_fkey", index: false)
     creditPurchases         CreditPurchase[]        @relation(name: "CreditPurchase_parentId_fkey")
@@ -257,6 +265,115 @@ namespace public {
     debt      Debt         @relation(fields: [debtId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtHistory_debtId_fkey", index: false)
 
     @@map("DebtHistory")
+  }
+
+  model DebtPerson {
+    id             VarChar(36)  @id(map: "DebtPerson_pkey") @default(dbgenerated("cuid2()"))
+    userId         VarChar(36)
+    name           VarChar(100)
+    normalizedName VarChar(100)
+    connectionId   VarChar(36)?
+    hiddenAt       Timestamp(3)?
+    createdAt      Timestamp(3) @default(now())
+    updatedAt      Timestamp(3) @default(now())
+    user           User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtPerson_userId_fkey", index: false)
+    connection     DebtConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "DebtPerson_connectionId_fkey", index: false)
+    debtEvents     DebtEvent[]
+
+    @@index([userId, normalizedName], map: "DebtPerson_userId_normalizedName_key", unique: true)
+    @@index([connectionId], map: "DebtPerson_connectionId_idx")
+    @@map("DebtPerson")
+  }
+
+  model DebtConnection {
+    id          VarChar(36)                    @id(map: "DebtConnection_pkey") @default(dbgenerated("cuid2()"))
+    requesterId VarChar(36)
+    recipientId VarChar(36)
+    status      pg.enum(DebtConnectionStatus) @default("PENDING")
+    respondedAt Timestamp(3)?
+    createdAt   Timestamp(3)                   @default(now())
+    updatedAt   Timestamp(3)                   @default(now())
+    requester   User                           @relation(name: "DebtConnection_requesterId_fkey", fields: [requesterId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtConnection_requesterId_fkey", index: false)
+    recipient   User                           @relation(name: "DebtConnection_recipientId_fkey", fields: [recipientId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtConnection_recipientId_fkey", index: false)
+    people      DebtPerson[]
+    debtEvents  DebtEvent[]
+
+    @@index([requesterId, recipientId], map: "DebtConnection_requesterId_recipientId_key", unique: true)
+    @@index([recipientId, status], map: "DebtConnection_recipientId_status_idx")
+    @@map("DebtConnection")
+  }
+
+  model DebtEvent {
+    id              VarChar(36)             @id(map: "DebtEvent_pkey") @default(dbgenerated("cuid2()"))
+    debtPersonId    VarChar(36)?
+    connectionId    VarChar(36)?
+    createdByUserId VarChar(36)
+    kind            pg.enum(DebtEventKind)  @default("ORIGIN")
+    amount          Numeric(12, 2)
+    effect          Numeric(12, 2)
+    date            Date
+    dueDate         Date?
+    description     VarChar(1000)?
+    createdAt       Timestamp(3)            @default(now())
+    updatedAt       Timestamp(3)            @default(now())
+    debtPerson      DebtPerson?             @relation(fields: [debtPersonId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "DebtEvent_debtPersonId_fkey", index: false)
+    connection      DebtConnection?         @relation(fields: [connectionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "DebtEvent_connectionId_fkey", index: false)
+    createdByUser   User                    @relation(fields: [createdByUserId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtEvent_createdByUserId_fkey", index: false)
+    visibilities    DebtEventVisibility[]
+    transactionLinks DebtTransactionLink[]
+    purchaseLinks   DebtPurchaseLink[]
+
+    @@index([debtPersonId, date], map: "DebtEvent_debtPersonId_date_idx")
+    @@index([connectionId, date], map: "DebtEvent_connectionId_date_idx")
+    @@index([createdByUserId], map: "DebtEvent_createdByUserId_idx")
+    @@map("DebtEvent")
+  }
+
+  model DebtEventVisibility {
+    id        VarChar(36)  @id(map: "DebtEventVisibility_pkey") @default(dbgenerated("cuid2()"))
+    eventId   VarChar(36)
+    userId    VarChar(36)
+    hiddenAt  Timestamp(3)?
+    createdAt Timestamp(3) @default(now())
+    updatedAt Timestamp(3) @default(now())
+    event     DebtEvent    @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtEventVisibility_eventId_fkey", index: false)
+    user      User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtEventVisibility_userId_fkey", index: false)
+
+    @@index([eventId, userId], map: "DebtEventVisibility_eventId_userId_key", unique: true)
+    @@index([userId, hiddenAt], map: "DebtEventVisibility_userId_hiddenAt_idx")
+    @@map("DebtEventVisibility")
+  }
+
+  model DebtTransactionLink {
+    id            VarChar(36)  @id(map: "DebtTransactionLink_pkey") @default(dbgenerated("cuid2()"))
+    eventId       VarChar(36)
+    transactionId VarChar(36) @unique(map: "DebtTransactionLink_transactionId_key")
+    userId        VarChar(36)
+    isCreator     Boolean      @default(false)
+    createdAt     Timestamp(3) @default(now())
+    updatedAt     Timestamp(3) @default(now())
+    event         DebtEvent    @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtTransactionLink_eventId_fkey", index: false)
+    transaction   Transaction  @relation(fields: [transactionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtTransactionLink_transactionId_fkey", index: false)
+    user          User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtTransactionLink_userId_fkey", index: false)
+
+    @@index([eventId, userId], map: "DebtTransactionLink_eventId_userId_key", unique: true)
+    @@map("DebtTransactionLink")
+  }
+
+  model DebtPurchaseLink {
+    id               VarChar(36)    @id(map: "DebtPurchaseLink_pkey") @default(dbgenerated("cuid2()"))
+    eventId          VarChar(36)
+    creditPurchaseId VarChar(36) @unique(map: "DebtPurchaseLink_creditPurchaseId_key")
+    userId           VarChar(36)
+    isCreator        Boolean        @default(false)
+    createdAt        Timestamp(3)   @default(now())
+    updatedAt        Timestamp(3)   @default(now())
+    event            DebtEvent      @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtPurchaseLink_eventId_fkey", index: false)
+    creditPurchase   CreditPurchase @relation(fields: [creditPurchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtPurchaseLink_creditPurchaseId_fkey", index: false)
+    user             User           @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtPurchaseLink_userId_fkey", index: false)
+
+    @@index([eventId, userId], map: "DebtPurchaseLink_eventId_userId_key", unique: true)
+    @@map("DebtPurchaseLink")
   }
 
   model Loan {
@@ -461,6 +578,7 @@ namespace public {
     createdAt                     Timestamp(3)             @default(now())
     updatedAt                     Timestamp(3)             @default(now())
     transactionHistories          TransactionHistory[]
+    debtTransactionLink           DebtTransactionLink?
     category                      Category?                @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_categoryId_fkey", index: false)
     destinationFinancialAccount   FinancialAccount?        @relation(name: "Transaction_destinationId_fkey", fields: [destinationFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_destinationId_fkey", index: false)
     originFinancialAccount        FinancialAccount?        @relation(name: "Transaction_originId_fkey", fields: [originFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_originId_fkey", index: false)
@@ -507,6 +625,19 @@ namespace public {
     PRICE = "PRICE"
     SAC = "SAC"
     SACRE = "SACRE"
+  }
+
+  native_enum DebtConnectionStatus {
+    PENDING = "PENDING"
+    ACCEPTED = "ACCEPTED"
+    DECLINED = "DECLINED"
+  }
+
+  native_enum DebtEventKind {
+    ORIGIN = "ORIGIN"
+    TRANSACTION = "TRANSACTION"
+    PURCHASE = "PURCHASE"
+    MIGRATED_SETTLEMENT = "MIGRATED_SETTLEMENT"
   }
 
   native_enum FinancialAccountType {

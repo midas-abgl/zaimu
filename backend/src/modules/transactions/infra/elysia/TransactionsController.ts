@@ -11,6 +11,13 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
+import {
+	debtRefsForPurchases,
+	debtRefsForTransactions,
+	deleteCreatorDebtEventForTransaction,
+	linkTransactionToDebt,
+	syncTransactionDebtEvent,
+} from "~/modules/debts/application";
 import { materializeSalaryTransactions } from "~/modules/salaries/application/materialize-salary-transactions";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { HttpException } from "~/shared/errors";
@@ -175,6 +182,9 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				tagEntityType.transaction,
 				transactions.map(transaction => transaction.id),
 			);
+			const transactionDebtRefs = await debtRefsForTransactions(
+				transactions.map(transaction => transaction.id),
+			);
 
 			const normalizedTransactions = transactions.map(transaction => {
 				const tags = tagsByTransaction.get(transaction.id) ?? [];
@@ -182,6 +192,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					transaction.type === "INCOME" ? transaction.destinationAccountType : transaction.originAccountType;
 				return {
 					...transaction,
+					...transactionDebtRefs.get(transaction.id),
 					source:
 						transaction.type !== "TRANSFER" &&
 						paymentAccountType === "CREDIT_CARD" &&
@@ -272,11 +283,13 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				tagEntityType.creditPurchase,
 				purchases.map(purchase => purchase.id),
 			);
+			const purchaseDebtRefs = await debtRefsForPurchases(purchases.map(purchase => purchase.id));
 			const normalizedPurchases = purchases
 				.map(purchase => {
 					const tags = purchaseTags.get(purchase.id) ?? [];
 					return {
 						...purchase,
+						...purchaseDebtRefs.get(purchase.id),
 						creditCardStatementId: purchase.statementId,
 						destinationFinancialAccountId: null,
 						destinationName: null,
@@ -532,6 +545,16 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					entityType: tagEntityType.transaction,
 					tagIds,
 				});
+				await linkTransactionToDebt({
+					amount: body.amount,
+					date: body.date,
+					debtPersonId: body.debtPersonId,
+					description: body.description,
+					matchEventId: body.matchDebtEventId,
+					transactionId: transaction.id,
+					type: body.type ?? "EXPENSE",
+					userId,
+				});
 			}
 
 			const tagsByTransaction = await getTagsByEntity(tagEntityType.transaction, [transaction.id]);
@@ -543,8 +566,10 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				amount: t.Number(),
 				categoryId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				date: t.String(),
+				debtPersonId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				description: t.Optional(t.String({ maxLength: 1000 })),
 				destinationFinancialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
+				matchDebtEventId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				originFinancialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				recurrenceId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				recurrenceOccurrenceDate: t.Optional(t.String()),
@@ -657,6 +682,16 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					.build(),
 			);
 			if (!transaction) throw new HttpException("Transaction not found", 404);
+			await syncTransactionDebtEvent({
+				amount: Number(transaction.amount),
+				date: transaction.date.toISOString().slice(0, 10),
+				debtPersonId: body.debtPersonId,
+				description: transaction.description ?? undefined,
+				matchEventId: body.matchDebtEventId,
+				transactionId: transaction.id,
+				type: transaction.type as "EXPENSE" | "INCOME" | "TRANSFER",
+				userId,
+			});
 			if (tagIds !== undefined) {
 				await replaceEntityTags({
 					entityIds: [transaction.id],
@@ -674,8 +709,10 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				amount: t.Optional(t.Number()),
 				categoryId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				date: t.Optional(t.String()),
+				debtPersonId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				description: t.Optional(t.String({ maxLength: 1000 })),
 				destinationFinancialAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
+				matchDebtEventId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				originFinancialAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				storeName: t.Optional(t.Nullable(t.String({ maxLength: 200 }))),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
@@ -709,6 +746,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				entityType: tagEntityType.transaction,
 				tagIds: [],
 			});
+			await deleteCreatorDebtEventForTransaction(params.id, userId);
 			await executeStatement(
 				db.sql.public.Transaction.delete()
 					.where((f, fn) => fn.eq(f.id, params.id))

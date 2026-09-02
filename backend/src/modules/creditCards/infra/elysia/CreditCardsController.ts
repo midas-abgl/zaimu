@@ -12,6 +12,12 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
+import {
+	debtRefsForPurchases,
+	deleteCreatorDebtEventForPurchase,
+	linkPurchaseToDebt,
+	syncPurchaseDebtEvent,
+} from "~/modules/debts/application";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
@@ -797,6 +803,9 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				tagEntityType.creditPurchase,
 				purchases.map(purchase => purchase.id),
 			);
+			const debtRefs = await debtRefsForPurchases([
+				...new Set(purchases.map(purchase => purchase.parentId ?? purchase.id)),
+			]);
 
 			return {
 				...statement,
@@ -804,6 +813,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					const tags = tagsByPurchase.get(purchase.id) ?? [];
 					return {
 						...purchase,
+						...debtRefs.get(purchase.parentId ?? purchase.id),
 						categoryColor: tags[0]?.color,
 						categoryName: tags[0]?.name,
 						tagIds: tags.map(tag => tag.id),
@@ -1099,6 +1109,15 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				tagEntityType.creditPurchase,
 				createdPurchases.map(purchase => purchase.id),
 			);
+			await linkPurchaseToDebt({
+				creditPurchaseId: purchase.id,
+				date: body.purchaseDate,
+				debtPersonId: body.debtPersonId,
+				description: body.description,
+				matchEventId: body.matchDebtEventId,
+				totalAmount: body.totalAmount,
+				userId,
+			});
 
 			return createdPurchases.map(purchase => {
 				const tags = tagsByPurchase.get(purchase.id) ?? [];
@@ -1108,8 +1127,10 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 		{
 			body: t.Object({
 				categoryId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
+				debtPersonId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				description: t.Optional(t.String({ maxLength: 500 })),
 				installments: t.Optional(t.Number({ maximum: 48, minimum: 1 })),
+				matchDebtEventId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				purchaseDate: t.String(),
 				storeName: t.Optional(t.String({ maxLength: 200 })),
 				subscriptionId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
@@ -1195,6 +1216,15 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					.build(),
 			);
 			if (!updatedPurchase) throw new HttpException("Purchase not found", 404);
+			await syncPurchaseDebtEvent({
+				creditPurchaseId: purchase.parentId ?? purchase.id,
+				date: updatedPurchase.purchaseDate.toISOString().slice(0, 10),
+				debtPersonId: body.debtPersonId,
+				description: updatedPurchase.description,
+				matchEventId: body.matchDebtEventId,
+				totalAmount: Number(updatedPurchase.totalAmount),
+				userId,
+			});
 
 			if (nextStatementId !== purchase.statementId) {
 				const previousStatementAmount = param(numeric<12, 2>(previousAmount), { codecId: "pg/numeric@1" });
@@ -1246,8 +1276,10 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 		{
 			body: t.Object({
 				creditCardId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
+				debtPersonId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				description: t.Optional(t.String({ maxLength: 500 })),
 				installments: t.Optional(t.Number({ maximum: 48, minimum: 1 })),
+				matchDebtEventId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				purchaseDate: t.Optional(t.String()),
 				storeName: t.Optional(t.Nullable(t.String({ maxLength: 200 }))),
 				tagIds: t.Optional(t.Array(t.String({ maxLength: 36, minLength: 1 }), { maxItems: 20 })),
@@ -1275,6 +1307,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				entityType: tagEntityType.creditPurchase,
 				tagIds: [],
 			});
+			if (!purchase.parentId) await deleteCreatorDebtEventForPurchase(purchase.id, userId);
 			await executeStatement(
 				db.sql.public.CreditPurchase.delete()
 					.where((fields, functions) => functions.eq(fields.id, purchase.id))
