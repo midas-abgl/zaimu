@@ -113,10 +113,7 @@ export function TransactionDetailsFields({
 						id="transaction-without-time"
 						onCheckedChange={checked => onSendWithoutTimeChange(checked === true)}
 					/>
-					<span>
-						<strong className="block">Enviar sem horário</strong>
-						<span className="text-muted-foreground">Não inclui horário nesta transação.</span>
-					</span>
+					<span className="font-medium text-foreground-muted">Enviar sem horário</span>
 				</label>
 			) : null}
 			{showTags ? <TagPicker onValueChange={onTagIdsChange} value={tagIds} /> : null}

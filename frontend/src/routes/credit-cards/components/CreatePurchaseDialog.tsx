@@ -202,10 +202,7 @@ export function CreatePurchaseDialog({
 									id="purchase-without-time"
 									onCheckedChange={checked => setSendWithoutTime(checked === true)}
 								/>
-								<span>
-									<strong className="block">Enviar sem horário</strong>
-									<span className="text-muted-foreground">Não inclui horário nesta compra.</span>
-								</span>
+								<span className="font-medium text-foreground-muted">Enviar sem horário</span>
 							</label>
 							<TagPicker onValueChange={setTagIds} value={tagIds} />
 							<div className="grid gap-3 rounded-2xl border p-3">
