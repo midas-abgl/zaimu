@@ -39,8 +39,13 @@ function CreditCardsPage() {
 			cardId: string;
 			data: Parameters<typeof dataService.creditCards.addPurchase>[1];
 		}) => dataService.creditCards.addPurchase(cardId, data),
+		onError: error =>
+			showToast(error instanceof Error ? error.message : "Não foi possível registrar a compra.", "negative"),
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] });
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
+				queryClient.invalidateQueries({ queryKey: ["debts"] }),
+			]);
 			showToast("Compra registrada e faturas recalculadas.", "positive");
 		},
 	});
