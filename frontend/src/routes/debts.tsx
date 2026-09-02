@@ -24,18 +24,18 @@ function DebtsPage() {
 			showToast("Origem adicionada ao saldo.", "positive");
 		},
 	});
-	const hidePerson = useMutation({
-		mutationFn: (id: string) => dataService.debts.hidePerson(id),
+	const deletePerson = useMutation({
+		mutationFn: (id: string) => dataService.debts.deletePerson(id),
 		onSuccess: async () => {
 			await refresh();
-			showToast("Pessoa ocultada deste livro.", "info");
+			showToast("Pessoa excluída.", "info");
 		},
 	});
-	const hideEvent = useMutation({
-		mutationFn: (id: string) => dataService.debts.hideEvent(id),
+	const deleteEvent = useMutation({
+		mutationFn: (id: string) => dataService.debts.deleteEvent(id),
 		onSuccess: async () => {
 			await refresh();
-			showToast("Origem ocultada.", "info");
+			showToast("Origem excluída.", "info");
 		},
 	});
 	const update = useMutation({
@@ -98,9 +98,9 @@ function DebtsPage() {
 					people.map(person => (
 						<DebtPersonCard
 							key={person.id}
+							onDeleteEvent={id => deleteEvent.mutate(id)}
+							onDeletePerson={id => deletePerson.mutate(id)}
 							onEditEvent={(event, personId) => setEditing({ event, personId })}
-							onHideEvent={id => hideEvent.mutate(id)}
-							onHidePerson={id => hidePerson.mutate(id)}
 							person={person}
 						/>
 					))

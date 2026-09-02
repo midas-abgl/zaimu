@@ -806,6 +806,22 @@ export const dataService = {
 			await fetchWithAuth(`/debts/${id}`, { method: "DELETE" });
 			await localDebts.delete(id);
 		},
+		async deleteEvent(id: string): Promise<void> {
+			if (isGuestMode()) {
+				if (id.startsWith("transaction:") || id.startsWith("purchase:"))
+					throw new Error("Exclua a movimentação financeira original.");
+				await localDebts.delete(id);
+				return;
+			}
+			await fetchWithAuth(`/debts/events/${id}`, { method: "DELETE" });
+		},
+		async deletePerson(id: string): Promise<void> {
+			if (isGuestMode()) {
+				await localDebtPeople.delete(id);
+				return;
+			}
+			await fetchWithAuth(`/debts/people/${id}`, { method: "DELETE" });
+		},
 		async getAll(): Promise<Debt[]> {
 			if (isGuestMode()) {
 				const local = await localDebts.getAll();
@@ -923,22 +939,6 @@ export const dataService = {
 					{ iOwe: 0, net: 0, owedToMe: 0 },
 				),
 			};
-		},
-		async hideEvent(id: string): Promise<void> {
-			if (isGuestMode()) {
-				if (id.startsWith("transaction:") || id.startsWith("purchase:"))
-					throw new Error("Exclua a movimentação financeira original.");
-				await localDebts.delete(id);
-				return;
-			}
-			await fetchWithAuth(`/debts/events/${id}`, { method: "DELETE" });
-		},
-		async hidePerson(id: string): Promise<void> {
-			if (isGuestMode()) {
-				await localDebtPeople.delete(id);
-				return;
-			}
-			await fetchWithAuth(`/debts/people/${id}`, { method: "DELETE" });
 		},
 		async invitePerson(id: string, email: string): Promise<void> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para associar usuários Zaimu.");

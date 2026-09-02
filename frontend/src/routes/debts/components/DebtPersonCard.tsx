@@ -2,14 +2,15 @@ import { useState } from "react";
 import {
 	LuChevronDown,
 	LuChevronUp,
-	LuEyeOff,
 	LuPencil,
 	LuShoppingCart,
+	LuTrash2,
 	LuUsersRound,
 	LuWalletCards,
 } from "react-icons/lu";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import type { DebtEvent, DebtPerson } from "@/lib/api";
 import { formatLocalDate } from "@/lib/date";
 
@@ -24,14 +25,14 @@ function eventLabel(event: DebtEvent) {
 }
 
 export function DebtPersonCard({
+	onDeleteEvent,
+	onDeletePerson,
 	onEditEvent,
-	onHideEvent,
-	onHidePerson,
 	person,
 }: {
+	onDeleteEvent: (id: string) => void;
+	onDeletePerson: (id: string) => void;
 	onEditEvent: (event: DebtEvent, personId: string) => void;
-	onHideEvent: (id: string) => void;
-	onHidePerson: (id: string) => void;
 	person: DebtPerson;
 }) {
 	const [expanded, setExpanded] = useState(false);
@@ -72,16 +73,16 @@ export function DebtPersonCard({
 				>
 					{expanded ? <LuChevronUp /> : <LuChevronDown />} {expanded ? "Minimizar" : "Expandir"}
 				</Button>
-				<Button
-					aria-label={`Ocultar ${person.name}`}
+				<ConfirmActionButton
+					aria-label={`Excluir ${person.name}`}
 					className="cursor-pointer"
-					onClick={() => onHidePerson(person.id)}
+					confirmation={`Excluir ${person.name}?`}
+					onConfirm={() => onDeletePerson(person.id)}
 					size="icon"
-					type="button"
-					variant="outline"
+					variant="destructive"
 				>
-					<LuEyeOff />
-				</Button>
+					<LuTrash2 />
+				</ConfirmActionButton>
 			</div>
 			{expanded ? (
 				<div className="mt-4 grid gap-2 border-t pt-4">
@@ -113,16 +114,16 @@ export function DebtPersonCard({
 								</Button>
 							) : null}
 							{event.kind === "ORIGIN" ? (
-								<Button
-									aria-label="Ocultar origem"
+								<ConfirmActionButton
+									aria-label="Excluir origem"
 									className="cursor-pointer"
-									onClick={() => onHideEvent(event.id)}
+									confirmation="Excluir esta origem?"
+									onConfirm={() => onDeleteEvent(event.id)}
 									size="icon"
-									type="button"
-									variant="outline"
+									variant="destructive"
 								>
-									<LuEyeOff />
-								</Button>
+									<LuTrash2 />
+								</ConfirmActionButton>
 							) : null}
 						</div>
 					))}
