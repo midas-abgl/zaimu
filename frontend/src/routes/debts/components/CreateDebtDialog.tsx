@@ -83,11 +83,13 @@ export function CreateDebtDialog({
 				<ScrollArea className="h-full sm:max-h-[calc(100dvh-2rem)]">
 					<form className="grid gap-5 p-6" onSubmit={submit}>
 						<DialogHeader>
-							<DialogTitle>{initialValue ? "Editar origem de dívida" : "Nova origem de dívida"}</DialogTitle>
+							<DialogTitle>{initialValue ? "Editar lançamento" : "Novo lançamento"}</DialogTitle>
 							<DialogDescription>
 								{initialValue
 									? "A alteração recalcula o saldo dos dois participantes."
-									: "O valor será somado ao saldo total da pessoa."}
+									: isOwedToMe
+										? "Este valor aumenta o total que você tem a receber da pessoa."
+										: "Este valor aumenta o total que você tem a pagar para a pessoa."}
 							</DialogDescription>
 						</DialogHeader>
 						<div className="grid grid-cols-2 gap-2">
@@ -97,7 +99,7 @@ export function CreateDebtDialog({
 								type="button"
 								variant={isOwedToMe ? "default" : "outline"}
 							>
-								Pessoa me deve
+								Tenho a receber
 							</Button>
 							<Button
 								className="cursor-pointer"
@@ -105,7 +107,7 @@ export function CreateDebtDialog({
 								type="button"
 								variant={!isOwedToMe ? "destructive" : "outline"}
 							>
-								Eu devo
+								Tenho a pagar
 							</Button>
 						</div>
 						<DebtPersonPicker onValueChange={setPersonId} required value={personId} />
@@ -159,7 +161,7 @@ export function CreateDebtDialog({
 								disabled={pending || !personId || Number(amount) <= 0 || !date}
 								type="submit"
 							>
-								{pending ? "Salvando…" : initialValue ? "Salvar alterações" : "Salvar origem"}
+								{pending ? "Salvando…" : initialValue ? "Salvar alterações" : "Salvar lançamento"}
 							</Button>
 						</DialogFooter>
 					</form>

@@ -21,7 +21,7 @@ function eventLabel(event: DebtEvent) {
 	if (event.kind === "PURCHASE") return "Compra";
 	if (event.kind === "TRANSACTION") return event.effect < 0 ? "Recebimento" : "Pagamento";
 	if (event.kind === "MIGRATED_SETTLEMENT") return "Quitação migrada";
-	return "Origem da dívida";
+	return "Lançamento manual";
 }
 
 export function DebtPersonCard({
@@ -103,7 +103,7 @@ export function DebtPersonCard({
 							</span>
 							{event.kind === "ORIGIN" && event.createdByMe ? (
 								<Button
-									aria-label="Editar origem"
+									aria-label="Editar lançamento"
 									className="cursor-pointer"
 									onClick={() => onEditEvent(event, person.id)}
 									size="icon"
@@ -115,9 +115,9 @@ export function DebtPersonCard({
 							) : null}
 							{event.kind === "ORIGIN" ? (
 								<ConfirmActionButton
-									aria-label="Excluir origem"
+									aria-label="Excluir lançamento"
 									className="cursor-pointer"
-									confirmation="Excluir esta origem?"
+									confirmation="Excluir este lançamento?"
 									onConfirm={() => onDeleteEvent(event.id)}
 									size="icon"
 									variant="destructive"

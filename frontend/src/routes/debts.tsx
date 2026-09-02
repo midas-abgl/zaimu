@@ -18,10 +18,11 @@ function DebtsPage() {
 	const refresh = () => queryClient.invalidateQueries({ queryKey: ["debts"] });
 	const create = useMutation({
 		mutationFn: (draft: DebtOriginDraft) => dataService.debts.createOrigin(draft),
-		onError: error => showToast(error instanceof Error ? error.message : "Origem não criada.", "negative"),
+		onError: error =>
+			showToast(error instanceof Error ? error.message : "Lançamento não criado.", "negative"),
 		onSuccess: async () => {
 			await refresh();
-			showToast("Origem adicionada ao saldo.", "positive");
+			showToast("Lançamento adicionado ao saldo.", "positive");
 		},
 	});
 	const deletePerson = useMutation({
@@ -35,18 +36,18 @@ function DebtsPage() {
 		mutationFn: (id: string) => dataService.debts.deleteEvent(id),
 		onSuccess: async () => {
 			await refresh();
-			showToast("Origem excluída.", "info");
+			showToast("Lançamento excluído.", "info");
 		},
 	});
 	const update = useMutation({
 		mutationFn: ({ id, draft }: { id: string; draft: DebtOriginDraft }) =>
 			dataService.debts.updateOrigin(id, draft),
 		onError: error =>
-			showToast(error instanceof Error ? error.message : "Origem não atualizada.", "negative"),
+			showToast(error instanceof Error ? error.message : "Lançamento não atualizado.", "negative"),
 		onSuccess: async () => {
 			await refresh();
 			setEditing(null);
-			showToast("Origem atualizada.", "positive");
+			showToast("Lançamento atualizado.", "positive");
 		},
 	});
 	const people = ledger.data?.people ?? [];
@@ -76,7 +77,7 @@ function DebtsPage() {
 						onClick={() => setCreateOpen(true)}
 						variant="secondary"
 					>
-						<LuPlus /> Adicionar origem
+						<LuPlus /> Adicionar lançamento
 					</Button>
 				</div>
 				<div className="mt-6 grid grid-cols-2 gap-4 border-primary-foreground/20 border-t pt-4">
@@ -108,7 +109,9 @@ function DebtsPage() {
 					<div className="rounded-2xl border bg-card py-12 text-center">
 						<LuUsersRound className="mx-auto size-10 text-muted-foreground" />
 						<p className="mt-3 font-semibold">Nenhuma dívida cadastrada</p>
-						<p className="text-muted-foreground text-sm">Adicione uma origem ou vincule uma movimentação.</p>
+						<p className="text-muted-foreground text-sm">
+							Adicione um lançamento ou vincule uma movimentação.
+						</p>
 					</div>
 				)}
 			</section>
