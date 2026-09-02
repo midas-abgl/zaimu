@@ -1,6 +1,12 @@
 import Elysia, { t } from "elysia";
 import { requireUserId } from "~/modules/auth";
-import { createDebtEvent, getOwnedDebtPerson, normalizeDebtPersonName } from "~/modules/debts/application";
+import {
+	createDebtEvent,
+	getAccessibleDebtEvent,
+	getOwnedDebtPerson,
+	normalizeDebtPersonName,
+	resolveDebtPersonConnection,
+} from "~/modules/debts/application";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
 
@@ -178,7 +184,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			const userId = await requireUserId(request);
 			const requester = db.sql.public.user.select("id", "name", "email").as("requester");
 			const recipient = db.sql.public.user.select("id", "name", "email").as("recipient");
-			return queryRows(
+			const invitations = await queryRows(
 				db.sql.public.DebtConnection.innerJoin(requester, (fields, functions) =>
 					functions.eq(fields.DebtConnection.requesterId, fields.requester.id),
 				)
@@ -188,9 +194,9 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 					.select(fields => ({
 						createdAt: fields.DebtConnection.createdAt,
 						id: fields.DebtConnection.id,
-						recipientEmail: fields.recipient.email,
+						recipientId: fields.DebtConnection.recipientId,
 						recipientName: fields.recipient.name,
-						requesterEmail: fields.requester.email,
+						requesterId: fields.DebtConnection.requesterId,
 						requesterName: fields.requester.name,
 						status: fields.DebtConnection.status,
 					}))
@@ -203,6 +209,14 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 					.orderBy(fields => fields.DebtConnection.createdAt, { direction: "desc" })
 					.build(),
 			);
+			return invitations.map(invitation => ({
+				counterpartyName:
+					invitation.requesterId === userId ? invitation.recipientName : invitation.requesterName,
+				createdAt: invitation.createdAt,
+				direction: invitation.requesterId === userId ? ("SENT" as const) : ("RECEIVED" as const),
+				id: invitation.id,
+				status: invitation.status,
+			}));
 		},
 		{ detail: { tags: ["Debts"] } },
 	)
@@ -225,7 +239,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			const recipient = await queryFirst(
 				db.sql.public.user
 					.select("id", "name", "email", "emailVerified")
-					.where((fields, functions) => functions.ilike(fields.email, body.email.trim()))
+					.where((fields, functions) => functions.eq(fields.email, body.email.trim().toLowerCase()))
 					.limit(1)
 					.build(),
 			);
@@ -250,11 +264,24 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			);
 			if (existing?.status === "ACCEPTED") throw new HttpException("Contas já associadas", 409);
 			if (existing?.status === "PENDING") return existing;
-			const connection = await queryFirst(
-				db.sql.public.DebtConnection.insert([{ recipientId: recipient.id, requesterId: userId }])
-					.returning("id", "requesterId", "recipientId", "status")
-					.build(),
-			);
+			const connection = existing
+				? await queryFirst(
+						db.sql.public.DebtConnection.update({
+							recipientId: recipient.id,
+							requesterId: userId,
+							respondedAt: null,
+							status: "PENDING",
+							updatedAt: new Date(),
+						})
+							.where((fields, functions) => functions.eq(fields.id, existing.id))
+							.returning("id", "requesterId", "recipientId", "status")
+							.build(),
+					)
+				: await queryFirst(
+						db.sql.public.DebtConnection.insert([{ recipientId: recipient.id, requesterId: userId }])
+							.returning("id", "requesterId", "recipientId", "status")
+							.build(),
+					);
 			if (!connection) throw new HttpException("Convite não criado", 500);
 			await executeStatement(
 				db.sql.public.DebtPerson.update({ connectionId: connection.id, updatedAt: new Date() })
@@ -407,6 +434,48 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			detail: { tags: ["Debts"] },
 		},
 	)
+	.patch(
+		"/events/:eventId",
+		async ({ body, params, request }) => {
+			const userId = await requireUserId(request);
+			const event = await getAccessibleDebtEvent(params.eventId, userId);
+			if (event.createdByUserId !== userId || event.kind !== "ORIGIN")
+				throw new HttpException("Somente a origem manual pode ser editada pelo autor", 403);
+			const personId = body.personId ?? event.debtPersonId;
+			if (!personId) throw new HttpException("Pessoa da dívida não encontrada", 404);
+			const { connectionId } = await resolveDebtPersonConnection(personId, userId);
+			const amount = body.amount ?? Number(event.amount);
+			const direction = Number(event.effect) >= 0 ? 1 : -1;
+			const updated = await queryFirst(
+				db.sql.public.DebtEvent.update({
+					amount: String(amount),
+					connectionId: connectionId ?? null,
+					date: body.date ? new Date(body.date) : event.date,
+					debtPersonId: personId,
+					description: body.description,
+					dueDate: body.dueDate ? new Date(body.dueDate) : null,
+					effect: String((body.isOwedToMe === undefined ? direction : body.isOwedToMe ? 1 : -1) * amount),
+					updatedAt: new Date(),
+				})
+					.where((fields, functions) => functions.eq(fields.id, event.id))
+					.returning("id", "amount", "effect", "date", "description", "kind", "debtPersonId")
+					.build(),
+			);
+			return updated;
+		},
+		{
+			body: t.Object({
+				amount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
+				date: t.Optional(t.String()),
+				description: t.Optional(t.String({ maxLength: 1000 })),
+				dueDate: t.Optional(t.String()),
+				isOwedToMe: t.Optional(t.Boolean()),
+				personId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
+			}),
+			detail: { tags: ["Debts"] },
+			params: EventIdParams,
+		},
+	)
 	.delete(
 		"/people/:id",
 		async ({ params, request }) => {
@@ -425,13 +494,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 		"/events/:eventId",
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
-			const event = await queryFirst(
-				db.sql.public.DebtEvent.select("id", "createdByUserId")
-					.where((fields, functions) => functions.eq(fields.id, params.eventId))
-					.limit(1)
-					.build(),
-			);
-			if (!event) throw new HttpException("Lançamento não encontrado", 404);
+			const event = await getAccessibleDebtEvent(params.eventId, userId);
 			const existing = await queryFirst(
 				db.sql.public.DebtEventVisibility.select("id")
 					.where((fields, functions) =>

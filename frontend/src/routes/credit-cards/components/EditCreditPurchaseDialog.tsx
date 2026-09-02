@@ -1,7 +1,9 @@
 import { type SyntheticEvent, useEffect, useState } from "react";
+import { DebtPersonPicker } from "@/components/debts";
 import { StorePicker } from "@/components/stores";
 import { TagPicker } from "@/components/tags";
 import { Button } from "@/components/ui/Button";
+import { Checkbox } from "@/components/ui/Checkbox";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import {
@@ -23,6 +25,7 @@ import { getUpdatedStoreName } from "@/lib/store-name";
 interface CreditPurchaseUpdate {
 	creditCardId?: string;
 	description: string;
+	debtPersonId?: null | string;
 	installments: number;
 	storeName?: string | null;
 	purchaseDate: string;
@@ -49,6 +52,8 @@ export function EditCreditPurchaseDialog({
 	purchase: CreditPurchase;
 }) {
 	const [description, setDescription] = useDebouncedInput(purchase.description, () => undefined);
+	const [debtPersonId, setDebtPersonId] = useState(purchase.debtPersonId ?? "");
+	const [isDebt, setIsDebt] = useState(Boolean(purchase.debtPersonId));
 	const [amount, setAmount] = useState(String(purchase.totalAmount));
 	const [count, setCount] = useDebouncedInput(String(purchase.installments), () => undefined);
 	const [date, setDate] = useState(purchase.purchaseDate.slice(0, 10));
@@ -60,8 +65,10 @@ export function EditCreditPurchaseDialog({
 	useEffect(() => {
 		if (!open) return;
 		setStoreName(purchase.storeName ?? "");
+		setDebtPersonId(purchase.debtPersonId ?? "");
+		setIsDebt(Boolean(purchase.debtPersonId));
 		setTime(purchase.time ?? "");
-	}, [open, purchase.storeName, purchase.time]);
+	}, [open, purchase.debtPersonId, purchase.storeName, purchase.time]);
 	const totalAmount = Number(amount);
 	const installments = Number.parseInt(count, 10);
 	const installmentAmount = totalAmount / (installments || 1);
@@ -71,6 +78,7 @@ export function EditCreditPurchaseDialog({
 		const updatedStoreName = getUpdatedStoreName(purchase.storeName, storeName);
 		await onSubmit({
 			...(selectedCardId && selectedCardId !== creditCardId && { creditCardId: selectedCardId }),
+			debtPersonId: isDebt ? debtPersonId : null,
 			description: description.trim(),
 			installments,
 			purchaseDate: date,
@@ -164,6 +172,26 @@ export function EditCreditPurchaseDialog({
 								</div>
 							) : null}
 							<TagPicker disabled={pending} onValueChange={setTagIds} value={tagIds} />
+							<div className="grid gap-3 rounded-2xl border p-3">
+								<label
+									className="flex cursor-pointer items-center gap-3 text-sm"
+									htmlFor="edit-purchase-is-debt"
+								>
+									<Checkbox
+										checked={isDebt}
+										className="cursor-pointer"
+										id="edit-purchase-is-debt"
+										onCheckedChange={checked => {
+											setIsDebt(checked === true);
+											if (checked !== true) setDebtPersonId("");
+										}}
+									/>
+									<span>Esta compra é de uma dívida</span>
+								</label>
+								{isDebt ? (
+									<DebtPersonPicker onValueChange={setDebtPersonId} required value={debtPersonId} />
+								) : null}
+							</div>
 							<DialogFooter>
 								<Button
 									className="cursor-pointer"
@@ -177,6 +205,7 @@ export function EditCreditPurchaseDialog({
 									className="cursor-pointer"
 									disabled={
 										pending ||
+										(isDebt && !debtPersonId) ||
 										totalAmount <= 0 ||
 										!Number.isInteger(installments) ||
 										installments < 1 ||

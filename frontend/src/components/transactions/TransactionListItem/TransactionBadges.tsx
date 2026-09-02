@@ -1,4 +1,4 @@
-import { LuArrowRight, LuCreditCard, LuLandmark, LuStore } from "react-icons/lu";
+import { LuArrowRight, LuCreditCard, LuLandmark, LuStore, LuUsersRound } from "react-icons/lu";
 import { Badge } from "@/components/ui/Badge";
 import type { FinancialAccount, Tag } from "@/lib/api";
 import { getFinancialAccountTypeLabel } from "@/lib/financial-account";
@@ -17,10 +17,12 @@ function getAccountTypeLabel(type?: FinancialAccount["type"]) {
 
 export function TransactionBadges({
 	accounts,
+	debtPersonName,
 	storeName,
 	tags,
 }: {
 	accounts: TransactionBadgeAccount[];
+	debtPersonName?: string;
 	storeName?: string | null;
 	tags?: Tag[];
 }) {
@@ -50,6 +52,16 @@ export function TransactionBadges({
 						<LuStore aria-hidden="true" />
 						<span className="min-w-0 truncate">
 							<span className="text-muted-foreground">Loja</span> {storeName}
+						</span>
+					</Badge>
+				</li>
+			) : null}
+			{debtPersonName ? (
+				<li className="min-w-0">
+					<Badge className="h-7 max-w-full gap-1.5 px-2.5 font-normal" variant="outline">
+						<LuUsersRound aria-hidden="true" />
+						<span className="truncate">
+							<span className="text-muted-foreground">Dívida</span> {debtPersonName}
 						</span>
 					</Badge>
 				</li>

@@ -14,6 +14,9 @@ import type {
 	CreditPurchase,
 	Dashboard,
 	Debt,
+	DebtInvitation,
+	DebtLedger,
+	DebtPerson,
 	FinancialAccount,
 	FinancialInstitution,
 	Loan,
@@ -33,6 +36,7 @@ import {
 	localCreditCardStatements,
 	localCreditCards,
 	localCreditPurchases,
+	localDebtPeople,
 	localDebts,
 	localLoans,
 	localMeta,
@@ -294,9 +298,11 @@ export const dataService = {
 			cardId: string,
 			data: {
 				categoryId?: string;
+				debtPersonId?: string;
 				description?: string;
 				storeName?: string;
 				installments?: number;
+				matchDebtEventId?: string;
 				purchaseDate: string;
 				subscriptionId?: string;
 				subscriptionOccurrenceDate?: string;
@@ -346,6 +352,7 @@ export const dataService = {
 			const purchase: CreditPurchase = {
 				categoryId: data.tagIds?.[0] ?? data.categoryId,
 				currentInstallment: 1,
+				debtPersonId: data.debtPersonId,
 				description: data.description ?? "",
 				id: crypto.randomUUID(),
 				installmentAmount,
@@ -530,6 +537,7 @@ export const dataService = {
 			purchaseId: string,
 			data: {
 				creditCardId?: string;
+				debtPersonId?: null | string;
 				description: string;
 				installments: number;
 				storeName?: string | null;
@@ -587,6 +595,7 @@ export const dataService = {
 				...storedPurchase.data,
 				categoryId: data.tagIds[0],
 				description: data.description,
+				...(data.debtPersonId !== undefined && { debtPersonId: data.debtPersonId ?? undefined }),
 				...(data.storeName !== undefined && { storeName: data.storeName }),
 				installmentAmount,
 				installments,
@@ -705,6 +714,13 @@ export const dataService = {
 
 	// ============== DEBTS ==============
 	debts: {
+		async acceptInvitation(id: string, personId?: string): Promise<void> {
+			if (isGuestMode()) throw new Error("Conecte sua conta para aceitar convites.");
+			await fetchWithAuth(`/debts/invitations/${id}/accept`, {
+				body: JSON.stringify({ personId }),
+				method: "POST",
+			});
+		},
 		async create(
 			data: Omit<Debt, "id" | "isPaid" | "paidDate" | "userId"> & { isPaid?: boolean; paidDate?: string },
 		): Promise<Debt> {
@@ -726,6 +742,61 @@ export const dataService = {
 			await localDebts.put(debt, debt.id);
 			return debt;
 		},
+		async createOrigin(data: {
+			amount: number;
+			date: string;
+			description?: string;
+			dueDate?: string;
+			isOwedToMe: boolean;
+			personId: string;
+		}): Promise<void> {
+			if (isGuestMode()) {
+				const person = await localDebtPeople.getById(data.personId);
+				if (!person) throw new Error("Pessoa não encontrada");
+				const debt: Debt = {
+					amount: data.amount,
+					date: data.date,
+					description: data.description,
+					dueDate: data.dueDate,
+					id: crypto.randomUUID(),
+					isOwedToMe: data.isOwedToMe,
+					isPaid: false,
+					personId: person.data.id,
+					personName: person.data.name,
+					userId: getUserId(),
+				};
+				await localDebts.put(debt, debt.id);
+				return;
+			}
+			await fetchWithAuth("/debts/events", { body: JSON.stringify(data), method: "POST" });
+		},
+		async createPerson(name: string): Promise<DebtPerson> {
+			if (isGuestMode()) {
+				const normalizedName = name.trim().replace(/\s+/g, " ").toLocaleLowerCase("pt-BR");
+				const existing = (await localDebtPeople.getAll()).find(
+					item => item.data.name.toLocaleLowerCase("pt-BR") === normalizedName,
+				);
+				if (existing) return existing.data;
+				const person: DebtPerson = {
+					balance: 0,
+					connectionStatus: null,
+					events: [],
+					id: crypto.randomUUID(),
+					isZaimuUser: false,
+					name: name.trim().replace(/\s+/g, " "),
+				};
+				await localDebtPeople.put(person, person.id);
+				return person;
+			}
+			return fetchWithAuth<DebtPerson>("/debts/people", {
+				body: JSON.stringify({ name }),
+				method: "POST",
+			});
+		},
+		async declineInvitation(id: string): Promise<void> {
+			if (isGuestMode()) throw new Error("Conecte sua conta para recusar convites.");
+			await fetchWithAuth(`/debts/invitations/${id}/decline`, { method: "POST" });
+		},
 
 		async delete(id: string): Promise<void> {
 			if (isGuestMode()) {
@@ -740,10 +811,141 @@ export const dataService = {
 				const local = await localDebts.getAll();
 				return local.map(item => item.data);
 			}
-			const response = await fetchWithAuth<{ debts: Debt[] }>("/debts");
-			const debts = response.debts;
-			await localDebts.bulkPut(debts.map(d => ({ data: d, localId: d.id, syncedAt: Date.now() })));
-			return debts;
+			return [];
+		},
+		async getInvitations(): Promise<DebtInvitation[]> {
+			if (isGuestMode()) return [];
+			return fetchWithAuth<DebtInvitation[]>("/debts/invitations");
+		},
+		async getLedger(): Promise<DebtLedger> {
+			if (!isGuestMode()) {
+				const ledger = await fetchWithAuth<DebtLedger>("/debts");
+				await localDebtPeople.bulkPut(
+					ledger.people.map(person => ({ data: person, localId: person.id, syncedAt: Date.now() })),
+				);
+				return ledger;
+			}
+			const [storedPeople, storedDebts, storedTransactions, storedPurchases] = await Promise.all([
+				localDebtPeople.getAll(),
+				localDebts.getAll(),
+				localTransactions.getAll(),
+				localCreditPurchases.getAll(),
+			]);
+			const people = new Map<string, DebtPerson>(
+				storedPeople.map(item => [item.data.id, { ...item.data, balance: 0, events: [] }]),
+			);
+			for (const debtItem of storedDebts) {
+				const debt = debtItem.data;
+				let person = debt.personId ? people.get(debt.personId) : undefined;
+				if (!person) {
+					person = [...people.values()].find(
+						item => item.name.localeCompare(debt.personName, "pt-BR", { sensitivity: "base" }) === 0,
+					);
+				}
+				if (!person) {
+					person = {
+						balance: 0,
+						connectionStatus: null,
+						events: [],
+						id: debt.personId ?? `legacy:${debt.personName.toLocaleLowerCase("pt-BR")}`,
+						isZaimuUser: false,
+						name: debt.personName,
+					};
+					people.set(person.id, person);
+				}
+				const effect = Number(debt.amount) * (debt.isOwedToMe ? 1 : -1);
+				person.events.push({
+					amount: Number(debt.amount),
+					createdByMe: true,
+					createdByName: "Você",
+					createdByUserId: getUserId(),
+					date: debt.date,
+					description: debt.description,
+					dueDate: debt.dueDate,
+					effect,
+					id: debt.id,
+					kind: "ORIGIN",
+				});
+				if (!debt.isPaid) person.balance += effect;
+			}
+			for (const item of storedTransactions) {
+				const transaction = item.data;
+				if (!transaction.debtPersonId || transaction.type === "TRANSFER") continue;
+				const person = people.get(transaction.debtPersonId);
+				if (!person) continue;
+				const effect =
+					transaction.type === "INCOME" ? -Number(transaction.amount) : Number(transaction.amount);
+				person.balance += effect;
+				person.events.push({
+					amount: Number(transaction.amount),
+					createdByMe: true,
+					createdByName: "Você",
+					createdByUserId: getUserId(),
+					date: transaction.date,
+					description: transaction.description,
+					effect,
+					id: `transaction:${transaction.id}`,
+					kind: "TRANSACTION",
+				});
+			}
+			for (const item of storedPurchases) {
+				const purchase = item.data;
+				if (!purchase.debtPersonId || purchase.currentInstallment !== 1) continue;
+				const person = people.get(purchase.debtPersonId);
+				if (!person) continue;
+				const effect = Number(purchase.totalAmount);
+				person.balance += effect;
+				person.events.push({
+					amount: effect,
+					createdByMe: true,
+					createdByName: "Você",
+					createdByUserId: getUserId(),
+					date: purchase.purchaseDate,
+					description: purchase.description,
+					effect,
+					id: `purchase:${purchase.id}`,
+					kind: "PURCHASE",
+				});
+			}
+			const result = [...people.values()].map(person => ({
+				...person,
+				events: person.events.toSorted((left, right) => right.date.localeCompare(left.date)),
+			}));
+			return {
+				people: result,
+				totals: result.reduce(
+					(totals, person) => {
+						if (person.balance > 0) totals.owedToMe += person.balance;
+						if (person.balance < 0) totals.iOwe += Math.abs(person.balance);
+						totals.net += person.balance;
+						return totals;
+					},
+					{ iOwe: 0, net: 0, owedToMe: 0 },
+				),
+			};
+		},
+		async hideEvent(id: string): Promise<void> {
+			if (isGuestMode()) {
+				if (id.startsWith("transaction:") || id.startsWith("purchase:"))
+					throw new Error("Exclua a movimentação financeira original.");
+				await localDebts.delete(id);
+				return;
+			}
+			await fetchWithAuth(`/debts/events/${id}`, { method: "DELETE" });
+		},
+		async hidePerson(id: string): Promise<void> {
+			if (isGuestMode()) {
+				await localDebtPeople.delete(id);
+				return;
+			}
+			await fetchWithAuth(`/debts/people/${id}`, { method: "DELETE" });
+		},
+		async invitePerson(id: string, email: string): Promise<void> {
+			if (isGuestMode()) throw new Error("Conecte sua conta para associar usuários Zaimu.");
+			await fetchWithAuth(`/debts/people/${id}/invite`, {
+				body: JSON.stringify({ email }),
+				method: "POST",
+			});
 		},
 
 		async update(id: string, data: Partial<Debt>): Promise<Debt> {
@@ -760,6 +962,34 @@ export const dataService = {
 			});
 			await localDebts.put(debt, debt.id);
 			return debt;
+		},
+		async updateOrigin(
+			id: string,
+			data: {
+				amount: number;
+				date: string;
+				description?: string;
+				dueDate?: string;
+				isOwedToMe: boolean;
+				personId: string;
+			},
+		): Promise<void> {
+			if (isGuestMode()) {
+				const person = await localDebtPeople.getById(data.personId);
+				const debt = await localDebts.getById(id);
+				if (!person || !debt) throw new Error("Origem não encontrada");
+				await localDebts.put(
+					{
+						...debt.data,
+						...data,
+						personId: person.data.id,
+						personName: person.data.name,
+					},
+					id,
+				);
+				return;
+			}
+			await fetchWithAuth(`/debts/events/${id}`, { body: JSON.stringify(data), method: "PATCH" });
 		},
 	},
 	financialInstitutions: {
@@ -1152,6 +1382,7 @@ export const dataService = {
 					transactions,
 					loans,
 					debts,
+					debtPeople,
 					salaries,
 					subscriptions,
 				] = await Promise.all([
@@ -1164,6 +1395,7 @@ export const dataService = {
 					localTransactions.getAll(),
 					localLoans.getAll(),
 					localDebts.getAll(),
+					localDebtPeople.getAll(),
 					localSalaries.getAll(),
 					localSubscriptions.getAll(),
 				]);
@@ -1181,6 +1413,7 @@ export const dataService = {
 						transactions: Transaction[];
 						loans: Loan[];
 						debts: Debt[];
+						debtPeople: DebtPerson[];
 						salaries: Salary[];
 						subscriptions: Subscription[];
 					};
@@ -1190,6 +1423,7 @@ export const dataService = {
 						creditCardStatements: creditCardStatements.map(statement => statement.data),
 						creditCards: creditCards.map(card => card.data),
 						creditPurchases: creditPurchases.map(purchase => purchase.data),
+						debtPeople: debtPeople.map(person => person.data),
 						debts: debts.map(d => d.data),
 						financialAccounts: accounts.map(a => a.data),
 						loans: loans.map(l => l.data),
@@ -1284,6 +1518,15 @@ export const dataService = {
 							})),
 						),
 					),
+					localDebtPeople.clear().then(() =>
+						localDebtPeople.bulkPut(
+							response.serverData.debtPeople.map(person => ({
+								data: person,
+								localId: person.id,
+								syncedAt: Date.now(),
+							})),
+						),
+					),
 					localSalaries.clear().then(() =>
 						localSalaries.bulkPut(
 							response.serverData.salaries.map(s => ({
@@ -1325,8 +1568,11 @@ export const dataService = {
 
 	// ============== TRANSACTIONS ==============
 	transactions: {
-		async create(data: Omit<Transaction, "id" | "createdAt">): Promise<Transaction> {
+		async create(
+			data: Omit<Transaction, "id" | "createdAt"> & { matchDebtEventId?: string },
+		): Promise<Transaction> {
 			if (isGuestMode()) {
+				const { matchDebtEventId: _, ...localData } = data;
 				const recurrenceOccurrenceDate = data.recurrenceId
 					? (data.recurrenceOccurrenceDate ?? data.date)
 					: undefined;
@@ -1360,7 +1606,7 @@ export const dataService = {
 					? (data.tagIds ?? (data.categoryId ? [data.categoryId] : []))
 					: (linkedRecurrence?.tagIds ?? (linkedRecurrence?.categoryId ? [linkedRecurrence.categoryId] : []));
 				const newTransaction: Transaction = {
-					...data,
+					...localData,
 					categoryId: tagIds[0],
 					createdAt: new Date().toISOString(),
 					id: crypto.randomUUID(),
@@ -1547,11 +1793,18 @@ export const dataService = {
 			return transactions;
 		},
 
-		async update(id: string, data: Partial<Transaction>): Promise<Transaction> {
+		async update(
+			id: string,
+			data: Omit<Partial<Transaction>, "debtPersonId"> & { debtPersonId?: null | string },
+		): Promise<Transaction> {
 			if (isGuestMode()) {
 				const existing = await localTransactions.getById(id);
 				if (!existing) throw new Error("Transação não encontrada");
-				const updated: Transaction = { ...existing.data, ...data };
+				const updated: Transaction = {
+					...existing.data,
+					...data,
+					debtPersonId: data.debtPersonId ?? undefined,
+				};
 				await localTransactions.put(updated, id);
 				return updated;
 			}

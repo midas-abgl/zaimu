@@ -1,4 +1,5 @@
-import { LuPencil, LuTrash2 } from "react-icons/lu";
+import { LuPencil, LuTrash2, LuUsersRound } from "react-icons/lu";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import type { CreditPurchase } from "@/lib/api";
@@ -33,6 +34,11 @@ export function CreditPurchaseRow({
 							: ""}
 					{purchase.installments > 1 ? ` · ${purchase.currentInstallment}/${purchase.installments}` : ""}
 				</p>
+				{purchase.debtPersonName ? (
+					<Badge className="mt-2 gap-1.5" variant="outline">
+						<LuUsersRound /> Dívida · {purchase.debtPersonName}
+					</Badge>
+				) : null}
 			</div>
 			<div className="grid justify-items-end gap-2">
 				<strong>{currency.format(purchase.installmentAmount)}</strong>

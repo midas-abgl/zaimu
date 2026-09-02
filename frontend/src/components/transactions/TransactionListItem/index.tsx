@@ -134,7 +134,12 @@ export function TransactionListItem({
 			metadata={
 				<div className="flex min-w-0 flex-wrap items-center gap-1.5">
 					{metadataPrefix}
-					<TransactionBadges accounts={accounts} storeName={transaction.storeName} tags={tags} />
+					<TransactionBadges
+						accounts={accounts}
+						debtPersonName={transaction.debtPersonName}
+						storeName={transaction.storeName}
+						tags={tags}
+					/>
 				</div>
 			}
 			title={

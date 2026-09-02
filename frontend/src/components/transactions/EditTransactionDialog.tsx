@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { DebtPersonPicker } from "@/components/debts";
 import { Button } from "@/components/ui/Button";
+import { Checkbox } from "@/components/ui/Checkbox";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import {
 	Dialog,
@@ -25,6 +27,7 @@ function createDraft(transaction: Transaction) {
 	return {
 		amount: String(transaction.amount),
 		date: transaction.date.slice(0, 10),
+		debtPersonId: transaction.debtPersonId ?? "",
 		destinationFinancialAccountId: transaction.destinationFinancialAccountId ?? "",
 		originFinancialAccountId: transaction.originFinancialAccountId ?? "",
 		storeName: transaction.storeName ?? "",
@@ -45,6 +48,7 @@ export function EditTransactionDialog({
 }) {
 	const queryClient = useQueryClient();
 	const [draft, setDraft] = useState(() => (transaction ? createDraft(transaction) : null));
+	const [isDebt, setIsDebt] = useState(Boolean(transaction?.debtPersonId));
 	const [description, setDescription] = useDebouncedInput(transaction?.description ?? "", () => undefined);
 	const accountsQuery = useQuery({
 		enabled: open,
@@ -55,6 +59,7 @@ export function EditTransactionDialog({
 	useEffect(() => {
 		if (!open || !transaction) return;
 		setDraft(createDraft(transaction));
+		setIsDebt(Boolean(transaction.debtPersonId));
 		setDescription(transaction.description ?? "");
 	}, [open, setDescription, transaction]);
 
@@ -68,6 +73,7 @@ export function EditTransactionDialog({
 			return dataService.transactions.update(transaction.id, {
 				amount: Number.parseFloat(draft.amount),
 				date: draft.date,
+				debtPersonId: isDebt ? draft.debtPersonId || null : null,
 				description: description.trim() || undefined,
 				destinationFinancialAccountId: draft.destinationFinancialAccountId || null,
 				originFinancialAccountId: draft.originFinancialAccountId || null,
@@ -82,6 +88,7 @@ export function EditTransactionDialog({
 			await Promise.all([
 				queryClient.invalidateQueries({ queryKey: ["accounts"] }),
 				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+				queryClient.invalidateQueries({ queryKey: ["debts"] }),
 				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
 			]);
 			showToast("Transação atualizada.", "positive");
@@ -117,25 +124,56 @@ export function EditTransactionDialog({
 						}
 						onTagIdsChange={tagIds => setDraft(current => (current ? { ...current, tagIds } : current))}
 						onTimeChange={time => setDraft(current => (current ? { ...current, time } : current))}
-						onTypeChange={type =>
+						onTypeChange={type => {
+							if (type === "TRANSFER") setIsDebt(false);
 							setDraft(current =>
 								current
 									? {
 											...current,
+											debtPersonId: type === "TRANSFER" ? "" : current.debtPersonId,
 											destinationFinancialAccountId:
 												type === "INCOME" ? current.destinationFinancialAccountId : "",
 											originFinancialAccountId: type === "INCOME" ? "" : current.originFinancialAccountId,
 											type,
 										}
 									: current,
-							)
-						}
+							);
+						}}
 						showStore={draft.type === "EXPENSE"}
 						storeName={draft.storeName}
 						tagIds={draft.tagIds}
 						time={draft.time}
 						type={draft.type}
 					/>
+					{draft.type !== "TRANSFER" ? (
+						<div className="grid gap-3 rounded-2xl border p-3">
+							<label
+								className="flex cursor-pointer items-center gap-3 text-sm"
+								htmlFor="edit-transaction-is-debt"
+							>
+								<Checkbox
+									checked={isDebt}
+									className="cursor-pointer"
+									id="edit-transaction-is-debt"
+									onCheckedChange={checked => {
+										setIsDebt(checked === true);
+										if (checked !== true)
+											setDraft(current => (current ? { ...current, debtPersonId: "" } : current));
+									}}
+								/>
+								<span>Esta movimentação é de uma dívida</span>
+							</label>
+							{isDebt ? (
+								<DebtPersonPicker
+									onValueChange={debtPersonId =>
+										setDraft(current => (current ? { ...current, debtPersonId } : current))
+									}
+									required
+									value={draft.debtPersonId}
+								/>
+							) : null}
+						</div>
+					) : null}
 					{balanceAccounts.length > 0 ? (
 						<CustomSelect
 							label={draft.type === "INCOME" ? "Conta de destino" : "Conta de origem"}
@@ -181,6 +219,7 @@ export function EditTransactionDialog({
 						disabled={
 							!draft.amount ||
 							!primaryAccountId ||
+							(isDebt && !draft.debtPersonId) ||
 							(draft.type === "TRANSFER" && !draft.destinationFinancialAccountId) ||
 							update.isPending
 						}

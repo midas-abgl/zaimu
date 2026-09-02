@@ -4,6 +4,7 @@ import type {
 	CreditCardStatement,
 	CreditPurchase,
 	Debt,
+	DebtPerson,
 	FinancialAccount,
 	Loan,
 	RecurringPayment,
@@ -14,7 +15,7 @@ import type {
 } from "@/lib/api";
 
 const DB_NAME = "zaimu-local";
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 // Store names
 const STORES = {
@@ -23,6 +24,7 @@ const STORES = {
 	creditCardStatements: "creditCardStatements",
 	creditCards: "creditCards",
 	creditPurchases: "creditPurchases",
+	debtPeople: "debtPeople",
 	debts: "debts",
 	loans: "loans",
 	meta: "meta", // For sync timestamps, etc.
@@ -292,6 +294,17 @@ export const localDebts = {
 	getById: (id: string) => getById<Debt>(STORES.debts, id),
 	getModifiedSince: (since: number) => getModifiedSince<Debt>(STORES.debts, since),
 	put: (data: Debt, id?: string) => put(STORES.debts, data, id),
+};
+
+export const localDebtPeople = {
+	bulkPut: (items: Array<{ data: DebtPerson; localId: string; syncedAt?: number }>) =>
+		bulkPut(STORES.debtPeople, items),
+	clear: () => clearStore(STORES.debtPeople),
+	delete: (id: string) => softDelete(STORES.debtPeople, id),
+	getAll: () => getAll<DebtPerson>(STORES.debtPeople),
+	getById: (id: string) => getById<DebtPerson>(STORES.debtPeople, id),
+	getModifiedSince: (since: number) => getModifiedSince<DebtPerson>(STORES.debtPeople, since),
+	put: (data: DebtPerson, id?: string) => put(STORES.debtPeople, data, id),
 };
 
 export const localSalaries = {

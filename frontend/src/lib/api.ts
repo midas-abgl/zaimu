@@ -91,6 +91,8 @@ export interface Transaction {
 	date: string;
 	time?: string | null;
 	description?: string;
+	debtPersonId?: string;
+	debtPersonName?: string;
 	storeName?: string | null;
 	type: "INCOME" | "EXPENSE" | "TRANSFER";
 	categoryId?: string;
@@ -184,6 +186,42 @@ export interface Debt {
 	dueDate?: string;
 	isPaid: boolean;
 	paidDate?: string;
+	personId?: string;
+}
+
+export interface DebtEvent {
+	id: string;
+	amount: number;
+	effect: number;
+	date: string;
+	dueDate?: string | null;
+	description?: string | null;
+	kind: "ORIGIN" | "TRANSACTION" | "PURCHASE" | "MIGRATED_SETTLEMENT";
+	createdByUserId: string;
+	createdByName: string;
+	createdByMe: boolean;
+}
+
+export interface DebtPerson {
+	id: string;
+	name: string;
+	balance: number;
+	isZaimuUser: boolean;
+	connectionStatus: "PENDING" | "ACCEPTED" | "DECLINED" | null;
+	events: DebtEvent[];
+}
+
+export interface DebtLedger {
+	people: DebtPerson[];
+	totals: { iOwe: number; net: number; owedToMe: number };
+}
+
+export interface DebtInvitation {
+	id: string;
+	createdAt: string;
+	counterpartyName: string;
+	direction: "RECEIVED" | "SENT";
+	status: "PENDING" | "ACCEPTED" | "DECLINED";
 }
 
 export interface Salary {
@@ -260,6 +298,8 @@ export interface CreditPurchase {
 	id: string;
 	statementId: string;
 	description: string;
+	debtPersonId?: string;
+	debtPersonName?: string;
 	storeName?: string | null;
 	totalAmount: number;
 	installments: number;

@@ -8,6 +8,13 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
+import {
+	debtRefsForPurchases,
+	debtRefsForTransactions,
+	normalizeDebtPersonName,
+	syncPurchaseDebtEvent,
+	syncTransactionDebtEvent,
+} from "~/modules/debts/application";
 import { db, executeStatement, nullableNumeric, queryFirst, queryRows } from "~/shared/infra/sql";
 import { SyncBody, SyncReturn } from "./SyncDTO";
 
@@ -109,6 +116,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 		const subscriptionIds = new Set<string>();
 		const cardIds = new Set<string>();
 		const statementIds = new Set<string>();
+		const debtPersonIds = new Set<string>();
 
 		const sync = async (
 			group: string,
@@ -184,6 +192,41 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 			else await executeStatement(db.sql.public.Category.insert([{ ...values, id, userId }]).build());
 			categoryIds.add(id);
 		});
+
+		await sync("debtPeople", body.debtPeople, async entity => {
+			const id = value<string>(entity, "id");
+			const name = value<string>(entity, "name")?.trim();
+			if (!name) throw new Error("Informe o nome da pessoa");
+			const existing = await queryFirst(
+				db.sql.public.DebtPerson.select("id", "userId")
+					.where((fields, functions) => functions.eq(fields.id, id))
+					.limit(1)
+					.build(),
+			);
+			if (existing && existing.userId !== userId)
+				throw new Error(`Pessoa da dívida ${id} pertence a outro usuário`);
+			const values = {
+				name,
+				normalizedName: normalizeDebtPersonName(name),
+				updatedAt: new Date(),
+			};
+			if (existing)
+				await executeStatement(
+					db.sql.public.DebtPerson.update(values)
+						.where((fields, functions) =>
+							functions.and(functions.eq(fields.id, id), functions.eq(fields.userId, userId)),
+						)
+						.build(),
+				);
+			else await executeStatement(db.sql.public.DebtPerson.insert([{ ...values, id, userId }]).build());
+			debtPersonIds.add(id);
+		});
+		const existingDebtPeople = await queryRows(
+			db.sql.public.DebtPerson.select("id")
+				.where((fields, functions) => functions.eq(fields.userId, userId))
+				.build(),
+		);
+		for (const person of existingDebtPeople) debtPersonIds.add(person.id);
 
 		await sync("recurringPayments", body.recurringPayments, async entity => {
 			const id = value<string>(entity, "id");
@@ -334,6 +377,18 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				entityType: tagEntityType.creditPurchase,
 				tagIds,
 			});
+			const debtPersonId = value<string | undefined>(entity, "debtPersonId");
+			if (debtPersonId && !debtPersonIds.has(debtPersonId))
+				throw new Error(`Pessoa da dívida ${debtPersonId} indisponível`);
+			if (Number(value<number>(entity, "currentInstallment") ?? 1) === 1)
+				await syncPurchaseDebtEvent({
+					creditPurchaseId: id,
+					date: value<string>(entity, "purchaseDate"),
+					debtPersonId: debtPersonId ?? null,
+					description: value<string | undefined>(entity, "description"),
+					totalAmount: Number(value<number>(entity, "totalAmount")),
+					userId,
+				});
 		});
 
 		await sync("debts", body.debts, async entity => {
@@ -363,6 +418,72 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 						.build(),
 				);
 			else await executeStatement(db.sql.public.Debt.insert([{ ...values, id, userId }] as never).build());
+			const normalizedName = normalizeDebtPersonName(values.personName);
+			let person = await queryFirst(
+				db.sql.public.DebtPerson.select("id", "connectionId")
+					.where((fields, functions) =>
+						functions.and(
+							functions.eq(fields.userId, userId),
+							functions.eq(fields.normalizedName, normalizedName),
+						),
+					)
+					.limit(1)
+					.build(),
+			);
+			if (!person)
+				person = await queryFirst(
+					db.sql.public.DebtPerson.insert([{ name: values.personName, normalizedName, userId }])
+						.returning("id", "connectionId")
+						.build(),
+				);
+			if (!person) throw new Error("Pessoa da dívida não criada");
+			debtPersonIds.add(person.id);
+			const origin = {
+				amount: values.amount,
+				connectionId: person.connectionId,
+				createdByUserId: userId,
+				date: values.date,
+				debtPersonId: person.id,
+				description: values.description,
+				dueDate: values.dueDate,
+				effect: String((values.isOwedToMe ? 1 : -1) * Number(values.amount)),
+				kind: "ORIGIN" as const,
+				updatedAt: new Date(),
+			};
+			const existingOrigin = await queryFirst(
+				db.sql.public.DebtEvent.select("id")
+					.where((fields, functions) => functions.eq(fields.id, id))
+					.limit(1)
+					.build(),
+			);
+			if (existingOrigin)
+				await executeStatement(
+					db.sql.public.DebtEvent.update(origin)
+						.where((fields, functions) => functions.eq(fields.id, id))
+						.build(),
+				);
+			else await executeStatement(db.sql.public.DebtEvent.insert([{ ...origin, id }]).build());
+			if (values.isPaid) {
+				const settlementId = `${id[0] === "0" ? "1" : "0"}${id.slice(1)}`;
+				const existingSettlement = await queryFirst(
+					db.sql.public.DebtEvent.select("id")
+						.where((fields, functions) => functions.eq(fields.id, settlementId))
+						.limit(1)
+						.build(),
+				);
+				if (!existingSettlement)
+					await executeStatement(
+						db.sql.public.DebtEvent.insert([
+							{
+								...origin,
+								date: values.paidDate ?? values.date,
+								effect: String(-Number(origin.effect)),
+								id: settlementId,
+								kind: "MIGRATED_SETTLEMENT",
+							},
+						]).build(),
+					);
+			}
 		});
 
 		await sync("loans", body.loans, async entity => {
@@ -538,6 +659,18 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				entityType: tagEntityType.transaction,
 				tagIds,
 			});
+			const debtPersonId = value<string | undefined>(entity, "debtPersonId");
+			if (debtPersonId && !debtPersonIds.has(debtPersonId))
+				throw new Error(`Pessoa da dívida ${debtPersonId} indisponível`);
+			await syncTransactionDebtEvent({
+				amount: Number(value<number>(entity, "amount")),
+				date: value<string>(entity, "date"),
+				debtPersonId: debtPersonId ?? null,
+				description: value<string | undefined>(entity, "description"),
+				transactionId: id,
+				type: value<"EXPENSE" | "INCOME" | "TRANSFER">(entity, "type") ?? "EXPENSE",
+				userId,
+			});
 		});
 
 		const financialAccounts = await queryRows(
@@ -628,6 +761,10 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 			);
 		}
 		const transactions = await queryRows(transactionQueryBuilder.build());
+		const [purchaseDebtRefs, transactionDebtRefs] = await Promise.all([
+			debtRefsForPurchases(creditPurchases.map(purchase => purchase.id)),
+			debtRefsForTransactions(transactions.map(transaction => transaction.id)),
+		]);
 		const recurringPayments = await queryRows(
 			db.sql.public.RecurringPayment.select(
 				"id",
@@ -695,9 +832,17 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				creditCards,
 				creditPurchases: creditPurchases.map(purchase => ({
 					...purchase,
+					...purchaseDebtRefs.get(purchase.id),
 					tagIds: (purchaseTags.get(purchase.id) ?? []).map(tag => tag.id),
 					tags: purchaseTags.get(purchase.id) ?? [],
 				})),
+				debtPeople: (
+					await queryRows(
+						db.sql.public.DebtPerson.select("id", "name", "normalizedName", "connectionId", "hiddenAt")
+							.where((fields, functions) => functions.eq(fields.userId, userId))
+							.build(),
+					)
+				).map(person => ({ ...person, balance: 0, events: [], isZaimuUser: Boolean(person.connectionId) })),
 				debts: await queryRows(
 					db.sql.public.Debt.select(
 						"id",
@@ -794,6 +939,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				})),
 				transactions: transactions.map(transaction => ({
 					...transaction,
+					...transactionDebtRefs.get(transaction.id),
 					tagIds: (transactionTags.get(transaction.id) ?? []).map(tag => tag.id),
 					tags: transactionTags.get(transaction.id) ?? [],
 				})),

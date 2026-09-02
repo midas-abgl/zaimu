@@ -1,5 +1,6 @@
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
+import { debtEffectForTransaction, isCompatibleDebtPair } from "./debt-balance";
 
 export type DebtEventKind = "ORIGIN" | "TRANSACTION" | "PURCHASE" | "MIGRATED_SETTLEMENT";
 
@@ -68,7 +69,7 @@ export async function createDebtEvent(input: {
 	return event;
 }
 
-async function getAccessibleEvent(eventId: string, userId: string) {
+export async function getAccessibleDebtEvent(eventId: string, userId: string) {
 	const event = await queryFirst(
 		db.sql.public.DebtEvent.outerLeftJoin(db.sql.public.DebtPerson, (fields, functions) =>
 			functions.eq(fields.DebtEvent.debtPersonId, fields.DebtPerson.id),
@@ -81,6 +82,7 @@ async function getAccessibleEvent(eventId: string, userId: string) {
 				connectionId: fields.DebtEvent.connectionId,
 				createdByUserId: fields.DebtEvent.createdByUserId,
 				date: fields.DebtEvent.date,
+				debtPersonId: fields.DebtEvent.debtPersonId,
 				effect: fields.DebtEvent.effect,
 				id: fields.DebtEvent.id,
 				kind: fields.DebtEvent.kind,
@@ -125,14 +127,19 @@ export async function linkTransactionToDebt(input: {
 		throw new HttpException("Transferências entre contas próprias não podem ser vinculadas a dívidas", 400);
 	if (!input.debtPersonId && !input.matchEventId) return;
 	if (input.matchEventId) {
-		const event = await getAccessibleEvent(input.matchEventId, input.userId);
-		const expectedEffect = input.type === "INCOME" ? -input.amount : input.amount;
+		const event = await getAccessibleDebtEvent(input.matchEventId, input.userId);
+		const expectedEffect = debtEffectForTransaction(input.amount, input.type);
 		const perspectiveEffect =
 			event.createdByUserId === input.userId ? Number(event.effect) : -Number(event.effect);
 		if (
-			Number(event.amount) !== input.amount ||
-			perspectiveEffect !== expectedEffect ||
-			event.date.toISOString().slice(0, 10) !== input.date.slice(0, 10)
+			!isCompatibleDebtPair({
+				amount: input.amount,
+				date: input.date,
+				effect: expectedEffect,
+				eventAmount: Number(event.amount),
+				eventDate: event.date.toISOString(),
+				eventPerspectiveEffect: perspectiveEffect,
+			})
 		)
 			throw new HttpException("A movimentação não corresponde ao lançamento compartilhado", 409);
 		await executeStatement(
@@ -148,7 +155,7 @@ export async function linkTransactionToDebt(input: {
 		date: input.date,
 		debtPersonId: input.debtPersonId!,
 		description: input.description,
-		effect: input.type === "INCOME" ? -input.amount : input.amount,
+		effect: debtEffectForTransaction(input.amount, input.type),
 		kind: "TRANSACTION",
 	});
 	await executeStatement(
@@ -214,7 +221,7 @@ export async function syncTransactionDebtEvent(input: {
 			date: new Date(input.date),
 			debtPersonId: nextPersonId,
 			description: input.description ?? null,
-			effect: String(input.type === "INCOME" ? -input.amount : input.amount),
+			effect: String(debtEffectForTransaction(input.amount, input.type)),
 			updatedAt: new Date(),
 		} as never)
 			.where((fields, functions) => functions.eq(fields.id, link.eventId))
@@ -240,7 +247,7 @@ export async function linkPurchaseToDebt(input: {
 }) {
 	if (!input.debtPersonId && !input.matchEventId) return;
 	if (input.matchEventId) {
-		const event = await getAccessibleEvent(input.matchEventId, input.userId);
+		const event = await getAccessibleDebtEvent(input.matchEventId, input.userId);
 		const perspectiveEffect =
 			event.createdByUserId === input.userId ? Number(event.effect) : -Number(event.effect);
 		if (

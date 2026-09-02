@@ -18,14 +18,14 @@ Transformar dívidas em livro de saldo líquido por pessoa, com contatos locais,
 
 - [x] Criar esquema, migração e domínio do livro de dívidas.
 - [x] Implementar APIs, convites, projeções bilaterais e integrações financeiras.
-- [ ] Atualizar sync, cache local e contratos frontend.
-- [ ] Reformular modais, picker, listas e tela de dívidas.
+- [x] Atualizar sync, cache local e contratos frontend.
+- [x] Reformular modais, picker, listas e tela de dívidas.
 - [ ] Cobrir migração, saldo, privacidade, convites e pareamento com testes.
 
 ## Estado atual
 
-Esquema, backfill, livro bilateral, convites e vínculos com transações/compras implementados. Migração validada e backend tipado.
+Sync e IndexedDB atualizados. Picker reutilizável, associação em transações/compras, pareamento sugerido, convites e tela agrupada por pessoa implementados.
 
 ## Próximo passo
 
-Atualizar sync, IndexedDB e contratos frontend.
+Executar validação final dos pacotes afetados e fechar cobertura automatizada.
