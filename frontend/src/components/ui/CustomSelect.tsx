@@ -30,7 +30,7 @@ export function CustomSelect({
 
 	return (
 		<div className="grid gap-2">
-			<p className="font-medium text-sm">
+			<p className="font-medium text-sm leading-none">
 				{label} {required && <span className="text-destructive">*</span>}
 			</p>
 			<Select onValueChange={onValueChange} value={value}>
