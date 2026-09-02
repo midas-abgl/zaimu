@@ -1681,6 +1681,8 @@ export const dataService = {
 								creditCardStatementId: purchase.statementId,
 								currentInstallment: purchase.currentInstallment,
 								date: purchase.purchaseDate,
+								debtPersonId: purchase.debtPersonId,
+								debtPersonName: purchase.debtPersonName,
 								description: purchase.description,
 								id: purchase.id,
 								installmentAmount: purchase.installmentAmount,

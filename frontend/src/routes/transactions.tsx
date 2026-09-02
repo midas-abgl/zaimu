@@ -17,6 +17,7 @@ import { dataService } from "@/lib/dataService";
 import { formatLocalTime } from "@/lib/date";
 import { EditCreditPurchaseDialog } from "@/routes/credit-cards/components/EditCreditPurchaseDialog";
 import { showToast } from "@/stores";
+import { transactionToCreditPurchase } from "./transactions/-transaction-to-credit-purchase";
 
 const typeOptions = [
 	{ icon: null, id: "all", label: "Todas" },
@@ -63,6 +64,7 @@ function TransactionsPage() {
 				queryClient.invalidateQueries({ queryKey: ["accounts"] }),
 				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
 				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+				queryClient.invalidateQueries({ queryKey: ["debts"] }),
 			]);
 			showToast("Transação excluída.", "positive");
 		},
@@ -86,6 +88,7 @@ function TransactionsPage() {
 				queryClient.invalidateQueries({ queryKey: ["credit-card-statement"] }),
 				queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
 				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+				queryClient.invalidateQueries({ queryKey: ["debts"] }),
 			]);
 			showToast("Compra atualizada.", "positive");
 		},
@@ -101,6 +104,7 @@ function TransactionsPage() {
 			await Promise.all([
 				queryClient.invalidateQueries({ queryKey: ["credit-card-statement"] }),
 				queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
+				queryClient.invalidateQueries({ queryKey: ["debts"] }),
 				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
 			]);
 			showToast("Compra excluída.", "positive");
@@ -218,21 +222,7 @@ function TransactionsPage() {
 					}}
 					open
 					pending={updatePurchase.isPending}
-					purchase={{
-						categoryId: editingPurchase.categoryId,
-						currentInstallment: editingPurchase.currentInstallment ?? 1,
-						description: editingPurchase.description ?? "",
-						id: editingPurchase.id,
-						installmentAmount: editingPurchase.installmentAmount,
-						installments: editingPurchase.installments ?? 1,
-						purchaseDate: editingPurchase.date,
-						statementId: editingPurchase.creditCardStatementId ?? "",
-						storeName: editingPurchase.storeName,
-						tagIds: editingPurchase.tagIds,
-						tags: editingPurchase.tags,
-						time: editingPurchase.time,
-						totalAmount: editingPurchase.amount,
-					}}
+					purchase={transactionToCreditPurchase(editingPurchase)}
 				/>
 			) : null}
 		</PageContainer>
