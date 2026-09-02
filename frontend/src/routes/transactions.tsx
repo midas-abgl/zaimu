@@ -14,7 +14,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
-import { formatLocalTime } from "@/lib/date";
+import { formatLocalDate, formatLocalTime } from "@/lib/date";
 import { EditCreditPurchaseDialog } from "@/routes/credit-cards/components/EditCreditPurchaseDialog";
 import { showToast } from "@/stores";
 import { transactionToCreditPurchase } from "./transactions/-transaction-to-credit-purchase";
@@ -163,11 +163,10 @@ function TransactionsPage() {
 					{Object.entries(groupedTransactions).map(([date, transactions]) => (
 						<section className="space-y-2" key={date}>
 							<h2 className="font-medium text-muted-foreground text-sm">
-								{new Date(`${date}T12:00:00`).toLocaleDateString("pt-BR", {
-									day: "numeric",
-									month: "long",
-									weekday: "long",
-								})}
+								{formatLocalDate(date, { weekday: "long" }).replace(/^./, character =>
+									character.toUpperCase(),
+								)}
+								, {formatLocalDate(date)}
 							</h2>
 							<div className="divide-y rounded-2xl border bg-card shadow-sm">
 								{transactions.map(transaction => (
