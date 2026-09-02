@@ -9,9 +9,20 @@ import {
 } from "~/modules/debts/application";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
+import {
+	DebtConnectionReturn,
+	DebtInvitationReturn,
+	DebtLedgerReturn,
+	DebtMutationEventReturn,
+	DebtPersonReturn,
+	DebtSuccessReturn,
+	DebtSummaryReturn,
+} from "./DebtsDTO";
 
 const PersonIdParams = t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) });
 const EventIdParams = t.Object({ eventId: t.String({ maxLength: 36, minLength: 1 }) });
+type DebtConnectionState = "PENDING" | "ACCEPTED" | "DECLINED";
+type DebtEventType = "ORIGIN" | "TRANSACTION" | "PURCHASE" | "MIGRATED_SETTLEMENT";
 
 async function findOrCreatePerson(userId: string, name: string) {
 	const displayName = name.trim().replace(/\s+/g, " ");
@@ -49,12 +60,13 @@ async function findOrCreatePerson(userId: string, name: string) {
 
 async function getConnection(connectionId: string | null | undefined) {
 	if (!connectionId) return undefined;
-	return queryFirst(
+	const connection = await queryFirst(
 		db.sql.public.DebtConnection.select("id", "requesterId", "recipientId", "status")
 			.where((fields, functions) => functions.eq(fields.id, connectionId))
 			.limit(1)
 			.build(),
 	);
+	return connection ? { ...connection, status: connection.status as DebtConnectionState } : undefined;
 }
 
 async function getPersonEvents(person: { connectionId: null | string; id: string }, userId: string) {
@@ -120,6 +132,7 @@ async function getPersonEvents(person: { connectionId: null | string; id: string
 			amount: Number(event.amount),
 			createdByMe: event.createdByUserId === userId,
 			effect: event.createdByUserId === userId ? Number(event.effect) : -Number(event.effect),
+			kind: event.kind as DebtEventType,
 		}))
 		.toSorted((left, right) => right.date.getTime() - left.date.getTime());
 }
@@ -168,7 +181,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			);
 			return { people, totals };
 		},
-		{ detail: { tags: ["Debts"] } },
+		{ detail: { tags: ["Debts"] }, response: DebtLedgerReturn },
 	)
 	.get(
 		"/summary",
@@ -176,7 +189,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			const userId = await requireUserId(request);
 			return getPeopleLedger(userId);
 		},
-		{ detail: { tags: ["Debts"] } },
+		{ detail: { tags: ["Debts"] }, response: DebtSummaryReturn },
 	)
 	.get(
 		"/invitations",
@@ -215,10 +228,10 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 				createdAt: invitation.createdAt,
 				direction: invitation.requesterId === userId ? ("SENT" as const) : ("RECEIVED" as const),
 				id: invitation.id,
-				status: invitation.status,
+				status: invitation.status as DebtConnectionState,
 			}));
 		},
-		{ detail: { tags: ["Debts"] } },
+		{ detail: { tags: ["Debts"] }, response: t.Array(DebtInvitationReturn) },
 	)
 	.post(
 		"/people",
@@ -229,6 +242,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 		{
 			body: t.Object({ name: t.String({ maxLength: 100, minLength: 1 }) }),
 			detail: { tags: ["Debts"] },
+			response: DebtPersonReturn,
 		},
 	)
 	.post(
@@ -263,7 +277,8 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 					.build(),
 			);
 			if (existing?.status === "ACCEPTED") throw new HttpException("Contas já associadas", 409);
-			if (existing?.status === "PENDING") return existing;
+			if (existing?.status === "PENDING")
+				return { ...existing, status: existing.status as DebtConnectionState };
 			const connection = existing
 				? await queryFirst(
 						db.sql.public.DebtConnection.update({
@@ -288,12 +303,17 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 					.where((fields, functions) => functions.eq(fields.id, person.id))
 					.build(),
 			);
-			return { ...connection, recipientName: recipient.name };
+			return {
+				...connection,
+				recipientName: recipient.name,
+				status: connection.status as DebtConnectionState,
+			};
 		},
 		{
 			body: t.Object({ email: t.String({ format: "email", maxLength: 320 }) }),
 			detail: { tags: ["Debts"] },
 			params: PersonIdParams,
+			response: DebtConnectionReturn,
 		},
 	)
 	.post(
@@ -356,6 +376,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			body: t.Object({ personId: t.Optional(t.String({ maxLength: 36, minLength: 1 })) }),
 			detail: { tags: ["Debts"] },
 			params: PersonIdParams,
+			response: DebtSuccessReturn,
 		},
 	)
 	.post(
@@ -377,7 +398,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			if (!updated) throw new HttpException("Convite não encontrado", 404);
 			return { success: true };
 		},
-		{ detail: { tags: ["Debts"] }, params: PersonIdParams },
+		{ detail: { tags: ["Debts"] }, params: PersonIdParams, response: DebtSuccessReturn },
 	)
 	.post(
 		"/events",
@@ -404,6 +425,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 				personId: t.String({ maxLength: 36, minLength: 1 }),
 			}),
 			detail: { tags: ["Debts"] },
+			response: DebtMutationEventReturn,
 		},
 	)
 	.post(
@@ -432,6 +454,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 				personName: t.String({ maxLength: 100, minLength: 1 }),
 			}),
 			detail: { tags: ["Debts"] },
+			response: DebtMutationEventReturn,
 		},
 	)
 	.patch(
@@ -461,7 +484,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 					.returning("id", "amount", "effect", "date", "description", "kind", "debtPersonId")
 					.build(),
 			);
-			return updated;
+			return updated ? { ...updated, kind: updated.kind as DebtEventType } : updated;
 		},
 		{
 			body: t.Object({
@@ -474,6 +497,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			}),
 			detail: { tags: ["Debts"] },
 			params: EventIdParams,
+			response: DebtMutationEventReturn,
 		},
 	)
 	.delete(
@@ -488,7 +512,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			);
 			return { success: true };
 		},
-		{ detail: { tags: ["Debts"] }, params: PersonIdParams },
+		{ detail: { tags: ["Debts"] }, params: PersonIdParams, response: DebtSuccessReturn },
 	)
 	.delete(
 		"/events/:eventId",
@@ -518,5 +542,5 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 			}
 			return { success: true };
 		},
-		{ detail: { tags: ["Debts"] }, params: EventIdParams },
+		{ detail: { tags: ["Debts"] }, params: EventIdParams, response: DebtSuccessReturn },
 	);

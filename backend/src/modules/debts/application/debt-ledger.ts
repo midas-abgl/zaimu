@@ -66,7 +66,7 @@ export async function createDebtEvent(input: {
 			.build(),
 	);
 	if (!event) throw new HttpException("Lançamento da dívida não criado", 500);
-	return event;
+	return { ...event, kind: input.kind };
 }
 
 export async function getAccessibleDebtEvent(eventId: string, userId: string) {
