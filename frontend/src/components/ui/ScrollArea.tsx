@@ -9,8 +9,12 @@ function ScrollArea({
 	className,
 	children,
 	horizontalScrollbar = false,
+	verticalScrollbar = true,
 	...props
-}: ComponentProps<typeof ScrollAreaPrimitive.Root> & { horizontalScrollbar?: boolean }) {
+}: ComponentProps<typeof ScrollAreaPrimitive.Root> & {
+	horizontalScrollbar?: boolean;
+	verticalScrollbar?: boolean;
+}) {
 	return (
 		<ScrollAreaPrimitive.Root
 			className={cn("relative overflow-hidden", className)}
@@ -23,7 +27,7 @@ function ScrollArea({
 			>
 				{children}
 			</ScrollAreaPrimitive.Viewport>
-			<ScrollBar />
+			{verticalScrollbar && <ScrollBar />}
 			{horizontalScrollbar && <ScrollBar orientation="horizontal" />}
 			<ScrollAreaPrimitive.Corner />
 		</ScrollAreaPrimitive.Root>
