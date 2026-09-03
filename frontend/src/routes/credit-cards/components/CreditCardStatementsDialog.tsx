@@ -43,13 +43,13 @@ export function CreditCardStatementsDialog({
 
 	return (
 		<Dialog onOpenChange={onOpenChange} open={Boolean(card)}>
-			<DialogContent className="max-h-[90dvh] gap-4 p-4 sm:max-w-5xl sm:gap-6 sm:p-6">
+			<DialogContent className="grid h-[min(90dvh,46rem)] max-h-[90dvh] grid-rows-[auto_minmax(0,1fr)] gap-4 overflow-hidden p-4 sm:max-w-5xl sm:gap-6 sm:p-6">
 				<DialogHeader>
 					<DialogTitle>Faturas de {card?.accountName ?? "Cartão de crédito"}</DialogTitle>
 					<DialogDescription>Selecione um mês para consultar os detalhes e as transações.</DialogDescription>
 				</DialogHeader>
 				{statements.isPending ? (
-					<div className="grid h-[65dvh] grid-rows-[10rem_minmax(0,1fr)] gap-4 sm:grid-cols-[13rem_minmax(0,1fr)] sm:gap-6 min-[480px]:grid-cols-[7.5rem_minmax(0,1fr)] min-[480px]:grid-rows-1">
+					<div className="grid min-h-0 grid-rows-[6.75rem_minmax(0,1fr)] gap-4 sm:grid-cols-[13rem_minmax(0,1fr)] sm:gap-6 min-[480px]:grid-cols-[7.5rem_minmax(0,1fr)] min-[480px]:grid-rows-1">
 						<div className="grid content-start gap-2 overflow-hidden border-b pb-3 min-[480px]:border-r min-[480px]:border-b-0 min-[480px]:pr-3 min-[480px]:pb-0">
 							{[1, 2, 3, 4].map(item => (
 								<Skeleton className="h-20" key={item} />
@@ -65,7 +65,7 @@ export function CreditCardStatementsDialog({
 					/>
 				) : selectedStatement ? (
 					<Tabs
-						className="grid h-[65dvh] min-h-0 grid-rows-[10rem_minmax(0,1fr)] gap-0 sm:grid-cols-[13rem_minmax(0,1fr)] min-[480px]:grid-cols-[7.5rem_minmax(0,1fr)] min-[480px]:grid-rows-1"
+						className="grid min-h-0 grid-rows-[6.75rem_minmax(0,1fr)] gap-0 sm:grid-cols-[13rem_minmax(0,1fr)] min-[480px]:grid-cols-[7.5rem_minmax(0,1fr)] min-[480px]:grid-rows-1"
 						onValueChange={setSelectedStatementId}
 						orientation="vertical"
 						value={selectedStatement.id}

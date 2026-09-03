@@ -60,22 +60,26 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 	});
 	return (
 		<TabsContent
-			className="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-5 pt-4 sm:pl-6 min-[480px]:pt-0 min-[480px]:pl-4"
+			className="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-4 pt-4 sm:pl-6 min-[480px]:pt-0 min-[480px]:pl-4"
 			value={statement.id}
 		>
 			<header className="flex flex-wrap items-start justify-between gap-3">
 				<div>
 					<p className="text-muted-foreground text-xs uppercase tracking-wide">Mês de referência</p>
-					<h3 className="mt-1 font-bold text-xl capitalize" id={`statement-title-${statement.id}`}>
+					<h3 className="mt-1 font-bold text-lg capitalize sm:text-xl" id={`statement-title-${statement.id}`}>
 						{formatLocalDate(statement.statementDate, { month: "long", year: "numeric" })}
 					</h3>
 				</div>
 				<div className="text-right">
 					<p className="text-muted-foreground text-xs">Total da fatura</p>
-					<strong className="text-xl">{currency.format(statement.totalAmount)}</strong>
+					<strong className="text-lg sm:text-xl">{currency.format(statement.totalAmount)}</strong>
+					<Badge className="mt-1" variant={statement.isPaid ? "secondary" : "outline"}>
+						{statement.isPaid ? <LuCircleCheck /> : <LuClock3 />}
+						{statement.isPaid ? "Paga" : "Em aberto"}
+					</Badge>
 				</div>
 			</header>
-			<div className="grid gap-2 lg:grid-cols-3">
+			<div className="grid grid-cols-2 gap-2">
 				<div className="rounded-xl border bg-muted/30 p-3">
 					<p className="flex items-center gap-1.5 text-muted-foreground text-xs">
 						<LuCalendarCheck /> Fechamento
@@ -87,13 +91,6 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 						<LuCalendarClock /> Vencimento
 					</p>
 					<strong className="mt-1 block text-sm">{formatLocalDate(statement.dueDate)}</strong>
-				</div>
-				<div className="rounded-xl border bg-muted/30 p-3">
-					<p className="text-muted-foreground text-xs">Status</p>
-					<Badge className="mt-1" variant={statement.isPaid ? "secondary" : "outline"}>
-						{statement.isPaid ? <LuCircleCheck /> : <LuClock3 />}
-						{statement.isPaid ? "Paga" : "Em aberto"}
-					</Badge>
 				</div>
 			</div>
 			<div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
