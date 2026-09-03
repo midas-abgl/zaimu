@@ -1,19 +1,49 @@
+import { differenceInMonths, differenceInYears } from "date-fns";
 import type { FinancialAccount } from "./api";
 
 type AccountTransaction = Pick<
 	import("./api").Transaction,
 	"amount" | "destinationFinancialAccountId" | "originFinancialAccountId"
 >;
+type CashbackPurchase = Pick<
+	import("./api").CreditPurchase,
+	"cashbackAccountId" | "cashbackAmount" | "cashbackYieldPeriod" | "cashbackYieldRate" | "purchaseDate"
+>;
+
+export function calculateCashbackValue(
+	amount: number,
+	awardedAt: Date,
+	yieldRate?: null | number,
+	yieldPeriod?: "MONTHLY" | "YEARLY" | null,
+	today = new Date(),
+) {
+	if (!yieldRate || !yieldPeriod) return amount;
+	const periods = Math.max(
+		0,
+		yieldPeriod === "MONTHLY" ? differenceInMonths(today, awardedAt) : differenceInYears(today, awardedAt),
+	);
+	return amount * (1 + yieldRate / 100) ** periods;
+}
 
 export function calculateFinancialAccountBalances(
 	accounts: FinancialAccount[],
 	transactions: AccountTransaction[],
+	cashbackPurchases: CashbackPurchase[] = [],
 ): FinancialAccount[] {
 	const balances = new Map(
-		accounts.filter(account => account.type !== "CREDIT_CARD").map(account => [account.id, 0]),
+		accounts
+			.filter(account => account.type !== "CREDIT_CARD" && account.type !== "REWARDS")
+			.map(account => [account.id, 0]),
 	);
+	const transactionAccountIds = new Set(balances.keys());
+	for (const account of accounts.filter(account => account.type === "REWARDS")) {
+		balances.set(account.id, account.rewardsAccount?.initialBalance ?? 0);
+	}
 	for (const transaction of transactions) {
-		if (transaction.originFinancialAccountId && balances.has(transaction.originFinancialAccountId)) {
+		if (
+			transaction.originFinancialAccountId &&
+			transactionAccountIds.has(transaction.originFinancialAccountId)
+		) {
 			balances.set(
 				transaction.originFinancialAccountId,
 				balances.get(transaction.originFinancialAccountId)! - transaction.amount,
@@ -21,7 +51,7 @@ export function calculateFinancialAccountBalances(
 		}
 		if (
 			transaction.destinationFinancialAccountId &&
-			balances.has(transaction.destinationFinancialAccountId)
+			transactionAccountIds.has(transaction.destinationFinancialAccountId)
 		) {
 			balances.set(
 				transaction.destinationFinancialAccountId,
@@ -29,9 +59,23 @@ export function calculateFinancialAccountBalances(
 			);
 		}
 	}
+	for (const purchase of cashbackPurchases) {
+		if (!purchase.cashbackAccountId || !purchase.cashbackAmount || !balances.has(purchase.cashbackAccountId))
+			continue;
+		balances.set(
+			purchase.cashbackAccountId,
+			balances.get(purchase.cashbackAccountId)! +
+				calculateCashbackValue(
+					purchase.cashbackAmount,
+					new Date(`${purchase.purchaseDate.slice(0, 10)}T12:00:00`),
+					purchase.cashbackYieldRate,
+					purchase.cashbackYieldPeriod,
+				),
+		);
+	}
 	return accounts.map(account => ({
 		...account,
-		balance: account.type === "CREDIT_CARD" ? null : (balances.get(account.id) ?? 0),
+		balance: account.type === "CREDIT_CARD" ? null : Number((balances.get(account.id) ?? 0).toFixed(4)),
 	}));
 }
 
@@ -40,6 +84,7 @@ const financialAccountTypeLabels = {
 	CHECKING: "Conta corrente",
 	CREDIT_CARD: "Cartão de crédito",
 	INVESTMENT: "Investimentos",
+	REWARDS: "Pontos / cashback",
 	SAVINGS: "Poupança",
 } as const;
 
@@ -48,6 +93,7 @@ const financialAccountOptionPrefixes = {
 	CHECKING: "Conta",
 	CREDIT_CARD: "Cartão",
 	INVESTMENT: "Investimentos",
+	REWARDS: "Pontos/cashback",
 	SAVINGS: "Poupança",
 } as const;
 
@@ -90,4 +136,13 @@ export function compareFinancialAccountsByDisplayName(
 
 export function getFinancialAccountTypeLabel(type: FinancialAccount["type"]) {
 	return financialAccountTypeLabels[type];
+}
+
+export function getFinancialAccountCurrencyValue(account: FinancialAccount) {
+	if (account.type === "CREDIT_CARD") return 0;
+	if (account.type !== "REWARDS") return account.balance ?? 0;
+	if (account.rewardsAccount?.kind === "CASHBACK") return account.balance ?? 0;
+	const points = account.rewardsAccount?.conversionPoints;
+	const amount = account.rewardsAccount?.conversionAmount;
+	return points && amount ? ((account.balance ?? 0) / points) * amount : 0;
 }

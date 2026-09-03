@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
+import { getFinancialAccountCurrencyValue } from "@/lib/financial-account";
 import { getFinancialInstitutions } from "@/lib/financial-institution";
 import { showToast, useAuthStore } from "@/stores";
 import { CreateFinancialAccountDialog, FinancialInstitutionGroup } from "./accounts/components";
@@ -74,7 +75,8 @@ function AccountsPage() {
 	const totalBalance =
 		accounts.data
 			?.filter(account => account.type !== "CREDIT_CARD")
-			.reduce((sum, account) => sum + (account.balance ?? 0), 0) ?? 0;
+			.reduce((sum, account) => sum + getFinancialAccountCurrencyValue(account), 0) ?? 0;
+	const rewardAccounts = accounts.data?.filter(account => account.type === "REWARDS") ?? [];
 	const organization = useMemo(() => {
 		const allAccounts = accounts.data ?? [];
 		const institutions = getFinancialInstitutions(allAccounts);
@@ -108,6 +110,7 @@ function AccountsPage() {
 							await createAccount.mutateAsync(data);
 						}}
 						pending={createAccount.isPending}
+						rewardAccounts={rewardAccounts}
 					/>
 				}
 				description="Organize bancos, dinheiro, investimentos e cartões sem misturar a tabela de autenticação."
@@ -154,6 +157,7 @@ function AccountsPage() {
 								updateInstitution.mutateAsync({ id: institution.id, name })
 							}
 							pending={createAccount.isPending}
+							rewardAccounts={rewardAccounts}
 						/>
 					))}
 				</section>

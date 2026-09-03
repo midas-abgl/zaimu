@@ -115,4 +115,27 @@ describe("calculateFinancialAccountBalances", () => {
 
 		expect(accounts.map(account => account.balance)).toEqual([65, 10, null]);
 	});
+
+	test("keeps rewards in native units and compounds cashback", () => {
+		const accounts = calculateFinancialAccountBalances(
+			[
+				{
+					balance: 0,
+					id: "rewards",
+					rewardsAccount: { initialBalance: 100, kind: "POINTS" },
+					type: "REWARDS",
+				},
+			] as never,
+			[],
+			[
+				{
+					cashbackAccountId: "rewards",
+					cashbackAmount: 10,
+					purchaseDate: new Date().toISOString(),
+				},
+			],
+		);
+
+		expect(accounts[0]?.balance).toBe(110);
+	});
 });

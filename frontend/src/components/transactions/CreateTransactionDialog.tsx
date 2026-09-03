@@ -105,7 +105,7 @@ export function CreateTransactionDialog({
 	useEffect(() => setUseExistingEvent(false), [debtPairCandidate?.id]);
 	const balanceAccounts =
 		accountsQuery.data
-			?.filter(account => account.type !== "CREDIT_CARD")
+			?.filter(account => account.type !== "CREDIT_CARD" && account.type !== "REWARDS")
 			.toSorted(compareFinancialAccountsByOptionLabel) ?? [];
 	const selectedStatement = payableStatementsQuery.data?.find(
 		item => item.statement.id === draft.creditCardStatementId,

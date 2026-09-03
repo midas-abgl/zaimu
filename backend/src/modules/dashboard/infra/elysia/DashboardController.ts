@@ -27,7 +27,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 
 		const balances = await getFinancialAccountBalances(accountIds);
 		const totalBalance = accounts
-			.filter(account => account.type !== "CREDIT_CARD")
+			.filter(account => account.type !== "CREDIT_CARD" && account.type !== "REWARDS")
 			.reduce((sum, account) => sum + (balances.get(account.id) ?? 0), 0);
 
 		// Get current month income

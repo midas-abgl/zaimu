@@ -99,7 +99,7 @@ export function EditTransactionDialog({
 	if (!transaction || !draft) return null;
 	const balanceAccounts =
 		accountsQuery.data
-			?.filter(account => account.type !== "CREDIT_CARD")
+			?.filter(account => account.type !== "CREDIT_CARD" && account.type !== "REWARDS")
 			.toSorted(compareFinancialAccountsByOptionLabel) ?? [];
 	const primaryAccountId =
 		draft.type === "INCOME" ? draft.destinationFinancialAccountId : draft.originFinancialAccountId;

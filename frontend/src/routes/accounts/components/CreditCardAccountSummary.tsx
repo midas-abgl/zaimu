@@ -45,6 +45,17 @@ export function CreditCardAccountSummary({ card }: { card?: CreditCard }) {
 				<p className="text-muted-foreground text-xs">Limite disponível</p>
 				<p className="mt-1 font-bold text-lg">{currency.format(availableLimit)}</p>
 			</div>
+			{card.cashbackRate ? (
+				<div className="min-[420px]:col-span-2">
+					<p className="text-muted-foreground text-xs">Cashback</p>
+					<p className="mt-1 font-semibold text-sm">
+						{new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 4 }).format(card.cashbackRate)}%
+						{card.cashbackYieldRate
+							? ` · rende ${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 4 }).format(card.cashbackYieldRate)}% ${card.cashbackYieldPeriod === "YEARLY" ? "ao ano" : "ao mês"}`
+							: ""}
+					</p>
+				</div>
+			) : null}
 		</div>
 	);
 }

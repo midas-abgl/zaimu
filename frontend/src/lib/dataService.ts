@@ -64,19 +64,41 @@ function normalizeSalary(salary: LegacySalary): Salary {
 
 export type FinancialAccountDraft = Omit<
 	FinancialAccount,
-	"balance" | "createdAt" | "creditCard" | "id" | "institution" | "institutionId" | "updatedAt" | "userId"
+	| "balance"
+	| "createdAt"
+	| "creditCard"
+	| "id"
+	| "institution"
+	| "institutionId"
+	| "rewardsAccount"
+	| "updatedAt"
+	| "userId"
 > & {
 	creditCard?: Pick<
 		CreditCard,
-		"creditLimit" | "dueDay" | "excludeFromTotals" | "securityDeposit" | "statementDay" | "workingDueDate"
+		| "cashbackAccountId"
+		| "cashbackRate"
+		| "cashbackYieldPeriod"
+		| "cashbackYieldRate"
+		| "creditLimit"
+		| "dueDay"
+		| "excludeFromTotals"
+		| "securityDeposit"
+		| "statementDay"
+		| "workingDueDate"
 	>;
 	institutionName?: string;
+	rewardsAccount?: Pick<
+		NonNullable<FinancialAccount["rewardsAccount"]>,
+		"conversionAmount" | "conversionPoints" | "initialBalance" | "kind"
+	>;
 };
 
 export interface FinancialAccountUpdateDraft {
 	creditCard?: FinancialAccountDraft["creditCard"];
 	institutionName?: string;
 	name?: string | null;
+	rewardsAccount?: FinancialAccountDraft["rewardsAccount"];
 }
 
 // Check if we're in guest mode or authenticated
@@ -121,7 +143,7 @@ export const dataService = {
 		async create(data: FinancialAccountDraft): Promise<FinancialAccount> {
 			const userId = getUserId();
 			if (isGuestMode()) {
-				const { creditCard, institutionName, ...accountData } = data;
+				const { creditCard, institutionName, rewardsAccount, ...accountData } = data;
 				let institution: FinancialInstitution | null = null;
 				const normalizedInstitutionName = normalizeInstitutionName(institutionName ?? "");
 				if (normalizedInstitutionName) {
@@ -146,6 +168,18 @@ export const dataService = {
 					updatedAt: new Date().toISOString(),
 					userId,
 				};
+				if (data.type === "REWARDS" && rewardsAccount) {
+					newAccount = {
+						...newAccount,
+						rewardsAccount: {
+							...rewardsAccount,
+							conversionAmount: rewardsAccount.conversionAmount ?? null,
+							conversionPoints: rewardsAccount.conversionPoints ?? null,
+							financialAccountId: newAccount.id,
+							id: crypto.randomUUID(),
+						},
+					};
+				}
 				await localAccounts.put(newAccount, newAccount.id);
 				if (data.type === "CREDIT_CARD" && creditCard) {
 					const card = await dataService.creditCards.createFromAccount(newAccount, creditCard);
@@ -172,10 +206,15 @@ export const dataService = {
 		},
 		async getAll(): Promise<FinancialAccount[]> {
 			if (isGuestMode()) {
-				const [local, transactions] = await Promise.all([localAccounts.getAll(), localTransactions.getAll()]);
+				const [local, transactions, cashbackPurchases] = await Promise.all([
+					localAccounts.getAll(),
+					localTransactions.getAll(),
+					localCreditPurchases.getAll(),
+				]);
 				return calculateFinancialAccountBalances(
 					local.map(item => item.data),
 					transactions.map(item => item.data),
+					cashbackPurchases.map(item => item.data),
 				);
 			}
 			const accounts = await fetchWithAuth<FinancialAccount[]>("/financial-accounts");
@@ -223,6 +262,10 @@ export const dataService = {
 							: existing.data.creditCard,
 					institution,
 					institutionId: institution?.id ?? null,
+					rewardsAccount:
+						data.rewardsAccount && existing.data.rewardsAccount
+							? { ...existing.data.rewardsAccount, ...data.rewardsAccount }
+							: existing.data.rewardsAccount,
 					updatedAt: new Date().toISOString(),
 				};
 				await localAccounts.put(updated, id);
@@ -332,6 +375,10 @@ export const dataService = {
 			}
 			const installments = Math.max(1, data.installments ?? 1);
 			const installmentAmount = data.totalAmount / installments;
+			const cashbackAmount =
+				card.cashbackAccountId && card.cashbackRate
+					? Number(((data.totalAmount * card.cashbackRate) / 100).toFixed(4))
+					: undefined;
 			const purchaseDate = new Date(`${data.purchaseDate}T12:00:00`);
 			if (purchaseDate.getDate() > card.statementDay) purchaseDate.setMonth(purchaseDate.getMonth() + 1);
 			const statementDate = new Date(purchaseDate.getFullYear(), purchaseDate.getMonth(), card.statementDay);
@@ -350,6 +397,10 @@ export const dataService = {
 			};
 			statement.totalAmount += installmentAmount;
 			const purchase: CreditPurchase = {
+				cashbackAccountId: cashbackAmount ? card.cashbackAccountId : undefined,
+				cashbackAmount,
+				cashbackYieldPeriod: cashbackAmount ? card.cashbackYieldPeriod : undefined,
+				cashbackYieldRate: cashbackAmount ? card.cashbackYieldRate : undefined,
 				categoryId: data.tagIds?.[0] ?? data.categoryId,
 				currentInstallment: 1,
 				debtPersonId: data.debtPersonId,
@@ -378,6 +429,10 @@ export const dataService = {
 		) {
 			const card: CreditCard = {
 				accountName: account.name,
+				cashbackAccountId: details.cashbackAccountId ?? null,
+				cashbackRate: details.cashbackRate ?? null,
+				cashbackYieldPeriod: details.cashbackYieldPeriod ?? null,
+				cashbackYieldRate: details.cashbackYieldRate ?? null,
 				creditLimit: details.creditLimit,
 				dueDay: details.dueDay,
 				excludeFromTotals: details.excludeFromTotals ?? false,
@@ -502,6 +557,7 @@ export const dataService = {
 			if (
 				!storedAccount ||
 				storedAccount.data.type === "CREDIT_CARD" ||
+				storedAccount.data.type === "REWARDS" ||
 				storedAccount.data.balance === null
 			) {
 				throw new Error("Selecione uma conta com saldo próprio");
@@ -563,6 +619,32 @@ export const dataService = {
 			if (!targetCard) throw new Error("Cartão não encontrado");
 			const installments = Math.max(1, data.installments);
 			const installmentAmount = data.totalAmount / installments;
+			const cashback = storedPurchase.data.parentId
+				? {}
+				: targetCardId !== cardId
+					? targetCard.cashbackAccountId && targetCard.cashbackRate
+						? {
+								cashbackAccountId: targetCard.cashbackAccountId,
+								cashbackAmount: Number(((data.totalAmount * targetCard.cashbackRate) / 100).toFixed(4)),
+								cashbackYieldPeriod: targetCard.cashbackYieldPeriod,
+								cashbackYieldRate: targetCard.cashbackYieldRate,
+							}
+						: {
+								cashbackAccountId: null,
+								cashbackAmount: null,
+								cashbackYieldPeriod: null,
+								cashbackYieldRate: null,
+							}
+					: {
+							cashbackAmount: storedPurchase.data.cashbackAmount
+								? Number(
+										(
+											(storedPurchase.data.cashbackAmount * data.totalAmount) /
+											storedPurchase.data.totalAmount
+										).toFixed(4),
+									)
+								: storedPurchase.data.cashbackAmount,
+						};
 			const purchaseDate = new Date(`${data.purchaseDate}T12:00:00`);
 			const statementMonth = new Date(purchaseDate);
 			if (purchaseDate.getDate() > targetCard.statementDay)
@@ -593,6 +675,7 @@ export const dataService = {
 				throw new Error("Não é possível mover uma compra para uma fatura paga");
 			const updatedPurchase: CreditPurchase = {
 				...storedPurchase.data,
+				...cashback,
 				categoryId: data.tagIds[0],
 				description: data.description,
 				...(data.debtPersonId !== undefined && { debtPersonId: data.debtPersonId ?? undefined }),
@@ -655,7 +738,7 @@ export const dataService = {
 					.reduce((sum, t) => sum + t.amount, 0);
 
 				const totalBalance = accounts
-					.filter(account => account.type !== "CREDIT_CARD")
+					.filter(account => account.type !== "CREDIT_CARD" && account.type !== "REWARDS")
 					.reduce((sum, account) => sum + (account.balance ?? 0), 0);
 				const owedToMe = debts.filter(d => d.isOwedToMe && !d.isPaid).reduce((sum, d) => sum + d.amount, 0);
 				const iOwe = debts.filter(d => !d.isOwedToMe && !d.isPaid).reduce((sum, d) => sum + d.amount, 0);

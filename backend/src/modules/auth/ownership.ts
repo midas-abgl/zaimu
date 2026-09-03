@@ -80,6 +80,8 @@ export const assertBalanceAccountOwnership = async (accountId: string, userId: s
 	if (!account) throw new HttpException("Conta financeira não encontrada", 404);
 	if (account.type === "CREDIT_CARD")
 		throw new HttpException("Cartão de crédito não possui saldo próprio", 400);
+	if (account.type === "REWARDS")
+		throw new HttpException("Conta de pontos ou cashback recebe apenas recompensas", 400);
 };
 
 export const assertCheckingAccountOwnership = async (accountId: string, userId: string) => {

@@ -15,6 +15,7 @@ import {
 import { FormField } from "@/components/ui/FormField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
+import { getFinancialAccountCurrencyValue } from "@/lib/financial-account";
 import { CreateFinancialAccountDialog } from "./CreateFinancialAccountDialog";
 import { FinancialAccountCard } from "./FinancialAccountCard";
 
@@ -30,6 +31,7 @@ export function FinancialInstitutionGroup({
 	onUpdateInstitution,
 	onDeleteInstitution,
 	pending,
+	rewardAccounts,
 }: {
 	accounts: FinancialAccount[];
 	institution: FinancialInstitution | null;
@@ -40,10 +42,11 @@ export function FinancialInstitutionGroup({
 	onUpdateInstitution: (institution: FinancialInstitution, name: string) => Promise<unknown>;
 	onDeleteInstitution: (institution: FinancialInstitution) => Promise<unknown>;
 	pending: boolean;
+	rewardAccounts: FinancialAccount[];
 }) {
 	const balance = accounts
 		.filter(account => account.type !== "CREDIT_CARD")
-		.reduce((total, account) => total + (account.balance ?? 0), 0);
+		.reduce((total, account) => total + getFinancialAccountCurrencyValue(account), 0);
 	const Icon = institution ? LuLandmark : LuWalletCards;
 
 	return (
@@ -79,6 +82,7 @@ export function FinancialInstitutionGroup({
 						institutions={institutions}
 						onCreate={onCreate}
 						pending={pending}
+						rewardAccounts={rewardAccounts}
 					/>
 				</div>
 			</header>
@@ -90,6 +94,7 @@ export function FinancialInstitutionGroup({
 						key={account.id}
 						onDelete={() => onDelete(account)}
 						onUpdate={onUpdate}
+						rewardAccounts={rewardAccounts}
 					/>
 				))}
 			</div>

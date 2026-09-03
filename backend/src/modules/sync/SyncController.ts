@@ -1,6 +1,8 @@
 import Elysia from "elysia";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
 import { resolveFinancialInstitution } from "~/modules/accounts/application/resolve-financial-institution";
+import { assertCashbackSettings } from "~/modules/accounts/domain/assert-cashback-settings";
+import { assertRewardsAccountDetails } from "~/modules/accounts/domain/assert-rewards-account-details";
 import { requireUserId } from "~/modules/auth";
 import {
 	getTagsByEntity,
@@ -49,6 +51,10 @@ const categoryColumns = [
 const cardColumns = [
 	"id",
 	"financialAccountId",
+	"cashbackAccountId",
+	"cashbackRate",
+	"cashbackYieldPeriod",
+	"cashbackYieldRate",
 	"creditLimit",
 	"securityDeposit",
 	"excludeFromTotals",
@@ -72,6 +78,10 @@ const statementColumns = [
 const purchaseColumns = [
 	"id",
 	"statementId",
+	"cashbackAccountId",
+	"cashbackAmount",
+	"cashbackYieldPeriod",
+	"cashbackYieldRate",
 	"description",
 	"storeName",
 	"totalAmount",
@@ -138,7 +148,8 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 		await sync("financialAccounts", body.financialAccounts, async entity => {
 			const id = value<string>(entity, "id");
 			const type =
-				value<"CASH" | "CHECKING" | "CREDIT_CARD" | "INVESTMENT" | "SAVINGS">(entity, "type") ?? "CHECKING";
+				value<"CASH" | "CHECKING" | "CREDIT_CARD" | "INVESTMENT" | "REWARDS" | "SAVINGS">(entity, "type") ??
+				"CHECKING";
 			const existing = await queryFirst(
 				db.sql.public.FinancialAccount.select("id", "userId")
 					.where((f, fn) => fn.eq(f.id, id))
@@ -165,6 +176,48 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 						.build(),
 				);
 			else await executeStatement(db.sql.public.FinancialAccount.insert([{ ...values, id, userId }]).build());
+			if (type === "REWARDS") {
+				const rewardsInput = value<
+					| {
+							conversionAmount?: null | number;
+							conversionPoints?: null | number;
+							initialBalance?: number;
+							kind?: "CASHBACK" | "POINTS";
+					  }
+					| undefined
+				>(entity, "rewardsAccount");
+				if (!rewardsInput?.kind) throw new Error("Informe os dados da conta de pontos ou cashback");
+				const details = {
+					conversionAmount: rewardsInput.conversionAmount,
+					conversionPoints: rewardsInput.conversionPoints,
+					initialBalance: rewardsInput.initialBalance ?? 0,
+					kind: rewardsInput.kind,
+				};
+				assertRewardsAccountDetails(details);
+				const existingRewards = await queryFirst(
+					db.sql.public.RewardsAccount.select("id")
+						.where((fields, functions) => functions.eq(fields.financialAccountId, id))
+						.limit(1)
+						.build(),
+				);
+				const rewardsValues = {
+					conversionAmount: nullableNumeric<12, 2>(details.conversionAmount ?? null),
+					conversionPoints: nullableNumeric<18, 4>(details.conversionPoints ?? null),
+					initialBalance: String(details.initialBalance),
+					kind: details.kind,
+					updatedAt: new Date(),
+				};
+				if (existingRewards)
+					await executeStatement(
+						db.sql.public.RewardsAccount.update(rewardsValues)
+							.where((fields, functions) => functions.eq(fields.financialAccountId, id))
+							.build(),
+					);
+				else
+					await executeStatement(
+						db.sql.public.RewardsAccount.insert([{ ...rewardsValues, financialAccountId: id }]).build(),
+					);
+			}
 			accountIds.add(id);
 		});
 
@@ -290,7 +343,22 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					.limit(1)
 					.build(),
 			);
+			const cashbackAccountId = value<null | string | undefined>(entity, "cashbackAccountId") ?? null;
+			const cashbackSettings = {
+				cashbackAccountId,
+				cashbackRate: value<null | number | undefined>(entity, "cashbackRate") ?? null,
+				cashbackYieldPeriod:
+					value<"MONTHLY" | "YEARLY" | null | undefined>(entity, "cashbackYieldPeriod") ?? null,
+				cashbackYieldRate: value<null | number | undefined>(entity, "cashbackYieldRate") ?? null,
+			};
+			assertCashbackSettings(cashbackSettings);
+			if (cashbackAccountId && !accountIds.has(cashbackAccountId))
+				throw new Error(`Conta de cashback ${cashbackAccountId} indisponível`);
 			const values = {
+				cashbackAccountId,
+				cashbackRate: nullableNumeric<5, 2>(cashbackSettings.cashbackRate),
+				cashbackYieldPeriod: cashbackSettings.cashbackYieldPeriod,
+				cashbackYieldRate: nullableNumeric<7, 4>(cashbackSettings.cashbackYieldRate),
 				creditLimit: String(value<number>(entity, "creditLimit")),
 				dueDay: Number(value<number>(entity, "dueDay")),
 				excludeFromTotals: value<boolean>(entity, "excludeFromTotals") ?? false,
@@ -353,6 +421,14 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					.build(),
 			);
 			const values = {
+				cashbackAccountId: value<string | undefined>(entity, "cashbackAccountId"),
+				cashbackAmount: nullableNumeric<18, 4>(
+					value<number | null | undefined>(entity, "cashbackAmount") ?? null,
+				),
+				cashbackYieldPeriod: value<"MONTHLY" | "YEARLY" | undefined>(entity, "cashbackYieldPeriod"),
+				cashbackYieldRate: nullableNumeric<7, 4>(
+					value<number | null | undefined>(entity, "cashbackYieldRate") ?? null,
+				),
 				categoryId: tagIds[0],
 				currentInstallment: Number(value<number>(entity, "currentInstallment") ?? 1),
 				description: value<string>(entity, "description"),
@@ -684,11 +760,38 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				.build(),
 		);
 		const institutionsById = new Map(financialInstitutions.map(institution => [institution.id, institution]));
+		const rewardsAccounts = financialAccounts.length
+			? await queryRows(
+					db.sql.public.RewardsAccount.select(
+						"id",
+						"financialAccountId",
+						"kind",
+						"initialBalance",
+						"conversionPoints",
+						"conversionAmount",
+						"createdAt",
+						"updatedAt",
+					)
+						.where((fields, functions) =>
+							functions.in(
+								fields.financialAccountId,
+								financialAccounts.map(account => account.id),
+							),
+						)
+						.build(),
+				)
+			: [];
+		const rewardsAccountsByFinancialAccountId = new Map(
+			rewardsAccounts.map(account => [account.financialAccountId, account]),
+		);
 		const balances = await getFinancialAccountBalances(financialAccounts.map(account => account.id));
 		const financialAccountsWithInstitutions = financialAccounts.map(account => ({
 			...account,
 			balance: account.type === "CREDIT_CARD" ? null : (balances.get(account.id) ?? 0),
 			institution: account.institutionId ? (institutionsById.get(account.institutionId) ?? null) : null,
+			...(account.type === "REWARDS" && {
+				rewardsAccount: rewardsAccountsByFinancialAccountId.get(account.id) ?? null,
+			}),
 		}));
 		const serverAccountIds = financialAccounts.map(account => account.id);
 		const creditCards = serverAccountIds.length

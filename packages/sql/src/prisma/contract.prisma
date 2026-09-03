@@ -128,8 +128,11 @@ namespace public {
     institutionId           VarChar(36)?
     createdAt               Timestamp(3)                  @default(now())
     updatedAt               Timestamp(3)                  @default(now())
-    creditCards             CreditCard[]
+    creditCards             CreditCard[]                     @relation(name: "CreditCard_accountId_fkey")
+    cashbackCreditCards     CreditCard[]                     @relation(name: "CreditCard_cashbackAccountId_fkey")
+    cashbackPurchases       CreditPurchase[]                 @relation(name: "CreditPurchase_cashbackAccountId_fkey")
     loanPayments            LoanPayment[]
+    rewardsAccount          RewardsAccount?
     salaries                Salary[]
     recurringPayments       RecurringPayment[]
     subscriptions           Subscription[]
@@ -153,15 +156,35 @@ namespace public {
     statementDay         SmallInt
     dueDay               SmallInt
     workingDueDate       Boolean               @default(false)
+    cashbackRate         Numeric(5, 2)?
+    cashbackAccountId    VarChar(36)?
+    cashbackYieldRate    Numeric(7, 4)?
+    cashbackYieldPeriod  pg.enum(CashbackYieldPeriod)?
     createdAt            Timestamp(3)          @default(now())
     updatedAt            Timestamp(3)          @default(now())
     creditCardHistories  CreditCardHistory[]
     creditCardStatements CreditCardStatement[]
-    financialAccount     FinancialAccount      @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCard_accountId_fkey")
+    financialAccount     FinancialAccount      @relation(name: "CreditCard_accountId_fkey", fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCard_accountId_fkey")
+    cashbackAccount      FinancialAccount?     @relation(name: "CreditCard_cashbackAccountId_fkey", fields: [cashbackAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditCard_cashbackAccountId_fkey", index: false)
 
     @@index([financialAccountId], map: "CreditCard_accountId_key", unique: true)
+    @@index([cashbackAccountId], map: "CreditCard_cashbackAccountId_idx")
 
     @@map("CreditCard")
+  }
+
+  model RewardsAccount {
+    id                    VarChar(36)                   @id(map: "RewardsAccount_pkey") @default(dbgenerated("cuid2()"))
+    financialAccountId    VarChar(36)                   @unique(map: "RewardsAccount_financialAccountId_key")
+    kind                  pg.enum(RewardsAccountKind)
+    initialBalance        Numeric(18, 4)
+    conversionPoints      Numeric(18, 4)?
+    conversionAmount      Numeric(12, 2)?
+    createdAt             Timestamp(3)                  @default(now())
+    updatedAt             Timestamp(3)                  @default(now())
+    financialAccount      FinancialAccount              @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "RewardsAccount_financialAccountId_fkey")
+
+    @@map("RewardsAccount")
   }
 
   model CreditCardHistory {
@@ -207,6 +230,10 @@ namespace public {
     time                    Time(3)?
     categoryId              VarChar(36)?
     parentId                VarChar(36)?
+		cashbackAccountId       VarChar(36)?
+		cashbackAmount          Numeric(18, 4)?
+		cashbackYieldRate       Numeric(7, 4)?
+		cashbackYieldPeriod     pg.enum(CashbackYieldPeriod)?
 		subscriptionId          VarChar(36)?
 		subscriptionOccurrenceDate Date?
     createdAt               Timestamp(3)            @default(now())
@@ -216,10 +243,12 @@ namespace public {
     category                Category?               @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchase_categoryId_fkey", index: false)
     parent                  CreditPurchase?         @relation(name: "CreditPurchase_parentId_fkey", fields: [parentId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchase_parentId_fkey", index: false)
     creditPurchases         CreditPurchase[]        @relation(name: "CreditPurchase_parentId_fkey")
+    cashbackAccount         FinancialAccount?       @relation(name: "CreditPurchase_cashbackAccountId_fkey", fields: [cashbackAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchase_cashbackAccountId_fkey", index: false)
     statement               CreditCardStatement     @relation(fields: [statementId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchase_statementId_fkey", index: false)
 		subscription            Subscription?           @relation(fields: [subscriptionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchase_subscriptionId_fkey", index: false)
 
 		@@index([subscriptionId, subscriptionOccurrenceDate], map: "CreditPurchase_subscriptionId_occurrenceDate_key", unique: true)
+		@@index([cashbackAccountId], map: "CreditPurchase_cashbackAccountId_idx")
 
     @@map("CreditPurchase")
   }
@@ -640,12 +669,23 @@ namespace public {
     MIGRATED_SETTLEMENT = "MIGRATED_SETTLEMENT"
   }
 
+  native_enum CashbackYieldPeriod {
+    MONTHLY = "MONTHLY"
+    YEARLY = "YEARLY"
+  }
+
   native_enum FinancialAccountType {
     CHECKING = "CHECKING"
     SAVINGS = "SAVINGS"
     INVESTMENT = "INVESTMENT"
     CASH = "CASH"
     CREDIT_CARD = "CREDIT_CARD"
+    REWARDS = "REWARDS"
+  }
+
+  native_enum RewardsAccountKind {
+    POINTS = "POINTS"
+    CASHBACK = "CASHBACK"
   }
 
   native_enum PaymentMethod {

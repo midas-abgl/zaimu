@@ -36,6 +36,10 @@ const statementColumns = [
 const purchaseColumns = [
 	"id",
 	"statementId",
+	"cashbackAccountId",
+	"cashbackAmount",
+	"cashbackYieldPeriod",
+	"cashbackYieldRate",
 	"description",
 	"storeName",
 	"totalAmount",
@@ -93,6 +97,10 @@ function forecastInstallments(
 interface CreditPurchaseRow {
 	id: string;
 	statementId: string;
+	cashbackAccountId?: string | null;
+	cashbackAmount?: number | null;
+	cashbackYieldPeriod?: string | null;
+	cashbackYieldRate?: number | null;
 	description: string;
 	storeName: string | null;
 	totalAmount: number;
@@ -107,6 +115,34 @@ interface CreditPurchaseRow {
 	subscriptionOccurrenceDate?: Date | null;
 	createdAt: Date;
 	updatedAt: Date;
+}
+
+interface CashbackCard {
+	cashbackAccountId: string | null;
+	cashbackRate: number | null;
+	cashbackYieldPeriod: string | null;
+	cashbackYieldRate: number | null;
+}
+
+interface CashbackSnapshot {
+	cashbackAccountId?: string;
+	cashbackAmount?: string;
+	cashbackYieldPeriod?: "MONTHLY" | "YEARLY";
+	cashbackYieldRate?: string;
+}
+
+function cashbackSnapshot(card: CashbackCard, totalAmount: number): CashbackSnapshot {
+	if (!card.cashbackAccountId || !card.cashbackRate) return {};
+	const cashbackYieldPeriod =
+		card.cashbackYieldPeriod === "MONTHLY" || card.cashbackYieldPeriod === "YEARLY"
+			? card.cashbackYieldPeriod
+			: undefined;
+	return {
+		cashbackAccountId: card.cashbackAccountId,
+		cashbackAmount: String(Number(((totalAmount * card.cashbackRate) / 100).toFixed(4))),
+		cashbackYieldPeriod,
+		...(card.cashbackYieldRate !== null && { cashbackYieldRate: String(card.cashbackYieldRate) }),
+	};
 }
 
 type SubscriptionFrequency = "BIWEEKLY" | "DAILY" | "MONTHLY" | "WEEKLY" | "YEARLY";
@@ -245,6 +281,10 @@ async function materializeInstallments(creditCardId: string, card: { dueDay: num
 			functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
 		)
 			.select(fields => ({
+				cashbackAccountId: fields.CreditPurchase.cashbackAccountId,
+				cashbackAmount: fields.CreditPurchase.cashbackAmount,
+				cashbackYieldPeriod: fields.CreditPurchase.cashbackYieldPeriod,
+				cashbackYieldRate: fields.CreditPurchase.cashbackYieldRate,
 				categoryId: fields.CreditPurchase.categoryId,
 				currentInstallment: fields.CreditPurchase.currentInstallment,
 				description: fields.CreditPurchase.description,
@@ -302,7 +342,7 @@ async function materializeInstallments(creditCardId: string, card: { dueDay: num
 async function materializeDueSubscriptionPurchases(
 	creditCardId: string,
 	financialAccountId: string,
-	card: { dueDay: number; statementDay: number },
+	card: CashbackCard & { dueDay: number; statementDay: number },
 	today = new Date(),
 ) {
 	const subscriptions = await queryRows(
@@ -381,6 +421,10 @@ async function materializeDueSubscriptionPurchases(
 			const purchase = await queryFirst(
 				db.raw.sql`
 					INSERT INTO "CreditPurchase" (
+						"cashbackAccountId",
+						"cashbackAmount",
+						"cashbackYieldPeriod",
+						"cashbackYieldRate",
 						"currentInstallment",
 						"description",
 						"installmentAmount",
@@ -394,6 +438,10 @@ async function materializeDueSubscriptionPurchases(
 						"totalAmount"
 					)
 					VALUES (
+						${param(card.cashbackAccountId, { codecId: "sql/varchar@1" })},
+						${param(card.cashbackAccountId && card.cashbackRate ? numeric<18, 4>((Number(subscription.amount) * card.cashbackRate) / 100) : null, { codecId: "pg/numeric@1" })},
+						${param(card.cashbackYieldPeriod, { codecId: "sql/varchar@1" })}::"CashbackYieldPeriod",
+						${param(card.cashbackYieldRate === null ? null : numeric<7, 4>(card.cashbackYieldRate), { codecId: "pg/numeric@1" })},
 						1,
 						${param(subscription.name, { codecId: "sql/varchar@1" })},
 						${param(numeric<12, 2>(subscription.amount), { codecId: "pg/numeric@1" })},
@@ -522,6 +570,10 @@ const findPurchaseForCard = (creditCardId: string, purchaseId: string) =>
 			functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
 		)
 			.select(fields => ({
+				cashbackAccountId: fields.CreditPurchase.cashbackAccountId,
+				cashbackAmount: fields.CreditPurchase.cashbackAmount,
+				cashbackYieldPeriod: fields.CreditPurchase.cashbackYieldPeriod,
+				cashbackYieldRate: fields.CreditPurchase.cashbackYieldRate,
 				categoryId: fields.CreditPurchase.categoryId,
 				creditCardId: fields.CreditCardStatement.creditCardId,
 				currentInstallment: fields.CreditPurchase.currentInstallment,
@@ -562,6 +614,10 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 							functions.raw`COALESCE(${fields.FinancialAccount.name}, ${fields.FinancialInstitution.name}, 'Cartão de crédito')`.returns(
 								"sql/varchar@1",
 							),
+						cashbackAccountId: fields.CreditCard.cashbackAccountId,
+						cashbackRate: fields.CreditCard.cashbackRate,
+						cashbackYieldPeriod: fields.CreditCard.cashbackYieldPeriod,
+						cashbackYieldRate: fields.CreditCard.cashbackYieldRate,
 						createdAt: fields.CreditCard.createdAt,
 						creditLimit: fields.CreditCard.creditLimit,
 						dueDay: fields.CreditCard.dueDay,
@@ -599,6 +655,10 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 							functions.raw`COALESCE(${fields.FinancialAccount.name}, ${fields.FinancialInstitution.name}, 'Cartão de crédito')`.returns(
 								"sql/varchar@1",
 							),
+						cashbackAccountId: fields.CreditCard.cashbackAccountId,
+						cashbackRate: fields.CreditCard.cashbackRate,
+						cashbackYieldPeriod: fields.CreditCard.cashbackYieldPeriod,
+						cashbackYieldRate: fields.CreditCard.cashbackYieldRate,
 						createdAt: fields.CreditCard.createdAt,
 						creditLimit: fields.CreditCard.creditLimit,
 						dueDay: fields.CreditCard.dueDay,
@@ -633,7 +693,16 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const userId = await requireUserId(request);
 			await assertCreditCardOwnership(params.id, userId);
 			const card = await queryFirst(
-				db.sql.public.CreditCard.select("createdAt", "dueDay", "financialAccountId", "statementDay")
+				db.sql.public.CreditCard.select(
+					"cashbackAccountId",
+					"cashbackRate",
+					"cashbackYieldPeriod",
+					"cashbackYieldRate",
+					"createdAt",
+					"dueDay",
+					"financialAccountId",
+					"statementDay",
+				)
 					.where((fields, functions) => functions.eq(fields.id, params.id))
 					.limit(1)
 					.build(),
@@ -723,7 +792,16 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				const statementDate = new Date(`${params.statementId.slice("forecast-".length)}T12:00:00Z`);
 				if (Number.isNaN(statementDate.getTime())) throw new HttpException("Statement not found", 404);
 				const card = await queryFirst(
-					db.sql.public.CreditCard.select("createdAt", "dueDay", "financialAccountId", "statementDay")
+					db.sql.public.CreditCard.select(
+						"cashbackAccountId",
+						"cashbackRate",
+						"cashbackYieldPeriod",
+						"cashbackYieldRate",
+						"createdAt",
+						"dueDay",
+						"financialAccountId",
+						"statementDay",
+					)
 						.where((fields, functions) => functions.eq(fields.id, params.id))
 						.limit(1)
 						.build(),
@@ -840,7 +918,16 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				userId,
 			);
 			const card = await queryFirst(
-				db.sql.public.CreditCard.select("id", "statementDay", "dueDay", "financialAccountId")
+				db.sql.public.CreditCard.select(
+					"cashbackAccountId",
+					"cashbackRate",
+					"cashbackYieldPeriod",
+					"cashbackYieldRate",
+					"id",
+					"statementDay",
+					"dueDay",
+					"financialAccountId",
+				)
 					.where((fields, functions) => functions.eq(fields.id, params.id))
 					.limit(1)
 					.build(),
@@ -899,6 +986,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const installments = body.installments ?? 1;
 			if (body.storeName) await resolveStore(userId, body.storeName);
 			const installmentAmount = body.totalAmount / installments;
+			const cashback = cashbackSnapshot(card, body.totalAmount);
 
 			const { dueDate, statementDate } = getStatementDates(card, purchaseDate);
 			let statement = await queryFirst(
@@ -942,6 +1030,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						db.sql.public.CreditPurchase.insert([
 							{
 								categoryId: tagIds[0],
+								...cashback,
 								currentInstallment: 1,
 								description: body.description ?? "",
 								installmentAmount: String(installmentAmount),
@@ -959,13 +1048,18 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			if (body.subscriptionId && body.subscriptionOccurrenceDate) {
 				const inserted = await queryFirst(
 					db.raw.sql`
-						INSERT INTO "CreditPurchase" (
-							"categoryId", "currentInstallment", "description", "installmentAmount", "installments",
+					INSERT INTO "CreditPurchase" (
+						"cashbackAccountId", "cashbackAmount", "cashbackYieldPeriod", "cashbackYieldRate",
+						"categoryId", "currentInstallment", "description", "installmentAmount", "installments",
 							"purchaseDate", "statementId", "storeName", "subscriptionId",
 							"subscriptionOccurrenceDate", "time", "totalAmount"
 						)
-						VALUES (
-							${param(tagIds[0] ?? null, { codecId: "sql/varchar@1" })}, 1,
+					VALUES (
+						${param(card.cashbackAccountId, { codecId: "sql/varchar@1" })},
+						${param(card.cashbackAccountId && card.cashbackRate ? numeric<18, 4>((body.totalAmount * card.cashbackRate) / 100) : null, { codecId: "pg/numeric@1" })},
+						${param(card.cashbackAccountId ? card.cashbackYieldPeriod : null, { codecId: "sql/varchar@1" })}::"CashbackYieldPeriod",
+						${param(card.cashbackAccountId && card.cashbackYieldRate !== null ? numeric<7, 4>(card.cashbackYieldRate) : null, { codecId: "pg/numeric@1" })},
+						${param(tagIds[0] ?? null, { codecId: "sql/varchar@1" })}, 1,
 							${param(body.description ?? "", { codecId: "sql/varchar@1" })},
 							${param(numeric<12, 2>(installmentAmount), { codecId: "pg/numeric@1" })}, 1,
 							${param(purchaseDate, { codecId: "pg/date@1" })},
@@ -1163,9 +1257,32 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const nextAmount = nextTotalAmount / nextInstallments;
 			const nextPurchaseDate = body.purchaseDate ? new Date(body.purchaseDate) : purchase.purchaseDate;
 			let nextStatementId = purchase.statementId;
+			let nextCashback = {
+				cashbackAccountId: purchase.cashbackAccountId,
+				cashbackAmount:
+					purchase.cashbackAmount === null || purchase.cashbackAmount === undefined
+						? null
+						: String(
+								Number(
+									(Number(purchase.cashbackAmount) * nextTotalAmount) / Number(purchase.totalAmount),
+								).toFixed(4),
+							),
+				cashbackYieldPeriod: purchase.cashbackYieldPeriod,
+				cashbackYieldRate:
+					purchase.cashbackYieldRate === null || purchase.cashbackYieldRate === undefined
+						? null
+						: String(purchase.cashbackYieldRate),
+			};
 			if (body.creditCardId && body.creditCardId !== params.id) {
 				const card = await queryFirst(
-					db.sql.public.CreditCard.select("dueDay", "statementDay")
+					db.sql.public.CreditCard.select(
+						"cashbackAccountId",
+						"cashbackRate",
+						"cashbackYieldPeriod",
+						"cashbackYieldRate",
+						"dueDay",
+						"statementDay",
+					)
 						.where((fields, functions) => functions.eq(fields.id, body.creditCardId!))
 						.limit(1)
 						.build(),
@@ -1195,9 +1312,25 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				if (!statement) throw new HttpException("Statement not created", 500);
 				if (statement.isPaid) throw new HttpException("Cannot move a purchase to a paid statement", 409);
 				nextStatementId = statement.id;
+				if (!purchase.parentId) {
+					const snapshot = cashbackSnapshot(card, nextTotalAmount);
+					nextCashback = {
+						cashbackAccountId: snapshot.cashbackAccountId ?? null,
+						cashbackAmount: snapshot.cashbackAmount ?? null,
+						cashbackYieldPeriod: snapshot.cashbackYieldPeriod ?? null,
+						cashbackYieldRate: snapshot.cashbackYieldRate ?? null,
+					};
+				}
 			}
 			const updatedPurchase = await queryFirst(
 				db.sql.public.CreditPurchase.update({
+					...(!purchase.parentId &&
+						(body.totalAmount !== undefined || nextStatementId !== purchase.statementId) && {
+							cashbackAccountId: nextCashback.cashbackAccountId,
+							cashbackAmount: nextCashback.cashbackAmount,
+							cashbackYieldPeriod: nextCashback.cashbackYieldPeriod,
+							cashbackYieldRate: nextCashback.cashbackYieldRate,
+						}),
 					...(body.description !== undefined && { description: body.description }),
 					...(body.storeName !== undefined && { storeName: body.storeName }),
 					...((body.totalAmount !== undefined || body.installments !== undefined) && {

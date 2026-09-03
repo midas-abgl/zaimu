@@ -7,3 +7,11 @@ Salários, assinaturas, pagamentos recorrentes e parcelamentos devem prever sald
 ## Rótulos de contas em seletores de transação
 
 Quando um seletor de contas em uma transação apresentar mais de um tipo de conta, cada opção deve começar pelo tipo resumido para evitar ambiguidade. Exemplos: `Poupança Mercado Pago`, `Conta Mercado Pago` e `Conta Nubank`. O rótulo comum da conta fora desses seletores permanece sem esse prefixo.
+
+## Cashback e contas de recompensas
+
+Cashback de cartão exige uma porcentagem maior que zero e uma conta de destino do tipo pontos/cashback pertencente ao mesmo usuário. Cada compra concreta gera uma recompensa somente na parcela raiz, calculada sobre o valor total da compra. O lançamento guarda um snapshot do destino, valor e rendimento configurados no momento da compra; mudanças posteriores no cartão não reescrevem recompensas históricas. Editar o valor da compra recalcula sua recompensa pela taxa histórica, mover a compra para outro cartão aplica as regras do cartão de destino e excluir a compra remove a recompensa vinculada.
+
+Conta de recompensas guarda saldo na unidade escolhida: pontos ou reais de cashback. Conta de pontos pode declarar opcionalmente uma conversão completa no formato `X pontos = Y reais`; os dois valores devem existir juntos e ser positivos. A conversão serve apenas para exibir equivalente monetário: saldo continua armazenado em pontos. Sem conversão, pontos nunca entram em totais monetários. Cashback em reais entra nesses totais pelo valor nominal.
+
+Rendimento de cashback é opcional e exige taxa positiva mais periodicidade mensal ou anual. Cada recompensa rende de forma composta após períodos completos desde a data da compra, usando o snapshot da regra vigente quando foi criada.

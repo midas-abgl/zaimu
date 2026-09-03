@@ -53,13 +53,23 @@ export interface FinancialAccount {
 	id: string;
 	userId: string;
 	name: string | null;
-	type: "CHECKING" | "SAVINGS" | "INVESTMENT" | "CASH" | "CREDIT_CARD";
+	type: "CHECKING" | "SAVINGS" | "INVESTMENT" | "CASH" | "CREDIT_CARD" | "REWARDS";
 	balance: number | null;
 	institutionId?: string | null;
 	institution?: FinancialInstitution | null;
 	createdAt: string;
 	updatedAt: string;
 	creditCard?: CreditCard;
+	rewardsAccount?: RewardsAccount;
+}
+
+export interface RewardsAccount {
+	id: string;
+	financialAccountId: string;
+	kind: "POINTS" | "CASHBACK";
+	initialBalance: number;
+	conversionPoints?: number | null;
+	conversionAmount?: number | null;
 }
 
 export interface FinancialInstitution {
@@ -82,6 +92,10 @@ export interface CreditCard {
 	statementDay: number;
 	dueDay: number;
 	workingDueDate: boolean;
+	cashbackAccountId?: string | null;
+	cashbackRate?: number | null;
+	cashbackYieldPeriod?: "MONTHLY" | "YEARLY" | null;
+	cashbackYieldRate?: number | null;
 	accountName?: string | null;
 }
 
@@ -316,6 +330,10 @@ export interface CreditPurchase {
 	subscriptionId?: string;
 	subscriptionOccurrenceDate?: string;
 	isForecast?: boolean;
+	cashbackAccountId?: string | null;
+	cashbackAmount?: number | null;
+	cashbackYieldPeriod?: "MONTHLY" | "YEARLY" | null;
+	cashbackYieldRate?: number | null;
 }
 
 export interface CreditCardStatementDetail extends CreditCardStatement {
