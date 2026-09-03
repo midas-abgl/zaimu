@@ -15,6 +15,7 @@ import {
 import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { NumericField } from "@/components/ui/NumericField";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import { getFinancialAccountOptionLabel } from "@/lib/financial-account";
@@ -260,421 +261,434 @@ export function CreateFinancialAccountDialog({
 					</Button>
 				</DialogTrigger>
 			)}
-			<DialogContent className="scrollbar-themed max-h-[92dvh] overflow-y-auto sm:max-w-lg">
-				<DialogHeader>
-					<DialogTitle>{account ? "Editar conta" : "Cadastrar conta"}</DialogTitle>
-					<DialogDescription>
-						{account
-							? "Atualize os dados desta conta."
-							: "Inclua conta bancária, dinheiro, investimento, cartão ou recompensas."}
-					</DialogDescription>
-				</DialogHeader>
-				<form className="grid gap-5" onSubmit={handleSubmit}>
-					<CustomSelect
-						label="Instituição"
-						onValueChange={setInstitutionId}
-						options={[
-							{ label: "Nova instituição", value: NEW_INSTITUTION },
-							...institutions.map(institution => ({
-								label: institution.name,
-								value: institution.id,
-							})),
-							{ label: "Sem instituição", value: NO_INSTITUTION },
-						]}
-						placeholder="Selecione uma instituição"
-						value={institutionId}
-					/>
-					{institutionId === NEW_INSTITUTION && (
-						<FormField
-							autoComplete="organization"
-							description="Banco, fintech ou corretora que reúne esta conta."
-							id="institution-name"
-							label="Nome da instituição"
-							name="institution-name"
-							onChange={event => setNewInstitutionName(event.currentTarget.value)}
-							placeholder="Ex: Mercado Pago"
-							required
-							type="text"
-							value={newInstitutionName}
-						/>
-					)}
-					<FormField
-						autoComplete="off"
-						id="account-name"
-						label="Nome da conta (opcional)"
-						name="account-name"
-						onChange={event => setName(event.currentTarget.value)}
-						placeholder="Ex: Principal ou Cartão Gold"
-						type="text"
-						value={name}
-					/>
-					{account ? (
-						<div className="grid gap-2">
-							<p className="font-medium text-sm">Tipo</p>
-							<p className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-								{types.find(item => item.value === type)?.label}
-							</p>
-						</div>
-					) : (
-						<CustomSelect
-							label="Tipo"
-							onValueChange={value => setType(value as FinancialAccount["type"])}
-							options={types}
-							placeholder="Selecione o tipo"
-							required
-							value={type}
-						/>
-					)}
-					{type === "REWARDS" && (
-						<div className="grid gap-5 rounded-2xl border bg-muted/35 p-4">
+			<DialogContent className="h-[92dvh] overflow-hidden p-0 sm:h-auto sm:max-w-lg">
+				<ScrollArea className="h-full sm:max-h-[calc(100dvh-2rem)]">
+					<div className="grid gap-6 p-6">
+						<DialogHeader>
+							<DialogTitle>{account ? "Editar conta" : "Cadastrar conta"}</DialogTitle>
+							<DialogDescription>
+								{account
+									? "Atualize os dados desta conta."
+									: "Inclua conta bancária, dinheiro, investimento, cartão ou recompensas."}
+							</DialogDescription>
+						</DialogHeader>
+						<form className="grid gap-5" onSubmit={handleSubmit}>
 							<CustomSelect
-								label="Modalidade"
-								onValueChange={value => {
-									setRewardsKind(value as "CASHBACK" | "POINTS");
-									if (value === "CASHBACK") setConversionEnabled(false);
-								}}
+								label="Instituição"
+								onValueChange={setInstitutionId}
 								options={[
-									{ label: "Pontos", value: "POINTS" },
-									{ label: "Cashback em dinheiro", value: "CASHBACK" },
+									{ label: "Nova instituição", value: NEW_INSTITUTION },
+									...institutions.map(institution => ({
+										label: institution.name,
+										value: institution.id,
+									})),
+									{ label: "Sem instituição", value: NO_INSTITUTION },
 								]}
-								placeholder="Selecione a modalidade"
-								required
-								value={rewardsKind}
+								placeholder="Selecione uma instituição"
+								value={institutionId}
 							/>
-							{rewardsKind === "CASHBACK" ? (
-								<MoneyField
-									id="rewards-initial-balance"
-									label="Saldo inicial (opcional)"
-									onValueChange={setInitialRewardsBalance}
-									placeholder="R$ 150,00"
-									value={initialRewardsBalance}
+							{institutionId === NEW_INSTITUTION && (
+								<FormField
+									autoComplete="organization"
+									description="Banco, fintech ou corretora que reúne esta conta."
+									id="institution-name"
+									label="Nome da instituição"
+									name="institution-name"
+									onChange={event => setNewInstitutionName(event.currentTarget.value)}
+									placeholder="Ex: Mercado Pago"
+									required
+									type="text"
+									value={newInstitutionName}
 								/>
+							)}
+							<FormField
+								autoComplete="off"
+								id="account-name"
+								label="Nome da conta (opcional)"
+								name="account-name"
+								onChange={event => setName(event.currentTarget.value)}
+								placeholder="Ex: Principal ou Cartão Gold"
+								type="text"
+								value={name}
+							/>
+							{account ? (
+								<div className="grid gap-2">
+									<p className="font-medium text-sm">Tipo</p>
+									<p className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+										{types.find(item => item.value === type)?.label}
+									</p>
+								</div>
 							) : (
-								<NumericField
-									decimalScale={4}
-									id="rewards-initial-balance"
-									label="Saldo inicial em pontos (opcional)"
-									onValueChange={setInitialRewardsBalance}
-									placeholder="Ex: 10.000"
-									value={initialRewardsBalance}
-								/>
-							)}
-							{rewardsKind === "POINTS" && (
-								<>
-									<label
-										className="flex cursor-pointer items-start gap-3 text-sm"
-										htmlFor="conversion-enabled"
-									>
-										<Checkbox
-											checked={conversionEnabled}
-											className="mt-0.5 cursor-pointer"
-											id="conversion-enabled"
-											onCheckedChange={checked => setConversionEnabled(checked === true)}
-										/>
-										<span>
-											<strong className="block">Informar conversão para reais</strong>
-											<span className="text-muted-foreground">
-												Saldo continua guardado e exibido em pontos.
-											</span>
-										</span>
-									</label>
-									{conversionEnabled && (
-										<div className="grid gap-4 sm:grid-cols-2">
-											<NumericField
-												decimalScale={4}
-												id="conversion-points"
-												label="Pontos"
-												onValueChange={setConversionPoints}
-												placeholder="Ex: 1.000"
-												required
-												value={conversionPoints}
-											/>
-											<MoneyField
-												id="conversion-amount"
-												label="Equivalem a"
-												onValueChange={setConversionAmount}
-												placeholder="R$ 10,00"
-												required
-												value={conversionAmount}
-											/>
-										</div>
-									)}
-								</>
-							)}
-						</div>
-					)}
-					{type === "CREDIT_CARD" && (
-						<div className="grid gap-5 rounded-2xl border bg-muted/35 p-4">
-							<MoneyField
-								id="credit-limit"
-								label="Limite"
-								onValueChange={setCreditLimit}
-								placeholder="R$ 5.000,00"
-								required
-								value={creditLimit}
-							/>
-							<div className="grid gap-2">
-								<MoneyField
-									id="security-deposit"
-									label="Valor em garantia (opcional)"
-									onValueChange={setSecurityDeposit}
-									placeholder="R$ 500,00"
-									value={securityDeposit}
-								/>
-								<p className="text-muted-foreground text-xs">
-									Use somente em cartões cujo limite depende de dinheiro deixado em garantia. Não entra no
-									saldo disponível.
-								</p>
-							</div>
-							<div className="grid gap-4 sm:grid-cols-2">
 								<CustomSelect
-									label="Fechamento"
-									onValueChange={setStatementDay}
-									options={days}
-									placeholder="Dia da fatura"
+									label="Tipo"
+									onValueChange={value => setType(value as FinancialAccount["type"])}
+									options={types}
+									placeholder="Selecione o tipo"
 									required
-									sortOptions={false}
-									value={statementDay}
+									value={type}
 								/>
-								<CustomSelect
-									label="Vencimento"
-									onValueChange={setDueDay}
-									options={days}
-									placeholder="Dia do vencimento"
-									required
-									sortOptions={false}
-									value={dueDay}
-								/>
-							</div>
-							{hasInvalidBillingDays && (
-								<p className="text-destructive text-sm">
-									O vencimento deve ser posterior ao fechamento da fatura.
-								</p>
 							)}
-							<label className="flex cursor-pointer items-start gap-3 text-sm" htmlFor="cashback-enabled">
-								<Checkbox
-									checked={cashbackEnabled}
-									className="mt-0.5 cursor-pointer"
-									id="cashback-enabled"
-									onCheckedChange={checked => {
-										setCashbackEnabled(checked === true);
-										if (checked !== true) setCashbackYieldEnabled(false);
-									}}
-								/>
-								<span>
-									<strong className="block">Este cartão oferece cashback</strong>
-									<span className="text-muted-foreground">
-										Cada compra credita a recompensa automaticamente.
-									</span>
-								</span>
-							</label>
-							{cashbackEnabled && (
-								<div className="grid gap-4 rounded-2xl border bg-background/60 p-4">
+							{type === "REWARDS" && (
+								<div className="grid gap-5 rounded-2xl border bg-muted/35 p-4">
 									<CustomSelect
-										label="Recompensa recebida"
-										onValueChange={value => setCashbackKind(value as "CASHBACK" | "POINTS")}
+										label="Modalidade"
+										onValueChange={value => {
+											setRewardsKind(value as "CASHBACK" | "POINTS");
+											if (value === "CASHBACK") setConversionEnabled(false);
+										}}
 										options={[
-											{ label: "Cashback em dinheiro", value: "CASHBACK" },
 											{ label: "Pontos", value: "POINTS" },
+											{ label: "Cashback em dinheiro", value: "CASHBACK" },
 										]}
-										placeholder="Selecione a recompensa"
-										value={cashbackKind}
+										placeholder="Selecione a modalidade"
+										required
+										value={rewardsKind}
 									/>
-									{cashbackKind === "CASHBACK" ? (
-										<NumericField
-											decimalScale={4}
-											id="cashback-rate"
-											label="Cashback"
-											onValueChange={setCashbackRate}
-											placeholder="Ex: 1,5%"
-											required
-											suffix="%"
-											value={cashbackRate}
+									{rewardsKind === "CASHBACK" ? (
+										<MoneyField
+											id="rewards-initial-balance"
+											label="Saldo inicial (opcional)"
+											onValueChange={setInitialRewardsBalance}
+											placeholder="R$ 150,00"
+											value={initialRewardsBalance}
 										/>
 									) : (
-										<div className="grid gap-4 sm:grid-cols-2">
-											<NumericField
-												decimalScale={4}
-												id="cashback-points"
-												label="Pontos ganhos"
-												onValueChange={setCashbackPoints}
-												placeholder="Ex: 2"
-												required
-												value={cashbackPoints}
-											/>
-											<MoneyField
-												id="cashback-spend-amount"
-												label="A cada"
-												onValueChange={setCashbackSpendAmount}
-												placeholder="R$ 1,00"
-												required
-												value={cashbackSpendAmount}
-											/>
-										</div>
+										<NumericField
+											decimalScale={4}
+											id="rewards-initial-balance"
+											label="Saldo inicial em pontos (opcional)"
+											onValueChange={setInitialRewardsBalance}
+											placeholder="Ex: 10.000"
+											value={initialRewardsBalance}
+										/>
 									)}
-									<CustomSelect
-										label="Conta de destino"
-										onValueChange={setCashbackAccountId}
-										options={[
-											{ label: "Criar ou reutilizar automaticamente", value: AUTO_REWARDS_ACCOUNT },
-											...rewardAccounts.map(rewardAccount => ({
-												label: getFinancialAccountOptionLabel(rewardAccount),
-												value: rewardAccount.id,
-											})),
-										]}
-										placeholder="Selecione a conta de recompensa"
-										value={cashbackAccountId}
-									/>
-									<p className="text-muted-foreground text-xs">
-										Sem escolha, uma conta sem nome será criada ou reutilizada nesta instituição.
-									</p>
-									{cashbackKind === "POINTS" && (
+									{rewardsKind === "POINTS" && (
 										<>
 											<label
 												className="flex cursor-pointer items-start gap-3 text-sm"
-												htmlFor="cashback-conversion-enabled"
+												htmlFor="conversion-enabled"
 											>
 												<Checkbox
-													checked={cashbackConversionEnabled}
+													checked={conversionEnabled}
 													className="mt-0.5 cursor-pointer"
-													id="cashback-conversion-enabled"
-													onCheckedChange={checked => setCashbackConversionEnabled(checked === true)}
+													id="conversion-enabled"
+													onCheckedChange={checked => setConversionEnabled(checked === true)}
 												/>
 												<span>
 													<strong className="block">Informar conversão para reais</strong>
 													<span className="text-muted-foreground">
-														Opcional. Pontos continuam guardados em pontos.
+														Saldo continua guardado e exibido em pontos.
 													</span>
 												</span>
 											</label>
-											{cashbackConversionEnabled && (
+											{conversionEnabled && (
 												<div className="grid gap-4 sm:grid-cols-2">
 													<NumericField
 														decimalScale={4}
-														id="cashback-conversion-points"
+														id="conversion-points"
 														label="Pontos"
-														onValueChange={setCashbackConversionPoints}
+														onValueChange={setConversionPoints}
 														placeholder="Ex: 1.000"
 														required
-														value={cashbackConversionPoints}
+														value={conversionPoints}
 													/>
 													<MoneyField
-														id="cashback-conversion-amount"
+														id="conversion-amount"
 														label="Equivalem a"
-														onValueChange={setCashbackConversionAmount}
+														onValueChange={setConversionAmount}
 														placeholder="R$ 10,00"
 														required
-														value={cashbackConversionAmount}
+														value={conversionAmount}
 													/>
 												</div>
 											)}
 										</>
 									)}
-									<label
-										className="flex cursor-pointer items-start gap-3 text-sm"
-										htmlFor="cashback-yield-enabled"
-									>
-										<Checkbox
-											checked={cashbackYieldEnabled}
-											className="mt-0.5 cursor-pointer"
-											id="cashback-yield-enabled"
-											onCheckedChange={checked => setCashbackYieldEnabled(checked === true)}
-										/>
-										<span>
-											<strong className="block">Cashback rende ao longo do tempo</strong>
-											<span className="text-muted-foreground">Rendimento composto mensal ou anual.</span>
-										</span>
-									</label>
-									{cashbackYieldEnabled && (
-										<div className="grid gap-4 sm:grid-cols-2">
-											<NumericField
-												decimalScale={4}
-												id="cashback-yield-rate"
-												label="Rendimento"
-												onValueChange={setCashbackYieldRate}
-												placeholder="Ex: 0,5%"
-												required
-												suffix="%"
-												value={cashbackYieldRate}
-											/>
-											<CustomSelect
-												label="Período"
-												onValueChange={value => setCashbackYieldPeriod(value as "MONTHLY" | "YEARLY")}
-												options={[
-													{ label: "Ao mês", value: "MONTHLY" },
-													{ label: "Ao ano", value: "YEARLY" },
-												]}
-												placeholder="Selecione o período"
-												required
-												value={cashbackYieldPeriod}
-											/>
-										</div>
-									)}
 								</div>
 							)}
-							<label className="flex cursor-pointer items-start gap-3 text-sm" htmlFor="working-due-date">
-								<Checkbox
-									checked={workingDueDate}
-									className="mt-0.5 cursor-pointer"
-									id="working-due-date"
-									onCheckedChange={checked => setWorkingDueDate(checked === true)}
-								/>
-								<span>
-									<strong className="block">Ajustar para dia útil</strong>
-									<span className="text-muted-foreground">Move vencimentos que caem em fim de semana.</span>
-								</span>
-							</label>
-							<label className="flex cursor-pointer items-start gap-3 text-sm" htmlFor="exclude-from-totals">
-								<Checkbox
-									checked={excludeFromTotals}
-									className="mt-0.5 cursor-pointer"
-									id="exclude-from-totals"
-									onCheckedChange={checked => setExcludeFromTotals(checked === true)}
-								/>
-								<span>
-									<strong className="block">Não considerar nos totais</strong>
-									<span className="text-muted-foreground">
-										Use para cartão de outra pessoa: acompanhe compras e faturas sem somá-lo aos seus limites.
-									</span>
-								</span>
-							</label>
-						</div>
-					)}
-					<DialogFooter>
-						<Button
-							className="cursor-pointer"
-							onClick={() => handleOpenChange(false)}
-							type="button"
-							variant="outline"
-						>
-							Descartar
-						</Button>
-						<Button
-							className="cursor-pointer disabled:cursor-not-allowed"
-							disabled={
-								pending ||
-								(institutionId === NEW_INSTITUTION && !newInstitutionName.trim()) ||
-								(type === "CREDIT_CARD" && !creditLimit) ||
-								(type === "CREDIT_CARD" && hasInvalidBillingDays) ||
-								(type === "CREDIT_CARD" && cashbackEnabled && cashbackKind === "CASHBACK" && !cashbackRate) ||
-								(type === "CREDIT_CARD" &&
-									cashbackEnabled &&
-									cashbackKind === "POINTS" &&
-									(!cashbackPoints || !cashbackSpendAmount)) ||
-								(type === "CREDIT_CARD" && cashbackYieldEnabled && !cashbackYieldRate) ||
-								(type === "CREDIT_CARD" &&
-									cashbackEnabled &&
-									cashbackKind === "POINTS" &&
-									cashbackConversionEnabled &&
-									(!cashbackConversionPoints || !cashbackConversionAmount)) ||
-								(type === "REWARDS" && conversionEnabled && (!conversionPoints || !conversionAmount))
-							}
-							type="submit"
-						>
-							{pending ? "Salvando…" : "Salvar"}
-						</Button>
-					</DialogFooter>
-				</form>
+							{type === "CREDIT_CARD" && (
+								<div className="grid gap-5 rounded-2xl border bg-muted/35 p-4">
+									<MoneyField
+										id="credit-limit"
+										label="Limite"
+										onValueChange={setCreditLimit}
+										placeholder="R$ 5.000,00"
+										required
+										value={creditLimit}
+									/>
+									<div className="grid gap-2">
+										<MoneyField
+											id="security-deposit"
+											label="Valor em garantia (opcional)"
+											onValueChange={setSecurityDeposit}
+											placeholder="R$ 500,00"
+											value={securityDeposit}
+										/>
+										<p className="text-muted-foreground text-xs">
+											Use somente em cartões cujo limite depende de dinheiro deixado em garantia. Não entra no
+											saldo disponível.
+										</p>
+									</div>
+									<div className="grid gap-4 sm:grid-cols-2">
+										<CustomSelect
+											label="Fechamento"
+											onValueChange={setStatementDay}
+											options={days}
+											placeholder="Dia da fatura"
+											required
+											sortOptions={false}
+											value={statementDay}
+										/>
+										<CustomSelect
+											label="Vencimento"
+											onValueChange={setDueDay}
+											options={days}
+											placeholder="Dia do vencimento"
+											required
+											sortOptions={false}
+											value={dueDay}
+										/>
+									</div>
+									{hasInvalidBillingDays && (
+										<p className="text-destructive text-sm">
+											O vencimento deve ser posterior ao fechamento da fatura.
+										</p>
+									)}
+									<label className="flex cursor-pointer items-start gap-3 text-sm" htmlFor="cashback-enabled">
+										<Checkbox
+											checked={cashbackEnabled}
+											className="mt-0.5 cursor-pointer"
+											id="cashback-enabled"
+											onCheckedChange={checked => {
+												setCashbackEnabled(checked === true);
+												if (checked !== true) setCashbackYieldEnabled(false);
+											}}
+										/>
+										<span>
+											<strong className="block">Este cartão oferece cashback</strong>
+											<span className="text-muted-foreground">
+												Cada compra credita a recompensa automaticamente.
+											</span>
+										</span>
+									</label>
+									{cashbackEnabled && (
+										<div className="grid gap-4 rounded-2xl border bg-background/60 p-4">
+											<CustomSelect
+												label="Recompensa recebida"
+												onValueChange={value => setCashbackKind(value as "CASHBACK" | "POINTS")}
+												options={[
+													{ label: "Cashback em dinheiro", value: "CASHBACK" },
+													{ label: "Pontos", value: "POINTS" },
+												]}
+												placeholder="Selecione a recompensa"
+												value={cashbackKind}
+											/>
+											{cashbackKind === "CASHBACK" ? (
+												<NumericField
+													decimalScale={4}
+													id="cashback-rate"
+													label="Cashback"
+													onValueChange={setCashbackRate}
+													placeholder="Ex: 1,5%"
+													required
+													suffix="%"
+													value={cashbackRate}
+												/>
+											) : (
+												<div className="grid gap-4 sm:grid-cols-2">
+													<NumericField
+														decimalScale={4}
+														id="cashback-points"
+														label="Pontos ganhos"
+														onValueChange={setCashbackPoints}
+														placeholder="Ex: 2"
+														required
+														value={cashbackPoints}
+													/>
+													<MoneyField
+														id="cashback-spend-amount"
+														label="A cada"
+														onValueChange={setCashbackSpendAmount}
+														placeholder="R$ 1,00"
+														required
+														value={cashbackSpendAmount}
+													/>
+												</div>
+											)}
+											<CustomSelect
+												label="Conta de destino"
+												onValueChange={setCashbackAccountId}
+												options={[
+													{ label: "Criar ou reutilizar automaticamente", value: AUTO_REWARDS_ACCOUNT },
+													...rewardAccounts.map(rewardAccount => ({
+														label: getFinancialAccountOptionLabel(rewardAccount),
+														value: rewardAccount.id,
+													})),
+												]}
+												placeholder="Selecione a conta de recompensa"
+												value={cashbackAccountId}
+											/>
+											<p className="text-muted-foreground text-xs">
+												Sem escolha, uma conta sem nome será criada ou reutilizada nesta instituição.
+											</p>
+											{cashbackKind === "POINTS" && (
+												<>
+													<label
+														className="flex cursor-pointer items-start gap-3 text-sm"
+														htmlFor="cashback-conversion-enabled"
+													>
+														<Checkbox
+															checked={cashbackConversionEnabled}
+															className="mt-0.5 cursor-pointer"
+															id="cashback-conversion-enabled"
+															onCheckedChange={checked => setCashbackConversionEnabled(checked === true)}
+														/>
+														<span>
+															<strong className="block">Informar conversão para reais</strong>
+															<span className="text-muted-foreground">
+																Opcional. Pontos continuam guardados em pontos.
+															</span>
+														</span>
+													</label>
+													{cashbackConversionEnabled && (
+														<div className="grid gap-4 sm:grid-cols-2">
+															<NumericField
+																decimalScale={4}
+																id="cashback-conversion-points"
+																label="Pontos"
+																onValueChange={setCashbackConversionPoints}
+																placeholder="Ex: 1.000"
+																required
+																value={cashbackConversionPoints}
+															/>
+															<MoneyField
+																id="cashback-conversion-amount"
+																label="Equivalem a"
+																onValueChange={setCashbackConversionAmount}
+																placeholder="R$ 10,00"
+																required
+																value={cashbackConversionAmount}
+															/>
+														</div>
+													)}
+												</>
+											)}
+											<label
+												className="flex cursor-pointer items-start gap-3 text-sm"
+												htmlFor="cashback-yield-enabled"
+											>
+												<Checkbox
+													checked={cashbackYieldEnabled}
+													className="mt-0.5 cursor-pointer"
+													id="cashback-yield-enabled"
+													onCheckedChange={checked => setCashbackYieldEnabled(checked === true)}
+												/>
+												<span>
+													<strong className="block">Cashback rende ao longo do tempo</strong>
+													<span className="text-muted-foreground">Rendimento composto mensal ou anual.</span>
+												</span>
+											</label>
+											{cashbackYieldEnabled && (
+												<div className="grid gap-4 sm:grid-cols-2">
+													<NumericField
+														decimalScale={4}
+														id="cashback-yield-rate"
+														label="Rendimento"
+														onValueChange={setCashbackYieldRate}
+														placeholder="Ex: 0,5%"
+														required
+														suffix="%"
+														value={cashbackYieldRate}
+													/>
+													<CustomSelect
+														label="Período"
+														onValueChange={value => setCashbackYieldPeriod(value as "MONTHLY" | "YEARLY")}
+														options={[
+															{ label: "Ao mês", value: "MONTHLY" },
+															{ label: "Ao ano", value: "YEARLY" },
+														]}
+														placeholder="Selecione o período"
+														required
+														value={cashbackYieldPeriod}
+													/>
+												</div>
+											)}
+										</div>
+									)}
+									<label className="flex cursor-pointer items-start gap-3 text-sm" htmlFor="working-due-date">
+										<Checkbox
+											checked={workingDueDate}
+											className="mt-0.5 cursor-pointer"
+											id="working-due-date"
+											onCheckedChange={checked => setWorkingDueDate(checked === true)}
+										/>
+										<span>
+											<strong className="block">Ajustar para dia útil</strong>
+											<span className="text-muted-foreground">
+												Move vencimentos que caem em fim de semana.
+											</span>
+										</span>
+									</label>
+									<label
+										className="flex cursor-pointer items-start gap-3 text-sm"
+										htmlFor="exclude-from-totals"
+									>
+										<Checkbox
+											checked={excludeFromTotals}
+											className="mt-0.5 cursor-pointer"
+											id="exclude-from-totals"
+											onCheckedChange={checked => setExcludeFromTotals(checked === true)}
+										/>
+										<span>
+											<strong className="block">Não considerar nos totais</strong>
+											<span className="text-muted-foreground">
+												Use para cartão de outra pessoa: acompanhe compras e faturas sem somá-lo aos seus
+												limites.
+											</span>
+										</span>
+									</label>
+								</div>
+							)}
+							<DialogFooter>
+								<Button
+									className="cursor-pointer"
+									onClick={() => handleOpenChange(false)}
+									type="button"
+									variant="outline"
+								>
+									Descartar
+								</Button>
+								<Button
+									className="cursor-pointer disabled:cursor-not-allowed"
+									disabled={
+										pending ||
+										(institutionId === NEW_INSTITUTION && !newInstitutionName.trim()) ||
+										(type === "CREDIT_CARD" && !creditLimit) ||
+										(type === "CREDIT_CARD" && hasInvalidBillingDays) ||
+										(type === "CREDIT_CARD" &&
+											cashbackEnabled &&
+											cashbackKind === "CASHBACK" &&
+											!cashbackRate) ||
+										(type === "CREDIT_CARD" &&
+											cashbackEnabled &&
+											cashbackKind === "POINTS" &&
+											(!cashbackPoints || !cashbackSpendAmount)) ||
+										(type === "CREDIT_CARD" && cashbackYieldEnabled && !cashbackYieldRate) ||
+										(type === "CREDIT_CARD" &&
+											cashbackEnabled &&
+											cashbackKind === "POINTS" &&
+											cashbackConversionEnabled &&
+											(!cashbackConversionPoints || !cashbackConversionAmount)) ||
+										(type === "REWARDS" && conversionEnabled && (!conversionPoints || !conversionAmount))
+									}
+									type="submit"
+								>
+									{pending ? "Salvando…" : "Salvar"}
+								</Button>
+							</DialogFooter>
+						</form>
+					</div>
+				</ScrollArea>
 			</DialogContent>
 		</Dialog>
 	);
