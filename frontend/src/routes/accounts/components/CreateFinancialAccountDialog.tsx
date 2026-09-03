@@ -33,6 +33,7 @@ const days = Array.from({ length: 31 }, (_, index) => ({
 }));
 const NEW_INSTITUTION = "__new_institution__";
 const NO_INSTITUTION = "__no_institution__";
+const AUTO_REWARDS_ACCOUNT = "__automatic_rewards_account__";
 
 type Draft = Parameters<typeof import("@/lib/dataService").dataService.accounts.create>[0];
 type UpdateDraft = import("@/lib/dataService").FinancialAccountUpdateDraft;
@@ -103,7 +104,15 @@ export function CreateFinancialAccountDialog({
 		String(account?.creditCard?.cashbackRate ?? ""),
 		() => undefined,
 	);
-	const [cashbackAccountId, setCashbackAccountId] = useState(account?.creditCard?.cashbackAccountId ?? "");
+	const [cashbackAccountId, setCashbackAccountId] = useState(
+		account?.creditCard?.cashbackAccountId ?? AUTO_REWARDS_ACCOUNT,
+	);
+	const [cashbackKind, setCashbackKind] = useState<"CASHBACK" | "POINTS">("CASHBACK");
+	const [cashbackPoints, setCashbackPoints] = useDebouncedInput("", () => undefined);
+	const [cashbackSpendAmount, setCashbackSpendAmount] = useDebouncedInput("", () => undefined);
+	const [cashbackConversionEnabled, setCashbackConversionEnabled] = useState(false);
+	const [cashbackConversionPoints, setCashbackConversionPoints] = useDebouncedInput("", () => undefined);
+	const [cashbackConversionAmount, setCashbackConversionAmount] = useDebouncedInput("", () => undefined);
 	const [cashbackYieldEnabled, setCashbackYieldEnabled] = useState(
 		Boolean(account?.creditCard?.cashbackYieldRate),
 	);
@@ -136,7 +145,13 @@ export function CreateFinancialAccountDialog({
 		setConversionAmount(String(account?.rewardsAccount?.conversionAmount ?? ""));
 		setCashbackEnabled(Boolean(account?.creditCard?.cashbackRate));
 		setCashbackRate(String(account?.creditCard?.cashbackRate ?? ""));
-		setCashbackAccountId(account?.creditCard?.cashbackAccountId ?? "");
+		setCashbackAccountId(account?.creditCard?.cashbackAccountId ?? AUTO_REWARDS_ACCOUNT);
+		setCashbackKind("CASHBACK");
+		setCashbackPoints("");
+		setCashbackSpendAmount("");
+		setCashbackConversionEnabled(false);
+		setCashbackConversionPoints("");
+		setCashbackConversionAmount("");
 		setCashbackYieldEnabled(Boolean(account?.creditCard?.cashbackYieldRate));
 		setCashbackYieldRate(String(account?.creditCard?.cashbackYieldRate ?? ""));
 		setCashbackYieldPeriod(account?.creditCard?.cashbackYieldPeriod ?? "MONTHLY");
@@ -160,8 +175,22 @@ export function CreateFinancialAccountDialog({
 						? {
 								...(cashbackEnabled
 									? {
-											cashbackAccountId,
-											cashbackRate: Number(cashbackRate),
+											...(cashbackAccountId !== AUTO_REWARDS_ACCOUNT && { cashbackAccountId }),
+											cashbackRate:
+												cashbackKind === "CASHBACK"
+													? Number(cashbackRate)
+													: Number(cashbackPoints) / Number(cashbackSpendAmount),
+											cashbackRewards: {
+												conversionAmount:
+													cashbackKind === "POINTS" && cashbackConversionEnabled
+														? Number(cashbackConversionAmount)
+														: undefined,
+												conversionPoints:
+													cashbackKind === "POINTS" && cashbackConversionEnabled
+														? Number(cashbackConversionPoints)
+														: undefined,
+												kind: cashbackKind,
+											},
 											cashbackYieldPeriod: cashbackYieldEnabled ? cashbackYieldPeriod : null,
 											cashbackYieldRate: cashbackYieldEnabled ? Number(cashbackYieldRate) : null,
 										}
@@ -169,6 +198,7 @@ export function CreateFinancialAccountDialog({
 										? {
 												cashbackAccountId: null,
 												cashbackRate: null,
+												cashbackRewards: undefined,
 												cashbackYieldPeriod: null,
 												cashbackYieldRate: null,
 											}
@@ -440,31 +470,106 @@ export function CreateFinancialAccountDialog({
 							</label>
 							{cashbackEnabled && (
 								<div className="grid gap-4 rounded-2xl border bg-background/60 p-4">
-									<NumericField
-										decimalScale={4}
-										id="cashback-rate"
-										label="Cashback"
-										onValueChange={setCashbackRate}
-										placeholder="Ex: 1,5%"
-										required
-										suffix="%"
-										value={cashbackRate}
+									<CustomSelect
+										label="Recompensa recebida"
+										onValueChange={value => setCashbackKind(value as "CASHBACK" | "POINTS")}
+										options={[
+											{ label: "Cashback em dinheiro", value: "CASHBACK" },
+											{ label: "Pontos", value: "POINTS" },
+										]}
+										placeholder="Selecione a recompensa"
+										value={cashbackKind}
 									/>
+									{cashbackKind === "CASHBACK" ? (
+										<NumericField
+											decimalScale={4}
+											id="cashback-rate"
+											label="Cashback"
+											onValueChange={setCashbackRate}
+											placeholder="Ex: 1,5%"
+											required
+											suffix="%"
+											value={cashbackRate}
+										/>
+									) : (
+										<div className="grid gap-4 sm:grid-cols-2">
+											<NumericField
+												decimalScale={4}
+												id="cashback-points"
+												label="Pontos ganhos"
+												onValueChange={setCashbackPoints}
+												placeholder="Ex: 2"
+												required
+												value={cashbackPoints}
+											/>
+											<MoneyField
+												id="cashback-spend-amount"
+												label="A cada"
+												onValueChange={setCashbackSpendAmount}
+												placeholder="R$ 1,00"
+												required
+												value={cashbackSpendAmount}
+											/>
+										</div>
+									)}
 									<CustomSelect
 										label="Conta de destino"
 										onValueChange={setCashbackAccountId}
-										options={rewardAccounts.map(rewardAccount => ({
-											label: getFinancialAccountOptionLabel(rewardAccount),
-											value: rewardAccount.id,
-										}))}
-										placeholder={
-											rewardAccounts.length
-												? "Selecione onde o cashback será guardado"
-												: "Cadastre primeiro uma conta de pontos/cashback"
-										}
-										required
+										options={[
+											{ label: "Criar ou reutilizar automaticamente", value: AUTO_REWARDS_ACCOUNT },
+											...rewardAccounts.map(rewardAccount => ({
+												label: getFinancialAccountOptionLabel(rewardAccount),
+												value: rewardAccount.id,
+											})),
+										]}
+										placeholder="Selecione a conta de recompensa"
 										value={cashbackAccountId}
 									/>
+									<p className="text-muted-foreground text-xs">
+										Sem escolha, uma conta sem nome será criada ou reutilizada nesta instituição.
+									</p>
+									{cashbackKind === "POINTS" && (
+										<>
+											<label
+												className="flex cursor-pointer items-start gap-3 text-sm"
+												htmlFor="cashback-conversion-enabled"
+											>
+												<Checkbox
+													checked={cashbackConversionEnabled}
+													className="mt-0.5 cursor-pointer"
+													id="cashback-conversion-enabled"
+													onCheckedChange={checked => setCashbackConversionEnabled(checked === true)}
+												/>
+												<span>
+													<strong className="block">Informar conversão para reais</strong>
+													<span className="text-muted-foreground">
+														Opcional. Pontos continuam guardados em pontos.
+													</span>
+												</span>
+											</label>
+											{cashbackConversionEnabled && (
+												<div className="grid gap-4 sm:grid-cols-2">
+													<NumericField
+														decimalScale={4}
+														id="cashback-conversion-points"
+														label="Pontos"
+														onValueChange={setCashbackConversionPoints}
+														placeholder="Ex: 1.000"
+														required
+														value={cashbackConversionPoints}
+													/>
+													<MoneyField
+														id="cashback-conversion-amount"
+														label="Equivalem a"
+														onValueChange={setCashbackConversionAmount}
+														placeholder="R$ 10,00"
+														required
+														value={cashbackConversionAmount}
+													/>
+												</div>
+											)}
+										</>
+									)}
 									<label
 										className="flex cursor-pointer items-start gap-3 text-sm"
 										htmlFor="cashback-yield-enabled"
@@ -551,8 +656,17 @@ export function CreateFinancialAccountDialog({
 								(institutionId === NEW_INSTITUTION && !newInstitutionName.trim()) ||
 								(type === "CREDIT_CARD" && !creditLimit) ||
 								(type === "CREDIT_CARD" && hasInvalidBillingDays) ||
-								(type === "CREDIT_CARD" && cashbackEnabled && (!cashbackRate || !cashbackAccountId)) ||
+								(type === "CREDIT_CARD" && cashbackEnabled && cashbackKind === "CASHBACK" && !cashbackRate) ||
+								(type === "CREDIT_CARD" &&
+									cashbackEnabled &&
+									cashbackKind === "POINTS" &&
+									(!cashbackPoints || !cashbackSpendAmount)) ||
 								(type === "CREDIT_CARD" && cashbackYieldEnabled && !cashbackYieldRate) ||
+								(type === "CREDIT_CARD" &&
+									cashbackEnabled &&
+									cashbackKind === "POINTS" &&
+									cashbackConversionEnabled &&
+									(!cashbackConversionPoints || !cashbackConversionAmount)) ||
 								(type === "REWARDS" && conversionEnabled && (!conversionPoints || !conversionAmount))
 							}
 							type="submit"

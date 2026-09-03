@@ -5,13 +5,14 @@ export interface CashbackSettings {
 	cashbackRate?: null | number;
 	cashbackYieldPeriod?: null | string;
 	cashbackYieldRate?: null | number;
+	cashbackRewards?: unknown;
 }
 
 export function assertCashbackSettings(settings: CashbackSettings) {
 	const rate = settings.cashbackRate ?? 0;
-	if (rate < 0 || rate > 100) throw new HttpException("O cashback deve ficar entre 0% e 100%", 400);
-	if (rate > 0 && !settings.cashbackAccountId)
-		throw new HttpException("Selecione a conta que receberá o cashback", 400);
+	if (rate < 0) throw new HttpException("A recompensa não pode ser negativa", 400);
+	if (rate > 0 && !settings.cashbackAccountId && !settings.cashbackRewards)
+		throw new HttpException("Informe a conta ou a modalidade da recompensa", 400);
 
 	const hasYieldRate = settings.cashbackYieldRate !== undefined && settings.cashbackYieldRate !== null;
 	const hasYieldPeriod = settings.cashbackYieldPeriod !== undefined && settings.cashbackYieldPeriod !== null;

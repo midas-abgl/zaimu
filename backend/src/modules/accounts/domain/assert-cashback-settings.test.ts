@@ -15,8 +15,14 @@ describe("assertCashbackSettings", () => {
 
 	test("requires destination when cashback is active", () => {
 		expect(() => assertCashbackSettings({ cashbackRate: 1 })).toThrow(
-			"Selecione a conta que receberá o cashback",
+			"Informe a conta ou a modalidade da recompensa",
 		);
+	});
+
+	test("accepts automatic rewards account setup", () => {
+		expect(() =>
+			assertCashbackSettings({ cashbackRate: 1, cashbackRewards: { kind: "POINTS" } }),
+		).not.toThrow();
 	});
 
 	test("requires yield rate and period together", () => {

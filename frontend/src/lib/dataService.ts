@@ -86,7 +86,13 @@ export type FinancialAccountDraft = Omit<
 		| "securityDeposit"
 		| "statementDay"
 		| "workingDueDate"
-	>;
+	> & {
+		cashbackRewards?: {
+			conversionAmount?: number;
+			conversionPoints?: number;
+			kind: "CASHBACK" | "POINTS";
+		};
+	};
 	institutionName?: string;
 	rewardsAccount?: Pick<
 		NonNullable<FinancialAccount["rewardsAccount"]>,
@@ -182,6 +188,41 @@ export const dataService = {
 				}
 				await localAccounts.put(newAccount, newAccount.id);
 				if (data.type === "CREDIT_CARD" && creditCard) {
+					if (creditCard.cashbackRate && !creditCard.cashbackAccountId && creditCard.cashbackRewards) {
+						const matchingReward = (await localAccounts.getAll())
+							.map(item => item.data)
+							.find(
+								item =>
+									item.type === "REWARDS" &&
+									item.institutionId === newAccount.institutionId &&
+									item.name === null,
+							);
+						if (matchingReward) creditCard.cashbackAccountId = matchingReward.id;
+						else {
+							const rewardAccount: FinancialAccount = {
+								balance: 0,
+								createdAt: new Date().toISOString(),
+								id: crypto.randomUUID(),
+								institution: newAccount.institution,
+								institutionId: newAccount.institutionId,
+								name: null,
+								rewardsAccount: {
+									...creditCard.cashbackRewards,
+									conversionAmount: creditCard.cashbackRewards.conversionAmount ?? null,
+									conversionPoints: creditCard.cashbackRewards.conversionPoints ?? null,
+									financialAccountId: "",
+									id: crypto.randomUUID(),
+									initialBalance: 0,
+								},
+								type: "REWARDS",
+								updatedAt: new Date().toISOString(),
+								userId,
+							};
+							rewardAccount.rewardsAccount!.financialAccountId = rewardAccount.id;
+							await localAccounts.put(rewardAccount, rewardAccount.id);
+							creditCard.cashbackAccountId = rewardAccount.id;
+						}
+					}
 					const card = await dataService.creditCards.createFromAccount(newAccount, creditCard);
 					newAccount = { ...newAccount, creditCard: card };
 					await localAccounts.put(newAccount, newAccount.id);

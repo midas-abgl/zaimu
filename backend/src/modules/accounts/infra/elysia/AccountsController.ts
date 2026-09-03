@@ -28,7 +28,14 @@ const RewardsAccountCreate = t.Object({
 });
 const CreditCardCreate = t.Object({
 	cashbackAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
-	cashbackRate: t.Optional(t.Number({ maximum: 100, minimum: 0 })),
+	cashbackRate: t.Optional(t.Number({ minimum: 0 })),
+	cashbackRewards: t.Optional(
+		t.Object({
+			conversionAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
+			conversionPoints: t.Optional(t.Number({ exclusiveMinimum: 0 })),
+			kind: RewardsAccountKind,
+		}),
+	),
 	cashbackYieldPeriod: t.Optional(t.Nullable(CashbackYieldPeriod)),
 	cashbackYieldRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
 	creditLimit: t.Number({ minimum: 0 }),
@@ -274,6 +281,51 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					initialBalance: body.rewardsAccount.initialBalance ?? 0,
 				});
 			const institution = await resolveFinancialInstitution(userId, body.institutionName);
+			let cashbackAccountId = body.creditCard?.cashbackAccountId;
+			if (body.creditCard?.cashbackRate && !cashbackAccountId && body.creditCard.cashbackRewards) {
+				const existingRewards = await queryFirst(
+					db.sql.public.FinancialAccount.select("id")
+						.where((fields, functions) =>
+							functions.and(
+								functions.eq(fields.userId, userId),
+								functions.eq(fields.type, "REWARDS"),
+								institution
+									? functions.eq(fields.institutionId, institution.id)
+									: functions.raw`${fields.institutionId} IS NULL`.returns("pg/bool@1"),
+								functions.raw`${fields.name} IS NULL`.returns("pg/bool@1"),
+							),
+						)
+						.limit(1)
+						.build(),
+				);
+				if (existingRewards) cashbackAccountId = existingRewards.id;
+				else {
+					const rewardFinancialAccount = await queryFirst(
+						db.sql.public.FinancialAccount.insert([
+							{ institutionId: institution?.id, name: null as never, type: "REWARDS", userId },
+						])
+							.returning("id")
+							.build(),
+					);
+					if (!rewardFinancialAccount) throw new HttpException("Conta de recompensa não criada", 500);
+					await executeStatement(
+						db.sql.public.RewardsAccount.insert([
+							{
+								...(body.creditCard.cashbackRewards.conversionAmount !== undefined && {
+									conversionAmount: String(body.creditCard.cashbackRewards.conversionAmount),
+								}),
+								...(body.creditCard.cashbackRewards.conversionPoints !== undefined && {
+									conversionPoints: String(body.creditCard.cashbackRewards.conversionPoints),
+								}),
+								financialAccountId: rewardFinancialAccount.id,
+								initialBalance: "0",
+								kind: body.creditCard.cashbackRewards.kind,
+							},
+						]).build(),
+					);
+					cashbackAccountId = rewardFinancialAccount.id;
+				}
+			}
 			const existing = await queryFirst(
 				db.sql.public.FinancialAccount.select("id")
 					.where((fields, functions) =>
@@ -316,7 +368,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				const creditCard = await queryFirst(
 					db.sql.public.CreditCard.insert([
 						{
-							cashbackAccountId: body.creditCard.cashbackAccountId,
+							cashbackAccountId,
 							...(body.creditCard.cashbackRate !== undefined && {
 								cashbackRate: String(body.creditCard.cashbackRate),
 							}),
@@ -646,7 +698,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				creditCard: t.Optional(
 					t.Object({
 						cashbackAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
-						cashbackRate: t.Optional(t.Nullable(t.Number({ maximum: 100, minimum: 0 }))),
+						cashbackRate: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
 						cashbackYieldPeriod: t.Optional(t.Nullable(CashbackYieldPeriod)),
 						cashbackYieldRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
 						creditLimit: t.Optional(t.Number({ minimum: 0 })),
