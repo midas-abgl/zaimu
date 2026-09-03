@@ -50,6 +50,9 @@ const purchaseColumns = [
 	"time",
 	"categoryId",
 	"parentId",
+	"settledByPurchaseId",
+	"isSettled",
+	"refinancingFeeAmount",
 	"subscriptionId",
 	"subscriptionOccurrenceDate",
 	"createdAt",
@@ -111,6 +114,9 @@ interface CreditPurchaseRow {
 	time: string | null;
 	categoryId: string | null;
 	parentId: string | null;
+	settledByPurchaseId: string | null;
+	isSettled: boolean;
+	refinancingFeeAmount: number | null;
 	subscriptionId?: string | null;
 	subscriptionOccurrenceDate?: Date | null;
 	createdAt: Date;
@@ -1236,6 +1242,176 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			detail: { tags: ["Credit Cards"] },
 			params: t.Object({
 				id: t.String({ maxLength: 36, minLength: 1 }),
+			}),
+		},
+	)
+	.post(
+		"/:id/purchases/:purchaseId/refinance",
+		async ({ params, body, request }) => {
+			const userId = await requireUserId(request);
+			await assertCreditCardOwnership(params.id, userId);
+			const selectedPurchase = await findPurchaseForCard(params.id, params.purchaseId);
+			if (!selectedPurchase) throw new HttpException("Purchase not found", 404);
+			if (selectedPurchase.isPaid)
+				throw new HttpException("Paid statement purchases cannot be refinanced", 409);
+			const rootPurchaseId = selectedPurchase.parentId ?? selectedPurchase.id;
+			const card = await queryFirst(
+				db.sql.public.CreditCard.select("dueDay", "statementDay")
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.limit(1)
+					.build(),
+			);
+			if (!card) throw new HttpException("Credit card not found", 404);
+
+			const installmentsToSettle = await queryRows(
+				db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
+					functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
+				)
+					.select((fields, functions) => ({
+						...Object.fromEntries(purchaseColumns.map(column => [column, fields.CreditPurchase[column]])),
+						isPaid: fields.CreditCardStatement.isPaid,
+					}))
+					.where((fields, functions) =>
+						functions.and(
+							functions.eq(fields.CreditCardStatement.creditCardId, params.id),
+							functions.or(
+								functions.eq(fields.CreditPurchase.id, rootPurchaseId),
+								functions.eq(fields.CreditPurchase.parentId, rootPurchaseId),
+							),
+							functions.eq(fields.CreditPurchase.isSettled, false),
+							functions.eq(fields.CreditCardStatement.isPaid, false),
+						),
+					)
+					.build(),
+			);
+			if (!installmentsToSettle.length) throw new HttpException("No open installments to refinance", 409);
+
+			const settledAmount = installmentsToSettle.reduce(
+				(total, installment) => total + Number(installment.installmentAmount),
+				0,
+			);
+			const totalAmount = settledAmount + body.feeAmount;
+			const installmentAmount = totalAmount / body.installments;
+			const purchaseDate = new Date(body.purchaseDate);
+			const source =
+				installmentsToSettle.find(item => item.id === rootPurchaseId) ?? installmentsToSettle[0]!;
+			const sourceTags = await getTagsByEntity(tagEntityType.creditPurchase, [source.id]);
+			const tagIds = (sourceTags.get(source.id) ?? []).map(tag => tag.id);
+
+			const createdPurchases: CreditPurchaseRow[] = [];
+			for (let currentInstallment = 1; currentInstallment <= body.installments; currentInstallment++) {
+				const occurrenceDate = addMonths(purchaseDate, currentInstallment - 1);
+				const { dueDate, statementDate } = getStatementDates(card, occurrenceDate);
+				let statement = await queryFirst(
+					db.sql.public.CreditCardStatement.select(...statementColumns)
+						.where((fields, functions) =>
+							functions.and(
+								functions.eq(fields.creditCardId, params.id),
+								functions.eq(fields.statementDate, statementDate),
+							),
+						)
+						.limit(1)
+						.build(),
+				);
+				if (!statement) {
+					statement = await queryFirst(
+						db.sql.public.CreditCardStatement.insert([
+							{ creditCardId: params.id, dueDate, statementDate, totalAmount: "0" },
+						])
+							.returning(...statementColumns)
+							.build(),
+					);
+				}
+				if (!statement) throw new HttpException("Statement not created", 500);
+				if (statement.isPaid) throw new HttpException("Cannot add refinancing to a paid statement", 409);
+				const refinancingPurchase = await queryFirst(
+					db.sql.public.CreditPurchase.insert([
+						{
+							categoryId: tagIds[0],
+							currentInstallment,
+							description: source.description,
+							installmentAmount: String(installmentAmount),
+							installments: body.installments,
+							...(currentInstallment > 1 && { parentId: createdPurchases[0]!.id }),
+							purchaseDate,
+							...(currentInstallment === 1 && { refinancingFeeAmount: String(body.feeAmount) }),
+							statementId: statement.id,
+							storeName: source.storeName,
+							time: source.time,
+							totalAmount: String(totalAmount),
+						},
+					])
+						.returning(...purchaseColumns)
+						.build(),
+				);
+				if (!refinancingPurchase) throw new HttpException("Refinancing purchase not created", 500);
+				createdPurchases.push({
+					...refinancingPurchase,
+					installmentAmount: Number(refinancingPurchase.installmentAmount),
+					totalAmount: Number(refinancingPurchase.totalAmount),
+				});
+				const amount = param(numeric<12, 2>(installmentAmount), { codecId: "pg/numeric@1" });
+				await executeStatement(
+					db.sql.public.CreditCardStatement.update((fields, functions) => ({
+						totalAmount: functions.raw`${fields.totalAmount} + ${amount}`.returns("pg/numeric@1"),
+						updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
+					}))
+						.where((fields, functions) => functions.eq(fields.id, statement.id))
+						.build(),
+				);
+			}
+
+			await replaceEntityTags({
+				entityIds: createdPurchases.map(purchase => purchase.id),
+				entityType: tagEntityType.creditPurchase,
+				tagIds,
+			});
+			for (const installment of installmentsToSettle) {
+				await executeStatement(
+					db.sql.public.CreditPurchase.update({
+						isSettled: true,
+						settledByPurchaseId: createdPurchases[0]!.id,
+						updatedAt: new Date(),
+					})
+						.where((fields, functions) => functions.eq(fields.id, installment.id))
+						.build(),
+				);
+				const amount = param(numeric<12, 2>(installment.installmentAmount), { codecId: "pg/numeric@1" });
+				await executeStatement(
+					db.sql.public.CreditCardStatement.update((fields, functions) => ({
+						totalAmount: functions.raw`GREATEST(0, ${fields.totalAmount} - ${amount})`.returns(
+							"pg/numeric@1",
+						),
+						updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
+					}))
+						.where((fields, functions) => functions.eq(fields.id, installment.statementId))
+						.build(),
+				);
+			}
+			const tagsByPurchase = await getTagsByEntity(
+				tagEntityType.creditPurchase,
+				createdPurchases.map(purchase => purchase.id),
+			);
+			return {
+				purchases: createdPurchases.map(purchase => ({
+					...purchase,
+					tagIds: (tagsByPurchase.get(purchase.id) ?? []).map(tag => tag.id),
+					tags: tagsByPurchase.get(purchase.id) ?? [],
+				})),
+				settledAmount,
+				totalAmount,
+			};
+		},
+		{
+			body: t.Object({
+				feeAmount: t.Number({ minimum: 0 }),
+				installments: t.Number({ maximum: 48, minimum: 1 }),
+				purchaseDate: t.String(),
+			}),
+			detail: { tags: ["Credit Cards"] },
+			params: t.Object({
+				id: t.String({ maxLength: 36, minLength: 1 }),
+				purchaseId: t.String({ maxLength: 36, minLength: 1 }),
 			}),
 		},
 	)

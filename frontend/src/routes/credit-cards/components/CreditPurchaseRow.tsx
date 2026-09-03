@@ -1,4 +1,4 @@
-import { LuPencil, LuTrash2, LuUsersRound } from "react-icons/lu";
+import { LuPencil, LuRefreshCw, LuTrash2, LuUsersRound } from "react-icons/lu";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
@@ -11,11 +11,13 @@ export function CreditPurchaseRow({
 	disabled,
 	onDelete,
 	onEdit,
+	onRefinance,
 	purchase,
 }: {
 	disabled: boolean;
 	onDelete: () => void | Promise<void>;
 	onEdit: () => void;
+	onRefinance: () => void;
 	purchase: CreditPurchase;
 }) {
 	return (
@@ -33,6 +35,7 @@ export function CreditPurchaseRow({
 							? ` · ${purchase.categoryName}`
 							: ""}
 					{purchase.installments > 1 ? ` · ${purchase.currentInstallment}/${purchase.installments}` : ""}
+					{purchase.isSettled ? " · Quitada por reparcelamento" : ""}
 				</p>
 				{purchase.debtPersonName ? (
 					<Badge className="mt-2 gap-1.5" variant="outline">
@@ -53,6 +56,18 @@ export function CreditPurchaseRow({
 					>
 						<LuPencil /> Editar
 					</Button>
+					{purchase.installments > 1 && !purchase.isSettled ? (
+						<Button
+							aria-label={`Reparcelar ${purchase.description}`}
+							className="cursor-pointer"
+							disabled={disabled}
+							onClick={onRefinance}
+							size="sm"
+							variant="outline"
+						>
+							<LuRefreshCw /> Reparcelar
+						</Button>
+					) : null}
 					<ConfirmActionButton
 						aria-label={`Excluir ${purchase.description}`}
 						className="w-24 cursor-pointer"

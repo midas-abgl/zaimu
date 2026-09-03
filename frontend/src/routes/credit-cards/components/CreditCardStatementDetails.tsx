@@ -12,12 +12,14 @@ import { formatLocalDate } from "@/lib/date";
 import { showToast } from "@/stores";
 import { CreditPurchaseRow } from "./CreditPurchaseRow";
 import { EditCreditPurchaseDialog } from "./EditCreditPurchaseDialog";
+import { RefinanceCreditPurchaseDialog } from "./RefinanceCreditPurchaseDialog";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 export function CreditCardStatementDetails({ statement }: { statement: CreditCardStatement }) {
 	const queryClient = useQueryClient();
 	const [editingPurchase, setEditingPurchase] = useState<CreditPurchase | null>(null);
+	const [refinancingPurchase, setRefinancingPurchase] = useState<CreditPurchase | null>(null);
 	const detail = useQuery({
 		queryFn: () => dataService.creditCards.getStatement(statement.creditCardId, statement.id),
 		queryKey: ["credit-card-statement", statement.creditCardId, statement.id],
@@ -58,21 +60,39 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 			showToast("Transação excluída.", "positive");
 		},
 	});
+	const refinancePurchase = useMutation({
+		mutationFn: ({
+			data,
+			purchaseId,
+		}: {
+			data: { feeAmount: number; installments: number; purchaseDate: string };
+			purchaseId: string;
+		}) => dataService.creditCards.refinancePurchase(statement.creditCardId, purchaseId, data),
+		onError: error =>
+			showToast(error instanceof Error ? error.message : "Não foi possível reparcelar a compra.", "negative"),
+		onSuccess: async () => {
+			setRefinancingPurchase(null);
+			await refreshStatement();
+			showToast("Compra reparcelada e faturas recalculadas.", "positive");
+		},
+	});
 	return (
 		<TabsContent
 			className="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-4 pt-4 sm:pl-6 min-[480px]:pt-0 min-[480px]:pl-4"
 			value={statement.id}
 		>
-			<header className="flex flex-wrap items-start justify-between gap-3">
+			<header className="grid gap-3">
 				<div>
 					<p className="text-muted-foreground text-xs uppercase tracking-wide">Mês de referência</p>
 					<h3 className="mt-1 font-bold text-lg capitalize sm:text-xl" id={`statement-title-${statement.id}`}>
 						{formatLocalDate(statement.statementDate, { month: "long", year: "numeric" })}
 					</h3>
 				</div>
-				<div className="text-right">
-					<p className="text-muted-foreground text-xs">Total da fatura</p>
-					<strong className="text-lg sm:text-xl">{currency.format(statement.totalAmount)}</strong>
+				<div className="flex items-end justify-between gap-3">
+					<div>
+						<p className="text-muted-foreground text-xs">Total da fatura</p>
+						<strong className="text-lg sm:text-xl">{currency.format(statement.totalAmount)}</strong>
+					</div>
 					<Badge className="mt-1" variant={statement.isPaid ? "secondary" : "outline"}>
 						{statement.isPaid ? <LuCircleCheck /> : <LuClock3 />}
 						{statement.isPaid ? "Paga" : "Em aberto"}
@@ -123,6 +143,7 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 									key={purchase.id}
 									onDelete={() => deletePurchase.mutateAsync(purchase.id)}
 									onEdit={() => setEditingPurchase(purchase)}
+									onRefinance={() => setRefinancingPurchase(purchase)}
 									purchase={purchase}
 								/>
 							))}
@@ -146,6 +167,15 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 					open
 					pending={updatePurchase.isPending}
 					purchase={editingPurchase}
+				/>
+			)}
+			{refinancingPurchase && (
+				<RefinanceCreditPurchaseDialog
+					onOpenChange={open => !open && setRefinancingPurchase(null)}
+					onSubmit={data => refinancePurchase.mutateAsync({ data, purchaseId: refinancingPurchase.id })}
+					open
+					pending={refinancePurchase.isPending}
+					purchase={refinancingPurchase}
 				/>
 			)}
 		</TabsContent>

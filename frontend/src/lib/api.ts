@@ -334,6 +334,9 @@ export interface CreditPurchase {
 	cashbackAmount?: number | null;
 	cashbackYieldPeriod?: "MONTHLY" | "YEARLY" | null;
 	cashbackYieldRate?: number | null;
+	isSettled?: boolean;
+	settledByPurchaseId?: string | null;
+	refinancingFeeAmount?: number | null;
 }
 
 export interface CreditCardStatementDetail extends CreditCardStatement {

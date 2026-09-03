@@ -588,6 +588,18 @@ export const dataService = {
 			]);
 			return { statement: updatedStatement, transaction };
 		},
+		async refinancePurchase(
+			cardId: string,
+			purchaseId: string,
+			data: { feeAmount: number; installments: number; purchaseDate: string },
+		): Promise<{ purchases: CreditPurchase[]; settledAmount: number; totalAmount: number }> {
+			if (isGuestMode())
+				throw new Error("Parcelamento de compra ainda não está disponível no modo visitante");
+			return fetchWithAuth(`/credit-cards/${cardId}/purchases/${purchaseId}/refinance`, {
+				body: JSON.stringify(data),
+				method: "POST",
+			});
+		},
 		async updatePurchase(
 			cardId: string,
 			purchaseId: string,
