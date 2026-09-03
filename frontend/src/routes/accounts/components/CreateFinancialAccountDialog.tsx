@@ -18,7 +18,7 @@ import { NumericField } from "@/components/ui/NumericField";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
-import { getFinancialAccountOptionLabel } from "@/lib/financial-account";
+import { CashbackSettingsDialog } from "./CashbackSettingsDialog";
 
 const types = [
 	{ label: "Conta corrente", value: "CHECKING" },
@@ -101,6 +101,7 @@ export function CreateFinancialAccountDialog({
 		() => undefined,
 	);
 	const [cashbackEnabled, setCashbackEnabled] = useState(Boolean(account?.creditCard?.cashbackRate));
+	const [cashbackConfigOpen, setCashbackConfigOpen] = useState(false);
 	const [cashbackRate, setCashbackRate] = useDebouncedInput(
 		String(account?.creditCard?.cashbackRate ?? ""),
 		() => undefined,
@@ -145,6 +146,7 @@ export function CreateFinancialAccountDialog({
 		setConversionPoints(String(account?.rewardsAccount?.conversionPoints ?? ""));
 		setConversionAmount(String(account?.rewardsAccount?.conversionAmount ?? ""));
 		setCashbackEnabled(Boolean(account?.creditCard?.cashbackRate));
+		setCashbackConfigOpen(false);
 		setCashbackRate(String(account?.creditCard?.cashbackRate ?? ""));
 		setCashbackAccountId(account?.creditCard?.cashbackAccountId ?? AUTO_REWARDS_ACCOUNT);
 		setCashbackKind("CASHBACK");
@@ -261,8 +263,8 @@ export function CreateFinancialAccountDialog({
 					</Button>
 				</DialogTrigger>
 			)}
-			<DialogContent className="h-[92dvh] overflow-hidden p-0 sm:h-auto sm:max-w-lg">
-				<ScrollArea className="h-full sm:max-h-[calc(100dvh-2rem)]">
+			<DialogContent className="grid h-[92dvh] grid-rows-[minmax(0,1fr)] overflow-hidden p-0 sm:h-auto sm:max-w-lg">
+				<ScrollArea className="h-full min-h-0 sm:max-h-[calc(100dvh-2rem)]">
 					<div className="grid gap-6 p-6">
 						<DialogHeader>
 							<DialogTitle>{account ? "Editar conta" : "Cadastrar conta"}</DialogTitle>
@@ -461,6 +463,7 @@ export function CreateFinancialAccountDialog({
 											id="cashback-enabled"
 											onCheckedChange={checked => {
 												setCashbackEnabled(checked === true);
+												if (checked === true) setCashbackConfigOpen(true);
 												if (checked !== true) setCashbackYieldEnabled(false);
 											}}
 										/>
@@ -472,7 +475,18 @@ export function CreateFinancialAccountDialog({
 										</span>
 									</label>
 									{cashbackEnabled && (
-										<div className="grid gap-4 rounded-2xl border bg-background/60 p-4">
+										<Button
+											className="cursor-pointer"
+											onClick={() => setCashbackConfigOpen(true)}
+											type="button"
+											variant="outline"
+										>
+											Configurar cashback
+										</Button>
+									)}
+									{/* Cashback fields render in their own dialog to preserve this form's geometry.
+									{cashbackEnabled && (
+										<div className="hidden">
 											<CustomSelect
 												label="Recompensa recebida"
 												onValueChange={value => setCashbackKind(value as "CASHBACK" | "POINTS")}
@@ -614,7 +628,7 @@ export function CreateFinancialAccountDialog({
 												</div>
 											)}
 										</div>
-									)}
+									)} */}
 									<label className="flex cursor-pointer items-start gap-3 text-sm" htmlFor="working-due-date">
 										<Checkbox
 											checked={workingDueDate}
@@ -690,6 +704,34 @@ export function CreateFinancialAccountDialog({
 					</div>
 				</ScrollArea>
 			</DialogContent>
+			<CashbackSettingsDialog
+				automaticAccountValue={AUTO_REWARDS_ACCOUNT}
+				cashbackAccountId={cashbackAccountId}
+				cashbackConversionAmount={cashbackConversionAmount}
+				cashbackConversionEnabled={cashbackConversionEnabled}
+				cashbackConversionPoints={cashbackConversionPoints}
+				cashbackKind={cashbackKind}
+				cashbackPoints={cashbackPoints}
+				cashbackRate={cashbackRate}
+				cashbackSpendAmount={cashbackSpendAmount}
+				cashbackYieldEnabled={cashbackYieldEnabled}
+				cashbackYieldPeriod={cashbackYieldPeriod}
+				cashbackYieldRate={cashbackYieldRate}
+				onOpenChange={setCashbackConfigOpen}
+				open={cashbackConfigOpen}
+				rewardAccounts={rewardAccounts}
+				setCashbackAccountId={setCashbackAccountId}
+				setCashbackConversionAmount={setCashbackConversionAmount}
+				setCashbackConversionEnabled={setCashbackConversionEnabled}
+				setCashbackConversionPoints={setCashbackConversionPoints}
+				setCashbackKind={setCashbackKind}
+				setCashbackPoints={setCashbackPoints}
+				setCashbackRate={setCashbackRate}
+				setCashbackSpendAmount={setCashbackSpendAmount}
+				setCashbackYieldEnabled={setCashbackYieldEnabled}
+				setCashbackYieldPeriod={setCashbackYieldPeriod}
+				setCashbackYieldRate={setCashbackYieldRate}
+			/>
 		</Dialog>
 	);
 }

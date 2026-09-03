@@ -282,7 +282,8 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				});
 			const institution = await resolveFinancialInstitution(userId, body.institutionName);
 			let cashbackAccountId = body.creditCard?.cashbackAccountId;
-			if (body.creditCard?.cashbackRate && !cashbackAccountId && body.creditCard.cashbackRewards) {
+			if (body.creditCard?.cashbackRate && !cashbackAccountId) {
+				const cashbackRewards = body.creditCard.cashbackRewards ?? { kind: "CASHBACK" as const };
 				const existingRewards = await queryFirst(
 					db.sql.public.FinancialAccount.select("id")
 						.where((fields, functions) =>
@@ -311,15 +312,15 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					await executeStatement(
 						db.sql.public.RewardsAccount.insert([
 							{
-								...(body.creditCard.cashbackRewards.conversionAmount !== undefined && {
-									conversionAmount: String(body.creditCard.cashbackRewards.conversionAmount),
+								...(cashbackRewards.conversionAmount !== undefined && {
+									conversionAmount: String(cashbackRewards.conversionAmount),
 								}),
-								...(body.creditCard.cashbackRewards.conversionPoints !== undefined && {
-									conversionPoints: String(body.creditCard.cashbackRewards.conversionPoints),
+								...(cashbackRewards.conversionPoints !== undefined && {
+									conversionPoints: String(cashbackRewards.conversionPoints),
 								}),
 								financialAccountId: rewardFinancialAccount.id,
 								initialBalance: "0",
-								kind: body.creditCard.cashbackRewards.kind,
+								kind: cashbackRewards.kind,
 							},
 						]).build(),
 					);

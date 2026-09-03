@@ -13,10 +13,8 @@ describe("assertCashbackSettings", () => {
 		).not.toThrow();
 	});
 
-	test("requires destination when cashback is active", () => {
-		expect(() => assertCashbackSettings({ cashbackRate: 1 })).toThrow(
-			"Informe a conta ou a modalidade da recompensa",
-		);
+	test("accepts automatic destination when cashback is active", () => {
+		expect(() => assertCashbackSettings({ cashbackRate: 1 })).not.toThrow();
 	});
 
 	test("accepts automatic rewards account setup", () => {

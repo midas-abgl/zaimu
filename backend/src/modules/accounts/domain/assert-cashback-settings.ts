@@ -11,8 +11,6 @@ export interface CashbackSettings {
 export function assertCashbackSettings(settings: CashbackSettings) {
 	const rate = settings.cashbackRate ?? 0;
 	if (rate < 0) throw new HttpException("A recompensa não pode ser negativa", 400);
-	if (rate > 0 && !settings.cashbackAccountId && !settings.cashbackRewards)
-		throw new HttpException("Informe a conta ou a modalidade da recompensa", 400);
 
 	const hasYieldRate = settings.cashbackYieldRate !== undefined && settings.cashbackYieldRate !== null;
 	const hasYieldPeriod = settings.cashbackYieldPeriod !== undefined && settings.cashbackYieldPeriod !== null;
