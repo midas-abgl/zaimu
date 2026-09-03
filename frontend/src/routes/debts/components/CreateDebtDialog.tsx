@@ -88,8 +88,8 @@ export function CreateDebtDialog({
 								{initialValue
 									? "A alteração recalcula o saldo dos dois participantes."
 									: isOwedToMe
-										? "Este valor aumenta o total que você tem a receber da pessoa."
-										: "Este valor aumenta o total que você tem a pagar para a pessoa."}
+										? "Este valor aumenta o total que a pessoa deve a você."
+										: "Este valor aumenta o total que você deve à pessoa."}
 							</DialogDescription>
 						</DialogHeader>
 						<div className="grid grid-cols-2 gap-2">
@@ -99,7 +99,7 @@ export function CreateDebtDialog({
 								type="button"
 								variant={isOwedToMe ? "default" : "outline"}
 							>
-								Tenho a receber
+								Recebimentos
 							</Button>
 							<Button
 								className="cursor-pointer"
@@ -107,7 +107,7 @@ export function CreateDebtDialog({
 								type="button"
 								variant={!isOwedToMe ? "destructive" : "outline"}
 							>
-								Tenho a pagar
+								Pagamentos
 							</Button>
 						</div>
 						<DebtPersonPicker onValueChange={setPersonId} required value={personId} />
