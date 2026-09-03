@@ -84,7 +84,7 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 			<header className="grid gap-3">
 				<div>
 					<p className="text-muted-foreground text-xs uppercase tracking-wide">Mês de referência</p>
-					<h3 className="mt-1 font-bold text-lg capitalize sm:text-xl" id={`statement-title-${statement.id}`}>
+					<h3 className="mt-1 font-bold text-lg sm:text-xl" id={`statement-title-${statement.id}`}>
 						{formatLocalDate(statement.statementDate, { month: "long", year: "numeric" })}
 					</h3>
 				</div>

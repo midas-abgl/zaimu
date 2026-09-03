@@ -15,10 +15,13 @@ export function CreditCardStatementTabs({
 	statements: CreditCardStatement[];
 }) {
 	return (
-		<ScrollArea className="h-full border-b px-1 pb-3 min-[480px]:border-r min-[480px]:border-b-0 min-[480px]:pr-3 min-[480px]:pb-0">
+		<ScrollArea
+			className="h-full border-b px-1 pb-3 min-[480px]:border-r min-[480px]:border-b-0 min-[480px]:pr-3 min-[480px]:pb-0"
+			horizontalScrollbar
+		>
 			<TabsList
 				aria-label="Faturas"
-				className="flex h-full w-max min-w-full gap-2 bg-transparent py-1 pr-1 pl-0 min-[480px]:grid min-[480px]:w-full"
+				className="!flex-row min-[480px]:!grid h-full w-max min-w-full gap-2 bg-transparent py-1 pr-1 pl-0 min-[480px]:w-full"
 			>
 				{statements.map(statement => {
 					const selected = statement.id === selectedId;
@@ -32,7 +35,7 @@ export function CreditCardStatementTabs({
 							value={statement.id}
 						>
 							<span className="grid min-w-0 flex-1 gap-1">
-								<span className="font-semibold text-sm capitalize">
+								<span className="font-semibold text-sm">
 									{formatLocalDate(statement.statementDate, { month: "long", year: "numeric" })}
 								</span>
 								<span className="font-normal text-muted-foreground text-xs">

@@ -5,7 +5,12 @@ import type { ComponentProps } from "react";
 
 import { cn } from "@/lib/utils";
 
-function ScrollArea({ className, children, ...props }: ComponentProps<typeof ScrollAreaPrimitive.Root>) {
+function ScrollArea({
+	className,
+	children,
+	horizontalScrollbar = false,
+	...props
+}: ComponentProps<typeof ScrollAreaPrimitive.Root> & { horizontalScrollbar?: boolean }) {
 	return (
 		<ScrollAreaPrimitive.Root
 			className={cn("relative overflow-hidden", className)}
@@ -19,6 +24,7 @@ function ScrollArea({ className, children, ...props }: ComponentProps<typeof Scr
 				{children}
 			</ScrollAreaPrimitive.Viewport>
 			<ScrollBar />
+			{horizontalScrollbar && <ScrollBar orientation="horizontal" />}
 			<ScrollAreaPrimitive.Corner />
 		</ScrollAreaPrimitive.Root>
 	);
