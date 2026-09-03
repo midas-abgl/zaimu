@@ -78,41 +78,41 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 	});
 	return (
 		<TabsContent
-			className="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-4 pt-4 sm:pl-6 min-[480px]:pt-0 min-[480px]:pl-4"
+			className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-3 overflow-hidden pt-4 sm:pl-6 min-[480px]:pt-0 min-[480px]:pl-4"
 			value={statement.id}
 		>
-			<header className="grid gap-3">
-				<div>
+			<header className="grid gap-2 rounded-xl border bg-muted/30 p-3">
+				<div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
 					<p className="text-muted-foreground text-xs uppercase tracking-wide">Mês de referência</p>
-					<h3 className="mt-1 font-bold text-lg sm:text-xl" id={`statement-title-${statement.id}`}>
+					<h3 className="font-bold text-base sm:text-lg" id={`statement-title-${statement.id}`}>
 						{formatLocalDate(statement.statementDate, { month: "long", year: "numeric" })}
 					</h3>
 				</div>
-				<div className="flex items-end justify-between gap-3">
+				<div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t pt-2">
 					<div>
 						<p className="text-muted-foreground text-xs">Total da fatura</p>
-						<strong className="text-lg sm:text-xl">{currency.format(statement.totalAmount)}</strong>
+						<strong className="text-base sm:text-lg">{currency.format(statement.totalAmount)}</strong>
 					</div>
-					<Badge className="mt-1" variant={statement.isPaid ? "secondary" : "outline"}>
+					<Badge className="shrink-0" variant={statement.isPaid ? "secondary" : "outline"}>
 						{statement.isPaid ? <LuCircleCheck /> : <LuClock3 />}
 						{statement.isPaid ? "Paga" : "Em aberto"}
 					</Badge>
 				</div>
+				<div className="grid grid-cols-2 gap-2 border-t pt-2">
+					<div className="min-w-0">
+						<p className="flex items-center gap-1 text-muted-foreground text-xs">
+							<LuCalendarCheck /> Fechamento
+						</p>
+						<strong className="mt-0.5 block text-sm">{formatLocalDate(statement.statementDate)}</strong>
+					</div>
+					<div className="min-w-0 border-l pl-2">
+						<p className="flex items-center gap-1 text-muted-foreground text-xs">
+							<LuCalendarClock /> Vencimento
+						</p>
+						<strong className="mt-0.5 block text-sm">{formatLocalDate(statement.dueDate)}</strong>
+					</div>
+				</div>
 			</header>
-			<div className="grid grid-cols-2 gap-2">
-				<div className="rounded-xl border bg-muted/30 p-3">
-					<p className="flex items-center gap-1.5 text-muted-foreground text-xs">
-						<LuCalendarCheck /> Fechamento
-					</p>
-					<strong className="mt-1 block text-sm">{formatLocalDate(statement.statementDate)}</strong>
-				</div>
-				<div className="rounded-xl border bg-muted/30 p-3">
-					<p className="flex items-center gap-1.5 text-muted-foreground text-xs">
-						<LuCalendarClock /> Vencimento
-					</p>
-					<strong className="mt-1 block text-sm">{formatLocalDate(statement.dueDate)}</strong>
-				</div>
-			</div>
 			<div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3">
 				<div className="flex items-center justify-between gap-3">
 					<h4 className="font-semibold">Transações</h4>
