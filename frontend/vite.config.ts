@@ -20,7 +20,16 @@ const hmr = publicWebUrl
 		}
 	: undefined;
 
-export default defineConfig({
+const resilientHmrPlugin = {
+	name: "resilient-vite-hmr",
+	transformIndexHtml: {
+		handler: (html: string) =>
+			html.replace("<head>", '<head><script type="module" src="/src/dev/resilient-vite-hmr.ts"></script>'),
+		order: "post" as const,
+	},
+};
+
+export default defineConfig(({ command }) => ({
 	build: {
 		minify: process.env.TAURI_ENV_DEBUG ? false : "esbuild",
 		sourcemap: !!process.env.TAURI_ENV_DEBUG,
@@ -28,7 +37,12 @@ export default defineConfig({
 	},
 	clearScreen: false,
 	envPrefix: ["VITE_", "TAURI_"],
-	plugins: [TanStackRouterVite({ routeFileIgnorePattern: "^components$" }), react(), tailwindcss()],
+	plugins: [
+		...(command === "serve" ? [resilientHmrPlugin] : []),
+		TanStackRouterVite({ routeFileIgnorePattern: "^components$" }),
+		react(),
+		tailwindcss(),
+	],
 	resolve: {
 		alias: {
 			"@": resolve(import.meta.dirname, "./src"),
@@ -46,4 +60,4 @@ export default defineConfig({
 			ignored: ["**/src-tauri/**"],
 		},
 	},
-});
+}));
