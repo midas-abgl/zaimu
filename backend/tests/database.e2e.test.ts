@@ -692,8 +692,8 @@ suite("Prisma 8 SQL query builder", () => {
 			totalAmount: number;
 		}>;
 		expect(purchaseResponse.status).toBe(200);
-		expect(purchases).toHaveLength(2);
-		expect(new Set(purchases.map(purchase => purchase.statementId)).size).toBe(2);
+		expect(purchases).toHaveLength(1);
+		expect(new Set(purchases.map(purchase => purchase.statementId)).size).toBe(1);
 		expect(purchases[0]?.categoryId).toBeNull();
 		expect(purchases[0]?.installmentAmount).toBe(49.95);
 		expect(purchases[0]?.storeName).toBe("Livraria Central");
@@ -713,6 +713,20 @@ suite("Prisma 8 SQL query builder", () => {
 			"14:30",
 		);
 		expect(typeof purchases[0]?.totalAmount).toBe("number");
+		const statementsAfterInstallmentPurchase = await jsonRequest(
+			`/credit-cards/${cardAccount.creditCard.id}/statements`,
+			"GET",
+			undefined,
+			owner.cookie,
+		);
+		expect(statementsAfterInstallmentPurchase.status).toBe(200);
+		expect(
+			await queryRows(
+				db.sql.public.CreditPurchase.select("id")
+					.where((fields, functions) => functions.eq(fields.parentId, purchases[0]!.id))
+					.build(),
+			),
+		).toHaveLength(0);
 
 		const statementsResponse = await jsonRequest(
 			`/credit-cards/${cardAccount.creditCard.id}/statements`,
@@ -1098,7 +1112,7 @@ suite("Prisma 8 SQL query builder", () => {
 		);
 		expect(purchaseResponse.status).toBe(200);
 		const purchases = (await purchaseResponse.json()) as Array<{ currentInstallment: number; id: string }>;
-		expect(purchases).toHaveLength(3);
+		expect(purchases).toHaveLength(1);
 		const afterInstallments = (await (
 			await jsonRequest("/debts", "GET", undefined, owner.cookie)
 		).json()) as Ledger;
