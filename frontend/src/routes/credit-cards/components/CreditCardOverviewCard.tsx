@@ -33,7 +33,7 @@ export function CreditCardOverviewCard({
 		limit.effectiveLimit > 0 ? Math.min(100, (limit.usedLimit / limit.effectiveLimit) * 100) : 0;
 
 	return (
-		<article className="overflow-hidden rounded-3xl border bg-card shadow-card">
+		<article className="flex h-full flex-col overflow-hidden rounded-3xl border bg-card shadow-card">
 			<div className="relative min-h-44 overflow-hidden bg-brand-indigo p-6 text-white">
 				<div className="absolute -top-16 -right-12 size-48 rounded-full bg-brand-yellow/25" />
 				<div className="absolute -bottom-20 -left-12 size-44 rounded-full border-[28px] border-white/10" />
@@ -57,7 +57,7 @@ export function CreditCardOverviewCard({
 					</div>
 				</div>
 			</div>
-			<div className="grid gap-5 p-5">
+			<div className="flex flex-1 flex-col gap-5 p-5">
 				<div>
 					<div className="mb-2 flex justify-between gap-3 text-sm">
 						<span className="text-muted-foreground">Limite utilizado</span>
@@ -65,7 +65,7 @@ export function CreditCardOverviewCard({
 					</div>
 					<Progress value={percent} />
 				</div>
-				<div className="grid gap-3 min-[420px]:grid-cols-2">
+				<div className="mt-auto grid gap-3 min-[420px]:grid-cols-2">
 					<div className="rounded-xl bg-muted p-3">
 						<p className="text-muted-foreground text-xs">Fatura prevista</p>
 						<p className="mt-1 font-bold">{currency.format(currentBill)}</p>
