@@ -647,12 +647,13 @@ suite("Prisma 8 SQL query builder", () => {
 			200,
 		);
 
+		const cardAccountName = `Cartão ${crypto.randomUUID()}`;
 		const cardAccountResponse = await jsonRequest(
 			"/financial-accounts/",
 			"POST",
 			{
 				creditCard: { creditLimit: 1500, dueDay: 10, statementDay: 3 },
-				name: `Cartão ${crypto.randomUUID()}`,
+				name: cardAccountName,
 				type: "CREDIT_CARD",
 			},
 			owner.cookie,
@@ -778,6 +779,21 @@ suite("Prisma 8 SQL query builder", () => {
 			description: expect.stringContaining("Pagamento da fatura"),
 			time: expect.stringMatching(/^18:45/),
 			type: "EXPENSE",
+		});
+		const transactionsAfterStatementPayment = (await (
+			await jsonRequest("/transactions/", "GET", undefined, owner.cookie)
+		).json()) as Array<{
+			creditCardName: string | null;
+			creditCardStatementDate: string | null;
+			id: string;
+		}>;
+		expect(
+			transactionsAfterStatementPayment.find(
+				transaction => transaction.id === statementPayment.transaction.id,
+			),
+		).toMatchObject({
+			creditCardName: cardAccountName,
+			creditCardStatementDate: statementToPay.statementDate,
 		});
 		const paidStatementDetailResponse = await jsonRequest(
 			`/credit-cards/${cardAccount.creditCard.id}/statements/${statementToPay.id}`,

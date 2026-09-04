@@ -1,6 +1,7 @@
-import { LuArrowRight, LuCreditCard, LuLandmark, LuStore, LuUsersRound } from "react-icons/lu";
+import { LuArrowRight, LuCreditCard, LuLandmark, LuReceiptText, LuStore, LuUsersRound } from "react-icons/lu";
 import { Badge } from "@/components/ui/Badge";
 import type { FinancialAccount, Tag } from "@/lib/api";
+import { formatLocalMonthYear } from "@/lib/date";
 import { getFinancialAccountTypeLabel } from "@/lib/financial-account";
 
 export interface TransactionBadgeAccount {
@@ -17,11 +18,13 @@ function getAccountTypeLabel(type?: FinancialAccount["type"]) {
 
 export function TransactionBadges({
 	accounts,
+	creditCardPayment,
 	debtPersonName,
 	storeName,
 	tags,
 }: {
 	accounts: TransactionBadgeAccount[];
+	creditCardPayment?: { cardName: string; statementDate?: string };
 	debtPersonName?: string;
 	storeName?: string | null;
 	tags?: Tag[];
@@ -46,6 +49,29 @@ export function TransactionBadges({
 					</Badge>
 				</li>
 			))}
+			{creditCardPayment ? (
+				<>
+					<li className="min-w-0">
+						<Badge className="h-7 max-w-full gap-1.5 px-2.5 font-normal" variant="outline">
+							<LuCreditCard aria-hidden="true" />
+							<span className="min-w-0 truncate">
+								<span className="text-muted-foreground">Cartão</span> {creditCardPayment.cardName}
+							</span>
+						</Badge>
+					</li>
+					{creditCardPayment.statementDate ? (
+						<li className="min-w-0">
+							<Badge className="h-7 max-w-full gap-1.5 px-2.5 font-normal" variant="outline">
+								<LuReceiptText aria-hidden="true" />
+								<span className="min-w-0 truncate">
+									<span className="text-muted-foreground">Fatura</span>{" "}
+									{formatLocalMonthYear(creditCardPayment.statementDate)}
+								</span>
+							</Badge>
+						</li>
+					) : null}
+				</>
+			) : null}
 			{storeName ? (
 				<li className="min-w-0">
 					<Badge className="h-7 max-w-full gap-1.5 px-2.5 font-normal" variant="outline">

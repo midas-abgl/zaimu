@@ -81,6 +81,13 @@ export function TransactionListItem({
 					},
 				];
 	const tags = transaction.tags?.length ? transaction.tags : fallbackTag ? [fallbackTag] : undefined;
+	const creditCardPayment =
+		transaction.source !== "CREDIT_CARD" && transaction.creditCardStatementId
+			? {
+					cardName: transaction.creditCardName || "Cartão de crédito",
+					statementDate: transaction.creditCardStatementDate ?? undefined,
+				}
+			: undefined;
 
 	const defaultActionItems: ItemAction[] = [
 		...(onEdit ? [{ disabled: deleting, icon: <LuPencil />, onClick: onEdit, text: "Editar" }] : []),
@@ -136,6 +143,7 @@ export function TransactionListItem({
 					{metadataPrefix}
 					<TransactionBadges
 						accounts={accounts}
+						creditCardPayment={creditCardPayment}
 						debtPersonName={transaction.debtPersonName}
 						storeName={transaction.storeName}
 						tags={tags}

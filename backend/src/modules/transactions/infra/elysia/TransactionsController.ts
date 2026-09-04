@@ -87,6 +87,18 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			const destinationInstitution = db.sql.public.FinancialInstitution.select("id", "name").as(
 				"destinationInstitution",
 			);
+			const paymentStatement = db.sql.public.CreditCardStatement.select(
+				"id",
+				"creditCardId",
+				"statementDate",
+			).as("paymentStatement");
+			const paymentCard = db.sql.public.CreditCard.select("id", "financialAccountId").as("paymentCard");
+			const paymentCardAccount = db.sql.public.FinancialAccount.select("id", "institutionId", "name").as(
+				"paymentCardAccount",
+			);
+			const paymentCardInstitution = db.sql.public.FinancialInstitution.select("id", "name").as(
+				"paymentCardInstitution",
+			);
 			const taggedTransactionIds = query.categoryId
 				? (
 						await queryRows(
@@ -112,6 +124,16 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				.outerLeftJoin(destinationInstitution, (f, fn) =>
 					fn.eq(f.destination.institutionId, f.destinationInstitution.id),
 				)
+				.outerLeftJoin(paymentStatement, (f, fn) =>
+					fn.eq(f.Transaction.creditCardStatementId, f.paymentStatement.id),
+				)
+				.outerLeftJoin(paymentCard, (f, fn) => fn.eq(f.paymentStatement.creditCardId, f.paymentCard.id))
+				.outerLeftJoin(paymentCardAccount, (f, fn) =>
+					fn.eq(f.paymentCard.financialAccountId, f.paymentCardAccount.id),
+				)
+				.outerLeftJoin(paymentCardInstitution, (f, fn) =>
+					fn.eq(f.paymentCardAccount.institutionId, f.paymentCardInstitution.id),
+				)
 				.outerLeftJoin(db.sql.public.RecurringPayment, (f, fn) =>
 					fn.eq(f.Transaction.recurrenceId, f.RecurringPayment.id),
 				)
@@ -124,6 +146,11 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					categoryColor: f.Category.color,
 					categoryName: f.Category.name,
 					createdAt: f.Transaction.createdAt,
+					creditCardName:
+						fn.raw`COALESCE(${f.paymentCardAccount.name}, ${f.paymentCardInstitution.name})`.returns(
+							"sql/varchar@1",
+						),
+					creditCardStatementDate: f.paymentStatement.statementDate,
 					creditCardStatementId: f.Transaction.creditCardStatementId,
 					date: f.Transaction.date,
 					description: f.Transaction.description,

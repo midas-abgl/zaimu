@@ -128,7 +128,9 @@ export interface Transaction {
 	destinationName?: null | string;
 	createdAt: string;
 	creditCardId?: string;
+	creditCardName?: string | null;
 	creditCardStatementId?: string;
+	creditCardStatementDate?: string | null;
 	currentInstallment?: number;
 	installmentAmount?: number;
 	installments?: number;

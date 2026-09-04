@@ -1871,9 +1871,15 @@ export const dataService = {
 						const originName = originAccount?.name || originAccount?.institution?.name;
 						const destinationName = destinationAccount?.name || destinationAccount?.institution?.name;
 						const paymentAccount = item.data.type === "INCOME" ? destinationAccount : originAccount;
+						const paymentStatement = item.data.creditCardStatementId
+							? statements.get(item.data.creditCardStatementId)
+							: undefined;
+						const paymentCard = paymentStatement ? cards.get(paymentStatement.creditCardId) : undefined;
 
 						return {
 							...item.data,
+							creditCardName: paymentCard?.accountName,
+							creditCardStatementDate: paymentStatement?.statementDate,
 							destinationAccountType: destinationAccount?.type,
 							destinationName,
 							originAccountType: originAccount?.type,
