@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { LuCreditCard, LuPlus } from "react-icons/lu";
@@ -8,7 +8,7 @@ import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { CreditCard } from "@/lib/api";
-import { getCreditCardDisplayName } from "@/lib/credit-card";
+import { calculateCreditCardLimit, getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
 import { showToast, useAuthStore } from "@/stores";
 import { CreateFinancialAccountDialog } from "./accounts/components";
@@ -30,6 +30,12 @@ function CreditCardsPage() {
 		enabled: hasAccess,
 		queryFn: () => dataService.creditCards.getAll(),
 		queryKey: ["credit-cards"],
+	});
+	const statementQueries = useQueries({
+		queries: (cards.data ?? []).map(card => ({
+			queryFn: () => dataService.creditCards.getStatements(card.id),
+			queryKey: ["credit-card-statements", card.id, { isPaid: undefined }],
+		})),
 	});
 	const purchase = useMutation({
 		mutationFn: ({
@@ -61,7 +67,15 @@ function CreditCardsPage() {
 		},
 	});
 	const totalLimit =
-		cards.data?.reduce((sum, card) => sum + (card.excludeFromTotals ? 0 : card.creditLimit), 0) ?? 0;
+		cards.data?.reduce(
+			(sum, card, index) =>
+				sum +
+				(card.excludeFromTotals
+					? 0
+					: calculateCreditCardLimit(card, statementQueries[index]?.data ?? []).effectiveLimit),
+			0,
+		) ?? 0;
+	const isTotalLimitPending = cards.isPending || statementQueries.some(query => query.isPending);
 	const ownCardsCount = cards.data?.filter(card => !card.excludeFromTotals).length ?? 0;
 	const sortedCards = [...(cards.data ?? [])].sort((firstCard, secondCard) =>
 		getCreditCardDisplayName(firstCard).localeCompare(getCreditCardDisplayName(secondCard), "pt-BR", {
@@ -84,7 +98,11 @@ function CreditCardsPage() {
 			<section className="grid gap-4 sm:grid-cols-2">
 				<div className="rounded-2xl bg-brand-yellow p-5 text-brand-ink shadow-card">
 					<p className="text-brand-ink/60 text-sm">Limite total</p>
-					<p className="mt-2 font-bold text-3xl">{currency.format(totalLimit)}</p>
+					{isTotalLimitPending ? (
+						<Skeleton className="mt-2 h-9 w-40 bg-brand-ink/10" />
+					) : (
+						<p className="mt-2 font-bold text-3xl">{currency.format(totalLimit)}</p>
+					)}
 				</div>
 				<div className="rounded-2xl border bg-card p-5 shadow-card">
 					<p className="text-muted-foreground text-sm">Seus cartões</p>

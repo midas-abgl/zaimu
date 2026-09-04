@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import type { CreditCardStatement } from "./api";
-import { applyStatementCredits } from "./credit-card";
+import type { CreditCard, CreditCardStatement } from "./api";
+import { applyStatementCredits, calculateCreditCardLimit } from "./credit-card";
+
+const card = { creditLimit: 1_000 } as CreditCard;
 
 const statement = (
 	id: string,
@@ -93,5 +95,52 @@ describe("applyStatementCredits", () => {
 			expect.objectContaining({ balanceAmount: -2639.84, id: "october", isPaid: false }),
 			expect.objectContaining({ balanceAmount: -2391.84, id: "november", isPaid: false }),
 		]);
+	});
+});
+
+describe("calculateCreditCardLimit", () => {
+	test("uses payments to release limit before they exceed all remaining statements", () => {
+		const statements = [statement("first", "2026-08-01", 100, 150), statement("second", "2026-09-01", 80, 0)];
+
+		expect(calculateCreditCardLimit(card, statements, "2026-08-01")).toEqual({
+			availableLimit: 970,
+			effectiveLimit: 1_000,
+			temporaryCredit: 0,
+			usedLimit: 30,
+		});
+	});
+
+	test("adds only the payment beyond every remaining statement to the temporary limit", () => {
+		const statements = [statement("first", "2026-08-01", 100, 150), statement("second", "2026-09-01", 20, 0)];
+
+		expect(calculateCreditCardLimit(card, statements, "2026-08-01")).toEqual({
+			availableLimit: 1_030,
+			effectiveLimit: 1_030,
+			temporaryCredit: 30,
+			usedLimit: 0,
+		});
+	});
+
+	test("ignores overdue statements when calculating the current limit", () => {
+		const statements = [
+			statement("overdue", "2026-08-01", 900, 0),
+			statement("current", "2026-09-01", 100, 200),
+		];
+
+		expect(calculateCreditCardLimit(card, statements, "2026-09-01")).toEqual({
+			availableLimit: 1_100,
+			effectiveLimit: 1_100,
+			temporaryCredit: 100,
+			usedLimit: 0,
+		});
+	});
+
+	test("keeps the temporary credit separate from the configured security deposit", () => {
+		const cardWithDeposit = { creditLimit: 1_000, securityDeposit: 500 } as CreditCard;
+
+		expect(
+			calculateCreditCardLimit(cardWithDeposit, [statement("first", "2026-08-01", 100, 150)], "2026-08-01")
+				.effectiveLimit,
+		).toBe(1_050);
 	});
 });

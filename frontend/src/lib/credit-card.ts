@@ -31,3 +31,25 @@ export function applyStatementCredits(
 export function getCreditCardDisplayName(card: Pick<CreditCard, "accountName">) {
 	return card.accountName || "Cartão de crédito";
 }
+
+export function calculateCreditCardLimit(
+	card: Pick<CreditCard, "creditLimit">,
+	statements: CreditCardStatement[],
+	today = new Date().toISOString().slice(0, 10),
+) {
+	const activeStatements = statements.filter(statement => statement.dueDate.slice(0, 10) >= today);
+	const netUsedInCents = activeStatements.reduce(
+		(total, statement) => total + toCents(statement.totalAmount) - toCents(statement.paidAmount),
+		0,
+	);
+	const temporaryCreditInCents = Math.max(0, -netUsedInCents);
+	const usedLimitInCents = Math.max(0, netUsedInCents);
+	const effectiveLimitInCents = toCents(card.creditLimit) + temporaryCreditInCents;
+
+	return {
+		availableLimit: Math.max(0, effectiveLimitInCents - usedLimitInCents) / 100,
+		effectiveLimit: effectiveLimitInCents / 100,
+		temporaryCredit: temporaryCreditInCents / 100,
+		usedLimit: usedLimitInCents / 100,
+	};
+}

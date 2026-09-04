@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { CreditCard } from "@/lib/api";
+import { calculateCreditCardLimit } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
@@ -8,8 +9,8 @@ const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "curre
 export function CreditCardAccountSummary({ card }: { card?: CreditCard }) {
 	const statements = useQuery({
 		enabled: Boolean(card),
-		queryFn: () => dataService.creditCards.getStatements(card!.id, false),
-		queryKey: ["credit-card-statements", card?.id, { isPaid: false }],
+		queryFn: () => dataService.creditCards.getStatements(card!.id),
+		queryKey: ["credit-card-statements", card?.id, { isPaid: undefined }],
 	});
 
 	if (!card || statements.isError) {
@@ -31,9 +32,11 @@ export function CreditCardAccountSummary({ card }: { card?: CreditCard }) {
 		);
 	}
 
-	const currentStatement = statements.data?.[0];
-	const currentBill = currentStatement?.totalAmount ?? 0;
-	const availableLimit = Math.max(0, card.creditLimit - currentBill);
+	const currentStatement = statements.data
+		?.filter(statement => !statement.isPaid)
+		.toSorted((left, right) => left.dueDate.localeCompare(right.dueDate))[0];
+	const currentBill = Math.max(0, currentStatement?.balanceAmount ?? 0);
+	const limit = calculateCreditCardLimit(card, statements.data ?? []);
 
 	return (
 		<div className="grid gap-4 min-[420px]:grid-cols-2">
@@ -43,8 +46,14 @@ export function CreditCardAccountSummary({ card }: { card?: CreditCard }) {
 			</div>
 			<div>
 				<p className="text-muted-foreground text-xs">Limite disponível</p>
-				<p className="mt-1 font-bold text-lg">{currency.format(availableLimit)}</p>
+				<p className="mt-1 font-bold text-lg">{currency.format(limit.availableLimit)}</p>
 			</div>
+			{limit.temporaryCredit > 0 && (
+				<div className="min-[420px]:col-span-2">
+					<p className="text-muted-foreground text-xs">Crédito temporário por pagamento excedente</p>
+					<p className="mt-1 font-semibold text-sm">+ {currency.format(limit.temporaryCredit)}</p>
+				</div>
+			)}
 			{card.cashbackRate ? (
 				<div className="min-[420px]:col-span-2">
 					<p className="text-muted-foreground text-xs">Cashback</p>
