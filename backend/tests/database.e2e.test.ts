@@ -720,17 +720,24 @@ suite("Prisma 8 SQL query builder", () => {
 			undefined,
 			owner.cookie,
 		);
-		const statement = (await statementsResponse.json()) as Array<{ id: string; totalAmount: number }>;
+		const statement = (await statementsResponse.json()) as Array<{
+			id: string;
+			statementDate: string;
+			totalAmount: number;
+		}>;
 		expect(statementsResponse.status).toBe(200);
 		expect(statement.map(item => item.id)).toEqual(
 			expect.arrayContaining(purchases.map(purchase => purchase.statementId)),
 		);
-		const statementToPay = statement.find(item => item.totalAmount > 0)!;
+		const statementToPay = statement
+			.filter(item => item.totalAmount > 0)
+			.toSorted((left, right) => left.statementDate.localeCompare(right.statementDate))[0]!;
+		expect(statementToPay.totalAmount).toBe(49.95);
 		const statementPaymentResponse = await jsonRequest(
 			`/credit-cards/${cardAccount.creditCard.id}/statements/${statementToPay.id}/pay`,
 			"POST",
 			{
-				amount: 20,
+				amount: 60,
 				date: "2026-08-23",
 				financialAccountId: account.id,
 				time: "18:45",
@@ -739,16 +746,49 @@ suite("Prisma 8 SQL query builder", () => {
 		);
 		expect(statementPaymentResponse.status).toBe(200);
 		const statementPayment = (await statementPaymentResponse.json()) as {
-			statement: { paidAmount: number };
-			transaction: { amount: number; description: string; time: string; type: string };
+			statement: { isPaid: boolean; paidAmount: number };
+			transaction: {
+				amount: number;
+				creditCardStatementId: string;
+				description: string;
+				id: string;
+				time: string;
+				type: string;
+			};
 		};
-		expect(statementPayment.statement.paidAmount).toBe(20);
+		expect(statementPayment.statement.paidAmount).toBe(60);
+		expect(statementPayment.statement.isPaid).toBeTrue();
 		expect(statementPayment.transaction).toMatchObject({
-			amount: 20,
+			amount: 60,
+			creditCardStatementId: statementToPay.id,
 			description: expect.stringContaining("Pagamento da fatura"),
 			time: expect.stringMatching(/^18:45/),
 			type: "EXPENSE",
 		});
+		const paidStatementDetailResponse = await jsonRequest(
+			`/credit-cards/${cardAccount.creditCard.id}/statements/${statementToPay.id}`,
+			"GET",
+			undefined,
+			owner.cookie,
+		);
+		const paidStatementDetail = (await paidStatementDetailResponse.json()) as {
+			payments: Array<{ amount: number; id: string }>;
+		};
+		expect(paidStatementDetailResponse.status).toBe(200);
+		expect(paidStatementDetail.payments).toEqual(
+			expect.arrayContaining([expect.objectContaining({ amount: 60, id: statementPayment.transaction.id })]),
+		);
+		const openStatementsResponse = await jsonRequest(
+			`/credit-cards/${cardAccount.creditCard.id}/statements?isPaid=false`,
+			"GET",
+			undefined,
+			owner.cookie,
+		);
+		const openStatements = (await openStatementsResponse.json()) as Array<{
+			balanceAmount: number;
+		}>;
+		expect(openStatementsResponse.status).toBe(200);
+		expect(openStatements.some(item => item.balanceAmount === 39.9)).toBeTrue();
 
 		const lifecycleCases = [
 			{

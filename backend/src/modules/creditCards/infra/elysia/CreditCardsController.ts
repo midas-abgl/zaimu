@@ -60,6 +60,40 @@ const purchaseColumns = [
 ] as const;
 const forecastStatementId = (statementDate: Date) => `forecast-${statementDate.toISOString().slice(0, 10)}`;
 const timePattern = /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
+const toCents = (amount: number | string) => Math.round(Number(amount) * 100);
+const toDateKey = (date: Date) => date.toISOString().slice(0, 10);
+
+function applyStatementCredits<
+	T extends {
+		id: string;
+		isPaid: boolean;
+		paidAmount: number | string;
+		statementDate: Date;
+		totalAmount: number | string;
+	},
+>(statements: T[], today = new Date()): Array<T & { balanceAmount: number }> {
+	let carriedCreditInCents = 0;
+	const effectiveById = new Map<string, { balanceAmount: number; isPaid: boolean }>();
+	const todayKey = toDateKey(today);
+
+	const chronologicalStatements = statements.toSorted(
+		(left, right) => left.statementDate.getTime() - right.statementDate.getTime(),
+	);
+	for (const statement of chronologicalStatements) {
+		const paidAmountInCents = toCents(statement.paidAmount);
+		const appliedAmountInCents = paidAmountInCents + carriedCreditInCents;
+		const rawBalanceInCents = toCents(statement.totalAmount) - appliedAmountInCents;
+		const isClosed = toDateKey(statement.statementDate) <= todayKey;
+		const balanceAmount = (paidAmountInCents > 0 ? Math.max(0, rawBalanceInCents) : rawBalanceInCents) / 100;
+		carriedCreditInCents = Math.max(0, -rawBalanceInCents);
+		effectiveById.set(statement.id, {
+			balanceAmount,
+			isPaid: isClosed && appliedAmountInCents > 0 && rawBalanceInCents <= 0,
+		});
+	}
+
+	return statements.map(statement => ({ ...statement, ...effectiveById.get(statement.id)! }));
+}
 
 function resolvePurchaseTime(value: string | null | undefined): string | null {
 	if (value === null) return null;
@@ -719,18 +753,12 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				materializeInstallments(params.id, card),
 				materializeDueSubscriptionPurchases(params.id, card.financialAccountId, card),
 			]);
-			let queryBuilder = db.sql.public.CreditCardStatement.select(...statementColumns).where(
+			const queryBuilder = db.sql.public.CreditCardStatement.select(...statementColumns).where(
 				(fields, functions) => functions.eq(fields.creditCardId, params.id),
 			);
-
-			if (query.isPaid !== undefined) {
-				queryBuilder = queryBuilder.where((fields, functions) => functions.eq(fields.isPaid, query.isPaid!));
-			}
-
 			const statements = await queryRows(
 				queryBuilder.orderBy("statementDate", { direction: "desc" }).build(),
 			);
-			if (query.isPaid === true) return statements;
 			const purchases = (await queryRows(
 				db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
 					functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
@@ -777,7 +805,10 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					),
 					updatedAt: new Date(),
 				}));
-			return [...statements, ...forecasts];
+			const statementsWithCredits = applyStatementCredits([...statements, ...forecasts]);
+			return query.isPaid === undefined
+				? statementsWithCredits
+				: statementsWithCredits.filter(statement => statement.isPaid === query.isPaid);
 		},
 		{
 			detail: { tags: ["Credit Cards"] },
@@ -845,7 +876,12 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					await forecastSubscriptionPurchases(card.financialAccountId, card),
 				).get(statementDate.toISOString().slice(0, 10));
 				if (!forecast) throw new HttpException("Statement not found", 404);
+				const balanceAmount = forecast.purchases.reduce(
+					(total, purchase) => total + purchase.installmentAmount,
+					0,
+				);
 				return {
+					balanceAmount,
 					createdAt: new Date(),
 					creditCardId: params.id,
 					dueDate: forecast.dueDate,
@@ -853,6 +889,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					isForecast: true,
 					isPaid: false,
 					paidAmount: "0",
+					payments: [],
 					purchases: forecast.purchases.map(purchase => ({ ...purchase, isForecast: true })),
 					statementDate: forecast.statementDate,
 					totalAmount: String(
@@ -883,6 +920,21 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					.orderBy("purchaseDate", { direction: "desc" })
 					.build(),
 			);
+			const payments = await queryRows(
+				db.sql.public.Transaction.select(
+					"amount",
+					"createdAt",
+					"creditCardStatementId",
+					"date",
+					"description",
+					"id",
+					"time",
+					"type",
+				)
+					.where((fields, functions) => functions.eq(fields.creditCardStatementId, params.statementId))
+					.orderBy("date", { direction: "desc" })
+					.build(),
+			);
 			const tagsByPurchase = await getTagsByEntity(
 				tagEntityType.creditPurchase,
 				purchases.map(purchase => purchase.id),
@@ -893,6 +945,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 
 			return {
 				...statement,
+				balanceAmount: Number(statement.totalAmount) - Number(statement.paidAmount),
+				payments,
 				purchases: purchases.map(purchase => {
 					const tags = tagsByPurchase.get(purchase.id) ?? [];
 					return {
@@ -1663,15 +1717,16 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				throw new HttpException("Statement not found", 404);
 			}
 
-			if (statement.isPaid) throw new HttpException("Statement already paid", 409);
 			const remainingAmount = Number(statement.totalAmount) - Number(statement.paidAmount);
 			const paymentAmount = body.amount ?? remainingAmount;
-			if (paymentAmount <= 0 || paymentAmount > remainingAmount) {
-				throw new HttpException("Informe um valor maior que zero e até o saldo da fatura", 400);
+			if (paymentAmount <= 0) {
+				throw new HttpException("Informe um valor maior que zero para a fatura", 400);
 			}
 
 			const amount = param(numeric<12, 2>(paymentAmount), { codecId: "pg/numeric@1" });
-			const isPaid = Number(statement.paidAmount) + paymentAmount >= Number(statement.totalAmount);
+			const isPaid =
+				toDateKey(statement.statementDate) <= toDateKey(new Date()) &&
+				toCents(statement.paidAmount) + toCents(paymentAmount) >= toCents(statement.totalAmount);
 			const card = await queryFirst(
 				db.sql.public.CreditCard.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
 					functions.eq(fields.CreditCard.financialAccountId, fields.FinancialAccount.id),
@@ -1695,6 +1750,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				db.sql.public.Transaction.insert([
 					{
 						amount: String(paymentAmount),
+						creditCardStatementId: params.statementId,
 						date: new Date(body.date),
 						description: `Pagamento da fatura — ${card.accountName}`,
 						originFinancialAccountId: body.financialAccountId,
@@ -1702,7 +1758,16 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						type: "EXPENSE",
 					},
 				])
-					.returning("id", "amount", "date", "description", "type", "originFinancialAccountId", "createdAt")
+					.returning(
+						"id",
+						"amount",
+						"creditCardStatementId",
+						"date",
+						"description",
+						"type",
+						"originFinancialAccountId",
+						"createdAt",
+					)
 					.build(),
 			);
 			if (!paymentTransaction) throw new HttpException("Payment transaction not created", 500);

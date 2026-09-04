@@ -298,6 +298,7 @@ export interface RecurringPayment {
 }
 
 export interface CreditCardStatement {
+	balanceAmount: number;
 	id: string;
 	creditCardId: string;
 	statementDate: string;
@@ -340,6 +341,7 @@ export interface CreditPurchase {
 }
 
 export interface CreditCardStatementDetail extends CreditCardStatement {
+	payments: Transaction[];
 	purchases: CreditPurchase[];
 }
 

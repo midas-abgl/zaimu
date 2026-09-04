@@ -102,6 +102,7 @@ const transactionColumns = [
 	"storeName",
 	"type",
 	"categoryId",
+	"creditCardStatementId",
 	"recurrenceId",
 	"recurrenceOccurrenceDate",
 	"salaryId",
@@ -682,6 +683,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 
 		await sync("transactions", body.transactions, async entity => {
 			const id = value<string>(entity, "id");
+			const creditCardStatementId = value<string | undefined>(entity, "creditCardStatementId");
 			const originFinancialAccountId = value<string | undefined>(entity, "originFinancialAccountId");
 			const destinationFinancialAccountId = value<string | undefined>(
 				entity,
@@ -695,6 +697,8 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				throw new Error(`Conta de origem ${originFinancialAccountId} indisponível`);
 			if (destinationFinancialAccountId && !accountIds.has(destinationFinancialAccountId))
 				throw new Error(`Conta de destino ${destinationFinancialAccountId} indisponível`);
+			if (creditCardStatementId && !statementIds.has(creditCardStatementId))
+				throw new Error(`Fatura ${creditCardStatementId} indisponível`);
 			if (recurrenceId && !recurringIds.has(recurrenceId))
 				throw new Error(`Recorrência ${recurrenceId} indisponível`);
 			if (salaryId && !salaryIds.has(salaryId)) throw new Error(`Salário ${salaryId} indisponível`);
@@ -713,6 +717,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 						{
 							amount: String(value<number>(entity, "amount")),
 							categoryId: tagIds[0],
+							creditCardStatementId,
 							date: new Date(value<string>(entity, "date")),
 							description: value<string | undefined>(entity, "description"),
 							destinationFinancialAccountId,
@@ -829,6 +834,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				amount: f.Transaction.amount,
 				categoryId: f.Transaction.categoryId,
 				createdAt: f.Transaction.createdAt,
+				creditCardStatementId: f.Transaction.creditCardStatementId,
 				date: f.Transaction.date,
 				description: f.Transaction.description,
 				destinationFinancialAccountId: f.Transaction.destinationFinancialAccountId,

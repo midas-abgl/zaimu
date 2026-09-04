@@ -32,6 +32,7 @@ const transactionColumns = [
 	"storeName",
 	"type",
 	"categoryId",
+	"creditCardStatementId",
 	"recurrenceId",
 	"recurrenceOccurrenceDate",
 	"salaryId",
@@ -123,6 +124,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					categoryColor: f.Category.color,
 					categoryName: f.Category.name,
 					createdAt: f.Transaction.createdAt,
+					creditCardStatementId: f.Transaction.creditCardStatementId,
 					date: f.Transaction.date,
 					description: f.Transaction.description,
 					destinationAccountType: f.destination.type,
@@ -613,6 +615,9 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (!existing) {
 				throw new HttpException("Transaction not found", 404);
 			}
+			if (existing.creditCardStatementId) {
+				throw new HttpException("Pagamentos de fatura não podem ser editados", 409);
+			}
 			if (body.amount !== undefined && body.amount <= 0) {
 				throw new HttpException("Informe um valor maior que zero", 400);
 			}
@@ -744,6 +749,9 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 
 			if (!existing) {
 				throw new HttpException("Transaction not found", 404);
+			}
+			if (existing.creditCardStatementId) {
+				throw new HttpException("Pagamentos de fatura não podem ser excluídos", 409);
 			}
 
 			await replaceEntityTags({

@@ -8,6 +8,12 @@ Salários, assinaturas, pagamentos recorrentes e parcelamentos devem prever sald
 
 Quando um seletor de contas em uma transação apresentar mais de um tipo de conta, cada opção deve começar pelo tipo resumido para evitar ambiguidade. Exemplos: `Poupança Mercado Pago`, `Conta Mercado Pago` e `Conta Nubank`. O rótulo comum da conta fora desses seletores permanece sem esse prefixo.
 
+## Pagamentos excedentes de fatura
+
+Pagamento de fatura pode exceder o saldo atual e sempre aparece entre as transações da fatura, na ordem cronológica dos lançamentos. Antes do fechamento, pagamentos parciais reduzem o saldo pendente sem marcar a fatura como paga. Qualquer excedente consome cronologicamente os totais das faturas seguintes, mesmo antes do fechamento: a fatura diretamente paga fica zerada, e cada fatura posterior exibe seu saldo negativo após consumir suas próprias compras. Compras lançadas depois recalculam toda a cadeia e reduzem ou puxam de volta o crédito das faturas posteriores. O valor pago nunca deve ser limitado pelo total já lançado, pois compras e reembolsos podem ser preenchidos após o pagamento.
+
+Todo pagamento reduz o limite utilizado. Se os pagamentos superarem o valor total de todas as faturas restantes, somente essa diferença aumenta temporariamente o limite do cartão. Compras posteriores consomem primeiro esse aumento. Esse crédito pago é distinto do valor em garantia do limite: não pode ser sacado nem tratado como saldo disponível em conta.
+
 ## Cashback e contas de recompensas
 
 Cartão pode recompensar por percentual de cashback em dinheiro ou por pontos ganhos a cada valor gasto. Ao ativar a recompensa, o sistema cria — ou reutiliza — uma conta sem nome do tipo pontos/cashback na mesma instituição do cartão; não exige seleção manual de destino. Cada compra concreta gera recompensa somente na parcela raiz, calculada sobre o valor total. O lançamento guarda snapshot do destino, valor e rendimento no momento da compra; mudanças posteriores no cartão não reescrevem recompensas históricas. Editar valor da compra recalcula a recompensa pela taxa histórica, mover compra para outro cartão aplica regras do cartão destino e excluir compra remove recompensa vinculada.

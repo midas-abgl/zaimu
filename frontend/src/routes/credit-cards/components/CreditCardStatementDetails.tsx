@@ -10,6 +10,7 @@ import type { CreditCardStatement, CreditPurchase } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
 import { showToast } from "@/stores";
+import { CreditCardPaymentRow } from "./CreditCardPaymentRow";
 import { CreditPurchaseRow } from "./CreditPurchaseRow";
 import { EditCreditPurchaseDialog } from "./EditCreditPurchaseDialog";
 import { RefinanceCreditPurchaseDialog } from "./RefinanceCreditPurchaseDialog";
@@ -24,6 +25,28 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 		queryFn: () => dataService.creditCards.getStatement(statement.creditCardId, statement.id),
 		queryKey: ["credit-card-statement", statement.creditCardId, statement.id],
 	});
+	const entries = detail.data
+		? [
+				...detail.data.purchases.map(purchase => ({
+					date: purchase.purchaseDate,
+					id: purchase.id,
+					kind: "purchase" as const,
+					purchase,
+					time: purchase.time,
+				})),
+				...detail.data.payments.map(payment => ({
+					date: payment.date,
+					id: payment.id,
+					kind: "payment" as const,
+					payment,
+					time: payment.time,
+				})),
+			].toSorted((left, right) =>
+				`${right.date.slice(0, 10)}T${right.time ?? ""}`.localeCompare(
+					`${left.date.slice(0, 10)}T${left.time ?? ""}`,
+				),
+			)
+		: [];
 	const refreshStatement = async () => {
 		await Promise.all([
 			queryClient.invalidateQueries({
@@ -90,8 +113,8 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 				</div>
 				<div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t pt-2">
 					<div>
-						<p className="text-muted-foreground text-xs">Total da fatura</p>
-						<strong className="text-base sm:text-lg">{currency.format(statement.totalAmount)}</strong>
+						<p className="text-muted-foreground text-xs">Saldo da fatura</p>
+						<strong className="text-base sm:text-lg">{currency.format(statement.balanceAmount)}</strong>
 					</div>
 					<Badge className="shrink-0" variant={statement.isPaid ? "secondary" : "outline"}>
 						{statement.isPaid ? <LuCircleCheck /> : <LuClock3 />}
@@ -118,7 +141,7 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 					<h4 className="font-semibold">Transações</h4>
 					{detail.data && (
 						<span className="text-muted-foreground text-xs">
-							{detail.data.purchases.length} {detail.data.purchases.length === 1 ? "compra" : "compras"}
+							{entries.length} {entries.length === 1 ? "transação" : "transações"}
 						</span>
 					)}
 				</div>
@@ -135,22 +158,26 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 							icon={<LuReceiptText className="size-7" />}
 							title="Não foi possível carregar as transações"
 						/>
-					) : detail.data.purchases.length ? (
+					) : entries.length ? (
 						<div className="grid gap-2">
-							{detail.data.purchases.map(purchase => (
-								<CreditPurchaseRow
-									disabled={statement.isPaid || statement.isForecast === true || deletePurchase.isPending}
-									key={purchase.id}
-									onDelete={() => deletePurchase.mutateAsync(purchase.id)}
-									onEdit={() => setEditingPurchase(purchase)}
-									onRefinance={() => setRefinancingPurchase(purchase)}
-									purchase={purchase}
-								/>
-							))}
+							{entries.map(entry =>
+								entry.kind === "payment" ? (
+									<CreditCardPaymentRow key={entry.id} payment={entry.payment} />
+								) : (
+									<CreditPurchaseRow
+										disabled={statement.isPaid || statement.isForecast === true || deletePurchase.isPending}
+										key={entry.id}
+										onDelete={() => deletePurchase.mutateAsync(entry.purchase.id)}
+										onEdit={() => setEditingPurchase(entry.purchase)}
+										onRefinance={() => setRefinancingPurchase(entry.purchase)}
+										purchase={entry.purchase}
+									/>
+								),
+							)}
 						</div>
 					) : (
 						<EmptyState
-							description="Nenhuma compra foi vinculada a esta fatura."
+							description="Nenhuma transação foi vinculada a esta fatura."
 							icon={<LuReceiptText className="size-7" />}
 							title="Fatura sem transações"
 						/>

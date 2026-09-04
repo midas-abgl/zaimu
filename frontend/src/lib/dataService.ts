@@ -26,6 +26,7 @@ import type {
 	Subscription,
 	Transaction,
 } from "./api";
+import { applyStatementCredits } from "./credit-card";
 import { getCurrentLocalTime } from "./date";
 import { calculateFinancialAccountBalances } from "./financial-account";
 import { normalizeInstitutionName } from "./financial-institution";
@@ -428,6 +429,7 @@ export const dataService = {
 			const dueDate = new Date(statementDate.getFullYear(), statementDate.getMonth(), card.dueDay);
 			if (dueDate <= statementDate) dueDate.setMonth(dueDate.getMonth() + 1);
 			const statement: CreditCardStatement = storedStatement?.data ?? {
+				balanceAmount: 0,
 				creditCardId: cardId,
 				dueDate: dueDate.toISOString(),
 				id: statementKey,
@@ -524,9 +526,10 @@ export const dataService = {
 			if (isGuestMode()) {
 				const statement = (await localCreditCardStatements.getById(statementId))?.data;
 				if (!statement || statement.creditCardId !== cardId) throw new Error("Fatura não encontrada");
-				const [storedPurchases, storedCategories] = await Promise.all([
+				const [storedPurchases, storedCategories, storedTransactions] = await Promise.all([
 					localCreditPurchases.getAll(),
 					localCategories.getAll(),
+					localTransactions.getAll(),
 				]);
 				const categories = new Map(storedCategories.map(item => [item.data.id, item.data]));
 				const purchases = storedPurchases
@@ -546,19 +549,29 @@ export const dataService = {
 						};
 					})
 					.sort((left, right) => right.purchaseDate.localeCompare(left.purchaseDate));
-				return { ...statement, purchases };
+				const payments = storedTransactions
+					.map(item => item.data)
+					.filter(transaction => transaction.creditCardStatementId === statementId)
+					.sort((left, right) => right.date.localeCompare(left.date));
+				return {
+					...statement,
+					balanceAmount: statement.totalAmount - statement.paidAmount,
+					payments,
+					purchases,
+				};
 			}
 			return fetchWithAuth<CreditCardStatementDetail>(`/credit-cards/${cardId}/statements/${statementId}`);
 		},
 		async getStatements(cardId: string, isPaid?: boolean): Promise<CreditCardStatement[]> {
 			if (isGuestMode()) {
-				return (await localCreditCardStatements.getAll())
+				const statements = (await localCreditCardStatements.getAll())
 					.map(item => item.data)
-					.filter(
-						statement =>
-							statement.creditCardId === cardId && (isPaid === undefined || statement.isPaid === isPaid),
-					)
+					.filter(statement => statement.creditCardId === cardId)
 					.sort((left, right) => right.statementDate.localeCompare(left.statementDate));
+				const statementsWithCredits = applyStatementCredits(statements);
+				return isPaid === undefined
+					? statementsWithCredits
+					: statementsWithCredits.filter(statement => statement.isPaid === isPaid);
 			}
 			const suffix = isPaid === undefined ? "" : `?isPaid=${isPaid}`;
 			const statements = await fetchWithAuth<CreditCardStatement[]>(
@@ -606,16 +619,20 @@ export const dataService = {
 
 			const remainingAmount = statement.totalAmount - statement.paidAmount;
 			const amount = data.amount ?? remainingAmount;
-			if (amount <= 0 || amount > remainingAmount) throw new Error("Informe um valor válido para a fatura");
+			if (amount <= 0) throw new Error("Informe um valor maior que zero para a fatura");
 
 			const updatedStatement: CreditCardStatement = {
 				...statement,
-				isPaid: statement.paidAmount + amount >= statement.totalAmount,
+				balanceAmount: statement.totalAmount - statement.paidAmount - amount,
+				isPaid:
+					statement.statementDate.slice(0, 10) <= new Date().toISOString().slice(0, 10) &&
+					statement.paidAmount + amount >= statement.totalAmount,
 				paidAmount: statement.paidAmount + amount,
 			};
 			const transaction: Transaction = {
 				amount,
 				createdAt: new Date().toISOString(),
+				creditCardStatementId: statementId,
 				date: data.date,
 				description: `Pagamento da fatura — ${storedCard.data.accountName || "Cartão de crédito"}`,
 				id: crypto.randomUUID(),
@@ -716,6 +733,7 @@ export const dataService = {
 			);
 			if (targetDueDate <= targetStatementDate) targetDueDate.setMonth(targetDueDate.getMonth() + 1);
 			const targetStatement: CreditCardStatement = storedTargetStatement?.data ?? {
+				balanceAmount: 0,
 				creditCardId: targetCardId,
 				dueDate: targetDueDate.toISOString(),
 				id: targetStatementId,

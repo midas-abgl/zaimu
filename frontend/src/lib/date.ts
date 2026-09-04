@@ -1,5 +1,6 @@
 const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}/;
 const timePattern = /T?(\d{2}:\d{2})(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?$/;
+const localMonthYearFormatter = new Intl.DateTimeFormat("pt-BR", { month: "short", year: "2-digit" });
 
 export function parseLocalDate(value: string): Date {
 	const dateOnly = value.match(dateOnlyPattern)?.[0];
@@ -8,6 +9,14 @@ export function parseLocalDate(value: string): Date {
 
 export function formatLocalDate(value: string, options?: Intl.DateTimeFormatOptions): string {
 	return parseLocalDate(value).toLocaleDateString("pt-BR", options);
+}
+
+export function formatLocalMonthYear(value: string): string {
+	const parts = localMonthYearFormatter.formatToParts(parseLocalDate(value));
+	const month = parts.find(part => part.type === "month")?.value.replace(".", "") ?? "";
+	const year = parts.find(part => part.type === "year")?.value ?? "";
+
+	return `${month.charAt(0).toUpperCase()}${month.slice(1)}/${year}`;
 }
 
 export function getLocalMonthKey(value: Date | string): string {

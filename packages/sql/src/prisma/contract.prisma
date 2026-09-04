@@ -210,6 +210,7 @@ namespace public {
     createdAt       Timestamp(3)     @default(now())
     updatedAt       Timestamp(3)     @default(now())
     creditPurchases CreditPurchase[]
+    payments        Transaction[]
     creditCard      CreditCard       @relation(fields: [creditCardId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCardStatement_creditCardId_fkey", index: false)
 
     @@index([creditCardId, statementDate], map: "CreditCardStatement_creditCardId_statementDate_key", unique: true)
@@ -608,6 +609,7 @@ namespace public {
     salaryOccurrenceDate          Date?
     subscriptionId                VarChar(36)?
     subscriptionOccurrenceDate    Date?
+    creditCardStatementId         VarChar(36)?
     originFinancialAccountId      VarChar(36)?
     destinationFinancialAccountId VarChar(36)?
     createdAt                     Timestamp(3)             @default(now())
@@ -615,6 +617,7 @@ namespace public {
     transactionHistories          TransactionHistory[]
     debtTransactionLink           DebtTransactionLink?
     category                      Category?                @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_categoryId_fkey", index: false)
+    creditCardStatement           CreditCardStatement?     @relation(fields: [creditCardStatementId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_creditCardStatementId_fkey", index: false)
     destinationFinancialAccount   FinancialAccount?        @relation(name: "Transaction_destinationId_fkey", fields: [destinationFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_destinationId_fkey", index: false)
     originFinancialAccount        FinancialAccount?        @relation(name: "Transaction_originId_fkey", fields: [originFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_originId_fkey", index: false)
     recurrence                    RecurringPayment?        @relation(fields: [recurrenceId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_recurrenceId_fkey", index: false)
@@ -624,6 +627,7 @@ namespace public {
     @@index([recurrenceId, recurrenceOccurrenceDate], map: "Transaction_recurrenceId_occurrenceDate_key", unique: true)
     @@index([salaryId, salaryOccurrenceDate], map: "Transaction_salaryId_occurrenceDate_key", unique: true)
     @@index([subscriptionId, subscriptionOccurrenceDate], map: "Transaction_subscriptionId_occurrenceDate_key", unique: true)
+    @@index([creditCardStatementId], map: "Transaction_creditCardStatementId_idx")
     @@map("Transaction")
   }
 

@@ -186,14 +186,18 @@ function TransactionsPage() {
 											) : undefined
 										}
 										onDelete={
-											transaction.source === "CREDIT_CARD"
-												? () => removePurchase.mutate(transaction)
-												: () => remove.mutate(transaction.id)
+											transaction.creditCardStatementId && transaction.source !== "CREDIT_CARD"
+												? undefined
+												: transaction.source === "CREDIT_CARD"
+													? () => removePurchase.mutate(transaction)
+													: () => remove.mutate(transaction.id)
 										}
 										onEdit={
-											transaction.source === "CREDIT_CARD"
-												? () => setEditingPurchase(transaction)
-												: () => setEditingTransaction(transaction)
+											transaction.creditCardStatementId && transaction.source !== "CREDIT_CARD"
+												? undefined
+												: transaction.source === "CREDIT_CARD"
+													? () => setEditingPurchase(transaction)
+													: () => setEditingTransaction(transaction)
 										}
 										transaction={transaction}
 									/>

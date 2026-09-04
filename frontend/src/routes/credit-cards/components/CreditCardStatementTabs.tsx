@@ -3,19 +3,10 @@ import { LuCircleCheck, LuClock3 } from "react-icons/lu";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import type { CreditCardStatement } from "@/lib/api";
-import { parseLocalDate } from "@/lib/date";
+import { formatLocalMonthYear } from "@/lib/date";
 import { cn } from "@/lib/utils";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-const statementMonthFormatter = new Intl.DateTimeFormat("pt-BR", { month: "short", year: "2-digit" });
-
-function formatStatementMonth(value: string) {
-	const parts = statementMonthFormatter.formatToParts(parseLocalDate(value));
-	const month = parts.find(part => part.type === "month")?.value.replace(".", "") ?? "";
-	const year = parts.find(part => part.type === "year")?.value ?? "";
-
-	return `${month.charAt(0).toUpperCase()}${month.slice(1)}/${year}`;
-}
 
 export function CreditCardStatementTabs({
 	selectedId,
@@ -70,7 +61,7 @@ export function CreditCardStatementTabs({
 							>
 								<span className="grid min-w-0 flex-1 gap-1">
 									<span className="font-semibold text-sm">
-										{formatStatementMonth(statement.statementDate)}
+										{formatLocalMonthYear(statement.statementDate)}
 									</span>
 									<span className="font-normal text-muted-foreground text-xs">
 										{statement.isPaid ? (
@@ -83,7 +74,7 @@ export function CreditCardStatementTabs({
 											</span>
 										)}
 									</span>
-									<strong className="truncate text-sm">{currency.format(statement.totalAmount)}</strong>
+									<strong className="truncate text-sm">{currency.format(statement.balanceAmount)}</strong>
 								</span>
 							</TabsTrigger>
 						);

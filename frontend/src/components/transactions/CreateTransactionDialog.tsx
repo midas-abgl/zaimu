@@ -16,7 +16,7 @@ import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { Transaction } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
-import { formatLocalDate, getCurrentLocalTime } from "@/lib/date";
+import { formatLocalMonthYear, getCurrentLocalTime } from "@/lib/date";
 import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
@@ -68,7 +68,9 @@ export function CreateTransactionDialog({
 			);
 			return statements
 				.flatMap(({ card, statements }) =>
-					statements.filter(statement => !statement.isPaid).map(statement => ({ card, statement })),
+					statements
+						.filter(statement => !statement.isPaid && statement.balanceAmount > 0)
+						.map(statement => ({ card, statement })),
 				)
 				.toSorted((left, right) => {
 					const leftDueDate = new Date(left.statement.dueDate);
@@ -158,6 +160,7 @@ export function CreateTransactionDialog({
 			await Promise.all([
 				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
 				queryClient.invalidateQueries({ queryKey: ["accounts"] }),
+				queryClient.invalidateQueries({ queryKey: ["credit-card-statement"] }),
 				queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
 				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
 				queryClient.invalidateQueries({ queryKey: ["debts"] }),
@@ -211,20 +214,17 @@ export function CreateTransactionDialog({
 								const selectedPayableStatement = payableStatementsQuery.data?.find(
 									item => item.statement.id === creditCardStatementId,
 								);
-								const remainingAmount = selectedPayableStatement
-									? selectedPayableStatement.statement.totalAmount -
-										selectedPayableStatement.statement.paidAmount
-									: null;
+								const remainingAmount = selectedPayableStatement?.statement.balanceAmount ?? null;
 								setDraft(current => ({
 									...current,
-									amount: remainingAmount === null ? current.amount : remainingAmount.toFixed(2),
+									amount: current.amount || (remainingAmount === null ? "" : remainingAmount.toFixed(2)),
 									creditCardStatementId,
 									debtPersonId: "",
 								}));
 								setIsDebt(false);
 							}}
 							options={payableStatementsQuery.data.map(({ card, statement }) => ({
-								label: `${getCreditCardDisplayName(card)} · ${formatLocalDate(statement.dueDate)} · ${new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(statement.totalAmount - statement.paidAmount)}`,
+								label: `${getCreditCardDisplayName(card)} · ${formatLocalMonthYear(statement.statementDate)} · ${new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(statement.balanceAmount)}`,
 								value: statement.id,
 							}))}
 							placeholder="Nenhuma fatura selecionada"
@@ -331,9 +331,6 @@ export function CreateTransactionDialog({
 							!draft.amount ||
 							!primaryAccountId ||
 							(isDebt && !draft.debtPersonId) ||
-							(selectedStatement &&
-								Number.parseFloat(draft.amount) >
-									selectedStatement.statement.totalAmount - selectedStatement.statement.paidAmount) ||
 							(draft.type === "TRANSFER" && !draft.destinationFinancialAccountId) ||
 							create.isPending
 						}
