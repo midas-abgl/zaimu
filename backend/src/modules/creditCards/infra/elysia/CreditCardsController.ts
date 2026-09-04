@@ -506,8 +506,11 @@ async function forecastSubscriptionPurchases(
 				id: `subscription-${subscription.id}-${occurrenceDate.toISOString().slice(0, 10)}`,
 				installmentAmount: Number(subscription.amount),
 				installments: 1,
+				isSettled: false,
 				parentId: null,
 				purchaseDate: occurrenceDate,
+				refinancingFeeAmount: null,
+				settledByPurchaseId: null,
 				statementId: forecastStatementId(statementDate),
 				storeName: subscription.storeName,
 				subscriptionId: subscription.id,
@@ -1169,8 +1172,6 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			await assertCreditCardOwnership(params.id, userId);
 			const selectedPurchase = await findPurchaseForCard(params.id, params.purchaseId);
 			if (!selectedPurchase) throw new HttpException("Purchase not found", 404);
-			if (selectedPurchase.isPaid)
-				throw new HttpException("Paid statement purchases cannot be refinanced", 409);
 			const rootPurchaseId = selectedPurchase.parentId ?? selectedPurchase.id;
 			const card = await queryFirst(
 				db.sql.public.CreditCard.select("dueDay", "statementDay")
@@ -1180,7 +1181,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			);
 			if (!card) throw new HttpException("Credit card not found", 404);
 
-			const installmentsToSettle = await queryRows(
+			const installmentsToSettle = (await queryRows(
 				db.sql.public.CreditPurchase.innerJoin(db.sql.public.CreditCardStatement, (fields, functions) =>
 					functions.eq(fields.CreditPurchase.statementId, fields.CreditCardStatement.id),
 				)
@@ -1200,7 +1201,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						),
 					)
 					.build(),
-			);
+			)) as Array<CreditPurchaseRow & { isPaid: boolean }>;
 			if (!installmentsToSettle.length) throw new HttpException("No open installments to refinance", 409);
 
 			const settledAmount = installmentsToSettle.reduce(

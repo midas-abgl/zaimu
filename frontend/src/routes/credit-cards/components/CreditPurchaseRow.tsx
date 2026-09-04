@@ -10,12 +10,14 @@ const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "curre
 
 export function CreditPurchaseRow({
 	disabled,
+	refinanceDisabled,
 	onDelete,
 	onEdit,
 	onRefinance,
 	purchase,
 }: {
 	disabled: boolean;
+	refinanceDisabled: boolean;
 	onDelete: () => void | Promise<void>;
 	onEdit: () => void;
 	onRefinance: () => void;
@@ -68,7 +70,7 @@ export function CreditPurchaseRow({
 								<Button
 									aria-label={`Reparcelar ${purchase.description}`}
 									className="cursor-pointer"
-									disabled={disabled}
+									disabled={refinanceDisabled}
 									onClick={onRefinance}
 									size="icon-sm"
 									variant="outline"

@@ -171,6 +171,11 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 										onEdit={() => setEditingPurchase(entry.purchase)}
 										onRefinance={() => setRefinancingPurchase(entry.purchase)}
 										purchase={entry.purchase}
+										refinanceDisabled={
+											statement.isForecast === true ||
+											refinancePurchase.isPending ||
+											entry.purchase.isSettled === true
+										}
 									/>
 								),
 							)}
