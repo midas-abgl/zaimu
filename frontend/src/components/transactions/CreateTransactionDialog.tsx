@@ -208,7 +208,19 @@ export function CreateTransactionDialog({
 						<CustomSelect
 							label="Fatura para pagar"
 							onValueChange={creditCardStatementId => {
-								setDraft(current => ({ ...current, creditCardStatementId, debtPersonId: "" }));
+								const selectedPayableStatement = payableStatementsQuery.data?.find(
+									item => item.statement.id === creditCardStatementId,
+								);
+								const remainingAmount = selectedPayableStatement
+									? selectedPayableStatement.statement.totalAmount -
+										selectedPayableStatement.statement.paidAmount
+									: null;
+								setDraft(current => ({
+									...current,
+									amount: remainingAmount === null ? current.amount : remainingAmount.toFixed(2),
+									creditCardStatementId,
+									debtPersonId: "",
+								}));
 								setIsDebt(false);
 							}}
 							options={payableStatementsQuery.data.map(({ card, statement }) => ({
