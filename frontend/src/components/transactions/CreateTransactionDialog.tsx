@@ -102,7 +102,7 @@ export function CreateTransactionDialog({
 			event =>
 				!event.createdByMe &&
 				event.amount === Number(draft.amount) &&
-				event.date.slice(0, 10) === draft.date.slice(0, 10) &&
+				event.date?.slice(0, 10) === draft.date.slice(0, 10) &&
 				event.effect === (draft.type === "INCOME" ? -Number(draft.amount) : Number(draft.amount)),
 		);
 	useEffect(() => setUseExistingEvent(false), [debtPairCandidate?.id]);

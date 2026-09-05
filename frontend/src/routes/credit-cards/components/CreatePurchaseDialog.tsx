@@ -82,7 +82,7 @@ export function CreatePurchaseDialog({
 			event =>
 				!event.createdByMe &&
 				event.amount === total &&
-				event.date.slice(0, 10) === date &&
+				event.date?.slice(0, 10) === date &&
 				event.effect === total,
 		);
 	useEffect(() => setUseExistingEvent(false), [debtPairCandidate?.id]);
