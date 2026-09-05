@@ -1,6 +1,9 @@
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
+import type { DebtSplitInput } from "../domain";
+import { calculateDebtSplit } from "../domain";
 import { debtEffectForTransaction, isCompatibleDebtPair } from "./debt-balance";
+import { getDebtSplitInput, replaceDebtSplit } from "./debt-splits";
 
 export type DebtEventKind = "ORIGIN" | "TRANSACTION" | "PURCHASE" | "MIGRATED_SETTLEMENT";
 
@@ -116,16 +119,28 @@ export async function getAccessibleDebtEvent(eventId: string, userId: string) {
 export async function linkTransactionToDebt(input: {
 	amount: number;
 	date: string;
-	debtPersonId?: null | string;
+	debtSplit?: DebtSplitInput;
+	debtPersonId?: string;
 	description?: string;
 	matchEventId?: string;
 	transactionId: string;
 	type: "EXPENSE" | "INCOME" | "TRANSFER";
 	userId: string;
 }) {
-	if (input.type === "TRANSFER" && (input.debtPersonId || input.matchEventId))
+	const requestedSplit =
+		input.debtSplit ??
+		(input.debtPersonId
+			? ({
+					mode: "SHARES",
+					ownerShares: null,
+					participants: [{ debtPersonId: input.debtPersonId, shares: 1 }],
+				} satisfies DebtSplitInput)
+			: undefined);
+	if (requestedSplit && input.matchEventId)
+		throw new HttpException("Rateio e conciliação não podem ser usados juntos", 400);
+	if (input.type === "TRANSFER" && (requestedSplit || input.matchEventId))
 		throw new HttpException("Transferências entre contas próprias não podem ser vinculadas a dívidas", 400);
-	if (!input.debtPersonId && !input.matchEventId) return;
+	if (!requestedSplit && !input.matchEventId) return;
 	if (input.matchEventId) {
 		const event = await getAccessibleDebtEvent(input.matchEventId, input.userId);
 		if (!event.date) throw new HttpException("Lançamentos sem data não podem ser conciliados", 409);
@@ -150,25 +165,34 @@ export async function linkTransactionToDebt(input: {
 		);
 		return;
 	}
-	const event = await createDebtEvent({
+	const calculated = await replaceDebtSplit({
 		amount: input.amount,
-		createdByUserId: input.userId,
-		date: input.date,
-		debtPersonId: input.debtPersonId!,
-		description: input.description,
-		effect: debtEffectForTransaction(input.amount, input.type),
-		kind: "TRANSACTION",
+		split: requestedSplit!,
+		target: { transactionId: input.transactionId },
+		userId: input.userId,
 	});
-	await executeStatement(
-		db.sql.public.DebtTransactionLink.insert([
-			{ eventId: event.id, isCreator: true, transactionId: input.transactionId, userId: input.userId },
-		]).build(),
-	);
+	for (const participant of calculated!.participants) {
+		const event = await createDebtEvent({
+			amount: participant.amount,
+			createdByUserId: input.userId,
+			date: input.date,
+			debtPersonId: participant.debtPersonId,
+			description: input.description,
+			effect: debtEffectForTransaction(participant.amount, input.type),
+			kind: "TRANSACTION",
+		});
+		await executeStatement(
+			db.sql.public.DebtTransactionLink.insert([
+				{ eventId: event.id, isCreator: true, transactionId: input.transactionId, userId: input.userId },
+			]).build(),
+		);
+	}
 }
 
 export async function syncTransactionDebtEvent(input: {
 	amount: number;
 	date: string;
+	debtSplit?: DebtSplitInput | null;
 	debtPersonId?: null | string;
 	description?: string;
 	matchEventId?: string;
@@ -176,77 +200,185 @@ export async function syncTransactionDebtEvent(input: {
 	type: "EXPENSE" | "INCOME" | "TRANSFER";
 	userId: string;
 }) {
-	const link = await queryFirst(
-		db.sql.public.DebtTransactionLink.select("id", "eventId", "isCreator", "userId")
+	const requestedSplit =
+		input.debtSplit !== undefined
+			? input.debtSplit
+			: input.debtPersonId === undefined
+				? undefined
+				: input.debtPersonId === null
+					? null
+					: ({
+							mode: "SHARES",
+							ownerShares: null,
+							participants: [{ debtPersonId: input.debtPersonId, shares: 1 }],
+						} satisfies DebtSplitInput);
+	const links = await queryRows(
+		db.sql.public.DebtTransactionLink.innerJoin(db.sql.public.DebtEvent, (fields, functions) =>
+			functions.eq(fields.DebtTransactionLink.eventId, fields.DebtEvent.id),
+		)
+			.select(fields => ({
+				amount: fields.DebtEvent.amount,
+				createdByUserId: fields.DebtEvent.createdByUserId,
+				date: fields.DebtEvent.date,
+				debtPersonId: fields.DebtEvent.debtPersonId,
+				effect: fields.DebtEvent.effect,
+				eventId: fields.DebtEvent.id,
+				isCreator: fields.DebtTransactionLink.isCreator,
+				linkId: fields.DebtTransactionLink.id,
+				userId: fields.DebtTransactionLink.userId,
+			}))
 			.where((fields, functions) => functions.eq(fields.transactionId, input.transactionId))
-			.limit(1)
 			.build(),
 	);
-	if (input.debtPersonId === null) {
-		if (!link) return;
-		if (link.isCreator) {
+	if (requestedSplit === null) {
+		await replaceDebtSplit({
+			amount: input.amount,
+			split: null,
+			target: { transactionId: input.transactionId },
+			userId: input.userId,
+		});
+		const creatorEventIds = links.filter(link => link.isCreator).map(link => link.eventId);
+		if (creatorEventIds.length)
+			await executeStatement(
+				db.sql.public.DebtEvent.delete()
+					.where((fields, functions) => functions.in(fields.id, creatorEventIds))
+					.build(),
+			);
+		const matchedLinkIds = links.filter(link => !link.isCreator).map(link => link.linkId);
+		if (matchedLinkIds.length)
+			await executeStatement(
+				db.sql.public.DebtTransactionLink.delete()
+					.where((fields, functions) => functions.in(fields.id, matchedLinkIds))
+					.build(),
+			);
+		return;
+	}
+	const nextSplit = requestedSplit ?? (await getDebtSplitInput({ transactionId: input.transactionId }));
+	if (!nextSplit) {
+		if (input.matchEventId && links.length === 0)
+			await linkTransactionToDebt({
+				amount: input.amount,
+				date: input.date,
+				description: input.description,
+				matchEventId: input.matchEventId,
+				transactionId: input.transactionId,
+				type: input.type,
+				userId: input.userId,
+			});
+		for (const link of links.filter(link => !link.isCreator)) {
+			const perspectiveEffect =
+				link.createdByUserId === input.userId ? Number(link.effect) : -Number(link.effect);
+			if (
+				!link.date ||
+				!isCompatibleDebtPair({
+					amount: input.amount,
+					date: input.date,
+					effect: debtEffectForTransaction(input.amount, input.type),
+					eventAmount: Number(link.amount),
+					eventDate: link.date.toISOString(),
+					eventPerspectiveEffect: perspectiveEffect,
+				})
+			)
+				await executeStatement(
+					db.sql.public.DebtTransactionLink.delete()
+						.where((fields, functions) => functions.eq(fields.id, link.linkId))
+						.build(),
+				);
+		}
+		return;
+	}
+	if (input.type === "TRANSFER")
+		throw new HttpException("Transferências não podem permanecer vinculadas a dívidas", 400);
+	const calculated = requestedSplit
+		? await replaceDebtSplit({
+				amount: input.amount,
+				split: nextSplit,
+				target: { transactionId: input.transactionId },
+				userId: input.userId,
+			})
+		: calculateDebtSplit(input.amount, nextSplit);
+	const matchedLinkIds = links.filter(link => !link.isCreator).map(link => link.linkId);
+	if (matchedLinkIds.length)
+		await executeStatement(
+			db.sql.public.DebtTransactionLink.delete()
+				.where((fields, functions) => functions.in(fields.id, matchedLinkIds))
+				.build(),
+		);
+	const creatorLinks = links.filter(link => link.isCreator && link.debtPersonId);
+	const linksByPerson = new Map(creatorLinks.map(link => [link.debtPersonId!, link]));
+	const nextPeople = new Set(calculated!.participants.map(participant => participant.debtPersonId));
+	for (const link of creatorLinks) {
+		if (!nextPeople.has(link.debtPersonId!))
 			await executeStatement(
 				db.sql.public.DebtEvent.delete()
 					.where((fields, functions) => functions.eq(fields.id, link.eventId))
 					.build(),
 			);
-		} else {
+	}
+	for (const participant of calculated!.participants) {
+		const link = linksByPerson.get(participant.debtPersonId);
+		if (!link) {
+			const event = await createDebtEvent({
+				amount: participant.amount,
+				createdByUserId: input.userId,
+				date: input.date,
+				debtPersonId: participant.debtPersonId,
+				description: input.description,
+				effect: debtEffectForTransaction(participant.amount, input.type),
+				kind: "TRANSACTION",
+			});
 			await executeStatement(
-				db.sql.public.DebtTransactionLink.delete()
-					.where((fields, functions) => functions.eq(fields.id, link.id))
-					.build(),
+				db.sql.public.DebtTransactionLink.insert([
+					{ eventId: event.id, isCreator: true, transactionId: input.transactionId, userId: input.userId },
+				]).build(),
 			);
+			continue;
 		}
-		return;
+		const { connectionId } = await resolveDebtPersonConnection(participant.debtPersonId, input.userId);
+		await executeStatement(
+			db.sql.public.DebtEvent.update({
+				amount: String(participant.amount),
+				connectionId: connectionId ?? null,
+				date: new Date(input.date),
+				description: input.description ?? null,
+				effect: String(debtEffectForTransaction(participant.amount, input.type)),
+				updatedAt: new Date(),
+			} as never)
+				.where((fields, functions) => functions.eq(fields.id, link.eventId))
+				.build(),
+		);
+		await executeStatement(
+			db.sql.public.DebtTransactionLink.delete()
+				.where((fields, functions) =>
+					functions.and(functions.eq(fields.eventId, link.eventId), functions.eq(fields.isCreator, false)),
+				)
+				.build(),
+		);
 	}
-	if (!link) {
-		if (input.debtPersonId || input.matchEventId) await linkTransactionToDebt(input);
-		return;
-	}
-	if (!link.isCreator) return;
-	if (input.type === "TRANSFER")
-		throw new HttpException("Transferências não podem permanecer vinculadas a dívidas", 400);
-	const currentEvent = await queryFirst(
-		db.sql.public.DebtEvent.select("debtPersonId")
-			.where((fields, functions) => functions.eq(fields.id, link.eventId))
-			.limit(1)
-			.build(),
-	);
-	const nextPersonId = input.debtPersonId ?? currentEvent?.debtPersonId;
-	if (!nextPersonId) return;
-	const { connectionId } = await resolveDebtPersonConnection(nextPersonId, input.userId);
-	await executeStatement(
-		db.sql.public.DebtEvent.update({
-			amount: String(input.amount),
-			connectionId: connectionId ?? null,
-			date: new Date(input.date),
-			debtPersonId: nextPersonId,
-			description: input.description ?? null,
-			effect: String(debtEffectForTransaction(input.amount, input.type)),
-			updatedAt: new Date(),
-		} as never)
-			.where((fields, functions) => functions.eq(fields.id, link.eventId))
-			.build(),
-	);
-	await executeStatement(
-		db.sql.public.DebtTransactionLink.delete()
-			.where((fields, functions) =>
-				functions.and(functions.eq(fields.eventId, link.eventId), functions.eq(fields.isCreator, false)),
-			)
-			.build(),
-	);
 }
 
 export async function linkPurchaseToDebt(input: {
 	creditPurchaseId: string;
 	date: string;
-	debtPersonId?: null | string;
+	debtSplit?: DebtSplitInput;
+	debtPersonId?: string;
 	description?: string;
 	matchEventId?: string;
 	totalAmount: number;
 	userId: string;
 }) {
-	if (!input.debtPersonId && !input.matchEventId) return;
+	const requestedSplit =
+		input.debtSplit ??
+		(input.debtPersonId
+			? ({
+					mode: "SHARES",
+					ownerShares: null,
+					participants: [{ debtPersonId: input.debtPersonId, shares: 1 }],
+				} satisfies DebtSplitInput)
+			: undefined);
+	if (requestedSplit && input.matchEventId)
+		throw new HttpException("Rateio e conciliação não podem ser usados juntos", 400);
+	if (!requestedSplit && !input.matchEventId) return;
 	if (input.matchEventId) {
 		const event = await getAccessibleDebtEvent(input.matchEventId, input.userId);
 		if (!event.date) throw new HttpException("Lançamentos sem data não podem ser conciliados", 409);
@@ -265,179 +397,246 @@ export async function linkPurchaseToDebt(input: {
 		);
 		return;
 	}
-	const event = await createDebtEvent({
+	const calculated = await replaceDebtSplit({
 		amount: input.totalAmount,
-		createdByUserId: input.userId,
-		date: input.date,
-		debtPersonId: input.debtPersonId!,
-		description: input.description,
-		effect: input.totalAmount,
-		kind: "PURCHASE",
+		split: requestedSplit!,
+		target: { creditPurchaseId: input.creditPurchaseId },
+		userId: input.userId,
 	});
-	await executeStatement(
-		db.sql.public.DebtPurchaseLink.insert([
-			{
-				creditPurchaseId: input.creditPurchaseId,
-				eventId: event.id,
-				isCreator: true,
-				userId: input.userId,
-			},
-		]).build(),
-	);
+	for (const participant of calculated!.participants) {
+		const event = await createDebtEvent({
+			amount: participant.amount,
+			createdByUserId: input.userId,
+			date: input.date,
+			debtPersonId: participant.debtPersonId,
+			description: input.description,
+			effect: participant.amount,
+			kind: "PURCHASE",
+		});
+		await executeStatement(
+			db.sql.public.DebtPurchaseLink.insert([
+				{
+					creditPurchaseId: input.creditPurchaseId,
+					eventId: event.id,
+					isCreator: true,
+					userId: input.userId,
+				},
+			]).build(),
+		);
+	}
 }
 
 export async function syncPurchaseDebtEvent(input: {
 	creditPurchaseId: string;
 	date: string;
+	debtSplit?: DebtSplitInput | null;
 	debtPersonId?: null | string;
 	description?: string;
 	matchEventId?: string;
 	totalAmount: number;
 	userId: string;
 }) {
-	const link = await queryFirst(
-		db.sql.public.DebtPurchaseLink.select("id", "eventId", "isCreator")
+	const requestedSplit =
+		input.debtSplit !== undefined
+			? input.debtSplit
+			: input.debtPersonId === undefined
+				? undefined
+				: input.debtPersonId === null
+					? null
+					: ({
+							mode: "SHARES",
+							ownerShares: null,
+							participants: [{ debtPersonId: input.debtPersonId, shares: 1 }],
+						} satisfies DebtSplitInput);
+	const links = await queryRows(
+		db.sql.public.DebtPurchaseLink.innerJoin(db.sql.public.DebtEvent, (fields, functions) =>
+			functions.eq(fields.DebtPurchaseLink.eventId, fields.DebtEvent.id),
+		)
+			.select(fields => ({
+				amount: fields.DebtEvent.amount,
+				createdByUserId: fields.DebtEvent.createdByUserId,
+				date: fields.DebtEvent.date,
+				debtPersonId: fields.DebtEvent.debtPersonId,
+				effect: fields.DebtEvent.effect,
+				eventId: fields.DebtEvent.id,
+				isCreator: fields.DebtPurchaseLink.isCreator,
+				linkId: fields.DebtPurchaseLink.id,
+			}))
 			.where((fields, functions) => functions.eq(fields.creditPurchaseId, input.creditPurchaseId))
-			.limit(1)
 			.build(),
 	);
-	if (input.debtPersonId === null) {
-		if (!link) return;
-		if (link.isCreator) {
+	if (requestedSplit === null) {
+		await replaceDebtSplit({
+			amount: input.totalAmount,
+			split: null,
+			target: { creditPurchaseId: input.creditPurchaseId },
+			userId: input.userId,
+		});
+		const eventIds = links.filter(link => link.isCreator).map(link => link.eventId);
+		if (eventIds.length)
+			await executeStatement(
+				db.sql.public.DebtEvent.delete()
+					.where((fields, functions) => functions.in(fields.id, eventIds))
+					.build(),
+			);
+		const linkIds = links.filter(link => !link.isCreator).map(link => link.linkId);
+		if (linkIds.length)
+			await executeStatement(
+				db.sql.public.DebtPurchaseLink.delete()
+					.where((fields, functions) => functions.in(fields.id, linkIds))
+					.build(),
+			);
+		return;
+	}
+	const nextSplit = requestedSplit ?? (await getDebtSplitInput({ creditPurchaseId: input.creditPurchaseId }));
+	if (!nextSplit) {
+		if (input.matchEventId && links.length === 0)
+			await linkPurchaseToDebt({
+				creditPurchaseId: input.creditPurchaseId,
+				date: input.date,
+				description: input.description,
+				matchEventId: input.matchEventId,
+				totalAmount: input.totalAmount,
+				userId: input.userId,
+			});
+		for (const link of links.filter(link => !link.isCreator)) {
+			const perspectiveEffect =
+				link.createdByUserId === input.userId ? Number(link.effect) : -Number(link.effect);
+			if (
+				!link.date ||
+				Number(link.amount) !== input.totalAmount ||
+				perspectiveEffect !== input.totalAmount ||
+				link.date.toISOString().slice(0, 10) !== input.date.slice(0, 10)
+			)
+				await executeStatement(
+					db.sql.public.DebtPurchaseLink.delete()
+						.where((fields, functions) => functions.eq(fields.id, link.linkId))
+						.build(),
+				);
+		}
+		return;
+	}
+	const calculated = requestedSplit
+		? await replaceDebtSplit({
+				amount: input.totalAmount,
+				split: nextSplit,
+				target: { creditPurchaseId: input.creditPurchaseId },
+				userId: input.userId,
+			})
+		: calculateDebtSplit(input.totalAmount, nextSplit);
+	const matchedLinkIds = links.filter(link => !link.isCreator).map(link => link.linkId);
+	if (matchedLinkIds.length)
+		await executeStatement(
+			db.sql.public.DebtPurchaseLink.delete()
+				.where((fields, functions) => functions.in(fields.id, matchedLinkIds))
+				.build(),
+		);
+	const creatorLinks = links.filter(link => link.isCreator && link.debtPersonId);
+	const linksByPerson = new Map(creatorLinks.map(link => [link.debtPersonId!, link]));
+	const nextPeople = new Set(calculated!.participants.map(participant => participant.debtPersonId));
+	for (const link of creatorLinks) {
+		if (!nextPeople.has(link.debtPersonId!))
 			await executeStatement(
 				db.sql.public.DebtEvent.delete()
 					.where((fields, functions) => functions.eq(fields.id, link.eventId))
 					.build(),
 			);
-		} else {
+	}
+	for (const participant of calculated!.participants) {
+		const link = linksByPerson.get(participant.debtPersonId);
+		if (!link) {
+			const event = await createDebtEvent({
+				amount: participant.amount,
+				createdByUserId: input.userId,
+				date: input.date,
+				debtPersonId: participant.debtPersonId,
+				description: input.description,
+				effect: participant.amount,
+				kind: "PURCHASE",
+			});
 			await executeStatement(
-				db.sql.public.DebtPurchaseLink.delete()
-					.where((fields, functions) => functions.eq(fields.id, link.id))
-					.build(),
+				db.sql.public.DebtPurchaseLink.insert([
+					{
+						creditPurchaseId: input.creditPurchaseId,
+						eventId: event.id,
+						isCreator: true,
+						userId: input.userId,
+					},
+				]).build(),
 			);
+			continue;
 		}
-		return;
-	}
-	if (!link) {
-		if (input.debtPersonId || input.matchEventId) await linkPurchaseToDebt(input);
-		return;
-	}
-	if (!link.isCreator) return;
-	const currentEvent = await queryFirst(
-		db.sql.public.DebtEvent.select("debtPersonId")
-			.where((fields, functions) => functions.eq(fields.id, link.eventId))
-			.limit(1)
-			.build(),
-	);
-	const nextPersonId = input.debtPersonId ?? currentEvent?.debtPersonId;
-	if (!nextPersonId) return;
-	const { connectionId } = await resolveDebtPersonConnection(nextPersonId, input.userId);
-	await executeStatement(
-		db.sql.public.DebtEvent.update({
-			amount: String(input.totalAmount),
-			connectionId: connectionId ?? null,
-			date: new Date(input.date),
-			debtPersonId: nextPersonId,
-			description: input.description ?? null,
-			effect: String(input.totalAmount),
-			updatedAt: new Date(),
-		} as never)
-			.where((fields, functions) => functions.eq(fields.id, link.eventId))
-			.build(),
-	);
-	await executeStatement(
-		db.sql.public.DebtPurchaseLink.delete()
-			.where((fields, functions) =>
-				functions.and(functions.eq(fields.eventId, link.eventId), functions.eq(fields.isCreator, false)),
-			)
-			.build(),
-	);
-}
-
-export async function deleteCreatorDebtEventForTransaction(transactionId: string, userId: string) {
-	const link = await queryFirst(
-		db.sql.public.DebtTransactionLink.select("id", "eventId", "isCreator", "userId")
-			.where((fields, functions) => functions.eq(fields.transactionId, transactionId))
-			.limit(1)
-			.build(),
-	);
-	if (!link || link.userId !== userId) return;
-	if (link.isCreator) {
+		const { connectionId } = await resolveDebtPersonConnection(participant.debtPersonId, input.userId);
 		await executeStatement(
-			db.sql.public.DebtEvent.delete()
+			db.sql.public.DebtEvent.update({
+				amount: String(participant.amount),
+				connectionId: connectionId ?? null,
+				date: new Date(input.date),
+				description: input.description ?? null,
+				effect: String(participant.amount),
+				updatedAt: new Date(),
+			} as never)
 				.where((fields, functions) => functions.eq(fields.id, link.eventId))
 				.build(),
 		);
-	} else {
+		await executeStatement(
+			db.sql.public.DebtPurchaseLink.delete()
+				.where((fields, functions) =>
+					functions.and(functions.eq(fields.eventId, link.eventId), functions.eq(fields.isCreator, false)),
+				)
+				.build(),
+		);
+	}
+}
+
+export async function deleteCreatorDebtEventForTransaction(transactionId: string, userId: string) {
+	const links = await queryRows(
+		db.sql.public.DebtTransactionLink.select("id", "eventId", "isCreator", "userId")
+			.where((fields, functions) => functions.eq(fields.transactionId, transactionId))
+			.build(),
+	);
+	const ownedLinks = links.filter(link => link.userId === userId);
+	const creatorEventIds = ownedLinks.filter(link => link.isCreator).map(link => link.eventId);
+	if (creatorEventIds.length) {
+		await executeStatement(
+			db.sql.public.DebtEvent.delete()
+				.where((fields, functions) => functions.in(fields.id, creatorEventIds))
+				.build(),
+		);
+	}
+	const matchedLinkIds = ownedLinks.filter(link => !link.isCreator).map(link => link.id);
+	if (matchedLinkIds.length) {
 		await executeStatement(
 			db.sql.public.DebtTransactionLink.delete()
-				.where((fields, functions) => functions.eq(fields.id, link.id))
+				.where((fields, functions) => functions.in(fields.id, matchedLinkIds))
 				.build(),
 		);
 	}
 }
 
 export async function deleteCreatorDebtEventForPurchase(purchaseId: string, userId: string) {
-	const link = await queryFirst(
+	const links = await queryRows(
 		db.sql.public.DebtPurchaseLink.select("id", "eventId", "isCreator", "userId")
 			.where((fields, functions) => functions.eq(fields.creditPurchaseId, purchaseId))
-			.limit(1)
 			.build(),
 	);
-	if (!link || link.userId !== userId) return;
-	if (link.isCreator) {
+	const ownedLinks = links.filter(link => link.userId === userId);
+	const creatorEventIds = ownedLinks.filter(link => link.isCreator).map(link => link.eventId);
+	if (creatorEventIds.length) {
 		await executeStatement(
 			db.sql.public.DebtEvent.delete()
-				.where((fields, functions) => functions.eq(fields.id, link.eventId))
-				.build(),
-		);
-	} else {
-		await executeStatement(
-			db.sql.public.DebtPurchaseLink.delete()
-				.where((fields, functions) => functions.eq(fields.id, link.id))
+				.where((fields, functions) => functions.in(fields.id, creatorEventIds))
 				.build(),
 		);
 	}
-}
-
-export async function debtRefsForTransactions(transactionIds: string[]) {
-	if (!transactionIds.length) return new Map<string, { debtPersonId: string; debtPersonName: string }>();
-	const rows = await queryRows(
-		db.sql.public.DebtTransactionLink.innerJoin(db.sql.public.DebtEvent, (fields, functions) =>
-			functions.eq(fields.DebtTransactionLink.eventId, fields.DebtEvent.id),
-		)
-			.innerJoin(db.sql.public.DebtPerson, (fields, functions) =>
-				functions.eq(fields.DebtEvent.debtPersonId, fields.DebtPerson.id),
-			)
-			.select(fields => ({
-				debtPersonId: fields.DebtPerson.id,
-				debtPersonName: fields.DebtPerson.name,
-				transactionId: fields.DebtTransactionLink.transactionId,
-			}))
-			.where((fields, functions) => functions.in(fields.DebtTransactionLink.transactionId, transactionIds))
-			.build(),
-	);
-	return new Map(rows.map(row => [row.transactionId, row]));
-}
-
-export async function debtRefsForPurchases(purchaseIds: string[]) {
-	if (!purchaseIds.length) return new Map<string, { debtPersonId: string; debtPersonName: string }>();
-	const rows = await queryRows(
-		db.sql.public.DebtPurchaseLink.innerJoin(db.sql.public.DebtEvent, (fields, functions) =>
-			functions.eq(fields.DebtPurchaseLink.eventId, fields.DebtEvent.id),
-		)
-			.innerJoin(db.sql.public.DebtPerson, (fields, functions) =>
-				functions.eq(fields.DebtEvent.debtPersonId, fields.DebtPerson.id),
-			)
-			.select(fields => ({
-				creditPurchaseId: fields.DebtPurchaseLink.creditPurchaseId,
-				debtPersonId: fields.DebtPerson.id,
-				debtPersonName: fields.DebtPerson.name,
-			}))
-			.where((fields, functions) => functions.in(fields.DebtPurchaseLink.creditPurchaseId, purchaseIds))
-			.build(),
-	);
-	return new Map(rows.map(row => [row.creditPurchaseId, row]));
+	const matchedLinkIds = ownedLinks.filter(link => !link.isCreator).map(link => link.id);
+	if (matchedLinkIds.length) {
+		await executeStatement(
+			db.sql.public.DebtPurchaseLink.delete()
+				.where((fields, functions) => functions.in(fields.id, matchedLinkIds))
+				.build(),
+		);
+	}
 }
 
 export async function getDebtBalanceTotals(userId: string) {

@@ -12,12 +12,13 @@ import {
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
 import {
-	debtRefsForPurchases,
-	debtRefsForTransactions,
 	deleteCreatorDebtEventForTransaction,
+	getDebtSplitInput,
+	getDebtSplitReturn,
 	linkTransactionToDebt,
 	syncTransactionDebtEvent,
 } from "~/modules/debts/application";
+import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
 import { materializeSalaryTransactions } from "~/modules/salaries/application/materialize-salary-transactions";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { HttpException } from "~/shared/errors";
@@ -48,6 +49,8 @@ const transactionColumns = [
 
 const TransactionType = t.Union([t.Literal("INCOME"), t.Literal("EXPENSE"), t.Literal("TRANSFER")]);
 const timePattern = /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
+const toCents = (amount: number | string) => Math.round(Number(amount) * 100);
+const toDateKey = (date: Date) => date.toISOString().slice(0, 10);
 
 function resolveTransactionTime(value: string | null | undefined): string | null {
 	if (value === null) return null;
@@ -213,30 +216,33 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				tagEntityType.transaction,
 				transactions.map(transaction => transaction.id),
 			);
-			const transactionDebtRefs = await debtRefsForTransactions(
-				transactions.map(transaction => transaction.id),
+			const normalizedTransactions = await Promise.all(
+				transactions.map(async transaction => {
+					const tags = tagsByTransaction.get(transaction.id) ?? [];
+					const paymentAccountType =
+						transaction.type === "INCOME"
+							? transaction.destinationAccountType
+							: transaction.originAccountType;
+					return {
+						...transaction,
+						debtSplit: await getDebtSplitReturn(
+							{ transactionId: transaction.id },
+							Number(transaction.amount),
+						),
+						source:
+							transaction.type !== "TRANSFER" &&
+							paymentAccountType === "CREDIT_CARD" &&
+							!transaction.recurrenceId &&
+							!transaction.salaryId &&
+							!transaction.subscriptionId
+								? ("CREDIT_CARD" as const)
+								: ("FINANCIAL_ACCOUNT" as const),
+						sourceName: transaction.type === "INCOME" ? transaction.destinationName : transaction.originName,
+						tagIds: tags.map(tag => tag.id),
+						tags,
+					};
+				}),
 			);
-
-			const normalizedTransactions = transactions.map(transaction => {
-				const tags = tagsByTransaction.get(transaction.id) ?? [];
-				const paymentAccountType =
-					transaction.type === "INCOME" ? transaction.destinationAccountType : transaction.originAccountType;
-				return {
-					...transaction,
-					...transactionDebtRefs.get(transaction.id),
-					source:
-						transaction.type !== "TRANSFER" &&
-						paymentAccountType === "CREDIT_CARD" &&
-						!transaction.recurrenceId &&
-						!transaction.salaryId &&
-						!transaction.subscriptionId
-							? ("CREDIT_CARD" as const)
-							: ("FINANCIAL_ACCOUNT" as const),
-					sourceName: transaction.type === "INCOME" ? transaction.destinationName : transaction.originName,
-					tagIds: tags.map(tag => tag.id),
-					tags,
-				};
-			});
 
 			let purchases: Array<{
 				amount: unknown;
@@ -314,24 +320,25 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				tagEntityType.creditPurchase,
 				purchases.map(purchase => purchase.id),
 			);
-			const purchaseDebtRefs = await debtRefsForPurchases(purchases.map(purchase => purchase.id));
-			const normalizedPurchases = purchases
-				.map(purchase => {
-					const tags = purchaseTags.get(purchase.id) ?? [];
-					return {
-						...purchase,
-						...purchaseDebtRefs.get(purchase.id),
-						creditCardStatementId: purchase.statementId,
-						destinationFinancialAccountId: null,
-						destinationName: null,
-						originName: purchase.sourceName,
-						source: "CREDIT_CARD" as const,
-						tagIds: tags.map(tag => tag.id),
-						tags,
-						type: "EXPENSE" as const,
-					};
-				})
-				.filter(purchase => !query.categoryId || purchase.tagIds.includes(query.categoryId));
+			const normalizedPurchases = (
+				await Promise.all(
+					purchases.map(async purchase => {
+						const tags = purchaseTags.get(purchase.id) ?? [];
+						return {
+							...purchase,
+							creditCardStatementId: purchase.statementId,
+							debtSplit: await getDebtSplitReturn({ creditPurchaseId: purchase.id }, Number(purchase.amount)),
+							destinationFinancialAccountId: null,
+							destinationName: null,
+							originName: purchase.sourceName,
+							source: "CREDIT_CARD" as const,
+							tagIds: tags.map(tag => tag.id),
+							tags,
+							type: "EXPENSE" as const,
+						};
+					}),
+				)
+			).filter(purchase => !query.categoryId || purchase.tagIds.includes(query.categoryId));
 
 			const sortedTransactions = [...normalizedTransactions, ...normalizedPurchases].sort(
 				(left, right) =>
@@ -582,10 +589,15 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					entityType: tagEntityType.transaction,
 					tagIds,
 				});
+				const inheritedDebtSplit = body.recurrenceId
+					? await getDebtSplitInput({ recurringPaymentId: body.recurrenceId })
+					: body.subscriptionId
+						? await getDebtSplitInput({ subscriptionId: body.subscriptionId })
+						: undefined;
 				await linkTransactionToDebt({
 					amount: body.amount,
 					date: body.date,
-					debtPersonId: body.debtPersonId,
+					debtSplit: inheritedDebtSplit ?? body.debtSplit,
 					description: body.description,
 					matchEventId: body.matchDebtEventId,
 					transactionId: transaction.id,
@@ -596,14 +608,19 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 
 			const tagsByTransaction = await getTagsByEntity(tagEntityType.transaction, [transaction.id]);
 			const tags = tagsByTransaction.get(transaction.id) ?? [];
-			return { ...transaction, tagIds: tags.map(tag => tag.id), tags };
+			return {
+				...transaction,
+				debtSplit: await getDebtSplitReturn({ transactionId: transaction.id }, Number(transaction.amount)),
+				tagIds: tags.map(tag => tag.id),
+				tags,
+			};
 		},
 		{
 			body: t.Object({
 				amount: t.Number(),
 				categoryId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				date: t.String(),
-				debtPersonId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
+				debtSplit: t.Optional(DebtSplitInputDTO),
 				description: t.Optional(t.String({ maxLength: 1000 })),
 				destinationFinancialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				isHidden: t.Optional(t.Boolean()),
@@ -649,7 +666,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (existing.creditCardStatementId) {
 				if (
 					body.categoryId !== undefined ||
-					body.debtPersonId !== undefined ||
+					body.debtSplit !== undefined ||
 					body.description !== undefined ||
 					body.destinationFinancialAccountId !== undefined ||
 					body.isHidden !== undefined ||
@@ -834,7 +851,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			await syncTransactionDebtEvent({
 				amount: Number(transaction.amount),
 				date: transaction.date.toISOString().slice(0, 10),
-				debtPersonId: body.debtPersonId,
+				debtSplit: body.debtSplit,
 				description: transaction.description ?? undefined,
 				matchEventId: body.matchDebtEventId,
 				transactionId: transaction.id,
@@ -851,14 +868,19 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 
 			const tagsByTransaction = await getTagsByEntity(tagEntityType.transaction, [transaction.id]);
 			const tags = tagsByTransaction.get(transaction.id) ?? [];
-			return { ...transaction, tagIds: tags.map(tag => tag.id), tags };
+			return {
+				...transaction,
+				debtSplit: await getDebtSplitReturn({ transactionId: transaction.id }, Number(transaction.amount)),
+				tagIds: tags.map(tag => tag.id),
+				tags,
+			};
 		},
 		{
 			body: t.Object({
 				amount: t.Optional(t.Number()),
 				categoryId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				date: t.Optional(t.String()),
-				debtPersonId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
+				debtSplit: t.Optional(t.Nullable(DebtSplitInputDTO)),
 				description: t.Optional(t.String({ maxLength: 1000 })),
 				destinationFinancialAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				isHidden: t.Optional(t.Boolean()),

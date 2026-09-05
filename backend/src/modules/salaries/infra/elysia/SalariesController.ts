@@ -273,7 +273,7 @@ export const SalariesController = new Elysia({ prefix: "/salaries" })
 				throw new HttpException("Salary not found", 404);
 			}
 
-			if (query.deleteTransactions) await deleteLinkedTransactions("salaryId", params.id);
+			if (query.deleteTransactions) await deleteLinkedTransactions("salaryId", params.id, userId);
 			await replaceEntityTags({ entityIds: [params.id], entityType: tagEntityType.salary, tagIds: [] });
 			await executeStatement(
 				db.sql.public.Salary.delete()

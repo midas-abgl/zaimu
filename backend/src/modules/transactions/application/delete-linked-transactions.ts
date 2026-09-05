@@ -1,9 +1,14 @@
 import { replaceEntityTags, tagEntityType } from "~/modules/categories/application/tag-assignments";
+import { deleteCreatorDebtEventForTransaction } from "~/modules/debts/application";
 import { db, executeStatement, queryRows } from "~/shared/infra/sql";
 
 type TransactionLink = "recurrenceId" | "salaryId" | "subscriptionId";
 
-export async function deleteLinkedTransactions(link: TransactionLink, linkedEntityId: string) {
+export async function deleteLinkedTransactions(
+	link: TransactionLink,
+	linkedEntityId: string,
+	userId: string,
+) {
 	const transactions = await queryRows(
 		db.sql.public.Transaction.select(
 			"id",
@@ -22,6 +27,9 @@ export async function deleteLinkedTransactions(link: TransactionLink, linkedEnti
 	if (transactions.length === 0) return 0;
 
 	const transactionIds = transactions.map(transaction => transaction.id);
+	await Promise.all(
+		transactionIds.map(transactionId => deleteCreatorDebtEventForTransaction(transactionId, userId)),
+	);
 	await replaceEntityTags({ entityIds: transactionIds, entityType: tagEntityType.transaction, tagIds: [] });
 	await executeStatement(
 		db.sql.public.Transaction.delete()

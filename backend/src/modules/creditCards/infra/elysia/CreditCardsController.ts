@@ -13,11 +13,13 @@ import {
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
 import {
-	debtRefsForPurchases,
 	deleteCreatorDebtEventForPurchase,
+	getDebtSplitInput,
+	getDebtSplitReturn,
 	linkPurchaseToDebt,
 	syncPurchaseDebtEvent,
 } from "~/modules/debts/application";
+import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, numeric, param, queryFirst, queryRows } from "~/shared/infra/sql";
@@ -154,6 +156,7 @@ interface CreditPurchaseRow {
 	subscriptionId?: string | null;
 	subscriptionOccurrenceDate?: Date | null;
 	createdAt: Date;
+	debtSplit?: Awaited<ReturnType<typeof getDebtSplitReturn>>;
 	updatedAt: Date;
 }
 
@@ -332,6 +335,7 @@ async function materializeDueSubscriptionPurchases(
 			"name",
 			"startDate",
 			"storeName",
+			"userId",
 		)
 			.where((fields, functions) =>
 				functions.and(
@@ -438,6 +442,16 @@ async function materializeDueSubscriptionPurchases(
 			);
 			if (!purchase) continue;
 			materialized.add(occurrenceKey);
+			const debtSplit = await getDebtSplitInput({ subscriptionId: subscription.id });
+			if (debtSplit)
+				await linkPurchaseToDebt({
+					creditPurchaseId: purchase.id,
+					date: toDateKey(occurrenceDate),
+					debtSplit,
+					description: subscription.name,
+					totalAmount: Number(subscription.amount),
+					userId: subscription.userId,
+				});
 			const tagIds = (tagsBySubscription.get(subscription.id) ?? []).map(tag => tag.id);
 			await replaceEntityTags({
 				entityIds: [purchase.id],
@@ -490,6 +504,10 @@ async function forecastSubscriptionPurchases(
 	const forecasts = new Map<string, { dueDate: Date; purchases: CreditPurchaseRow[]; statementDate: Date }>();
 	const horizon = addMonths(startOfDay(today), 12);
 	for (const subscription of subscriptions) {
+		const debtSplit = await getDebtSplitReturn(
+			{ subscriptionId: subscription.id },
+			Number(subscription.amount),
+		);
 		for (const occurrenceDate of subscriptionOccurrences(
 			subscription as typeof subscription & { frequency: SubscriptionFrequency },
 			horizon,
@@ -502,6 +520,7 @@ async function forecastSubscriptionPurchases(
 				categoryId: null,
 				createdAt: new Date(),
 				currentInstallment: 1,
+				debtSplit,
 				description: subscription.name,
 				id: `subscription-${subscription.id}-${occurrenceDate.toISOString().slice(0, 10)}`,
 				installmentAmount: Number(subscription.amount),
@@ -872,25 +891,26 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				tagEntityType.creditPurchase,
 				purchases.map(purchase => purchase.id),
 			);
-			const debtRefs = await debtRefsForPurchases([
-				...new Set(purchases.map(purchase => purchase.parentId ?? purchase.id)),
-			]);
-
 			return {
 				...statement,
 				balanceAmount: Number(statement.totalAmount) - Number(statement.paidAmount),
 				payments,
-				purchases: purchases.map(purchase => {
-					const tags = tagsByPurchase.get(purchase.id) ?? [];
-					return {
-						...purchase,
-						...debtRefs.get(purchase.parentId ?? purchase.id),
-						categoryColor: tags[0]?.color,
-						categoryName: tags[0]?.name,
-						tagIds: tags.map(tag => tag.id),
-						tags,
-					};
-				}),
+				purchases: await Promise.all(
+					purchases.map(async purchase => {
+						const tags = tagsByPurchase.get(purchase.id) ?? [];
+						return {
+							...purchase,
+							categoryColor: tags[0]?.color,
+							categoryName: tags[0]?.name,
+							debtSplit: await getDebtSplitReturn(
+								{ creditPurchaseId: purchase.parentId ?? purchase.id },
+								Number(purchase.totalAmount),
+							),
+							tagIds: tags.map(tag => tag.id),
+							tags,
+						};
+					}),
+				),
 			};
 		},
 		{
@@ -965,6 +985,10 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					return [
 						{
 							...existingPurchase,
+							debtSplit: await getDebtSplitReturn(
+								{ creditPurchaseId: existingPurchase.parentId ?? existingPurchase.id },
+								Number(existingPurchase.totalAmount),
+							),
 							installmentAmount: Number(existingPurchase.installmentAmount),
 							tagIds: tags.map(tag => tag.id),
 							tags,
@@ -1089,6 +1113,10 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					return [
 						{
 							...existingPurchase,
+							debtSplit: await getDebtSplitReturn(
+								{ creditPurchaseId: existingPurchase.parentId ?? existingPurchase.id },
+								Number(existingPurchase.totalAmount),
+							),
 							installmentAmount: Number(existingPurchase.installmentAmount),
 							tagIds: tags.map(tag => tag.id),
 							tags,
@@ -1129,25 +1157,38 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				tagEntityType.creditPurchase,
 				createdPurchases.map(purchase => purchase.id),
 			);
+			const inheritedDebtSplit = body.subscriptionId
+				? await getDebtSplitInput({ subscriptionId: body.subscriptionId })
+				: undefined;
 			await linkPurchaseToDebt({
 				creditPurchaseId: purchase.id,
 				date: body.purchaseDate,
-				debtPersonId: body.debtPersonId,
+				debtSplit: inheritedDebtSplit ?? body.debtSplit,
 				description: body.description,
 				matchEventId: body.matchDebtEventId,
 				totalAmount: body.totalAmount,
 				userId,
 			});
 
-			return createdPurchases.map(purchase => {
-				const tags = tagsByPurchase.get(purchase.id) ?? [];
-				return { ...purchase, tagIds: tags.map(tag => tag.id), tags };
-			});
+			return Promise.all(
+				createdPurchases.map(async purchase => {
+					const tags = tagsByPurchase.get(purchase.id) ?? [];
+					return {
+						...purchase,
+						debtSplit: await getDebtSplitReturn(
+							{ creditPurchaseId: purchase.parentId ?? purchase.id },
+							Number(purchase.totalAmount),
+						),
+						tagIds: tags.map(tag => tag.id),
+						tags,
+					};
+				}),
+			);
 		},
 		{
 			body: t.Object({
 				categoryId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
-				debtPersonId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
+				debtSplit: t.Optional(DebtSplitInputDTO),
 				description: t.Optional(t.String({ maxLength: 500 })),
 				installments: t.Optional(t.Number({ maximum: 48, minimum: 1 })),
 				matchDebtEventId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
@@ -1446,7 +1487,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			await syncPurchaseDebtEvent({
 				creditPurchaseId: purchase.parentId ?? purchase.id,
 				date: updatedPurchase.purchaseDate.toISOString().slice(0, 10),
-				debtPersonId: body.debtPersonId,
+				debtSplit: body.debtSplit,
 				description: updatedPurchase.description,
 				matchEventId: body.matchDebtEventId,
 				totalAmount: Number(updatedPurchase.totalAmount),
@@ -1498,12 +1539,20 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 
 			const tagsByPurchase = await getTagsByEntity(tagEntityType.creditPurchase, [updatedPurchase.id]);
 			const tags = tagsByPurchase.get(updatedPurchase.id) ?? [];
-			return { ...updatedPurchase, tagIds: tags.map(tag => tag.id), tags };
+			return {
+				...updatedPurchase,
+				debtSplit: await getDebtSplitReturn(
+					{ creditPurchaseId: purchase.parentId ?? purchase.id },
+					Number(updatedPurchase.totalAmount),
+				),
+				tagIds: tags.map(tag => tag.id),
+				tags,
+			};
 		},
 		{
 			body: t.Object({
 				creditCardId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
-				debtPersonId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
+				debtSplit: t.Optional(t.Nullable(DebtSplitInputDTO)),
 				description: t.Optional(t.String({ maxLength: 500 })),
 				installments: t.Optional(t.Number({ maximum: 48, minimum: 1 })),
 				matchDebtEventId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),

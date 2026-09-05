@@ -18,6 +18,7 @@ namespace public {
     debtEventVisibilities DebtEventVisibility[]
     debtTransactionLinks DebtTransactionLink[]
     debtPurchaseLinks DebtPurchaseLink[]
+    debtSplits        DebtSplit[]
     requestedDebtConnections DebtConnection[] @relation(name: "DebtConnection_requesterId_fkey")
     receivedDebtConnections DebtConnection[] @relation(name: "DebtConnection_recipientId_fkey")
     financialAccounts FinancialAccount[]
@@ -243,7 +244,8 @@ namespace public {
     createdAt               Timestamp(3)            @default(now())
     updatedAt               Timestamp(3)            @default(now())
     creditPurchaseHistories CreditPurchaseHistory[]
-    debtPurchaseLink        DebtPurchaseLink?
+    debtPurchaseLinks       DebtPurchaseLink[]
+    debtSplit               DebtSplit?
     category                Category?               @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchase_categoryId_fkey", index: false)
     parent                  CreditPurchase?         @relation(name: "CreditPurchase_parentId_fkey", fields: [parentId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchase_parentId_fkey", index: false)
     creditPurchases         CreditPurchase[]        @relation(name: "CreditPurchase_parentId_fkey")
@@ -315,6 +317,7 @@ namespace public {
     user           User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtPerson_userId_fkey", index: false)
     connection     DebtConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "DebtPerson_connectionId_fkey", index: false)
     debtEvents     DebtEvent[]
+    debtSplitParticipants DebtSplitParticipant[]
 
     @@index([userId, normalizedName], map: "DebtPerson_userId_normalizedName_key", unique: true)
     @@index([connectionId], map: "DebtPerson_connectionId_idx")
@@ -383,7 +386,7 @@ namespace public {
   model DebtTransactionLink {
     id            VarChar(36)  @id(map: "DebtTransactionLink_pkey") @default(dbgenerated("cuid2()"))
     eventId       VarChar(36)
-    transactionId VarChar(36) @unique(map: "DebtTransactionLink_transactionId_key")
+    transactionId VarChar(36)
     userId        VarChar(36)
     isCreator     Boolean      @default(false)
     createdAt     Timestamp(3) @default(now())
@@ -393,13 +396,14 @@ namespace public {
     user          User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtTransactionLink_userId_fkey", index: false)
 
     @@index([eventId, userId], map: "DebtTransactionLink_eventId_userId_key", unique: true)
+    @@index([transactionId], map: "DebtTransactionLink_transactionId_idx")
     @@map("DebtTransactionLink")
   }
 
   model DebtPurchaseLink {
     id               VarChar(36)    @id(map: "DebtPurchaseLink_pkey") @default(dbgenerated("cuid2()"))
     eventId          VarChar(36)
-    creditPurchaseId VarChar(36) @unique(map: "DebtPurchaseLink_creditPurchaseId_key")
+    creditPurchaseId VarChar(36)
     userId           VarChar(36)
     isCreator        Boolean        @default(false)
     createdAt        Timestamp(3)   @default(now())
@@ -409,7 +413,50 @@ namespace public {
     user             User           @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtPurchaseLink_userId_fkey", index: false)
 
     @@index([eventId, userId], map: "DebtPurchaseLink_eventId_userId_key", unique: true)
+    @@index([creditPurchaseId], map: "DebtPurchaseLink_creditPurchaseId_idx")
     @@map("DebtPurchaseLink")
+  }
+
+  model DebtSplit {
+    id                 VarChar(36)             @id(map: "DebtSplit_pkey") @default(dbgenerated("cuid2()"))
+    userId             VarChar(36)
+    mode               pg.enum(DebtSplitMode)
+    ownerIncluded      Boolean                 @default(false)
+    ownerShares        SmallInt?
+    transactionId      VarChar(36)?            @unique(map: "DebtSplit_transactionId_key")
+    creditPurchaseId   VarChar(36)?            @unique(map: "DebtSplit_creditPurchaseId_key")
+    subscriptionId     VarChar(36)?            @unique(map: "DebtSplit_subscriptionId_key")
+    recurringPaymentId VarChar(36)?            @unique(map: "DebtSplit_recurringPaymentId_key")
+    createdAt          Timestamp(3)            @default(now())
+    updatedAt          Timestamp(3)            @default(now())
+    user               User                    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_userId_fkey", index: false)
+    transaction        Transaction?            @relation(fields: [transactionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_transactionId_fkey", index: false)
+    creditPurchase     CreditPurchase?         @relation(fields: [creditPurchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_creditPurchaseId_fkey", index: false)
+    subscription       Subscription?           @relation(fields: [subscriptionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_subscriptionId_fkey", index: false)
+    recurringPayment   RecurringPayment?       @relation(fields: [recurringPaymentId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_recurringPaymentId_fkey", index: false)
+    participants       DebtSplitParticipant[]
+
+    @@index([userId], map: "DebtSplit_userId_idx")
+    @@map("DebtSplit")
+  }
+
+  model DebtSplitParticipant {
+    id           VarChar(36) @id(map: "DebtSplitParticipant_pkey") @default(dbgenerated("cuid2()"))
+    debtSplitId  VarChar(36)
+    debtPersonId VarChar(36)
+    sortOrder    SmallInt
+    shares       SmallInt?
+    percentage   Numeric(5, 2)?
+    fixedAmount  Numeric(12, 2)?
+    createdAt    Timestamp(3) @default(now())
+    updatedAt    Timestamp(3) @default(now())
+    debtSplit    DebtSplit    @relation(fields: [debtSplitId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplitParticipant_debtSplitId_fkey", index: false)
+    debtPerson   DebtPerson   @relation(fields: [debtPersonId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplitParticipant_debtPersonId_fkey", index: false)
+
+    @@index([debtSplitId, debtPersonId], map: "DebtSplitParticipant_debtSplitId_debtPersonId_key", unique: true)
+    @@index([debtSplitId, sortOrder], map: "DebtSplitParticipant_debtSplitId_sortOrder_key", unique: true)
+    @@index([debtPersonId], map: "DebtSplitParticipant_debtPersonId_idx")
+    @@map("DebtSplitParticipant")
   }
 
   model Loan {
@@ -485,6 +532,7 @@ namespace public {
     updatedAt                 Timestamp(3)                 @default(now())
     recurringPaymentHistories RecurringPaymentHistory[]
     transactions              Transaction[]
+    debtSplit                 DebtSplit?
     category                  Category?                    @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "RecurringPayment_categoryId_fkey", index: false)
     financialAccount          FinancialAccount?            @relation(fields: [financialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "RecurringPayment_financialAccountId_fkey", index: false)
 
@@ -575,6 +623,7 @@ namespace public {
     subscriptionHistories SubscriptionHistory[]
     transactions          Transaction[]
 		creditPurchases       CreditPurchase[]
+    debtSplit             DebtSplit?
     user                  User                         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Subscription_userId_fkey", index: false)
     financialAccount      FinancialAccount?            @relation(fields: [financialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Subscription_financialAccountId_fkey", index: false)
 
@@ -616,7 +665,8 @@ namespace public {
     createdAt                     Timestamp(3)             @default(now())
     updatedAt                     Timestamp(3)             @default(now())
     transactionHistories          TransactionHistory[]
-    debtTransactionLink           DebtTransactionLink?
+    debtTransactionLinks          DebtTransactionLink[]
+    debtSplit                     DebtSplit?
     category                      Category?                @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_categoryId_fkey", index: false)
     creditCardStatement           CreditCardStatement?     @relation(fields: [creditCardStatementId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_creditCardStatementId_fkey", index: false)
     destinationFinancialAccount   FinancialAccount?        @relation(name: "Transaction_destinationId_fkey", fields: [destinationFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_destinationId_fkey", index: false)
@@ -678,6 +728,12 @@ namespace public {
     TRANSACTION = "TRANSACTION"
     PURCHASE = "PURCHASE"
     MIGRATED_SETTLEMENT = "MIGRATED_SETTLEMENT"
+  }
+
+  native_enum DebtSplitMode {
+    SHARES = "SHARES"
+    PERCENTAGE = "PERCENTAGE"
+    FIXED = "FIXED"
   }
 
   native_enum CashbackYieldPeriod {

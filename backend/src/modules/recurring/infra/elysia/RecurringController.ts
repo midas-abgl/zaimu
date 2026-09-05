@@ -6,6 +6,8 @@ import {
 	replaceEntityTags,
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
+import { getDebtSplitReturn, replaceDebtSplit } from "~/modules/debts/application";
+import { DebtSplitInputDTO } from "~/modules/debts/infra/elysia/DebtSplitsDTO";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { deleteLinkedTransactions } from "~/modules/transactions/application/delete-linked-transactions";
 import { HttpException } from "~/shared/errors";
@@ -66,10 +68,17 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 				tagEntityType.recurringPayment,
 				payments.map(payment => payment.id),
 			);
-			return payments.map(payment => {
-				const tags = tagsByPayment.get(payment.id) ?? [];
-				return { ...payment, tagIds: tags.map(tag => tag.id), tags };
-			});
+			return Promise.all(
+				payments.map(async payment => {
+					const tags = tagsByPayment.get(payment.id) ?? [];
+					return {
+						...payment,
+						debtSplit: await getDebtSplitReturn({ recurringPaymentId: payment.id }, Number(payment.amount)),
+						tagIds: tags.map(tag => tag.id),
+						tags,
+					};
+				}),
+			);
 		},
 		{
 			detail: { tags: ["Recurring Payments"] },
@@ -96,7 +105,12 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 
 			const tagsByPayment = await getTagsByEntity(tagEntityType.recurringPayment, [payment.id]);
 			const tags = tagsByPayment.get(payment.id) ?? [];
-			return { ...payment, tagIds: tags.map(tag => tag.id), tags };
+			return {
+				...payment,
+				debtSplit: await getDebtSplitReturn({ recurringPaymentId: payment.id }, Number(payment.amount)),
+				tagIds: tags.map(tag => tag.id),
+				tags,
+			};
 		},
 		{
 			detail: { tags: ["Recurring Payments"] },
@@ -166,6 +180,13 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 					.build(),
 			);
 			if (!payment) throw new HttpException("Recurring payment not created", 500);
+			if (body.debtSplit)
+				await replaceDebtSplit({
+					amount: body.amount,
+					split: body.debtSplit,
+					target: { recurringPaymentId: payment.id },
+					userId,
+				});
 			await replaceEntityTags({
 				entityIds: [payment.id],
 				entityType: tagEntityType.recurringPayment,
@@ -174,7 +195,12 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 
 			const tagsByPayment = await getTagsByEntity(tagEntityType.recurringPayment, [payment.id]);
 			const tags = tagsByPayment.get(payment.id) ?? [];
-			return { ...payment, tagIds: tags.map(tag => tag.id), tags };
+			return {
+				...payment,
+				debtSplit: await getDebtSplitReturn({ recurringPaymentId: payment.id }, Number(payment.amount)),
+				tagIds: tags.map(tag => tag.id),
+				tags,
+			};
 		},
 		{
 			body: t.Object({
@@ -182,6 +208,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 				categoryId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				dayOfMonth: t.Optional(t.Number({ maximum: 31, minimum: 1 })),
 				dayOfWeek: t.Optional(t.Number({ maximum: 6, minimum: 0 })),
+				debtSplit: t.Optional(DebtSplitInputDTO),
 				endDate: t.Optional(t.String()),
 				financialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				frequency: RecurrenceFrequency,
@@ -275,6 +302,13 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 					.build(),
 			);
 			if (!payment) throw new HttpException("Recurring payment not found", 404);
+			if (body.debtSplit !== undefined)
+				await replaceDebtSplit({
+					amount: Number(payment.amount),
+					split: body.debtSplit,
+					target: { recurringPaymentId: payment.id },
+					userId,
+				});
 			if (tagIds !== undefined) {
 				await replaceEntityTags({
 					entityIds: [payment.id],
@@ -285,7 +319,12 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 
 			const tagsByPayment = await getTagsByEntity(tagEntityType.recurringPayment, [payment.id]);
 			const tags = tagsByPayment.get(payment.id) ?? [];
-			return { ...payment, tagIds: tags.map(tag => tag.id), tags };
+			return {
+				...payment,
+				debtSplit: await getDebtSplitReturn({ recurringPaymentId: payment.id }, Number(payment.amount)),
+				tagIds: tags.map(tag => tag.id),
+				tags,
+			};
 		},
 		{
 			body: t.Object({
@@ -293,6 +332,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 				categoryId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				dayOfMonth: t.Optional(t.Nullable(t.Number({ maximum: 31, minimum: 1 }))),
 				dayOfWeek: t.Optional(t.Nullable(t.Number({ maximum: 6, minimum: 0 }))),
+				debtSplit: t.Optional(t.Nullable(DebtSplitInputDTO)),
 				endDate: t.Optional(t.Nullable(t.String())),
 				financialAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				frequency: t.Optional(RecurrenceFrequency),
@@ -324,7 +364,7 @@ export const RecurringController = new Elysia({ prefix: "/recurring" })
 				throw new HttpException("Recurring payment not found", 404);
 			}
 
-			if (query.deleteTransactions) await deleteLinkedTransactions("recurrenceId", params.id);
+			if (query.deleteTransactions) await deleteLinkedTransactions("recurrenceId", params.id, userId);
 			await replaceEntityTags({
 				entityIds: [params.id],
 				entityType: tagEntityType.recurringPayment,

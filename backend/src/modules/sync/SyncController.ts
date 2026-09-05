@@ -11,12 +11,13 @@ import {
 	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
 import {
-	debtRefsForPurchases,
-	debtRefsForTransactions,
+	getDebtSplitReturn,
 	normalizeDebtPersonName,
+	replaceDebtSplit,
 	syncPurchaseDebtEvent,
 	syncTransactionDebtEvent,
 } from "~/modules/debts/application";
+import type { DebtSplitInput } from "~/modules/debts/domain";
 import { db, executeStatement, nullableNumeric, queryFirst, queryRows } from "~/shared/infra/sql";
 import { SyncBody, SyncReturn } from "./SyncDTO";
 
@@ -331,6 +332,13 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				entityType: tagEntityType.recurringPayment,
 				tagIds,
 			});
+			if ("debtSplit" in entity)
+				await replaceDebtSplit({
+					amount: Number(value<number>(entity, "amount")),
+					split: value<DebtSplitInput | null>(entity, "debtSplit"),
+					target: { recurringPaymentId: id },
+					userId,
+				});
 		});
 
 		await sync("creditCards", body.creditCards, async entity => {
@@ -461,7 +469,11 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				await syncPurchaseDebtEvent({
 					creditPurchaseId: id,
 					date: value<string>(entity, "purchaseDate"),
-					debtPersonId: debtPersonId ?? null,
+					...("debtSplit" in entity
+						? { debtSplit: value<DebtSplitInput | null>(entity, "debtSplit") }
+						: "debtPersonId" in entity
+							? { debtPersonId: debtPersonId ?? null }
+							: {}),
 					description: value<string | undefined>(entity, "description"),
 					totalAmount: Number(value<number>(entity, "totalAmount")),
 					userId,
@@ -679,6 +691,13 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				);
 			subscriptionIds.add(id);
 			await replaceEntityTags({ entityIds: [id], entityType: tagEntityType.subscription, tagIds });
+			if ("debtSplit" in entity)
+				await replaceDebtSplit({
+					amount: Number(value<number>(entity, "amount")),
+					split: value<DebtSplitInput | null>(entity, "debtSplit"),
+					target: { subscriptionId: id },
+					userId,
+				});
 		});
 
 		await sync("transactions", body.transactions, async entity => {
@@ -746,7 +765,11 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 			await syncTransactionDebtEvent({
 				amount: Number(value<number>(entity, "amount")),
 				date: value<string>(entity, "date"),
-				debtPersonId: debtPersonId ?? null,
+				...("debtSplit" in entity
+					? { debtSplit: value<DebtSplitInput | null>(entity, "debtSplit") }
+					: "debtPersonId" in entity
+						? { debtPersonId: debtPersonId ?? null }
+						: {}),
 				description: value<string | undefined>(entity, "description"),
 				transactionId: id,
 				type: value<"EXPENSE" | "INCOME" | "TRANSFER">(entity, "type") ?? "EXPENSE",
@@ -870,10 +893,6 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 			);
 		}
 		const transactions = await queryRows(transactionQueryBuilder.build());
-		const [purchaseDebtRefs, transactionDebtRefs] = await Promise.all([
-			debtRefsForPurchases(creditPurchases.map(purchase => purchase.id)),
-			debtRefsForTransactions(transactions.map(transaction => transaction.id)),
-		]);
 		const recurringPayments = await queryRows(
 			db.sql.public.RecurringPayment.select(
 				"id",
@@ -893,6 +912,25 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				"updatedAt",
 			)
 				.where((f, fn) => fn.eq(f.userId, userId))
+				.build(),
+		);
+		const subscriptions = await queryRows(
+			db.sql.public.Subscription.select(
+				"id",
+				"userId",
+				"name",
+				"amount",
+				"billingDay",
+				"frequency",
+				"paymentMethod",
+				"financialAccountId",
+				"startDate",
+				"endDate",
+				"isActive",
+				"createdAt",
+				"updatedAt",
+			)
+				.where((fields, functions) => functions.eq(fields.userId, userId))
 				.build(),
 		);
 		const [purchaseTags, recurringTags, salaryTags, subscriptionTags, transactionTags] = await Promise.all([
@@ -916,13 +954,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 			),
 			getTagsByEntity(
 				tagEntityType.subscription,
-				(
-					await queryRows(
-						db.sql.public.Subscription.select("id")
-							.where((f, fn) => fn.eq(f.userId, userId))
-							.build(),
-					)
-				).map(subscription => subscription.id),
+				subscriptions.map(subscription => subscription.id),
 			),
 			getTagsByEntity(
 				tagEntityType.transaction,
@@ -939,12 +971,17 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				),
 				creditCardStatements,
 				creditCards,
-				creditPurchases: creditPurchases.map(purchase => ({
-					...purchase,
-					...purchaseDebtRefs.get(purchase.id),
-					tagIds: (purchaseTags.get(purchase.id) ?? []).map(tag => tag.id),
-					tags: purchaseTags.get(purchase.id) ?? [],
-				})),
+				creditPurchases: await Promise.all(
+					creditPurchases.map(async purchase => ({
+						...purchase,
+						debtSplit: await getDebtSplitReturn(
+							{ creditPurchaseId: purchase.id },
+							Number(purchase.totalAmount),
+						),
+						tagIds: (purchaseTags.get(purchase.id) ?? []).map(tag => tag.id),
+						tags: purchaseTags.get(purchase.id) ?? [],
+					})),
+				),
 				debtPeople: (
 					await queryRows(
 						db.sql.public.DebtPerson.select("id", "name", "normalizedName", "connectionId", "hiddenAt")
@@ -991,11 +1028,14 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 						.where((f, fn) => fn.eq(f.userId, userId))
 						.build(),
 				),
-				recurringPayments: recurringPayments.map(payment => ({
-					...payment,
-					tagIds: (recurringTags.get(payment.id) ?? []).map(tag => tag.id),
-					tags: recurringTags.get(payment.id) ?? [],
-				})),
+				recurringPayments: await Promise.all(
+					recurringPayments.map(async payment => ({
+						...payment,
+						debtSplit: await getDebtSplitReturn({ recurringPaymentId: payment.id }, Number(payment.amount)),
+						tagIds: (recurringTags.get(payment.id) ?? []).map(tag => tag.id),
+						tags: recurringTags.get(payment.id) ?? [],
+					})),
+				),
 				salaries: (
 					await queryRows(
 						db.sql.public.Salary.select(
@@ -1021,37 +1061,28 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					tagIds: (salaryTags.get(salary.id) ?? []).map(tag => tag.id),
 					tags: salaryTags.get(salary.id) ?? [],
 				})),
-				subscriptions: (
-					await queryRows(
-						db.sql.public.Subscription.select(
-							"id",
-							"userId",
-							"name",
-							"amount",
-							"billingDay",
-							"frequency",
-							"paymentMethod",
-							"financialAccountId",
-							"startDate",
-							"endDate",
-							"isActive",
-							"createdAt",
-							"updatedAt",
-						)
-							.where((f, fn) => fn.eq(f.userId, userId))
-							.build(),
-					)
-				).map(subscription => ({
-					...subscription,
-					tagIds: (subscriptionTags.get(subscription.id) ?? []).map(tag => tag.id),
-					tags: subscriptionTags.get(subscription.id) ?? [],
-				})),
-				transactions: transactions.map(transaction => ({
-					...transaction,
-					...transactionDebtRefs.get(transaction.id),
-					tagIds: (transactionTags.get(transaction.id) ?? []).map(tag => tag.id),
-					tags: transactionTags.get(transaction.id) ?? [],
-				})),
+				subscriptions: await Promise.all(
+					subscriptions.map(async subscription => ({
+						...subscription,
+						debtSplit: await getDebtSplitReturn(
+							{ subscriptionId: subscription.id },
+							Number(subscription.amount),
+						),
+						tagIds: (subscriptionTags.get(subscription.id) ?? []).map(tag => tag.id),
+						tags: subscriptionTags.get(subscription.id) ?? [],
+					})),
+				),
+				transactions: await Promise.all(
+					transactions.map(async transaction => ({
+						...transaction,
+						debtSplit: await getDebtSplitReturn(
+							{ transactionId: transaction.id },
+							Number(transaction.amount),
+						),
+						tagIds: (transactionTags.get(transaction.id) ?? []).map(tag => tag.id),
+						tags: transactionTags.get(transaction.id) ?? [],
+					})),
+				),
 			},
 			syncResults,
 		};

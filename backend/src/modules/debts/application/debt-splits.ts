@@ -1,0 +1,202 @@
+import type { DebtSplitInput } from "~/modules/debts/domain";
+import { calculateDebtSplit, DebtSplitValidationError } from "~/modules/debts/domain";
+import { HttpException } from "~/shared/errors";
+import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
+
+export type DebtSplitTarget =
+	| { creditPurchaseId: string }
+	| { recurringPaymentId: string }
+	| { subscriptionId: string }
+	| { transactionId: string };
+
+type TargetField = "creditPurchaseId" | "recurringPaymentId" | "subscriptionId" | "transactionId";
+const targetEntry = (target: DebtSplitTarget) => Object.entries(target)[0] as [TargetField, string];
+
+function calculateOrThrow(amount: number, split: DebtSplitInput) {
+	try {
+		return calculateDebtSplit(amount, split);
+	} catch (error) {
+		if (error instanceof DebtSplitValidationError) throw new HttpException(error.message, 400);
+		throw error;
+	}
+}
+
+async function assertParticipantsOwned(split: DebtSplitInput, userId: string) {
+	const ids = split.participants.map(participant => participant.debtPersonId);
+	const people = await queryRows(
+		db.sql.public.DebtPerson.select("id")
+			.where((fields, functions) =>
+				functions.and(
+					functions.eq(fields.userId, userId),
+					functions.in(fields.id, ids),
+					functions.eq(fields.hiddenAt, null),
+				),
+			)
+			.build(),
+	);
+	if (people.length !== new Set(ids).size)
+		throw new HttpException("Uma ou mais pessoas do rateio estão indisponíveis", 404);
+}
+
+async function findSplit(target: DebtSplitTarget) {
+	const [field, id] = targetEntry(target);
+	return queryFirst(
+		db.sql.public.DebtSplit.select(
+			"id",
+			"mode",
+			"ownerIncluded",
+			"ownerShares",
+			"userId",
+			"transactionId",
+			"creditPurchaseId",
+			"subscriptionId",
+			"recurringPaymentId",
+		)
+			.where((fields, functions) => {
+				if (field === "creditPurchaseId") return functions.eq(fields.creditPurchaseId, id);
+				if (field === "recurringPaymentId") return functions.eq(fields.recurringPaymentId, id);
+				if (field === "subscriptionId") return functions.eq(fields.subscriptionId, id);
+				return functions.eq(fields.transactionId, id);
+			})
+			.limit(1)
+			.build(),
+	);
+}
+
+export async function getDebtSplitInput(target: DebtSplitTarget): Promise<DebtSplitInput | undefined> {
+	const split = await findSplit(target);
+	if (!split) return;
+	const participants = await queryRows(
+		db.sql.public.DebtSplitParticipant.select(
+			"debtPersonId",
+			"shares",
+			"percentage",
+			"fixedAmount",
+			"sortOrder",
+		)
+			.where((fields, functions) => functions.eq(fields.debtSplitId, split.id))
+			.orderBy("sortOrder", { direction: "asc" })
+			.build(),
+	);
+	if (split.mode === "SHARES") {
+		return {
+			mode: "SHARES",
+			ownerShares: split.ownerIncluded ? (split.ownerShares ?? 1) : null,
+			participants: participants.map(participant => ({
+				debtPersonId: participant.debtPersonId,
+				shares: participant.shares ?? 1,
+			})),
+		};
+	}
+	if (split.mode === "PERCENTAGE") {
+		return {
+			mode: "PERCENTAGE",
+			ownerIncluded: split.ownerIncluded,
+			participants: participants.map(participant => ({
+				debtPersonId: participant.debtPersonId,
+				percentage: Number(participant.percentage),
+			})),
+		};
+	}
+	return {
+		mode: "FIXED",
+		ownerIncluded: split.ownerIncluded,
+		participants: participants.map(participant => ({
+			debtPersonId: participant.debtPersonId,
+			fixedAmount: Number(participant.fixedAmount),
+		})),
+	};
+}
+
+export async function replaceDebtSplit(input: {
+	amount: number;
+	split: DebtSplitInput | null;
+	target: DebtSplitTarget;
+	userId: string;
+}) {
+	const existing = await findSplit(input.target);
+	if (input.split === null) {
+		if (existing)
+			await executeStatement(
+				db.sql.public.DebtSplit.delete()
+					.where((fields, functions) => functions.eq(fields.id, existing.id))
+					.build(),
+			);
+		return;
+	}
+	const nextSplit = input.split;
+	const calculated = calculateOrThrow(input.amount, nextSplit);
+	await assertParticipantsOwned(nextSplit, input.userId);
+	if (existing)
+		await executeStatement(
+			db.sql.public.DebtSplit.delete()
+				.where((fields, functions) => functions.eq(fields.id, existing.id))
+				.build(),
+		);
+	const ownerIncluded =
+		nextSplit.mode === "SHARES" ? nextSplit.ownerShares !== null : nextSplit.ownerIncluded;
+	const split = await queryFirst(
+		db.sql.public.DebtSplit.insert([
+			{
+				...input.target,
+				mode: nextSplit.mode,
+				ownerIncluded,
+				ownerShares: nextSplit.mode === "SHARES" ? nextSplit.ownerShares : undefined,
+				userId: input.userId,
+			},
+		] as never)
+			.returning("id")
+			.build(),
+	);
+	if (!split) throw new HttpException("Rateio não criado", 500);
+	await executeStatement(
+		db.sql.public.DebtSplitParticipant.insert(
+			nextSplit.participants.map((participant, sortOrder) => ({
+				debtPersonId: participant.debtPersonId,
+				debtSplitId: split.id,
+				fixedAmount:
+					nextSplit.mode === "FIXED"
+						? String((participant as { fixedAmount: number }).fixedAmount)
+						: undefined,
+				percentage:
+					nextSplit.mode === "PERCENTAGE"
+						? String((participant as { percentage: number }).percentage)
+						: undefined,
+				shares: nextSplit.mode === "SHARES" ? (participant as { shares: number }).shares : undefined,
+				sortOrder,
+			})) as never,
+		).build(),
+	);
+	return calculated;
+}
+
+export async function getDebtSplitReturn(target: DebtSplitTarget, amount: number) {
+	const split = await getDebtSplitInput(target);
+	if (!split) return null;
+	const calculated = calculateOrThrow(amount, split);
+	const ids = calculated.participants.map(participant => participant.debtPersonId);
+	const people = await queryRows(
+		db.sql.public.DebtPerson.select("id", "name")
+			.where((fields, functions) => functions.in(fields.id, ids))
+			.build(),
+	);
+	const names = new Map(people.map(person => [person.id, person.name]));
+	return {
+		...calculated,
+		participants: calculated.participants.map(participant => ({
+			...participant,
+			debtPersonName: names.get(participant.debtPersonId) ?? "Pessoa removida",
+		})),
+	};
+}
+
+export async function copyDebtSplit(input: {
+	amount: number;
+	from: DebtSplitTarget;
+	to: DebtSplitTarget;
+	userId: string;
+}) {
+	const split = await getDebtSplitInput(input.from);
+	if (!split) return;
+	return replaceDebtSplit({ amount: input.amount, split, target: input.to, userId: input.userId });
+}
