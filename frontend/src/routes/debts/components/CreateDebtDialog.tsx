@@ -79,8 +79,8 @@ export function CreateDebtDialog({
 
 	return (
 		<Dialog onOpenChange={handleOpenChange} open={open}>
-			<DialogContent className="h-[92dvh] overflow-hidden p-0 sm:h-auto sm:max-w-lg">
-				<ScrollArea className="h-full sm:max-h-[calc(100dvh-2rem)]">
+			<DialogContent className="max-h-[92dvh] overflow-hidden p-0 sm:max-w-lg">
+				<ScrollArea className="max-h-[92dvh]">
 					<form className="grid gap-5 p-6" onSubmit={submit}>
 						<DialogHeader>
 							<DialogTitle>{initialValue ? "Editar lançamento" : "Novo lançamento"}</DialogTitle>

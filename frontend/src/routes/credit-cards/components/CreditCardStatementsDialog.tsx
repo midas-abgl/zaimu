@@ -43,7 +43,7 @@ export function CreditCardStatementsDialog({
 
 	return (
 		<Dialog onOpenChange={onOpenChange} open={Boolean(card)}>
-			<DialogContent className="grid h-[min(90dvh,46rem)] max-h-[90dvh] grid-rows-[auto_minmax(0,1fr)] gap-4 overflow-hidden p-4 sm:max-w-5xl sm:gap-6 sm:p-6">
+			<DialogContent className="grid max-h-[min(90dvh,46rem)] grid-rows-[auto_minmax(0,1fr)] gap-4 overflow-hidden p-4 sm:max-w-5xl sm:gap-6 sm:p-6">
 				<DialogHeader>
 					<DialogTitle>Faturas de {card?.accountName ?? "Cartão de crédito"}</DialogTitle>
 					<DialogDescription>Selecione um mês para consultar os detalhes e as transações.</DialogDescription>

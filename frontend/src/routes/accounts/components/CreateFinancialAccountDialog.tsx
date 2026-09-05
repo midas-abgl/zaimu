@@ -263,8 +263,8 @@ export function CreateFinancialAccountDialog({
 					</Button>
 				</DialogTrigger>
 			)}
-			<DialogContent className="grid h-[92dvh] grid-rows-[minmax(0,1fr)] overflow-hidden p-0 sm:h-auto sm:max-w-lg">
-				<ScrollArea className="h-full min-h-0 sm:max-h-[calc(100dvh-2rem)]">
+			<DialogContent className="max-h-[92dvh] overflow-hidden p-0 sm:max-w-lg">
+				<ScrollArea className="max-h-[92dvh]">
 					<div className="grid gap-6 p-6">
 						<DialogHeader>
 							<DialogTitle>{account ? "Editar conta" : "Cadastrar conta"}</DialogTitle>
