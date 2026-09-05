@@ -17,14 +17,15 @@ Permitir que transações, compras, assinaturas e pagamentos recorrentes distrib
 
 - [x] Criar cálculo, esquema e migração dos rateios.
 - [x] Integrar rateios ao livro, APIs, materialização e sync.
-- [ ] Criar editor compartilhado e integrar formulários/resumos.
-- [ ] Cobrir domínio, compatibilidade, materialização e UI com testes.
-- [ ] Validar pacotes afetados e concluir commits atômicos.
+- [x] Criar editor compartilhado e integrar formulários/resumos.
+- [x] Cobrir domínio, compatibilidade, materialização e UI com testes.
+- [x] Validar pacotes afetados e concluir commits atômicos.
 
 ## Estado atual
 
-Modelo, migração, cálculo, APIs, livro bilateral, materialização e sync concluídos.
+Implementação concluída. Testes unitários, builds, tipos e verificação estática da migração passaram. E2E de
+banco exige uma base local com o schema aplicado; a base encontrada estava vazia.
 
 ## Próximo passo
 
-Concluir editor compartilhado, testes de interface e validação final.
+Aplicar a migração no ambiente desejado antes de publicar a aplicação.

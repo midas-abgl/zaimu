@@ -10,8 +10,12 @@ describe("transactionToCreditPurchase", () => {
 			creditCardStatementId: "statement-id",
 			currentInstallment: 1,
 			date: "2026-07-17",
-			debtPersonId: "person-id",
-			debtPersonName: "Ana",
+			debtSplit: {
+				mode: "SHARES",
+				ownerAmount: 0,
+				ownerShares: null,
+				participants: [{ amount: 2480, debtPersonId: "person-id", debtPersonName: "Ana", shares: 1 }],
+			},
 			description: "iPhone 17",
 			id: "purchase-id",
 			installmentAmount: 248,
@@ -21,8 +25,7 @@ describe("transactionToCreditPurchase", () => {
 		};
 
 		expect(transactionToCreditPurchase(transaction)).toMatchObject({
-			debtPersonId: "person-id",
-			debtPersonName: "Ana",
+			debtSplit: expect.objectContaining({ mode: "SHARES" }),
 			id: "purchase-id",
 			installments: 10,
 		});

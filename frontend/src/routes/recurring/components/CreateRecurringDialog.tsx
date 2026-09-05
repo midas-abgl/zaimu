@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
+import { DebtSplitEditor } from "@/components/debts";
 import { StorePicker } from "@/components/stores";
 import { TagPicker } from "@/components/tags";
 import { Button } from "@/components/ui/Button";
+import { Checkbox } from "@/components/ui/Checkbox";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import {
@@ -14,8 +16,9 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
-import type { RecurringPayment, Salary, Subscription } from "@/lib/api";
+import type { DebtSplitInput, RecurringPayment, Salary, Subscription } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
+import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
 import {
 	compareFinancialAccountsByDisplayName,
 	getFinancialAccountDisplayName,
@@ -44,6 +47,8 @@ const initialDraft = (item?: RecurringListItemData): RecurringDraft => ({
 
 const noFinancialAccountValue = "__no-financial-account__";
 
+const initialDebtSplit = (item?: RecurringListItemData) => debtSplitToInput(item?.debtSplit);
+
 const successMessages: Record<RecurringSource, string> = {
 	recurring: "Recorrência criada.",
 	salary: "Salário criado.",
@@ -61,6 +66,8 @@ export function CreateRecurringDialog({
 }) {
 	const queryClient = useQueryClient();
 	const [draft, setDraft] = useState(() => initialDraft(item));
+	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => initialDebtSplit(item));
+	const [isDebtSplitEnabled, setIsDebtSplitEnabled] = useState(Boolean(item?.debtSplit));
 	const isEditing = Boolean(item);
 	const [isPastTransactionsDialogOpen, setIsPastTransactionsDialogOpen] = useState(false);
 	const accountsQuery = useQuery({ queryFn: () => dataService.accounts.getAll(), queryKey: ["accounts"] });
@@ -91,6 +98,8 @@ export function CreateRecurringDialog({
 		onOpenChange(nextOpen);
 		if (!nextOpen) {
 			setDraft(initialDraft(item));
+			setDebtSplit(initialDebtSplit(item));
+			setIsDebtSplitEnabled(Boolean(item?.debtSplit));
 			setIsPastTransactionsDialogOpen(false);
 		}
 	};
@@ -98,6 +107,7 @@ export function CreateRecurringDialog({
 	const create = useMutation<RecurringPayment | Salary | Subscription, Error, boolean>({
 		mutationFn: async (addPastTransactions = false) => {
 			const amount = Number.parseFloat(draft.amount);
+			const selectedDebtSplit = isDebtSplitEnabled ? debtSplit : null;
 			const day = Number.parseInt(draft.day, 10);
 			if (item) {
 				if (item.source === "salary") {
@@ -115,6 +125,7 @@ export function CreateRecurringDialog({
 					return dataService.subscriptions.update(item.id, {
 						amount,
 						billingDay: day,
+						debtSplit: selectedDebtSplit,
 						endDate: draft.endDate || null,
 						financialAccountId: draft.financialAccountId || null,
 						frequency: draft.frequency,
@@ -127,6 +138,7 @@ export function CreateRecurringDialog({
 				return dataService.recurringPayments.update(item.id, {
 					amount,
 					dayOfMonth: day,
+					debtSplit: selectedDebtSplit,
 					endDate: draft.endDate || null,
 					financialAccountId: draft.financialAccountId || null,
 					frequency: draft.frequency,
@@ -177,6 +189,7 @@ export function CreateRecurringDialog({
 				const subscription = await dataService.subscriptions.create({
 					amount,
 					billingDay: day,
+					debtSplit: selectedDebtSplit ?? undefined,
 					endDate: draft.endDate || undefined,
 					financialAccountId: draft.financialAccountId || undefined,
 					frequency: draft.frequency,
@@ -198,6 +211,7 @@ export function CreateRecurringDialog({
 						await Promise.all(
 							dates.map(purchaseDate =>
 								dataService.creditCards.addPurchase(selectedCreditCardId, {
+									debtSplit: selectedDebtSplit ?? undefined,
 									description: draft.name.trim(),
 									purchaseDate,
 									storeName: draft.storeName.trim() || undefined,
@@ -215,6 +229,7 @@ export function CreateRecurringDialog({
 								dataService.transactions.create({
 									amount,
 									date,
+									debtSplit: selectedDebtSplit ?? undefined,
 									description: draft.name.trim(),
 									storeName: draft.storeName.trim() || undefined,
 									subscriptionId: subscription.id,
@@ -231,6 +246,7 @@ export function CreateRecurringDialog({
 			const payment = await dataService.recurringPayments.create({
 				amount,
 				dayOfMonth: day,
+				debtSplit: selectedDebtSplit ?? undefined,
 				endDate: draft.endDate || undefined,
 				financialAccountId: draft.financialAccountId || undefined,
 				frequency: draft.frequency,
@@ -252,6 +268,7 @@ export function CreateRecurringDialog({
 						dataService.transactions.create({
 							amount,
 							date,
+							debtSplit: selectedDebtSplit ?? undefined,
 							description: draft.name.trim(),
 							recurrenceId: payment.id,
 							recurrenceOccurrenceDate: date,
@@ -308,7 +325,8 @@ export function CreateRecurringDialog({
 		!dayError &&
 		!endDateError &&
 		draft.startDate &&
-		(!requiresFinancialAccount || draft.financialAccountId);
+		(!requiresFinancialAccount || draft.financialAccountId) &&
+		(!isDebtSplitEnabled || Boolean(calculateDebtSplit(Number.parseFloat(draft.amount), debtSplit)));
 	const isStartDateInPast = draft.startDate < format(new Date(), "yyyy-MM-dd");
 	const handleSave = () => {
 		if (!isEditing && isStartDateInPast) {
@@ -367,6 +385,25 @@ export function CreateRecurringDialog({
 								value={draft.amount}
 							/>
 						</div>
+						{draft.source !== "salary" && (
+							<div className="grid gap-3">
+								<div className="flex items-center gap-3 text-sm">
+									<Checkbox
+										aria-label="Dividir com outras pessoas"
+										checked={isDebtSplitEnabled}
+										onCheckedChange={checked => setIsDebtSplitEnabled(checked === true)}
+									/>
+									<span>Dividir com outras pessoas</span>
+								</div>
+								{isDebtSplitEnabled ? (
+									<DebtSplitEditor
+										amount={Number.parseFloat(draft.amount) || 0}
+										onChange={setDebtSplit}
+										value={debtSplit}
+									/>
+								) : null}
+							</div>
+						)}
 						{draft.source === "salary" && (
 							<CustomSelect
 								label="Conta de destino"

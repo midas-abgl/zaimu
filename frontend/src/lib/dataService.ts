@@ -17,6 +17,8 @@ import type {
 	DebtInvitation,
 	DebtLedger,
 	DebtPerson,
+	DebtSplit,
+	DebtSplitInput,
 	FinancialAccount,
 	FinancialInstitution,
 	Loan,
@@ -28,6 +30,7 @@ import type {
 } from "./api";
 import { applyStatementCredits } from "./credit-card";
 import { getCurrentLocalTime } from "./date";
+import { calculateDebtSplit } from "./debt-split";
 import { calculateFinancialAccountBalances } from "./financial-account";
 import { normalizeInstitutionName } from "./financial-institution";
 import {
@@ -61,6 +64,25 @@ function normalizeSalary(salary: LegacySalary): Salary {
 	delete normalized.grossAmount;
 	delete normalized.netAmount;
 	return normalized;
+}
+
+async function hydrateLocalDebtSplit(
+	amount: number,
+	input?: DebtSplitInput | null,
+): Promise<DebtSplit | null | undefined> {
+	if (input === undefined) return undefined;
+	if (input === null) return null;
+	const calculated = calculateDebtSplit(amount, input);
+	if (!calculated) throw new Error("O rateio da dívida não fecha com o valor total.");
+	const people = await localDebtPeople.getAll();
+	const names = new Map(people.map(person => [person.data.id, person.data.name]));
+	return {
+		...calculated,
+		participants: calculated.participants.map(participant => ({
+			...participant,
+			debtPersonName: names.get(participant.debtPersonId) ?? "Pessoa",
+		})),
+	} as DebtSplit;
 }
 
 export type FinancialAccountDraft = Omit<
@@ -383,7 +405,7 @@ export const dataService = {
 			cardId: string,
 			data: {
 				categoryId?: string;
-				debtPersonId?: string;
+				debtSplit?: DebtSplitInput;
 				description?: string;
 				storeName?: string;
 				installments?: number;
@@ -446,7 +468,7 @@ export const dataService = {
 				cashbackYieldRate: cashbackAmount ? card.cashbackYieldRate : undefined,
 				categoryId: data.tagIds?.[0] ?? data.categoryId,
 				currentInstallment: 1,
-				debtPersonId: data.debtPersonId,
+				debtSplit: await hydrateLocalDebtSplit(data.totalAmount, data.debtSplit),
 				description: data.description ?? "",
 				id: crypto.randomUUID(),
 				installmentAmount,
@@ -663,7 +685,7 @@ export const dataService = {
 			purchaseId: string,
 			data: {
 				creditCardId?: string;
-				debtPersonId?: null | string;
+				debtSplit?: DebtSplitInput | null;
 				description: string;
 				installments: number;
 				storeName?: string | null;
@@ -749,7 +771,9 @@ export const dataService = {
 				...cashback,
 				categoryId: data.tagIds[0],
 				description: data.description,
-				...(data.debtPersonId !== undefined && { debtPersonId: data.debtPersonId ?? undefined }),
+				...(data.debtSplit !== undefined && {
+					debtSplit: await hydrateLocalDebtSplit(data.totalAmount, data.debtSplit),
+				}),
 				...(data.storeName !== undefined && { storeName: data.storeName }),
 				installmentAmount,
 				installments,
@@ -1040,42 +1064,44 @@ export const dataService = {
 			}
 			for (const item of storedTransactions) {
 				const transaction = item.data;
-				if (!transaction.debtPersonId || transaction.type === "TRANSFER") continue;
-				const person = people.get(transaction.debtPersonId);
-				if (!person) continue;
-				const effect =
-					transaction.type === "INCOME" ? -Number(transaction.amount) : Number(transaction.amount);
-				person.balance += effect;
-				person.events.push({
-					amount: Number(transaction.amount),
-					createdByMe: true,
-					createdByName: "Você",
-					createdByUserId: getUserId(),
-					date: transaction.date,
-					description: transaction.description,
-					effect,
-					id: `transaction:${transaction.id}`,
-					kind: "TRANSACTION",
-				});
+				if (!transaction.debtSplit || transaction.type === "TRANSFER") continue;
+				for (const participant of transaction.debtSplit.participants) {
+					const person = people.get(participant.debtPersonId);
+					if (!person) continue;
+					const effect = transaction.type === "INCOME" ? -participant.amount : participant.amount;
+					person.balance += effect;
+					person.events.push({
+						amount: participant.amount,
+						createdByMe: true,
+						createdByName: "Você",
+						createdByUserId: getUserId(),
+						date: transaction.date,
+						description: transaction.description,
+						effect,
+						id: `transaction:${transaction.id}:${participant.debtPersonId}`,
+						kind: "TRANSACTION",
+					});
+				}
 			}
 			for (const item of storedPurchases) {
 				const purchase = item.data;
-				if (!purchase.debtPersonId || purchase.currentInstallment !== 1) continue;
-				const person = people.get(purchase.debtPersonId);
-				if (!person) continue;
-				const effect = Number(purchase.totalAmount);
-				person.balance += effect;
-				person.events.push({
-					amount: effect,
-					createdByMe: true,
-					createdByName: "Você",
-					createdByUserId: getUserId(),
-					date: purchase.purchaseDate,
-					description: purchase.description,
-					effect,
-					id: `purchase:${purchase.id}`,
-					kind: "PURCHASE",
-				});
+				if (!purchase.debtSplit || purchase.currentInstallment !== 1) continue;
+				for (const participant of purchase.debtSplit.participants) {
+					const person = people.get(participant.debtPersonId);
+					if (!person) continue;
+					person.balance += participant.amount;
+					person.events.push({
+						amount: participant.amount,
+						createdByMe: true,
+						createdByName: "Você",
+						createdByUserId: getUserId(),
+						date: purchase.purchaseDate,
+						description: purchase.description,
+						effect: participant.amount,
+						id: `purchase:${purchase.id}:${participant.debtPersonId}`,
+						kind: "PURCHASE",
+					});
+				}
 			}
 			const result = [...people.values()].map(person => ({
 				...person,
@@ -1264,14 +1290,20 @@ export const dataService = {
 		async create(
 			data: Omit<
 				RecurringPayment,
-				"createdAt" | "id" | "isActive" | "paymentMethod" | "updatedAt" | "userId"
-			> & { isActive?: boolean; paymentMethod?: RecurringPayment["paymentMethod"] },
+				"createdAt" | "debtSplit" | "id" | "isActive" | "paymentMethod" | "updatedAt" | "userId"
+			> & {
+				debtSplit?: DebtSplitInput;
+				isActive?: boolean;
+				paymentMethod?: RecurringPayment["paymentMethod"];
+			},
 		): Promise<RecurringPayment> {
 			const userId = getUserId();
 			if (isGuestMode()) {
+				const debtSplit = await hydrateLocalDebtSplit(data.amount, data.debtSplit);
 				const payment: RecurringPayment = {
 					...data,
 					createdAt: new Date().toISOString(),
+					debtSplit,
 					id: crypto.randomUUID(),
 					isActive: data.isActive ?? true,
 					paymentMethod: data.paymentMethod ?? "DEBIT",
@@ -1305,15 +1337,22 @@ export const dataService = {
 			);
 			return payments;
 		},
-		async update(id: string, changes: Partial<RecurringPayment>): Promise<RecurringPayment> {
+		async update(
+			id: string,
+			changes: Omit<Partial<RecurringPayment>, "debtSplit"> & { debtSplit?: DebtSplitInput | null },
+		): Promise<RecurringPayment> {
 			if (isGuestMode()) {
+				const { debtSplit: debtSplitInput, ...paymentChanges } = changes;
 				const existing = await localRecurringPayments.getById(id);
 				if (!existing) throw new Error("Recorrência não encontrada");
 				const hasTagChanges = changes.tagIds !== undefined || changes.categoryId !== undefined;
 				const tagIds = changes.tagIds ?? (changes.categoryId ? [changes.categoryId] : []);
-				const payment = {
+				const payment: RecurringPayment = {
 					...existing.data,
-					...changes,
+					...paymentChanges,
+					...(debtSplitInput !== undefined && {
+						debtSplit: await hydrateLocalDebtSplit(changes.amount ?? existing.data.amount, debtSplitInput),
+					}),
 					...(hasTagChanges && { categoryId: tagIds[0], tagIds }),
 					updatedAt: new Date().toISOString(),
 				};
@@ -1438,12 +1477,17 @@ export const dataService = {
 	// ============== SUBSCRIPTIONS ==============
 	subscriptions: {
 		async create(
-			data: Omit<Subscription, "id" | "isActive" | "userId"> & { isActive?: boolean },
+			data: Omit<Subscription, "debtSplit" | "id" | "isActive" | "userId"> & {
+				debtSplit?: DebtSplitInput;
+				isActive?: boolean;
+			},
 		): Promise<Subscription> {
 			const userId = getUserId();
 			if (isGuestMode()) {
+				const debtSplit = await hydrateLocalDebtSplit(data.amount, data.debtSplit);
 				const newSubscription: Subscription = {
 					...data,
+					debtSplit,
 					id: crypto.randomUUID(),
 					isActive: data.isActive ?? true,
 					userId,
@@ -1462,12 +1506,26 @@ export const dataService = {
 		async delete(id: string, deleteTransactions = false): Promise<void> {
 			if (isGuestMode()) {
 				if (deleteTransactions) {
-					const transactions = await localTransactions.getAll();
+					const [transactions, purchases] = await Promise.all([
+						localTransactions.getAll(),
+						localCreditPurchases.getAll(),
+					]);
 					await Promise.all(
 						transactions
 							.filter(transaction => transaction.data.subscriptionId === id)
 							.map(transaction => localTransactions.delete(transaction.localId)),
 					);
+					for (const purchase of purchases.filter(purchase => purchase.data.subscriptionId === id)) {
+						const statement = await localCreditCardStatements.getById(purchase.data.statementId);
+						if (statement) {
+							statement.data.totalAmount = Math.max(
+								0,
+								statement.data.totalAmount - purchase.data.installmentAmount,
+							);
+							await localCreditCardStatements.put(statement.data, statement.localId);
+						}
+						await localCreditPurchases.delete(purchase.localId);
+					}
 				}
 				await localSubscriptions.delete(id);
 				return;
@@ -1490,15 +1548,22 @@ export const dataService = {
 			return subscriptions;
 		},
 
-		async update(id: string, data: Partial<Subscription>): Promise<Subscription> {
+		async update(
+			id: string,
+			data: Omit<Partial<Subscription>, "debtSplit"> & { debtSplit?: DebtSplitInput | null },
+		): Promise<Subscription> {
 			if (isGuestMode()) {
+				const { debtSplit: debtSplitInput, ...subscriptionChanges } = data;
 				const existing = await localSubscriptions.getById(id);
 				if (!existing) throw new Error("Subscription not found");
 				const hasTagChanges = data.tagIds !== undefined || data.categoryId !== undefined;
 				const tagIds = data.tagIds ?? (data.categoryId ? [data.categoryId] : []);
 				const updated: Subscription = {
 					...existing.data,
-					...data,
+					...subscriptionChanges,
+					...(debtSplitInput !== undefined && {
+						debtSplit: await hydrateLocalDebtSplit(data.amount ?? existing.data.amount, debtSplitInput),
+					}),
 					...(hasTagChanges && { categoryId: tagIds[0], tagIds }),
 				};
 				await localSubscriptions.put(updated, id);
@@ -1738,10 +1803,13 @@ export const dataService = {
 	// ============== TRANSACTIONS ==============
 	transactions: {
 		async create(
-			data: Omit<Transaction, "id" | "createdAt"> & { matchDebtEventId?: string },
+			data: Omit<Transaction, "createdAt" | "debtSplit" | "id"> & {
+				debtSplit?: DebtSplitInput;
+				matchDebtEventId?: string;
+			},
 		): Promise<Transaction> {
 			if (isGuestMode()) {
-				const { matchDebtEventId: _, ...localData } = data;
+				const { debtSplit: explicitDebtSplit, matchDebtEventId: _, ...localData } = data;
 				const recurrenceOccurrenceDate = data.recurrenceId
 					? (data.recurrenceOccurrenceDate ?? data.date)
 					: undefined;
@@ -1771,6 +1839,11 @@ export const dataService = {
 					data.subscriptionId ? localSubscriptions.getById(data.subscriptionId) : undefined,
 				]);
 				const linkedRecurrence = recurringPayment?.data ?? salary?.data ?? subscription?.data;
+				const debtSplit = explicitDebtSplit
+					? await hydrateLocalDebtSplit(data.amount, explicitDebtSplit)
+					: linkedRecurrence && "debtSplit" in linkedRecurrence
+						? linkedRecurrence.debtSplit
+						: undefined;
 				const tagIds = hasExplicitTags
 					? (data.tagIds ?? (data.categoryId ? [data.categoryId] : []))
 					: (linkedRecurrence?.tagIds ?? (linkedRecurrence?.categoryId ? [linkedRecurrence.categoryId] : []));
@@ -1778,6 +1851,7 @@ export const dataService = {
 					...localData,
 					categoryId: tagIds[0],
 					createdAt: new Date().toISOString(),
+					debtSplit,
 					id: crypto.randomUUID(),
 					recurrenceOccurrenceDate,
 					salaryOccurrenceDate,
@@ -1850,8 +1924,7 @@ export const dataService = {
 								creditCardStatementId: purchase.statementId,
 								currentInstallment: purchase.currentInstallment,
 								date: purchase.purchaseDate,
-								debtPersonId: purchase.debtPersonId,
-								debtPersonName: purchase.debtPersonName,
+								debtSplit: purchase.debtSplit,
 								description: purchase.description,
 								id: purchase.id,
 								installmentAmount: purchase.installmentAmount,
@@ -1972,9 +2045,10 @@ export const dataService = {
 
 		async update(
 			id: string,
-			data: Omit<Partial<Transaction>, "debtPersonId"> & { debtPersonId?: null | string },
+			data: Omit<Partial<Transaction>, "debtSplit"> & { debtSplit?: DebtSplitInput | null },
 		): Promise<Transaction> {
 			if (isGuestMode()) {
+				const { debtSplit: debtSplitInput, ...transactionChanges } = data;
 				const existing = await localTransactions.getById(id);
 				if (!existing) throw new Error("Transação não encontrada");
 				if (existing.data.creditCardStatementId) {
@@ -2016,8 +2090,10 @@ export const dataService = {
 				}
 				const updated: Transaction = {
 					...existing.data,
-					...data,
-					debtPersonId: data.debtPersonId ?? undefined,
+					...transactionChanges,
+					...(debtSplitInput !== undefined && {
+						debtSplit: await hydrateLocalDebtSplit(data.amount ?? existing.data.amount, debtSplitInput),
+					}),
 				};
 				await localTransactions.put(updated, id);
 				return updated;

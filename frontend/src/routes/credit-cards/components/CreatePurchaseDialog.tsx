@@ -1,6 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
 import { type SyntheticEvent, useEffect, useState } from "react";
-import { DebtPersonPicker } from "@/components/debts";
+import { DebtSplitEditor } from "@/components/debts";
 import { StorePicker } from "@/components/stores";
 import { TagPicker } from "@/components/tags";
 import { Button } from "@/components/ui/Button";
@@ -19,13 +18,13 @@ import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
-import type { CreditCard } from "@/lib/api";
+import type { CreditCard, DebtSplitInput } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
-import { dataService } from "@/lib/dataService";
 import { getCurrentLocalTime } from "@/lib/date";
+import { calculateDebtSplit } from "@/lib/debt-split";
 
 interface PurchaseDraft {
-	debtPersonId?: string;
+	debtSplit?: DebtSplitInput;
 	description: string;
 	storeName?: string;
 	installments?: number;
@@ -52,9 +51,12 @@ export function CreatePurchaseDialog({
 	pending: boolean;
 }) {
 	const [description, setDescription] = useDebouncedInput("", () => undefined);
-	const [debtPersonId, setDebtPersonId] = useState("");
+	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>({
+		mode: "SHARES",
+		ownerShares: null,
+		participants: [{ debtPersonId: "", shares: 1 }],
+	});
 	const [isDebt, setIsDebt] = useState(false);
-	const [useExistingEvent, setUseExistingEvent] = useState(false);
 	const [amount, setAmount] = useState("");
 	const [count, setCount] = useDebouncedInput("1", () => undefined);
 	const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -71,26 +73,10 @@ export function CreatePurchaseDialog({
 	const total = Number(amount || 0);
 	const installmentCount = Number.parseInt(count, 10);
 	const installmentValue = total / (installmentCount || 1);
-	const ledgerQuery = useQuery({
-		enabled: open && isDebt,
-		queryFn: () => dataService.debts.getLedger(),
-		queryKey: ["debts"],
-	});
-	const debtPairCandidate = ledgerQuery.data?.people
-		.find(person => person.id === debtPersonId)
-		?.events.find(
-			event =>
-				!event.createdByMe &&
-				event.amount === total &&
-				event.date?.slice(0, 10) === date &&
-				event.effect === total,
-		);
-	useEffect(() => setUseExistingEvent(false), [debtPairCandidate?.id]);
 	const reset = () => {
 		setDescription("");
-		setDebtPersonId("");
+		setDebtSplit({ mode: "SHARES", ownerShares: null, participants: [{ debtPersonId: "", shares: 1 }] });
 		setIsDebt(false);
-		setUseExistingEvent(false);
 		setAmount("");
 		setCount("1");
 		setDate(new Date().toISOString().slice(0, 10));
@@ -109,10 +95,9 @@ export function CreatePurchaseDialog({
 		event.preventDefault();
 		if (!Number.isInteger(installmentCount) || installmentCount < 1 || installmentCount > 48) return;
 		await onSubmit(cardId, {
-			debtPersonId: isDebt ? debtPersonId : undefined,
+			debtSplit: isDebt ? debtSplit : undefined,
 			description: description.trim(),
 			installments: installmentCount,
-			matchDebtEventId: useExistingEvent ? debtPairCandidate?.id : undefined,
 			purchaseDate: date,
 			storeName: storeName.trim() || undefined,
 			tagIds,
@@ -213,35 +198,11 @@ export function CreatePurchaseDialog({
 										id="purchase-is-debt"
 										onCheckedChange={checked => {
 											setIsDebt(checked === true);
-											if (checked !== true) setDebtPersonId("");
 										}}
 									/>
 									<span>Esta compra é de uma dívida</span>
 								</label>
-								{isDebt ? (
-									<>
-										<DebtPersonPicker onValueChange={setDebtPersonId} required value={debtPersonId} />
-										{debtPairCandidate ? (
-											<label
-												className="flex cursor-pointer items-start gap-3 rounded-xl bg-primary/5 p-3 text-sm"
-												htmlFor="purchase-use-debt-event"
-											>
-												<Checkbox
-													checked={useExistingEvent}
-													className="mt-0.5 cursor-pointer"
-													id="purchase-use-debt-event"
-													onCheckedChange={checked => setUseExistingEvent(checked === true)}
-												/>
-												<span>
-													<strong>Usar lançamento já compartilhado</strong>
-													<span className="block text-muted-foreground text-xs">
-														Mesmo valor e data. A compra não altera o saldo novamente.
-													</span>
-												</span>
-											</label>
-										) : null}
-									</>
-								) : null}
+								{isDebt ? <DebtSplitEditor amount={total} onChange={setDebtSplit} value={debtSplit} /> : null}
 							</div>
 							{installmentCount > 1 && total > 0 && (
 								<div className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-sm">
@@ -262,7 +223,7 @@ export function CreatePurchaseDialog({
 									disabled={
 										pending ||
 										!cardId ||
-										(isDebt && !debtPersonId) ||
+										(isDebt && !calculateDebtSplit(total, debtSplit)) ||
 										total <= 0 ||
 										!Number.isInteger(installmentCount) ||
 										installmentCount < 1 ||

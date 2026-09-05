@@ -144,7 +144,9 @@ export function TransactionListItem({
 					<TransactionBadges
 						accounts={accounts}
 						creditCardPayment={creditCardPayment}
-						debtPersonName={transaction.debtPersonName}
+						debtPersonName={transaction.debtSplit?.participants
+							.map(item => `${item.debtPersonName}: ${formatCurrency(item.amount)}`)
+							.join(" · ")}
 						storeName={transaction.storeName}
 						tags={tags}
 					/>

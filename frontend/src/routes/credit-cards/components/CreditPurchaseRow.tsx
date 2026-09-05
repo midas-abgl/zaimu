@@ -40,9 +40,12 @@ export function CreditPurchaseRow({
 					{purchase.installments > 1 ? ` · ${purchase.currentInstallment}/${purchase.installments}` : ""}
 					{purchase.isSettled ? " · Quitada por reparcelamento" : ""}
 				</p>
-				{purchase.debtPersonName ? (
+				{purchase.debtSplit?.participants.length ? (
 					<Badge className="mt-2 gap-1.5" variant="outline">
-						<LuUsersRound /> Dívida · {purchase.debtPersonName}
+						<LuUsersRound /> Dívida ·{" "}
+						{purchase.debtSplit.participants
+							.map(item => `${item.debtPersonName}: ${currency.format(item.amount)}`)
+							.join(" · ")}
 					</Badge>
 				) : null}
 			</div>

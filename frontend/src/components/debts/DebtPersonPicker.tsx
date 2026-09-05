@@ -12,11 +12,13 @@ import { showToast } from "@/stores";
 
 export function DebtPersonPicker({
 	disabled,
+	excludedIds = [],
 	onValueChange,
 	required,
 	value,
 }: {
 	disabled?: boolean;
+	excludedIds?: string[];
 	onValueChange: (personId: string) => void;
 	required?: boolean;
 	value?: string;
@@ -29,8 +31,11 @@ export function DebtPersonPicker({
 	const ledger = useQuery({ queryFn: () => dataService.debts.getLedger(), queryKey: ["debts"] });
 	const people = ledger.data?.people ?? [];
 	const selected = people.find(person => person.id === value);
+	const availablePeople = people.filter(person => person.id === value || !excludedIds.includes(person.id));
 	const normalizedSearch = search.trim().toLocaleLowerCase("pt-BR");
-	const filtered = people.filter(person => person.name.toLocaleLowerCase("pt-BR").includes(normalizedSearch));
+	const filtered = availablePeople.filter(person =>
+		person.name.toLocaleLowerCase("pt-BR").includes(normalizedSearch),
+	);
 	const exact = people.find(person => person.name.toLocaleLowerCase("pt-BR") === normalizedSearch);
 	const createPerson = useMutation({
 		mutationFn: (name: string) => dataService.debts.createPerson(name),
@@ -57,6 +62,10 @@ export function DebtPersonPicker({
 		},
 	});
 	const choose = (personId: string) => {
+		if (personId !== value && excludedIds.includes(personId)) {
+			showToast("Essa pessoa já participa do rateio.", "negative");
+			return;
+		}
 		onValueChange(personId);
 		setSearch("");
 		setOpen(false);

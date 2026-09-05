@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { DebtPersonPicker } from "@/components/debts";
+import { DebtSplitEditor } from "@/components/debts";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { CustomSelect } from "@/components/ui/CustomSelect";
@@ -13,10 +13,11 @@ import {
 	DialogTitle,
 } from "@/components/ui/Dialog";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
-import type { Transaction } from "@/lib/api";
+import type { DebtSplitInput, Transaction } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
 import { formatLocalMonthYear, getCurrentLocalTime } from "@/lib/date";
+import { calculateDebtSplit } from "@/lib/debt-split";
 import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
@@ -28,7 +29,6 @@ const initialDraft = () => ({
 	amount: "",
 	creditCardStatementId: "",
 	date: new Date().toISOString().slice(0, 10),
-	debtPersonId: "",
 	destinationFinancialAccountId: "",
 	isHidden: false,
 	originFinancialAccountId: "",
@@ -48,7 +48,11 @@ export function CreateTransactionDialog({
 	const queryClient = useQueryClient();
 	const [draft, setDraft] = useState(initialDraft);
 	const [isDebt, setIsDebt] = useState(false);
-	const [useExistingEvent, setUseExistingEvent] = useState(false);
+	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>({
+		mode: "SHARES",
+		ownerShares: null,
+		participants: [{ debtPersonId: "", shares: 1 }],
+	});
 	const [description, setDescription] = useDebouncedInput("", () => undefined);
 	const [sendWithoutTime, setSendWithoutTime] = useState(false);
 	useEffect(() => {
@@ -91,21 +95,6 @@ export function CreateTransactionDialog({
 		},
 		queryKey: ["credit-card-statements", "payable"],
 	});
-	const ledgerQuery = useQuery({
-		enabled: open && isDebt,
-		queryFn: () => dataService.debts.getLedger(),
-		queryKey: ["debts"],
-	});
-	const debtPairCandidate = ledgerQuery.data?.people
-		.find(person => person.id === draft.debtPersonId)
-		?.events.find(
-			event =>
-				!event.createdByMe &&
-				event.amount === Number(draft.amount) &&
-				event.date?.slice(0, 10) === draft.date.slice(0, 10) &&
-				event.effect === (draft.type === "INCOME" ? -Number(draft.amount) : Number(draft.amount)),
-		);
-	useEffect(() => setUseExistingEvent(false), [debtPairCandidate?.id]);
 	const balanceAccounts =
 		accountsQuery.data
 			?.filter(account => account.type !== "CREDIT_CARD" && account.type !== "REWARDS")
@@ -119,7 +108,7 @@ export function CreateTransactionDialog({
 		setDraft(initialDraft());
 		setDescription("");
 		setIsDebt(false);
-		setUseExistingEvent(false);
+		setDebtSplit({ mode: "SHARES", ownerShares: null, participants: [{ debtPersonId: "", shares: 1 }] });
 		setSendWithoutTime(false);
 	};
 	const handleOpenChange = (nextOpen: boolean) => {
@@ -144,11 +133,10 @@ export function CreateTransactionDialog({
 			const transaction = await dataService.transactions.create({
 				amount,
 				date: draft.date,
-				debtPersonId: draft.debtPersonId || undefined,
+				debtSplit: isDebt ? debtSplit : undefined,
 				description: description.trim() || undefined,
 				destinationFinancialAccountId: draft.destinationFinancialAccountId || undefined,
 				isHidden: draft.isHidden,
-				matchDebtEventId: useExistingEvent ? debtPairCandidate?.id : undefined,
 				originFinancialAccountId: draft.originFinancialAccountId || undefined,
 				storeName: draft.type === "EXPENSE" ? draft.storeName.trim() || undefined : undefined,
 				tagIds: draft.tagIds,
@@ -198,7 +186,6 @@ export function CreateTransactionDialog({
 							setDraft(current => ({
 								...current,
 								creditCardStatementId: type === "EXPENSE" ? current.creditCardStatementId : "",
-								debtPersonId: type === "TRANSFER" ? "" : current.debtPersonId,
 								type,
 							}));
 						}}
@@ -223,7 +210,6 @@ export function CreateTransactionDialog({
 									...current,
 									amount: current.amount || (remainingAmount === null ? "" : remainingAmount.toFixed(2)),
 									creditCardStatementId,
-									debtPersonId: "",
 								}));
 								setIsDebt(false);
 							}}
@@ -245,38 +231,12 @@ export function CreateTransactionDialog({
 									id="transaction-is-debt"
 									onCheckedChange={checked => {
 										setIsDebt(checked === true);
-										if (checked !== true) setDraft(current => ({ ...current, debtPersonId: "" }));
 									}}
 								/>
 								<span>Esta movimentação é de uma dívida</span>
 							</label>
 							{isDebt ? (
-								<>
-									<DebtPersonPicker
-										onValueChange={debtPersonId => setDraft(current => ({ ...current, debtPersonId }))}
-										required
-										value={draft.debtPersonId}
-									/>
-									{debtPairCandidate ? (
-										<label
-											className="flex cursor-pointer items-start gap-3 rounded-xl bg-primary/5 p-3 text-sm"
-											htmlFor="transaction-use-debt-event"
-										>
-											<Checkbox
-												checked={useExistingEvent}
-												className="mt-0.5 cursor-pointer"
-												id="transaction-use-debt-event"
-												onCheckedChange={checked => setUseExistingEvent(checked === true)}
-											/>
-											<span>
-												<strong>Usar lançamento já compartilhado</strong>
-												<span className="block text-muted-foreground text-xs">
-													Mesmo valor e data. O pareamento não altera o saldo novamente.
-												</span>
-											</span>
-										</label>
-									) : null}
-								</>
+								<DebtSplitEditor amount={Number(draft.amount)} onChange={setDebtSplit} value={debtSplit} />
 							) : null}
 						</div>
 					) : null}
@@ -334,7 +294,7 @@ export function CreateTransactionDialog({
 						disabled={
 							!draft.amount ||
 							!primaryAccountId ||
-							(isDebt && !draft.debtPersonId) ||
+							(isDebt && !calculateDebtSplit(Number(draft.amount), debtSplit)) ||
 							(draft.type === "TRANSFER" && !draft.destinationFinancialAccountId) ||
 							create.isPending
 						}

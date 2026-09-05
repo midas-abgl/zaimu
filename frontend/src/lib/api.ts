@@ -83,6 +83,53 @@ export interface Store {
 	userId: string;
 }
 
+export type DebtSplitInput =
+	| {
+			mode: "SHARES";
+			ownerShares: null | number;
+			participants: Array<{ debtPersonId: string; shares: number }>;
+	  }
+	| {
+			mode: "PERCENTAGE";
+			ownerIncluded: boolean;
+			participants: Array<{ debtPersonId: string; percentage: number }>;
+	  }
+	| {
+			mode: "FIXED";
+			ownerIncluded: boolean;
+			participants: Array<{ debtPersonId: string; fixedAmount: number }>;
+	  };
+
+export type DebtSplit =
+	| {
+			mode: "SHARES";
+			ownerAmount: number;
+			ownerShares: null | number;
+			participants: Array<{ amount: number; debtPersonId: string; debtPersonName: string; shares: number }>;
+	  }
+	| {
+			mode: "PERCENTAGE";
+			ownerAmount: number;
+			ownerIncluded: boolean;
+			participants: Array<{
+				amount: number;
+				debtPersonId: string;
+				debtPersonName: string;
+				percentage: number;
+			}>;
+	  }
+	| {
+			mode: "FIXED";
+			ownerAmount: number;
+			ownerIncluded: boolean;
+			participants: Array<{
+				amount: number;
+				debtPersonId: string;
+				debtPersonName: string;
+				fixedAmount: number;
+			}>;
+	  };
+
 export interface CreditCard {
 	id: string;
 	financialAccountId: string;
@@ -106,8 +153,7 @@ export interface Transaction {
 	time?: string | null;
 	description?: string;
 	isHidden?: boolean;
-	debtPersonId?: string;
-	debtPersonName?: string;
+	debtSplit?: DebtSplit | null;
 	storeName?: string | null;
 	type: "INCOME" | "EXPENSE" | "TRANSFER";
 	categoryId?: string;
@@ -263,6 +309,7 @@ export interface Subscription {
 	userId: string;
 	name: string;
 	amount: number;
+	debtSplit?: DebtSplit | null;
 	billingDay: number;
 	frequency: "DAILY" | "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "YEARLY";
 	paymentMethod: "DEBIT" | "CREDIT" | "PIX" | "CASH" | "TRANSFER" | "BOLETO";
@@ -281,6 +328,7 @@ export interface RecurringPayment {
 	userId: string;
 	name: string;
 	amount: number;
+	debtSplit?: DebtSplit | null;
 	frequency: "DAILY" | "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "YEARLY";
 	dayOfMonth?: number;
 	dayOfWeek?: number;
@@ -316,8 +364,7 @@ export interface CreditPurchase {
 	id: string;
 	statementId: string;
 	description: string;
-	debtPersonId?: string;
-	debtPersonName?: string;
+	debtSplit?: DebtSplit | null;
 	storeName?: string | null;
 	totalAmount: number;
 	installments: number;

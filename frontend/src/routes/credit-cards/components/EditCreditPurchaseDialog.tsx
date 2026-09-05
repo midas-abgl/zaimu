@@ -1,5 +1,5 @@
 import { type SyntheticEvent, useEffect, useState } from "react";
-import { DebtPersonPicker } from "@/components/debts";
+import { DebtSplitEditor } from "@/components/debts";
 import { StorePicker } from "@/components/stores";
 import { TagPicker } from "@/components/tags";
 import { Button } from "@/components/ui/Button";
@@ -18,14 +18,15 @@ import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
-import type { CreditCard, CreditPurchase } from "@/lib/api";
+import type { CreditCard, CreditPurchase, DebtSplitInput } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
+import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
 import { getUpdatedStoreName } from "@/lib/store-name";
 
 interface CreditPurchaseUpdate {
 	creditCardId?: string;
 	description: string;
-	debtPersonId?: null | string;
+	debtSplit?: DebtSplitInput | null;
 	installments: number;
 	storeName?: string | null;
 	purchaseDate: string;
@@ -46,14 +47,14 @@ export function EditCreditPurchaseDialog({
 	cards?: CreditCard[];
 	creditCardId?: string;
 	onOpenChange: (open: boolean) => void;
-	onSubmit: (data: CreditPurchaseUpdate) => Promise<void>;
+	onSubmit: (data: CreditPurchaseUpdate) => Promise<unknown>;
 	open: boolean;
 	pending: boolean;
 	purchase: CreditPurchase;
 }) {
 	const [description, setDescription] = useDebouncedInput(purchase.description, () => undefined);
-	const [debtPersonId, setDebtPersonId] = useState(purchase.debtPersonId ?? "");
-	const [isDebt, setIsDebt] = useState(Boolean(purchase.debtPersonId));
+	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => debtSplitToInput(purchase.debtSplit));
+	const [isDebt, setIsDebt] = useState(Boolean(purchase.debtSplit));
 	const [amount, setAmount] = useState(String(purchase.totalAmount));
 	const [count, setCount] = useDebouncedInput(String(purchase.installments), () => undefined);
 	const [date, setDate] = useState(purchase.purchaseDate.slice(0, 10));
@@ -65,10 +66,10 @@ export function EditCreditPurchaseDialog({
 	useEffect(() => {
 		if (!open) return;
 		setStoreName(purchase.storeName ?? "");
-		setDebtPersonId(purchase.debtPersonId ?? "");
-		setIsDebt(Boolean(purchase.debtPersonId));
+		setDebtSplit(debtSplitToInput(purchase.debtSplit));
+		setIsDebt(Boolean(purchase.debtSplit));
 		setTime(purchase.time ?? "");
-	}, [open, purchase.debtPersonId, purchase.storeName, purchase.time]);
+	}, [open, purchase.debtSplit, purchase.storeName, purchase.time]);
 	const totalAmount = Number(amount);
 	const installments = Number.parseInt(count, 10);
 	const installmentAmount = totalAmount / (installments || 1);
@@ -78,7 +79,7 @@ export function EditCreditPurchaseDialog({
 		const updatedStoreName = getUpdatedStoreName(purchase.storeName, storeName);
 		await onSubmit({
 			...(selectedCardId && selectedCardId !== creditCardId && { creditCardId: selectedCardId }),
-			debtPersonId: isDebt ? debtPersonId : null,
+			debtSplit: isDebt ? debtSplit : null,
 			description: description.trim(),
 			installments,
 			purchaseDate: date,
@@ -183,13 +184,12 @@ export function EditCreditPurchaseDialog({
 										id="edit-purchase-is-debt"
 										onCheckedChange={checked => {
 											setIsDebt(checked === true);
-											if (checked !== true) setDebtPersonId("");
 										}}
 									/>
 									<span>Esta compra é de uma dívida</span>
 								</label>
 								{isDebt ? (
-									<DebtPersonPicker onValueChange={setDebtPersonId} required value={debtPersonId} />
+									<DebtSplitEditor amount={totalAmount} onChange={setDebtSplit} value={debtSplit} />
 								) : null}
 							</div>
 							<DialogFooter>
@@ -205,7 +205,7 @@ export function EditCreditPurchaseDialog({
 									className="cursor-pointer"
 									disabled={
 										pending ||
-										(isDebt && !debtPersonId) ||
+										(isDebt && !calculateDebtSplit(totalAmount, debtSplit)) ||
 										totalAmount <= 0 ||
 										!Number.isInteger(installments) ||
 										installments < 1 ||

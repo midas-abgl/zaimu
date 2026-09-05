@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { DebtPersonPicker } from "@/components/debts";
+import { DebtSplitEditor } from "@/components/debts";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { CustomSelect } from "@/components/ui/CustomSelect";
@@ -13,8 +13,9 @@ import {
 	DialogTitle,
 } from "@/components/ui/Dialog";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
-import type { Transaction } from "@/lib/api";
+import type { DebtSplitInput, Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
+import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
 import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
@@ -27,7 +28,6 @@ function createDraft(transaction: Transaction) {
 	return {
 		amount: String(transaction.amount),
 		date: transaction.date.slice(0, 10),
-		debtPersonId: transaction.debtPersonId ?? "",
 		destinationFinancialAccountId: transaction.destinationFinancialAccountId ?? "",
 		isHidden: transaction.isHidden ?? false,
 		originFinancialAccountId: transaction.originFinancialAccountId ?? "",
@@ -49,7 +49,8 @@ export function EditTransactionDialog({
 }) {
 	const queryClient = useQueryClient();
 	const [draft, setDraft] = useState(() => (transaction ? createDraft(transaction) : null));
-	const [isDebt, setIsDebt] = useState(Boolean(transaction?.debtPersonId));
+	const [isDebt, setIsDebt] = useState(Boolean(transaction?.debtSplit));
+	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => debtSplitToInput(transaction?.debtSplit));
 	const [description, setDescription] = useDebouncedInput(transaction?.description ?? "", () => undefined);
 	const accountsQuery = useQuery({
 		enabled: open,
@@ -60,7 +61,8 @@ export function EditTransactionDialog({
 	useEffect(() => {
 		if (!open || !transaction) return;
 		setDraft(createDraft(transaction));
-		setIsDebt(Boolean(transaction.debtPersonId));
+		setIsDebt(Boolean(transaction.debtSplit));
+		setDebtSplit(debtSplitToInput(transaction.debtSplit));
 		setDescription(transaction.description ?? "");
 	}, [open, setDescription, transaction]);
 
@@ -74,7 +76,7 @@ export function EditTransactionDialog({
 			return dataService.transactions.update(transaction.id, {
 				amount: Number.parseFloat(draft.amount),
 				date: draft.date,
-				debtPersonId: isDebt ? draft.debtPersonId || null : null,
+				debtSplit: isDebt ? debtSplit : null,
 				description: description.trim() || undefined,
 				destinationFinancialAccountId: draft.destinationFinancialAccountId || null,
 				isHidden: draft.isHidden,
@@ -134,7 +136,6 @@ export function EditTransactionDialog({
 								current
 									? {
 											...current,
-											debtPersonId: type === "TRANSFER" ? "" : current.debtPersonId,
 											destinationFinancialAccountId:
 												type === "INCOME" ? current.destinationFinancialAccountId : "",
 											originFinancialAccountId: type === "INCOME" ? "" : current.originFinancialAccountId,
@@ -161,20 +162,12 @@ export function EditTransactionDialog({
 									id="edit-transaction-is-debt"
 									onCheckedChange={checked => {
 										setIsDebt(checked === true);
-										if (checked !== true)
-											setDraft(current => (current ? { ...current, debtPersonId: "" } : current));
 									}}
 								/>
 								<span>Esta movimentação é de uma dívida</span>
 							</label>
 							{isDebt ? (
-								<DebtPersonPicker
-									onValueChange={debtPersonId =>
-										setDraft(current => (current ? { ...current, debtPersonId } : current))
-									}
-									required
-									value={draft.debtPersonId}
-								/>
+								<DebtSplitEditor amount={Number(draft.amount)} onChange={setDebtSplit} value={debtSplit} />
 							) : null}
 						</div>
 					) : null}
@@ -223,7 +216,7 @@ export function EditTransactionDialog({
 						disabled={
 							!draft.amount ||
 							!primaryAccountId ||
-							(isDebt && !draft.debtPersonId) ||
+							(isDebt && !calculateDebtSplit(Number(draft.amount), debtSplit)) ||
 							(draft.type === "TRANSFER" && !draft.destinationFinancialAccountId) ||
 							update.isPending
 						}

@@ -204,7 +204,9 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 			{refinancingPurchase && (
 				<RefinanceCreditPurchaseDialog
 					onOpenChange={open => !open && setRefinancingPurchase(null)}
-					onSubmit={data => refinancePurchase.mutateAsync({ data, purchaseId: refinancingPurchase.id })}
+					onSubmit={async data => {
+						await refinancePurchase.mutateAsync({ data, purchaseId: refinancingPurchase.id });
+					}}
 					open
 					pending={refinancePurchase.isPending}
 					purchase={refinancingPurchase}
