@@ -1962,6 +1962,43 @@ export const dataService = {
 			if (isGuestMode()) {
 				const existing = await localTransactions.getById(id);
 				if (!existing) throw new Error("Transação não encontrada");
+				if (existing.data.creditCardStatementId) {
+					const amount = data.amount ?? existing.data.amount;
+					if (amount <= 0) throw new Error("Informe um valor maior que zero");
+					const originFinancialAccountId =
+						data.originFinancialAccountId ?? existing.data.originFinancialAccountId;
+					if (!originFinancialAccountId) throw new Error("Selecione a conta pagadora");
+					const storedStatement = await localCreditCardStatements.getById(
+						existing.data.creditCardStatementId,
+					);
+					const statement = storedStatement?.data;
+					if (!statement) throw new Error("Fatura não encontrada");
+					const paidAmount =
+						(Math.round(statement.paidAmount * 100) -
+							Math.round(existing.data.amount * 100) +
+							Math.round(amount * 100)) /
+						100;
+					const updatedStatement: CreditCardStatement = {
+						...statement,
+						balanceAmount: statement.totalAmount - paidAmount,
+						isPaid:
+							statement.statementDate.slice(0, 10) <= new Date().toISOString().slice(0, 10) &&
+							paidAmount >= statement.totalAmount,
+						paidAmount,
+					};
+					const updated: Transaction = {
+						...existing.data,
+						amount,
+						date: data.date ?? existing.data.date,
+						originFinancialAccountId,
+						time: data.time !== undefined ? data.time : existing.data.time,
+					};
+					await Promise.all([
+						localCreditCardStatements.put(updatedStatement, updatedStatement.id),
+						localTransactions.put(updated, id),
+					]);
+					return updated;
+				}
 				const updated: Transaction = {
 					...existing.data,
 					...data,

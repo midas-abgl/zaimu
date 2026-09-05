@@ -647,7 +647,106 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				throw new HttpException("Transaction not found", 404);
 			}
 			if (existing.creditCardStatementId) {
-				throw new HttpException("Pagamentos de fatura não podem ser editados", 409);
+				if (
+					body.categoryId !== undefined ||
+					body.debtPersonId !== undefined ||
+					body.description !== undefined ||
+					body.destinationFinancialAccountId !== undefined ||
+					body.isHidden !== undefined ||
+					body.matchDebtEventId !== undefined ||
+					body.storeName !== undefined ||
+					body.tagIds !== undefined ||
+					body.type !== undefined
+				) {
+					throw new HttpException("Edite apenas valor, data, horário ou conta do pagamento da fatura", 400);
+				}
+				const amount = body.amount ?? Number(existing.amount);
+				if (amount <= 0) throw new HttpException("Informe um valor maior que zero", 400);
+				const originFinancialAccountId = body.originFinancialAccountId ?? existing.originFinancialAccountId;
+				if (!originFinancialAccountId) throw new HttpException("Selecione a conta pagadora", 400);
+
+				const statement = await queryFirst(
+					db.sql.public.CreditCardStatement.select("id", "paidAmount", "statementDate", "totalAmount")
+						.where((fields, functions) => functions.eq(fields.id, existing.creditCardStatementId!))
+						.limit(1)
+						.build(),
+				);
+				if (!statement) throw new HttpException("Fatura não encontrada", 404);
+
+				const paidAmount = (toCents(statement.paidAmount) - toCents(existing.amount) + toCents(amount)) / 100;
+				const isPaid =
+					toDateKey(statement.statementDate) <= toDateKey(new Date()) &&
+					toCents(paidAmount) >= toCents(statement.totalAmount);
+				const paymentHistoryEntries = [
+					...(amount !== Number(existing.amount)
+						? [
+								{
+									field: "amount",
+									newValue: String(amount),
+									oldValue: String(existing.amount),
+									transactionId: existing.id,
+								},
+							]
+						: []),
+					...(body.date && body.date !== existing.date.toISOString().slice(0, 10)
+						? [
+								{
+									field: "date",
+									newValue: body.date,
+									oldValue: existing.date.toISOString().slice(0, 10),
+									transactionId: existing.id,
+								},
+							]
+						: []),
+					...(body.time !== undefined && body.time !== existing.time
+						? [
+								{
+									field: "time",
+									newValue: body.time,
+									oldValue: existing.time,
+									transactionId: existing.id,
+								},
+							]
+						: []),
+					...(originFinancialAccountId !== existing.originFinancialAccountId
+						? [
+								{
+									field: "originFinancialAccountId",
+									newValue: originFinancialAccountId,
+									oldValue: existing.originFinancialAccountId,
+									transactionId: existing.id,
+								},
+							]
+						: []),
+				];
+				const transaction = await queryFirst(
+					db.sql.public.Transaction.update({
+						...(body.amount !== undefined && { amount: String(amount) }),
+						...(body.date && { date: new Date(body.date) }),
+						...(body.time !== undefined && { time: body.time }),
+						...(body.originFinancialAccountId !== undefined && { originFinancialAccountId }),
+						updatedAt: new Date(),
+					} as never)
+						.where((fields, functions) => functions.eq(fields.id, params.id))
+						.returning(...transactionColumns)
+						.build(),
+				);
+				if (!transaction) throw new HttpException("Transação não encontrada", 404);
+				await executeStatement(
+					db.sql.public.CreditCardStatement.update({
+						isPaid,
+						paidAmount: String(paidAmount),
+						updatedAt: new Date(),
+					})
+						.where((fields, functions) => functions.eq(fields.id, statement.id))
+						.build(),
+				);
+				if (paymentHistoryEntries.length > 0) {
+					await executeStatement(
+						db.sql.public.TransactionHistory.insert(paymentHistoryEntries as never).build(),
+					);
+				}
+				return { ...transaction, tagIds: [], tags: [] };
 			}
 			if (body.amount !== undefined && body.amount <= 0) {
 				throw new HttpException("Informe um valor maior que zero", 400);

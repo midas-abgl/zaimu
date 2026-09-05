@@ -4,6 +4,7 @@ import { useState } from "react";
 import { HiArrowDown, HiArrowsRightLeft, HiArrowUp, HiPlus } from "react-icons/hi2";
 import {
 	CreateTransactionDialog,
+	EditStatementPaymentDialog,
 	EditTransactionDialog,
 	TransactionListItem,
 } from "@/components/transactions";
@@ -29,6 +30,7 @@ const typeOptions = [
 
 function TransactionsPage() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [editingStatementPayment, setEditingStatementPayment] = useState<Transaction | null>(null);
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 	const [editingPurchase, setEditingPurchase] = useState<Transaction | null>(null);
 	const [filterType, setFilterType] = useState<string>("all");
@@ -111,36 +113,41 @@ function TransactionsPage() {
 			showToast("Compra excluída.", "positive");
 		},
 	});
-	const renderTransaction = (transaction: Transaction) => (
-		<TransactionListItem
-			deleting={
-				(transaction.source === "CREDIT_CARD" ? removePurchase.isPending : remove.isPending) &&
-				(transaction.source === "CREDIT_CARD" ? removePurchase.variables?.id : remove.variables) ===
-					transaction.id
-			}
-			key={transaction.id}
-			metadataPrefix={
-				formatLocalTime(transaction.time) ? (
-					<span className="text-muted-foreground text-xs">{formatLocalTime(transaction.time)}</span>
-				) : undefined
-			}
-			onDelete={
-				transaction.creditCardStatementId && transaction.source !== "CREDIT_CARD"
-					? undefined
-					: transaction.source === "CREDIT_CARD"
-						? () => removePurchase.mutate(transaction)
-						: () => remove.mutate(transaction.id)
-			}
-			onEdit={
-				transaction.creditCardStatementId && transaction.source !== "CREDIT_CARD"
-					? undefined
-					: transaction.source === "CREDIT_CARD"
-						? () => setEditingPurchase(transaction)
-						: () => setEditingTransaction(transaction)
-			}
-			transaction={transaction}
-		/>
-	);
+	const renderTransaction = (transaction: Transaction) => {
+		const isStatementPayment =
+			Boolean(transaction.creditCardStatementId) && transaction.source !== "CREDIT_CARD";
+
+		return (
+			<TransactionListItem
+				deleting={
+					(transaction.source === "CREDIT_CARD" ? removePurchase.isPending : remove.isPending) &&
+					(transaction.source === "CREDIT_CARD" ? removePurchase.variables?.id : remove.variables) ===
+						transaction.id
+				}
+				key={transaction.id}
+				metadataPrefix={
+					formatLocalTime(transaction.time) ? (
+						<span className="text-muted-foreground text-xs">{formatLocalTime(transaction.time)}</span>
+					) : undefined
+				}
+				onDelete={
+					isStatementPayment
+						? undefined
+						: transaction.source === "CREDIT_CARD"
+							? () => removePurchase.mutate(transaction)
+							: () => remove.mutate(transaction.id)
+				}
+				onEdit={
+					isStatementPayment
+						? () => setEditingStatementPayment(transaction)
+						: transaction.source === "CREDIT_CARD"
+							? () => setEditingPurchase(transaction)
+							: () => setEditingTransaction(transaction)
+				}
+				transaction={transaction}
+			/>
+		);
+	};
 
 	return (
 		<PageContainer className="space-y-6">
@@ -234,6 +241,11 @@ function TransactionsPage() {
 				onOpenChange={open => !open && setEditingTransaction(null)}
 				open={editingTransaction !== null}
 				transaction={editingTransaction}
+			/>
+			<EditStatementPaymentDialog
+				onOpenChange={open => !open && setEditingStatementPayment(null)}
+				open={editingStatementPayment !== null}
+				transaction={editingStatementPayment}
 			/>
 			{editingPurchase?.creditCardId && editingPurchase.installmentAmount !== undefined ? (
 				<EditCreditPurchaseDialog

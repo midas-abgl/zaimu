@@ -820,6 +820,46 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(openStatementsResponse.status).toBe(200);
 		expect(openStatements.some(item => item.balanceAmount === 39.9)).toBeTrue();
 
+		const editedStatementPaymentResponse = await jsonRequest(
+			`/transactions/${statementPayment.transaction.id}`,
+			"PATCH",
+			{
+				amount: 40,
+				date: "2026-08-24",
+				originFinancialAccountId: account.id,
+				time: "20:15",
+			},
+			owner.cookie,
+		);
+		expect(editedStatementPaymentResponse.status).toBe(200);
+		expect((await editedStatementPaymentResponse.json()) as { amount: number; time: string }).toMatchObject({
+			amount: 40,
+			time: expect.stringMatching(/^20:15/),
+		});
+		const statementAfterPaymentEdit = (await (
+			await jsonRequest(
+				`/credit-cards/${cardAccount.creditCard.id}/statements/${statementToPay.id}`,
+				"GET",
+				undefined,
+				owner.cookie,
+			)
+		).json()) as {
+			isPaid: boolean;
+			paidAmount: number;
+			payments: Array<{ amount: number; date: string; id: string; time: string }>;
+		};
+		expect(statementAfterPaymentEdit).toMatchObject({ isPaid: false, paidAmount: 40 });
+		expect(statementAfterPaymentEdit.payments).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					amount: 40,
+					date: expect.stringContaining("2026-08-24"),
+					id: statementPayment.transaction.id,
+					time: expect.stringMatching(/^20:15/),
+				}),
+			]),
+		);
+
 		const lifecycleCases = [
 			{
 				create: {
