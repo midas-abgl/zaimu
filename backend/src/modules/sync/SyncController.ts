@@ -479,7 +479,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 			if (existing && existing.userId !== userId) throw new Error(`Dívida ${id} pertence a outro usuário`);
 			const values = {
 				amount: String(value<number>(entity, "amount")),
-				date: new Date(value<string>(entity, "date")),
+				date: optionalDate(entity, "date"),
 				description: value<string | undefined>(entity, "description"),
 				dueDate: optionalDate(entity, "dueDate"),
 				isOwedToMe: value<boolean>(entity, "isOwedToMe") ?? true,

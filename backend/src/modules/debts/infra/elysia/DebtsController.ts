@@ -24,6 +24,28 @@ const EventIdParams = t.Object({ eventId: t.String({ maxLength: 36, minLength: 1
 type DebtConnectionState = "PENDING" | "ACCEPTED" | "DECLINED";
 type DebtEventType = "ORIGIN" | "TRANSACTION" | "PURCHASE" | "MIGRATED_SETTLEMENT";
 
+function compareDebtEvents(
+	left: { date: Date | null; description: null | string; kind: DebtEventType },
+	right: { date: Date | null; description: null | string; kind: DebtEventType },
+) {
+	if (left.date && right.date) return right.date.getTime() - left.date.getTime();
+	if (left.date) return -1;
+	if (right.date) return 1;
+	const labels: Record<DebtEventType, string> = {
+		MIGRATED_SETTLEMENT: "Quitação migrada",
+		ORIGIN: "Lançamento manual",
+		PURCHASE: "Compra",
+		TRANSACTION: "Movimentação",
+	};
+	return (left.description ?? labels[left.kind]).localeCompare(
+		right.description ?? labels[right.kind],
+		"pt-BR",
+		{
+			sensitivity: "base",
+		},
+	);
+}
+
 async function findOrCreatePerson(userId: string, name: string) {
 	const displayName = name.trim().replace(/\s+/g, " ");
 	if (!displayName) throw new HttpException("Informe o nome da pessoa", 400);
@@ -134,7 +156,7 @@ async function getPersonEvents(person: { connectionId: null | string; id: string
 			effect: event.createdByUserId === userId ? Number(event.effect) : -Number(event.effect),
 			kind: event.kind as DebtEventType,
 		}))
-		.toSorted((left, right) => right.date.getTime() - left.date.getTime());
+		.toSorted(compareDebtEvents);
 }
 
 async function getPeopleLedger(userId: string) {
@@ -418,7 +440,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 		{
 			body: t.Object({
 				amount: t.Number({ exclusiveMinimum: 0 }),
-				date: t.String(),
+				date: t.Optional(t.Nullable(t.String())),
 				description: t.Optional(t.String({ maxLength: 1000 })),
 				dueDate: t.Optional(t.String()),
 				isOwedToMe: t.Boolean(),
@@ -447,7 +469,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 		{
 			body: t.Object({
 				amount: t.Number({ exclusiveMinimum: 0 }),
-				date: t.String(),
+				date: t.Optional(t.Nullable(t.String())),
 				description: t.Optional(t.String({ maxLength: 1000 })),
 				dueDate: t.Optional(t.String()),
 				isOwedToMe: t.Optional(t.Boolean()),
@@ -473,7 +495,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 				db.sql.public.DebtEvent.update({
 					amount: String(amount),
 					connectionId: connectionId ?? null,
-					date: body.date ? new Date(body.date) : event.date,
+					date: body.date === undefined ? event.date : body.date ? new Date(body.date) : null,
 					debtPersonId: personId,
 					description: body.description,
 					dueDate: body.dueDate ? new Date(body.dueDate) : null,
@@ -489,7 +511,7 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 		{
 			body: t.Object({
 				amount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
-				date: t.Optional(t.String()),
+				date: t.Optional(t.Nullable(t.String())),
 				description: t.Optional(t.String({ maxLength: 1000 })),
 				dueDate: t.Optional(t.String()),
 				isOwedToMe: t.Optional(t.Boolean()),

@@ -16,7 +16,7 @@ export const DebtEventReturn = t.Object({
 	createdByMe: t.Boolean(),
 	createdByName: t.String(),
 	createdByUserId: Id,
-	date: t.Date(),
+	date: t.Union([t.Date(), t.Null()]),
 	description: NullableString,
 	dueDate: t.Union([t.Date(), t.Null()]),
 	effect: t.Number(),
@@ -67,7 +67,7 @@ export const DebtConnectionReturn = t.Object({
 export const DebtMutationEventReturn = t.Object({
 	amount: t.Number(),
 	connectionId: t.Optional(NullableId),
-	date: t.Date(),
+	date: t.Union([t.Date(), t.Null()]),
 	debtPersonId: NullableId,
 	description: NullableString,
 	effect: t.Number(),

@@ -1,6 +1,7 @@
 import { type SyntheticEvent, useEffect, useState } from "react";
 import { DebtPersonPicker } from "@/components/debts";
 import { Button } from "@/components/ui/Button";
+import { Checkbox } from "@/components/ui/Checkbox";
 import { DateField } from "@/components/ui/DateField";
 import {
 	Dialog,
@@ -17,7 +18,7 @@ import { useDebouncedInput } from "@/hooks/use-debounced-input";
 
 export interface DebtOriginDraft {
 	amount: number;
-	date: string;
+	date?: null | string;
 	description?: string;
 	dueDate?: string;
 	isOwedToMe: boolean;
@@ -39,6 +40,7 @@ export function CreateDebtDialog({
 }) {
 	const [amount, setAmount] = useState("");
 	const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+	const [sendWithoutDate, setSendWithoutDate] = useState(false);
 	const [dueDate, setDueDate] = useState("");
 	const [description, setDescription] = useDebouncedInput("", () => undefined);
 	const [personId, setPersonId] = useState("");
@@ -46,7 +48,8 @@ export function CreateDebtDialog({
 	useEffect(() => {
 		if (!open || !initialValue) return;
 		setAmount(String(initialValue.amount));
-		setDate(initialValue.date.slice(0, 10));
+		setDate(initialValue.date?.slice(0, 10) ?? "");
+		setSendWithoutDate(!initialValue.date);
 		setDueDate(initialValue.dueDate?.slice(0, 10) ?? "");
 		setDescription(initialValue.description ?? "");
 		setPersonId(initialValue.personId);
@@ -55,6 +58,7 @@ export function CreateDebtDialog({
 	const reset = () => {
 		setAmount("");
 		setDate(new Date().toISOString().slice(0, 10));
+		setSendWithoutDate(false);
 		setDueDate("");
 		setDescription("");
 		setPersonId("");
@@ -68,7 +72,7 @@ export function CreateDebtDialog({
 		event.preventDefault();
 		await onSubmit({
 			amount: Number(amount),
-			date,
+			date: sendWithoutDate ? null : date || undefined,
 			description: description.trim() || undefined,
 			dueDate: dueDate || undefined,
 			isOwedToMe,
@@ -119,15 +123,26 @@ export function CreateDebtDialog({
 							value={amount}
 						/>
 						<div className="grid gap-4 sm:grid-cols-2">
-							<DateField
-								autoComplete="off"
-								id="debt-origin-date"
-								label="Data"
-								name="debt-origin-date"
-								onChange={event => setDate(event.currentTarget.value)}
-								required
-								value={date}
-							/>
+							<div className="grid content-start gap-4">
+								<DateField
+									autoComplete="off"
+									disabled={sendWithoutDate}
+									id="debt-origin-date"
+									label="Data"
+									name="debt-origin-date"
+									onChange={event => setDate(event.currentTarget.value)}
+									value={sendWithoutDate ? "" : date}
+								/>
+								<label className="flex cursor-pointer items-start gap-3 text-sm" htmlFor="debt-without-date">
+									<Checkbox
+										checked={sendWithoutDate}
+										className="mt-0.5 cursor-pointer"
+										id="debt-without-date"
+										onCheckedChange={checked => setSendWithoutDate(checked === true)}
+									/>
+									<span className="font-medium text-foreground-muted">Não incluir data</span>
+								</label>
+							</div>
 							<DateField
 								autoComplete="off"
 								id="debt-origin-due-date"
@@ -158,7 +173,7 @@ export function CreateDebtDialog({
 							</Button>
 							<Button
 								className="cursor-pointer"
-								disabled={pending || !personId || Number(amount) <= 0 || !date}
+								disabled={pending || !personId || Number(amount) <= 0}
 								type="submit"
 							>
 								{pending ? "Salvando…" : initialValue ? "Salvar alterações" : "Salvar lançamento"}

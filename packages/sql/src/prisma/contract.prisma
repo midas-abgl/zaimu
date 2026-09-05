@@ -279,7 +279,7 @@ namespace public {
     amount        Numeric(12, 2)
     description   VarChar(500)?
     isOwedToMe    Boolean        @default(true)
-    date          Date
+    date          Date?
     dueDate       Date?
     isPaid        Boolean        @default(false)
     paidDate      Date?
@@ -347,7 +347,7 @@ namespace public {
     kind            pg.enum(DebtEventKind)  @default("ORIGIN")
     amount          Numeric(12, 2)
     effect          Numeric(12, 2)
-    date            Date
+    date            Date?
     dueDate         Date?
     description     VarChar(1000)?
     createdAt       Timestamp(3)            @default(now())

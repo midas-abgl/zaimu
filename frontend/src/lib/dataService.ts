@@ -898,7 +898,7 @@ export const dataService = {
 		},
 		async createOrigin(data: {
 			amount: number;
-			date: string;
+			date?: null | string;
 			description?: string;
 			dueDate?: string;
 			isOwedToMe: boolean;
@@ -909,7 +909,7 @@ export const dataService = {
 				if (!person) throw new Error("Pessoa não encontrada");
 				const debt: Debt = {
 					amount: data.amount,
-					date: data.date,
+					date: data.date ?? undefined,
 					description: data.description,
 					dueDate: data.dueDate,
 					id: crypto.randomUUID(),
@@ -1029,7 +1029,7 @@ export const dataService = {
 					createdByMe: true,
 					createdByName: "Você",
 					createdByUserId: getUserId(),
-					date: debt.date,
+					date: debt.date ?? null,
 					description: debt.description,
 					dueDate: debt.dueDate,
 					effect,
@@ -1079,7 +1079,16 @@ export const dataService = {
 			}
 			const result = [...people.values()].map(person => ({
 				...person,
-				events: person.events.toSorted((left, right) => right.date.localeCompare(left.date)),
+				events: person.events.toSorted((left, right) => {
+					if (left.date && right.date) return right.date.localeCompare(left.date);
+					if (left.date) return -1;
+					if (right.date) return 1;
+					return (left.description ?? "Lançamento manual").localeCompare(
+						right.description ?? "Lançamento manual",
+						"pt-BR",
+						{ sensitivity: "base" },
+					);
+				}),
 			}));
 			return {
 				people: result,
@@ -1121,7 +1130,7 @@ export const dataService = {
 			id: string,
 			data: {
 				amount: number;
-				date: string;
+				date?: null | string;
 				description?: string;
 				dueDate?: string;
 				isOwedToMe: boolean;
@@ -1136,6 +1145,7 @@ export const dataService = {
 					{
 						...debt.data,
 						...data,
+						date: data.date === null ? undefined : (data.date ?? debt.data.date),
 						personId: person.data.id,
 						personName: person.data.name,
 					},

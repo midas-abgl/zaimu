@@ -38,7 +38,7 @@ export async function resolveDebtPersonConnection(personId: string, userId: stri
 export async function createDebtEvent(input: {
 	amount: number;
 	createdByUserId: string;
-	date: string;
+	date?: null | string;
 	debtPersonId: string;
 	description?: string;
 	dueDate?: string;
@@ -54,7 +54,7 @@ export async function createDebtEvent(input: {
 				amount: String(input.amount),
 				connectionId,
 				createdByUserId: input.createdByUserId,
-				date: new Date(input.date),
+				date: input.date ? new Date(input.date) : null,
 				debtPersonId: input.debtPersonId,
 				description: input.description,
 				dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
@@ -128,6 +128,7 @@ export async function linkTransactionToDebt(input: {
 	if (!input.debtPersonId && !input.matchEventId) return;
 	if (input.matchEventId) {
 		const event = await getAccessibleDebtEvent(input.matchEventId, input.userId);
+		if (!event.date) throw new HttpException("Lançamentos sem data não podem ser conciliados", 409);
 		const expectedEffect = debtEffectForTransaction(input.amount, input.type);
 		const perspectiveEffect =
 			event.createdByUserId === input.userId ? Number(event.effect) : -Number(event.effect);
@@ -248,6 +249,7 @@ export async function linkPurchaseToDebt(input: {
 	if (!input.debtPersonId && !input.matchEventId) return;
 	if (input.matchEventId) {
 		const event = await getAccessibleDebtEvent(input.matchEventId, input.userId);
+		if (!event.date) throw new HttpException("Lançamentos sem data não podem ser conciliados", 409);
 		const perspectiveEffect =
 			event.createdByUserId === input.userId ? Number(event.effect) : -Number(event.effect);
 		if (

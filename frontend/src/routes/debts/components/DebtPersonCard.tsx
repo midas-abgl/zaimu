@@ -97,7 +97,8 @@ export function DebtPersonCard({
 							<div className="min-w-0 flex-1">
 								<p className="truncate font-medium text-sm">{eventLabel(event)}</p>
 								<p className="text-muted-foreground text-xs">
-									{formatLocalDate(event.date)} · {event.createdByMe ? "Você" : event.createdByName}
+									{event.date ? `${formatLocalDate(event.date)} · ` : ""}
+									{event.createdByMe ? "Você" : event.createdByName}
 								</p>
 							</div>
 							<div className="col-span-2 flex items-center justify-end gap-2 border-t pt-2 sm:col-auto sm:ml-auto sm:border-0 sm:pt-0">

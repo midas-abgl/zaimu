@@ -199,7 +199,7 @@ export interface Debt {
 	amount: number;
 	description?: string;
 	isOwedToMe: boolean;
-	date: string;
+	date?: string;
 	dueDate?: string;
 	isPaid: boolean;
 	paidDate?: string;
@@ -210,7 +210,7 @@ export interface DebtEvent {
 	id: string;
 	amount: number;
 	effect: number;
-	date: string;
+	date: string | null;
 	dueDate?: string | null;
 	description?: string | null;
 	kind: "ORIGIN" | "TRANSACTION" | "PURCHASE" | "MIGRATED_SETTLEMENT";
@@ -427,7 +427,7 @@ export const api = {
 		amount: number;
 		description?: string;
 		isOwedToMe?: boolean;
-		date: string;
+		date?: null | string;
 		dueDate?: string;
 	}) => fetchApi<Debt>("/debts", { body: data, method: "POST" }),
 
