@@ -16,9 +16,9 @@ import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import {
 	getFinancialAccountCurrencyValue,
 	getFinancialAccountDisplayName,
+	getFinancialAccountTitle,
 	getFinancialAccountTypeLabel,
 } from "@/lib/financial-account";
-import { normalizeInstitutionName } from "@/lib/financial-institution";
 import { CreateFinancialAccountDialog } from "./CreateFinancialAccountDialog";
 import { CreditCardAccountSummary } from "./CreditCardAccountSummary";
 import { FinancialAccountStatementDialog } from "./FinancialAccountStatementDialog";
@@ -51,13 +51,10 @@ export function FinancialAccountCard({
 	const [statementOpen, setStatementOpen] = useState(false);
 	const config = accountType[account.type];
 	const Icon = config.icon;
-	const accountRepeatsInstitution =
-		account.name?.trim() &&
-		account.institution &&
-		normalizeInstitutionName(account.name) === normalizeInstitutionName(account.institution.name);
 	const displayName = getFinancialAccountDisplayName(account);
 	const typeLabel = getFinancialAccountTypeLabel(account.type);
-	const listName = account.name?.trim() && !accountRepeatsInstitution ? displayName : typeLabel;
+	const listName = getFinancialAccountTitle(account);
+	const accountHasCustomTitle = Boolean(account.name?.trim() && listName !== typeLabel);
 	return (
 		<article className="group rounded-2xl border bg-card p-5 shadow-card transition hover:-translate-y-0.5 hover:border-primary/30">
 			<div className="flex items-start justify-between gap-4">
@@ -67,7 +64,7 @@ export function FinancialAccountCard({
 					</span>
 					<div className="min-w-0">
 						<h2 className="truncate font-bold text-base">{listName}</h2>
-						{account.name?.trim() && !accountRepeatsInstitution && (
+						{accountHasCustomTitle && (
 							<Badge className="mt-1" variant="secondary">
 								{typeLabel}
 							</Badge>

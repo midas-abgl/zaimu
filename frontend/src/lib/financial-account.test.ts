@@ -3,8 +3,10 @@ import {
 	calculateFinancialAccountBalances,
 	compareFinancialAccountsByDisplayName,
 	compareFinancialAccountsByOptionLabel,
+	compareFinancialAccountsByTitle,
 	getFinancialAccountDisplayName,
 	getFinancialAccountOptionLabel,
+	getFinancialAccountTitle,
 } from "./financial-account";
 
 describe("getFinancialAccountDisplayName", () => {
@@ -81,6 +83,26 @@ describe("compareFinancialAccountsByDisplayName", () => {
 		expect(
 			accounts.toSorted(compareFinancialAccountsByDisplayName).map(getFinancialAccountDisplayName),
 		).toEqual(["Ágil", "Banco Central", "Zeta"]);
+	});
+});
+
+describe("compareFinancialAccountsByTitle", () => {
+	test("sorts by the title shown on account cards", () => {
+		const accounts = [
+			{ institution: { id: "bank-id", name: "Banco Exemplo" }, name: null, type: "CHECKING" as const },
+			{ institution: { id: "bank-id", name: "Banco Exemplo" }, name: null, type: "CREDIT_CARD" as const },
+			{
+				institution: { id: "bank-id", name: "Banco Exemplo" },
+				name: "Aplicações",
+				type: "INVESTMENT" as const,
+			},
+		];
+
+		expect(accounts.toSorted(compareFinancialAccountsByTitle).map(getFinancialAccountTitle)).toEqual([
+			"Aplicações",
+			"Cartão de crédito",
+			"Conta corrente",
+		]);
 	});
 });
 

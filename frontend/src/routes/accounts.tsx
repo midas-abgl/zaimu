@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
-import { getFinancialAccountCurrencyValue } from "@/lib/financial-account";
+import { compareFinancialAccountsByTitle, getFinancialAccountCurrencyValue } from "@/lib/financial-account";
 import { getFinancialInstitutions } from "@/lib/financial-institution";
 import { showToast, useAuthStore } from "@/stores";
 import { CreateFinancialAccountDialog, FinancialInstitutionGroup } from "./accounts/components";
@@ -80,22 +80,16 @@ function AccountsPage() {
 	const organization = useMemo(() => {
 		const allAccounts = accounts.data ?? [];
 		const institutions = getFinancialInstitutions(allAccounts);
-		const compareAccountNames = (left: FinancialAccount, right: FinancialAccount) =>
-			(left.name ?? left.institution?.name ?? "").localeCompare(
-				right.name ?? right.institution?.name ?? "",
-				"pt-BR",
-				{
-					sensitivity: "base",
-				},
-			);
 		const groups: Array<{ accounts: FinancialAccount[]; institution: FinancialInstitution | null }> =
 			institutions.map(institution => ({
 				accounts: allAccounts
 					.filter(account => account.institutionId === institution.id)
-					.toSorted(compareAccountNames),
+					.toSorted(compareFinancialAccountsByTitle),
 				institution,
 			}));
-		const unassigned = allAccounts.filter(account => !account.institutionId).toSorted(compareAccountNames);
+		const unassigned = allAccounts
+			.filter(account => !account.institutionId)
+			.toSorted(compareFinancialAccountsByTitle);
 		if (unassigned.length) groups.push({ accounts: unassigned, institution: null });
 		return { groups, institutions };
 	}, [accounts.data]);

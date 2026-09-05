@@ -1,5 +1,6 @@
 import { differenceInMonths, differenceInYears } from "date-fns";
 import type { FinancialAccount } from "./api";
+import { normalizeInstitutionName } from "./financial-institution";
 
 type AccountTransaction = Pick<
 	import("./api").Transaction,
@@ -105,6 +106,15 @@ export function getFinancialAccountDisplayName(
 	return account.name?.trim() || account.institution?.name || financialAccountTypeLabels[account.type];
 }
 
+export function getFinancialAccountTitle(account: Pick<FinancialAccount, "institution" | "name" | "type">) {
+	const name = account.name?.trim();
+	const repeatsInstitution =
+		name &&
+		account.institution &&
+		normalizeInstitutionName(name) === normalizeInstitutionName(account.institution.name);
+	return name && !repeatsInstitution ? name : financialAccountTypeLabels[account.type];
+}
+
 export function getFinancialAccountOptionLabel(
 	account: Pick<FinancialAccount, "institution" | "name" | "type">,
 ) {
@@ -132,6 +142,13 @@ export function compareFinancialAccountsByDisplayName(
 		getFinancialAccountDisplayName(left),
 		getFinancialAccountDisplayName(right),
 	);
+}
+
+export function compareFinancialAccountsByTitle(
+	left: Pick<FinancialAccount, "institution" | "name" | "type">,
+	right: Pick<FinancialAccount, "institution" | "name" | "type">,
+) {
+	return displayNameCollator.compare(getFinancialAccountTitle(left), getFinancialAccountTitle(right));
 }
 
 export function getFinancialAccountTypeLabel(type: FinancialAccount["type"]) {
