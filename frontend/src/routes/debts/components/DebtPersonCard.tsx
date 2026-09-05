@@ -13,16 +13,9 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import type { DebtEvent, DebtPerson } from "@/lib/api";
 import { formatLocalDate } from "@/lib/date";
+import { compareDebtEventsByDateThenLabel, getDebtEventLabel } from "./debt-event";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-
-function eventLabel(event: DebtEvent) {
-	if (event.description) return event.description;
-	if (event.kind === "PURCHASE") return "Compra";
-	if (event.kind === "TRANSACTION") return event.effect < 0 ? "Recebimento" : "Pagamento";
-	if (event.kind === "MIGRATED_SETTLEMENT") return "Quitação migrada";
-	return "Lançamento manual";
-}
 
 export function DebtPersonCard({
 	onDeleteEvent,
@@ -86,7 +79,7 @@ export function DebtPersonCard({
 			</div>
 			{expanded ? (
 				<div className="mt-4 grid gap-2 border-t pt-4">
-					{person.events.map(event => (
+					{person.events.toSorted(compareDebtEventsByDateThenLabel).map(event => (
 						<div
 							className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2 rounded-xl border p-3 sm:flex sm:gap-3"
 							key={event.id}
@@ -95,7 +88,7 @@ export function DebtPersonCard({
 								{event.kind === "PURCHASE" ? <LuShoppingCart /> : <LuWalletCards />}
 							</div>
 							<div className="min-w-0 flex-1">
-								<p className="truncate font-medium text-sm">{eventLabel(event)}</p>
+								<p className="truncate font-medium text-sm">{getDebtEventLabel(event)}</p>
 								<p className="text-muted-foreground text-xs">
 									{event.date ? `${formatLocalDate(event.date)} · ` : ""}
 									{event.createdByMe ? "Você" : event.createdByName}

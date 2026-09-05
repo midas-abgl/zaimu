@@ -28,9 +28,14 @@ function compareDebtEvents(
 	left: { date: Date | null; description: null | string; kind: DebtEventType },
 	right: { date: Date | null; description: null | string; kind: DebtEventType },
 ) {
-	if (left.date && right.date) return right.date.getTime() - left.date.getTime();
-	if (left.date) return -1;
-	if (right.date) return 1;
+	if (left.date && right.date) {
+		const dateComparison = right.date.getTime() - left.date.getTime();
+		if (dateComparison) return dateComparison;
+	} else if (left.date) {
+		return -1;
+	} else if (right.date) {
+		return 1;
+	}
 	const labels: Record<DebtEventType, string> = {
 		MIGRATED_SETTLEMENT: "Quitação migrada",
 		ORIGIN: "Lançamento manual",

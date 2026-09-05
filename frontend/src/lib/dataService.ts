@@ -1080,9 +1080,14 @@ export const dataService = {
 			const result = [...people.values()].map(person => ({
 				...person,
 				events: person.events.toSorted((left, right) => {
-					if (left.date && right.date) return right.date.localeCompare(left.date);
-					if (left.date) return -1;
-					if (right.date) return 1;
+					if (left.date && right.date) {
+						const dateComparison = right.date.localeCompare(left.date);
+						if (dateComparison) return dateComparison;
+					} else if (left.date) {
+						return -1;
+					} else if (right.date) {
+						return 1;
+					}
 					return (left.description ?? "Lançamento manual").localeCompare(
 						right.description ?? "Lançamento manual",
 						"pt-BR",
