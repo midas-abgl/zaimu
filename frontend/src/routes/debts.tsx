@@ -63,8 +63,8 @@ function DebtsPage() {
 		);
 
 	return (
-		<main className="mx-auto min-h-screen w-full max-w-5xl bg-background lg:py-10">
-			<header className="mx-4 rounded-3xl bg-gradient-to-br from-primary to-primary/75 p-5 text-primary-foreground shadow-lg sm:p-6 lg:p-8">
+		<main className="mx-auto min-h-screen w-full max-w-5xl overflow-x-clip bg-background pt-6 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:py-10">
+			<header className="mx-4 min-w-0 rounded-3xl bg-gradient-to-br from-primary to-primary/75 p-5 text-primary-foreground shadow-lg sm:p-6 lg:p-8">
 				<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 					<div>
 						<p className="text-primary-foreground/70 text-sm">Saldo líquido</p>
@@ -94,7 +94,7 @@ function DebtsPage() {
 			<div className="mt-5">
 				<DebtInvitations />
 			</div>
-			<section className="grid gap-3 px-4 pt-4 pb-8">
+			<section className="grid min-w-0 gap-3 px-4 pt-4">
 				{people.length ? (
 					people.map(person => (
 						<DebtPersonCard

@@ -37,7 +37,7 @@ export function DebtPersonCard({
 }) {
 	const [expanded, setExpanded] = useState(false);
 	return (
-		<article className="rounded-2xl border bg-card p-4 shadow-sm">
+		<article className="min-w-0 max-w-full overflow-x-clip rounded-2xl border bg-card p-4 shadow-sm">
 			<div className="flex items-start gap-3">
 				<div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
 					<LuUsersRound />
