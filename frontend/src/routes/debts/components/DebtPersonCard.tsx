@@ -87,7 +87,10 @@ export function DebtPersonCard({
 			{expanded ? (
 				<div className="mt-4 grid gap-2 border-t pt-4">
 					{person.events.map(event => (
-						<div className="flex items-center gap-3 rounded-xl border p-3" key={event.id}>
+						<div
+							className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2 rounded-xl border p-3 sm:flex sm:gap-3"
+							key={event.id}
+						>
 							<div className="text-muted-foreground">
 								{event.kind === "PURCHASE" ? <LuShoppingCart /> : <LuWalletCards />}
 							</div>
@@ -97,34 +100,36 @@ export function DebtPersonCard({
 									{formatLocalDate(event.date)} · {event.createdByMe ? "Você" : event.createdByName}
 								</p>
 							</div>
-							<span className={event.effect >= 0 ? "text-emerald-600" : "text-rose-600"}>
-								{event.effect >= 0 ? "+" : "−"}
-								{currency.format(Math.abs(event.effect))}
-							</span>
-							{event.kind === "ORIGIN" && event.createdByMe ? (
-								<Button
-									aria-label="Editar lançamento"
-									className="cursor-pointer"
-									onClick={() => onEditEvent(event, person.id)}
-									size="icon"
-									type="button"
-									variant="outline"
-								>
-									<LuPencil />
-								</Button>
-							) : null}
-							{event.kind === "ORIGIN" ? (
-								<ConfirmActionButton
-									aria-label="Excluir lançamento"
-									className="cursor-pointer"
-									confirmation="Excluir este lançamento?"
-									onConfirm={() => onDeleteEvent(event.id)}
-									size="icon"
-									variant="destructive"
-								>
-									<LuTrash2 />
-								</ConfirmActionButton>
-							) : null}
+							<div className="col-span-2 flex items-center justify-end gap-2 border-t pt-2 sm:col-auto sm:ml-auto sm:border-0 sm:pt-0">
+								<span className={event.effect >= 0 ? "text-emerald-600" : "text-rose-600"}>
+									{event.effect >= 0 ? "+" : "−"}
+									{currency.format(Math.abs(event.effect))}
+								</span>
+								{event.kind === "ORIGIN" && event.createdByMe ? (
+									<Button
+										aria-label="Editar lançamento"
+										className="cursor-pointer"
+										onClick={() => onEditEvent(event, person.id)}
+										size="icon"
+										type="button"
+										variant="outline"
+									>
+										<LuPencil />
+									</Button>
+								) : null}
+								{event.kind === "ORIGIN" ? (
+									<ConfirmActionButton
+										aria-label="Excluir lançamento"
+										className="cursor-pointer"
+										confirmation="Excluir este lançamento?"
+										onConfirm={() => onDeleteEvent(event.id)}
+										size="icon"
+										variant="destructive"
+									>
+										<LuTrash2 />
+									</ConfirmActionButton>
+								) : null}
+							</div>
 						</div>
 					))}
 				</div>
