@@ -105,6 +105,7 @@ export interface Transaction {
 	date: string;
 	time?: string | null;
 	description?: string;
+	isHidden?: boolean;
 	debtPersonId?: string;
 	debtPersonName?: string;
 	storeName?: string | null;

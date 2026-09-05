@@ -13,6 +13,7 @@ export function TransactionDetailsFields({
 	description,
 	onAmountChange,
 	onDateChange,
+	onIsHiddenChange,
 	onSendWithoutTimeChange,
 	onTimeChange,
 	onDescriptionChange,
@@ -24,6 +25,7 @@ export function TransactionDetailsFields({
 	showStore = false,
 	storeName,
 	sendWithoutTime = false,
+	isHidden = false,
 	showType = true,
 	tagIds,
 	time,
@@ -34,6 +36,7 @@ export function TransactionDetailsFields({
 	description: string;
 	onAmountChange: (amount: string) => void;
 	onDateChange: (date: string) => void;
+	onIsHiddenChange?: (isHidden: boolean) => void;
 	onSendWithoutTimeChange?: (sendWithoutTime: boolean) => void;
 	onTimeChange: (time: string) => void;
 	onDescriptionChange: (description: string) => void;
@@ -45,6 +48,7 @@ export function TransactionDetailsFields({
 	showStore?: boolean;
 	storeName: string;
 	sendWithoutTime?: boolean;
+	isHidden?: boolean;
 	showType?: boolean;
 	tagIds: string[];
 	time: string;
@@ -114,6 +118,17 @@ export function TransactionDetailsFields({
 						onCheckedChange={checked => onSendWithoutTimeChange(checked === true)}
 					/>
 					<span className="font-medium text-foreground-muted">Enviar sem horário</span>
+				</label>
+			) : null}
+			{onIsHiddenChange ? (
+				<label className="flex cursor-pointer items-start gap-3 text-sm" htmlFor="transaction-is-hidden">
+					<Checkbox
+						checked={isHidden}
+						className="mt-0.5 cursor-pointer"
+						id="transaction-is-hidden"
+						onCheckedChange={checked => onIsHiddenChange(checked === true)}
+					/>
+					<span className="font-medium text-foreground-muted">Ocultar na lista do dia</span>
 				</label>
 			) : null}
 			{showTags ? <TagPicker onValueChange={onTagIdsChange} value={tagIds} /> : null}

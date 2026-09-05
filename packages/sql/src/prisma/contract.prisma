@@ -601,6 +601,7 @@ namespace public {
     time                          Time(3)?
     description                   VarChar(1000)?
     storeName                     VarChar(200)?
+    isHidden                      Boolean                  @default(false)
     type                          pg.enum(TransactionType) @default("EXPENSE")
     categoryId                    VarChar(36)?
     recurrenceId                  VarChar(36)?

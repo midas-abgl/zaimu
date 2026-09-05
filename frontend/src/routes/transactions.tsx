@@ -18,6 +18,7 @@ import { formatLocalDate, formatLocalTime } from "@/lib/date";
 import { EditCreditPurchaseDialog } from "@/routes/credit-cards/components/EditCreditPurchaseDialog";
 import { showToast } from "@/stores";
 import { transactionToCreditPurchase } from "./transactions/-transaction-to-credit-purchase";
+import { HiddenTransactionsToggle } from "./transactions/components";
 
 const typeOptions = [
 	{ icon: null, id: "all", label: "Todas" },
@@ -31,6 +32,7 @@ function TransactionsPage() {
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 	const [editingPurchase, setEditingPurchase] = useState<Transaction | null>(null);
 	const [filterType, setFilterType] = useState<string>("all");
+	const [expandedHiddenDates, setExpandedHiddenDates] = useState<Set<string>>(() => new Set());
 	const queryClient = useQueryClient();
 
 	const transactionsQuery = useQuery({
@@ -109,6 +111,36 @@ function TransactionsPage() {
 			showToast("Compra excluída.", "positive");
 		},
 	});
+	const renderTransaction = (transaction: Transaction) => (
+		<TransactionListItem
+			deleting={
+				(transaction.source === "CREDIT_CARD" ? removePurchase.isPending : remove.isPending) &&
+				(transaction.source === "CREDIT_CARD" ? removePurchase.variables?.id : remove.variables) ===
+					transaction.id
+			}
+			key={transaction.id}
+			metadataPrefix={
+				formatLocalTime(transaction.time) ? (
+					<span className="text-muted-foreground text-xs">{formatLocalTime(transaction.time)}</span>
+				) : undefined
+			}
+			onDelete={
+				transaction.creditCardStatementId && transaction.source !== "CREDIT_CARD"
+					? undefined
+					: transaction.source === "CREDIT_CARD"
+						? () => removePurchase.mutate(transaction)
+						: () => remove.mutate(transaction.id)
+			}
+			onEdit={
+				transaction.creditCardStatementId && transaction.source !== "CREDIT_CARD"
+					? undefined
+					: transaction.source === "CREDIT_CARD"
+						? () => setEditingPurchase(transaction)
+						: () => setEditingTransaction(transaction)
+			}
+			transaction={transaction}
+		/>
+	);
 
 	return (
 		<PageContainer className="space-y-6">
@@ -160,51 +192,40 @@ function TransactionsPage() {
 				/>
 			) : (
 				<div className="space-y-5">
-					{Object.entries(groupedTransactions).map(([date, transactions]) => (
-						<section className="space-y-2" key={date}>
-							<h2 className="font-medium text-muted-foreground text-sm">
-								{formatLocalDate(date, { weekday: "long" }).replace(/^./, character =>
-									character.toUpperCase(),
-								)}
-								, {formatLocalDate(date)}
-							</h2>
-							<div className="divide-y rounded-2xl border bg-card shadow-sm">
-								{transactions.map(transaction => (
-									<TransactionListItem
-										deleting={
-											(transaction.source === "CREDIT_CARD" ? removePurchase.isPending : remove.isPending) &&
-											(transaction.source === "CREDIT_CARD"
-												? removePurchase.variables?.id
-												: remove.variables) === transaction.id
+					{Object.entries(groupedTransactions).map(([date, transactions]) => {
+						const hiddenTransactions = transactions.filter(transaction => transaction.isHidden);
+						const visibleTransactions = transactions.filter(transaction => !transaction.isHidden);
+						const isExpanded = expandedHiddenDates.has(date);
+						const dayLabel = `${formatLocalDate(date, { weekday: "long" }).replace(/^./, character => character.toUpperCase())}, ${formatLocalDate(date)}`;
+
+						return (
+							<section className="space-y-2" key={date}>
+								{hiddenTransactions.length > 0 ? (
+									<HiddenTransactionsToggle
+										dateLabel={formatLocalDate(date)}
+										expanded={isExpanded}
+										hiddenCount={hiddenTransactions.length}
+										onClick={() =>
+											setExpandedHiddenDates(current => {
+												const next = new Set(current);
+												if (next.has(date)) next.delete(date);
+												else next.add(date);
+												return next;
+											})
 										}
-										key={transaction.id}
-										metadataPrefix={
-											formatLocalTime(transaction.time) ? (
-												<span className="text-muted-foreground text-xs">
-													{formatLocalTime(transaction.time)}
-												</span>
-											) : undefined
-										}
-										onDelete={
-											transaction.creditCardStatementId && transaction.source !== "CREDIT_CARD"
-												? undefined
-												: transaction.source === "CREDIT_CARD"
-													? () => removePurchase.mutate(transaction)
-													: () => remove.mutate(transaction.id)
-										}
-										onEdit={
-											transaction.creditCardStatementId && transaction.source !== "CREDIT_CARD"
-												? undefined
-												: transaction.source === "CREDIT_CARD"
-													? () => setEditingPurchase(transaction)
-													: () => setEditingTransaction(transaction)
-										}
-										transaction={transaction}
 									/>
-								))}
-							</div>
-						</section>
-					))}
+								) : (
+									<h2 className="font-medium text-muted-foreground text-sm">{dayLabel}</h2>
+								)}
+								{visibleTransactions.length > 0 || isExpanded ? (
+									<div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
+										{visibleTransactions.map(renderTransaction)}
+										{isExpanded ? hiddenTransactions.map(renderTransaction) : null}
+									</div>
+								) : null}
+							</section>
+						);
+					})}
 				</div>
 			)}
 

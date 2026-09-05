@@ -30,6 +30,7 @@ const initialDraft = () => ({
 	date: new Date().toISOString().slice(0, 10),
 	debtPersonId: "",
 	destinationFinancialAccountId: "",
+	isHidden: false,
 	originFinancialAccountId: "",
 	storeName: "",
 	tagIds: [] as string[],
@@ -146,6 +147,7 @@ export function CreateTransactionDialog({
 				debtPersonId: draft.debtPersonId || undefined,
 				description: description.trim() || undefined,
 				destinationFinancialAccountId: draft.destinationFinancialAccountId || undefined,
+				isHidden: draft.isHidden,
 				matchDebtEventId: useExistingEvent ? debtPairCandidate?.id : undefined,
 				originFinancialAccountId: draft.originFinancialAccountId || undefined,
 				storeName: draft.type === "EXPENSE" ? draft.storeName.trim() || undefined : undefined,
@@ -182,9 +184,11 @@ export function CreateTransactionDialog({
 						amount={draft.amount}
 						date={draft.date}
 						description={description}
+						isHidden={draft.isHidden}
 						onAmountChange={amount => setDraft(current => ({ ...current, amount }))}
 						onDateChange={date => setDraft(current => ({ ...current, date }))}
 						onDescriptionChange={setDescription}
+						onIsHiddenChange={isHidden => setDraft(current => ({ ...current, isHidden }))}
 						onSendWithoutTimeChange={setSendWithoutTime}
 						onStoreNameChange={storeName => setDraft(current => ({ ...current, storeName }))}
 						onTagIdsChange={tagIds => setDraft(current => ({ ...current, tagIds }))}

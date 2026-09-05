@@ -29,6 +29,7 @@ function createDraft(transaction: Transaction) {
 		date: transaction.date.slice(0, 10),
 		debtPersonId: transaction.debtPersonId ?? "",
 		destinationFinancialAccountId: transaction.destinationFinancialAccountId ?? "",
+		isHidden: transaction.isHidden ?? false,
 		originFinancialAccountId: transaction.originFinancialAccountId ?? "",
 		storeName: transaction.storeName ?? "",
 		tagIds: transaction.tagIds ?? transaction.tags?.map(tag => tag.id) ?? [],
@@ -76,6 +77,7 @@ export function EditTransactionDialog({
 				debtPersonId: isDebt ? draft.debtPersonId || null : null,
 				description: description.trim() || undefined,
 				destinationFinancialAccountId: draft.destinationFinancialAccountId || null,
+				isHidden: draft.isHidden,
 				originFinancialAccountId: draft.originFinancialAccountId || null,
 				...(storeName !== undefined && { storeName }),
 				tagIds: draft.tagIds,
@@ -116,9 +118,11 @@ export function EditTransactionDialog({
 						amount={draft.amount}
 						date={draft.date}
 						description={description}
+						isHidden={draft.isHidden}
 						onAmountChange={amount => setDraft(current => (current ? { ...current, amount } : current))}
 						onDateChange={date => setDraft(current => (current ? { ...current, date } : current))}
 						onDescriptionChange={setDescription}
+						onIsHiddenChange={isHidden => setDraft(current => (current ? { ...current, isHidden } : current))}
 						onStoreNameChange={storeName =>
 							setDraft(current => (current ? { ...current, storeName } : current))
 						}

@@ -30,6 +30,7 @@ const transactionColumns = [
 	"time",
 	"description",
 	"storeName",
+	"isHidden",
 	"type",
 	"categoryId",
 	"creditCardStatementId",
@@ -160,6 +161,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						"sql/varchar@1",
 					),
 					id: f.Transaction.id,
+					isHidden: f.Transaction.isHidden,
 					originAccountType: f.origin.type,
 					originFinancialAccountId: f.Transaction.originFinancialAccountId,
 					originName: fn.raw`COALESCE(${f.origin.name}, ${f.originInstitution.name})`.returns(
@@ -548,6 +550,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 								date: new Date(body.date),
 								description: body.description,
 								destinationFinancialAccountId: body.destinationFinancialAccountId,
+								isHidden: body.isHidden ?? false,
 								originFinancialAccountId,
 								recurrenceId: body.recurrenceId,
 								recurrenceOccurrenceDate,
@@ -603,6 +606,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				debtPersonId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				description: t.Optional(t.String({ maxLength: 1000 })),
 				destinationFinancialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
+				isHidden: t.Optional(t.Boolean()),
 				matchDebtEventId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				originFinancialAccountId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				recurrenceId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
@@ -685,6 +689,14 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					transactionId: params.id,
 				});
 			}
+			if (body.isHidden !== undefined && body.isHidden !== existing.isHidden) {
+				historyEntries.push({
+					field: "isHidden",
+					newValue: String(body.isHidden),
+					oldValue: String(existing.isHidden),
+					transactionId: params.id,
+				});
+			}
 			if (existing.recurrenceId || existing.salaryId || existing.subscriptionId) {
 				historyEntries.push({
 					field: "manualEdit",
@@ -704,6 +716,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					...(body.time !== undefined && { time: body.time }),
 					...(body.description !== undefined && { description: body.description }),
 					...(body.storeName !== undefined && { storeName: body.storeName }),
+					...(body.isHidden !== undefined && { isHidden: body.isHidden }),
 					...(body.type && { type: body.type }),
 					...(body.originFinancialAccountId !== undefined && {
 						originFinancialAccountId: body.originFinancialAccountId,
@@ -749,6 +762,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				debtPersonId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				description: t.Optional(t.String({ maxLength: 1000 })),
 				destinationFinancialAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
+				isHidden: t.Optional(t.Boolean()),
 				matchDebtEventId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				originFinancialAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				storeName: t.Optional(t.Nullable(t.String({ maxLength: 200 }))),
