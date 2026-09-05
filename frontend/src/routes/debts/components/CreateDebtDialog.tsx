@@ -73,7 +73,7 @@ export function CreateDebtDialog({
 		await onSubmit({
 			amount: Number(amount),
 			date: sendWithoutDate ? null : date || undefined,
-			description: description.trim() || "Lançamento manual",
+			description: description.trim() || undefined,
 			dueDate: dueDate || undefined,
 			isOwedToMe,
 			personId,
