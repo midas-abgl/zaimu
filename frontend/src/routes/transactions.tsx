@@ -18,6 +18,7 @@ import { dataService } from "@/lib/dataService";
 import { formatLocalDate, formatLocalTime } from "@/lib/date";
 import { EditCreditPurchaseDialog } from "@/routes/credit-cards/components/EditCreditPurchaseDialog";
 import { showToast } from "@/stores";
+import { groupTransactionsForDisplay } from "./transactions/-transaction-display-groups";
 import { transactionToCreditPurchase } from "./transactions/-transaction-to-credit-purchase";
 import { HiddenTransactionsToggle } from "./transactions/components";
 
@@ -34,7 +35,7 @@ function TransactionsPage() {
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 	const [editingPurchase, setEditingPurchase] = useState<Transaction | null>(null);
 	const [filterType, setFilterType] = useState<string>("all");
-	const [expandedHiddenDates, setExpandedHiddenDates] = useState<Set<string>>(() => new Set());
+	const [expandedHiddenGroups, setExpandedHiddenGroups] = useState<Set<string>>(() => new Set());
 	const queryClient = useQueryClient();
 
 	const transactionsQuery = useQuery({
@@ -148,6 +149,14 @@ function TransactionsPage() {
 			/>
 		);
 	};
+	const toggleHiddenGroup = (groupId: string) => {
+		setExpandedHiddenGroups(current => {
+			const next = new Set(current);
+			if (next.has(groupId)) next.delete(groupId);
+			else next.add(groupId);
+			return next;
+		});
+	};
 
 	return (
 		<PageContainer className="space-y-6">
@@ -200,34 +209,55 @@ function TransactionsPage() {
 			) : (
 				<div className="space-y-5">
 					{Object.entries(groupedTransactions).map(([date, transactions]) => {
-						const hiddenTransactions = transactions.filter(transaction => transaction.isHidden);
-						const visibleTransactions = transactions.filter(transaction => !transaction.isHidden);
-						const isExpanded = expandedHiddenDates.has(date);
+						const displayGroups = groupTransactionsForDisplay(transactions);
+						const allTransactionsHidden = displayGroups[0]?.kind === "hidden" && displayGroups.length === 1;
 						const dayLabel = `${formatLocalDate(date, { weekday: "long" }).replace(/^./, character => character.toUpperCase())}, ${formatLocalDate(date)}`;
 
 						return (
 							<section className="space-y-2" key={date}>
-								{hiddenTransactions.length > 0 ? (
+								{allTransactionsHidden ? (
 									<HiddenTransactionsToggle
 										dateLabel={formatLocalDate(date)}
-										expanded={isExpanded}
-										hiddenCount={hiddenTransactions.length}
-										onClick={() =>
-											setExpandedHiddenDates(current => {
-												const next = new Set(current);
-												if (next.has(date)) next.delete(date);
-												else next.add(date);
-												return next;
-											})
-										}
+										expanded={expandedHiddenGroups.has(displayGroups[0].id)}
+										hiddenCount={displayGroups[0].transactions.length}
+										onClick={() => toggleHiddenGroup(displayGroups[0].id)}
 									/>
 								) : (
-									<h2 className="font-medium text-muted-foreground text-sm">{dayLabel}</h2>
+									<>
+										<h2 className="font-medium text-muted-foreground text-sm">{dayLabel}</h2>
+										{displayGroups.map(group => {
+											if (group.kind === "visible") {
+												return (
+													<div
+														className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm"
+														key={group.id}
+													>
+														{group.transactions.map(renderTransaction)}
+													</div>
+												);
+											}
+
+											const isExpanded = expandedHiddenGroups.has(group.id);
+											return (
+												<div className="space-y-2" key={group.id}>
+													<HiddenTransactionsToggle
+														expanded={isExpanded}
+														hiddenCount={group.transactions.length}
+														onClick={() => toggleHiddenGroup(group.id)}
+													/>
+													{isExpanded ? (
+														<div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
+															{group.transactions.map(renderTransaction)}
+														</div>
+													) : null}
+												</div>
+											);
+										})}
+									</>
 								)}
-								{visibleTransactions.length > 0 || isExpanded ? (
+								{allTransactionsHidden && expandedHiddenGroups.has(displayGroups[0].id) ? (
 									<div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
-										{visibleTransactions.map(renderTransaction)}
-										{isExpanded ? hiddenTransactions.map(renderTransaction) : null}
+										{displayGroups[0].transactions.map(renderTransaction)}
 									</div>
 								) : null}
 							</section>
