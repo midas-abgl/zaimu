@@ -16,10 +16,12 @@ import { Route as CreditCardsRouteImport } from './routes/credit-cards'
 import { Route as DebtsRouteImport } from './routes/debts'
 import { Route as LoansRouteImport } from './routes/loans'
 import { Route as MoreRouteImport } from './routes/more'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RecurringRouteImport } from './routes/recurring'
 import { Route as SalariesRouteImport } from './routes/salaries'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SubscriptionsRouteImport } from './routes/subscriptions'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TransactionsRouteImport } from './routes/transactions'
 import { Route as AuthIndexRouteImport } from './routes/auth/index'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
@@ -62,6 +64,11 @@ const MoreRoute = MoreRouteImport.update({
   path: '/more',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RecurringRoute = RecurringRouteImport.update({
   id: '/recurring',
   path: '/recurring',
@@ -80,6 +87,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const SubscriptionsRoute = SubscriptionsRouteImport.update({
   id: '/subscriptions',
   path: '/subscriptions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TransactionsRoute = TransactionsRouteImport.update({
@@ -121,10 +133,12 @@ export interface FileRoutesByFullPath {
   '/debts': typeof DebtsRoute
   '/loans': typeof LoansRoute
   '/more': typeof MoreRoute
+  '/privacy': typeof PrivacyRoute
   '/recurring': typeof RecurringRoute
   '/salaries': typeof SalariesRoute
   '/settings': typeof SettingsRoute
   '/subscriptions': typeof SubscriptionsRoute
+  '/terms': typeof TermsRoute
   '/transactions': typeof TransactionsRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/register': typeof AuthRegisterRoute
@@ -139,10 +153,12 @@ export interface FileRoutesByTo {
   '/debts': typeof DebtsRoute
   '/loans': typeof LoansRoute
   '/more': typeof MoreRoute
+  '/privacy': typeof PrivacyRoute
   '/recurring': typeof RecurringRoute
   '/salaries': typeof SalariesRoute
   '/settings': typeof SettingsRoute
   '/subscriptions': typeof SubscriptionsRoute
+  '/terms': typeof TermsRoute
   '/transactions': typeof TransactionsRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/register': typeof AuthRegisterRoute
@@ -159,10 +175,12 @@ export interface FileRoutesById {
   '/debts': typeof DebtsRoute
   '/loans': typeof LoansRoute
   '/more': typeof MoreRoute
+  '/privacy': typeof PrivacyRoute
   '/recurring': typeof RecurringRoute
   '/salaries': typeof SalariesRoute
   '/settings': typeof SettingsRoute
   '/subscriptions': typeof SubscriptionsRoute
+  '/terms': typeof TermsRoute
   '/transactions': typeof TransactionsRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/register': typeof AuthRegisterRoute
@@ -180,10 +198,12 @@ export interface FileRouteTypes {
     | '/debts'
     | '/loans'
     | '/more'
+    | '/privacy'
     | '/recurring'
     | '/salaries'
     | '/settings'
     | '/subscriptions'
+    | '/terms'
     | '/transactions'
     | '/auth/forgot-password'
     | '/auth/register'
@@ -198,10 +218,12 @@ export interface FileRouteTypes {
     | '/debts'
     | '/loans'
     | '/more'
+    | '/privacy'
     | '/recurring'
     | '/salaries'
     | '/settings'
     | '/subscriptions'
+    | '/terms'
     | '/transactions'
     | '/auth/forgot-password'
     | '/auth/register'
@@ -217,10 +239,12 @@ export interface FileRouteTypes {
     | '/debts'
     | '/loans'
     | '/more'
+    | '/privacy'
     | '/recurring'
     | '/salaries'
     | '/settings'
     | '/subscriptions'
+    | '/terms'
     | '/transactions'
     | '/auth/forgot-password'
     | '/auth/register'
@@ -237,10 +261,12 @@ export interface RootRouteChildren {
   DebtsRoute: typeof DebtsRoute
   LoansRoute: typeof LoansRoute
   MoreRoute: typeof MoreRoute
+  PrivacyRoute: typeof PrivacyRoute
   RecurringRoute: typeof RecurringRoute
   SalariesRoute: typeof SalariesRoute
   SettingsRoute: typeof SettingsRoute
   SubscriptionsRoute: typeof SubscriptionsRoute
+  TermsRoute: typeof TermsRoute
   TransactionsRoute: typeof TransactionsRoute
 }
 
@@ -295,6 +321,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MoreRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/recurring': {
       id: '/recurring'
       path: '/recurring'
@@ -321,6 +354,13 @@ declare module '@tanstack/react-router' {
       path: '/subscriptions'
       fullPath: '/subscriptions'
       preLoaderRoute: typeof SubscriptionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/transactions': {
@@ -394,10 +434,12 @@ const rootRouteChildren: RootRouteChildren = {
   DebtsRoute: DebtsRoute,
   LoansRoute: LoansRoute,
   MoreRoute: MoreRoute,
+  PrivacyRoute: PrivacyRoute,
   RecurringRoute: RecurringRoute,
   SalariesRoute: SalariesRoute,
   SettingsRoute: SettingsRoute,
   SubscriptionsRoute: SubscriptionsRoute,
+  TermsRoute: TermsRoute,
   TransactionsRoute: TransactionsRoute,
 }
 export const routeTree = rootRouteImport

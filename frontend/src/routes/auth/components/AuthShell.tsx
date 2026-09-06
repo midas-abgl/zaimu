@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { LuBadgeCheck, LuChartNoAxesCombined, LuShieldCheck } from "react-icons/lu";
 import { BrandMark } from "@/components/BrandMark";
@@ -48,6 +49,14 @@ export function AuthShell({
 						<p className="mt-2 text-muted-foreground leading-relaxed">{description}</p>
 					</div>
 					{children}
+					<footer className="mt-8 flex justify-center gap-4 text-muted-foreground text-xs">
+						<Link className="underline-offset-4 hover:text-foreground hover:underline" to="/terms">
+							Terms & Conditions
+						</Link>
+						<Link className="underline-offset-4 hover:text-foreground hover:underline" to="/privacy">
+							Privacy Policy
+						</Link>
+					</footer>
 				</div>
 			</section>
 		</main>

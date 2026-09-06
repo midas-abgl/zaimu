@@ -28,7 +28,7 @@ function RootComponent() {
 	const navigate = useNavigate();
 	const initializeTheme = useThemeStore(state => state.initializeTheme);
 	const { initialize, isAuthenticated, isGuestMode, isInitialized, isRateLimited } = useAuthStore();
-	const isAuthRoute = pathname.startsWith("/auth");
+	const isPublicRoute = pathname.startsWith("/auth") || pathname === "/privacy" || pathname === "/terms";
 
 	useEffect(() => {
 		initializeTheme();
@@ -37,16 +37,16 @@ function RootComponent() {
 	}, [initialize, initializeTheme]);
 
 	useEffect(() => {
-		if (!isInitialized || isAuthRoute || isRateLimited || isAuthenticated || isGuestMode) return;
+		if (!isInitialized || isPublicRoute || isRateLimited || isAuthenticated || isGuestMode) return;
 		void navigate({ to: "/auth" });
-	}, [isAuthRoute, isAuthenticated, isGuestMode, isInitialized, isRateLimited, navigate]);
+	}, [isAuthenticated, isGuestMode, isInitialized, isPublicRoute, isRateLimited, navigate]);
 
 	useEffect(() => {
 		if (isRateLimited) toast.error("Não foi possível validar a sessão agora. Tente novamente em instantes.");
 	}, [isRateLimited]);
 
-	if (!isAuthRoute && !isInitialized) return <AppLoadingState />;
-	if (isAuthRoute) return <Outlet />;
+	if (!isPublicRoute && !isInitialized) return <AppLoadingState />;
+	if (isPublicRoute) return <Outlet />;
 	return (
 		<AppShell>
 			<Outlet />
