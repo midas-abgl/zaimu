@@ -10,7 +10,7 @@ const required = (name: string) => {
 const webUrlValue = required("PUBLIC_WEB_URL");
 const appleTeamId = required("APPLE_TEAM_ID");
 const androidFingerprint = required("ANDROID_SHA256_CERT_FINGERPRINT");
-const bundleId = process.env.TAURI_BUNDLE_ID?.trim() || "com.zaimu.app";
+const bundleId = process.env.TAURI_BUNDLE_ID?.trim() || "com.hyolabs.zaimu";
 
 if (!webUrlValue || !appleTeamId || !androidFingerprint) {
 	console.info(

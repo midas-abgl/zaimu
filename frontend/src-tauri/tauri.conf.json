@@ -32,7 +32,7 @@
 		],
 		"targets": "all"
 	},
-	"identifier": "com.zaimu.app",
+	"identifier": "com.hyolabs.zaimu",
 	"plugins": {
 		"deep-link": {
 			"desktop": {
