@@ -1,5 +1,6 @@
 export { CreateRecurringDialog } from "./CreateRecurringDialog";
 export { DeleteRecurringDialog } from "./DeleteRecurringDialog";
+export { HiddenRecurrencesToggle } from "./HiddenRecurrencesToggle";
 export { RecurringListItem } from "./RecurringListItem";
 export { RecurringSummary } from "./RecurringSummary";
 export { isRecurrenceEnded } from "./recurrence-dates";

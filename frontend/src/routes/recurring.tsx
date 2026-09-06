@@ -12,6 +12,7 @@ import { showToast } from "@/stores";
 import {
 	CreateRecurringDialog,
 	DeleteRecurringDialog,
+	HiddenRecurrencesToggle,
 	isRecurrenceEnded,
 	type RecurringDirection,
 	RecurringListItem,
@@ -33,6 +34,9 @@ const filterOptions = [
 function RecurringPage() {
 	const queryClient = useQueryClient();
 	const [filter, setFilter] = useState<DirectionFilter>("all");
+	const [expandedInactiveSections, setExpandedInactiveSections] = useState<Set<"ended" | "paused">>(
+		() => new Set(),
+	);
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
 	const [editingItem, setEditingItem] = useState<RecurringListItemData>();
 	const [deletingItem, setDeletingItem] = useState<RecurringListItemData>();
@@ -115,13 +119,14 @@ function RecurringPage() {
 		(left, right) => Number(right.active) - Number(left.active) || left.title.localeCompare(right.title),
 	);
 	const filteredItems = items.filter(item => filter === "all" || item.direction === filter);
-	const activeItems = filteredItems.filter(item => item.active);
-	const pausedItems = filteredItems.filter(item => !item.active);
+	const activeItems = filteredItems.filter(item => item.active && !isRecurrenceEnded(item.endDate));
+	const pausedItems = filteredItems.filter(item => !item.active && !isRecurrenceEnded(item.endDate));
+	const endedItems = filteredItems.filter(item => isRecurrenceEnded(item.endDate));
 	const monthlyIncome = items
-		.filter(item => item.active && item.direction === "INCOME")
+		.filter(item => item.active && !isRecurrenceEnded(item.endDate) && item.direction === "INCOME")
 		.reduce((total, item) => total + item.monthlyAmount, 0);
 	const monthlyExpenses = items
-		.filter(item => item.active && item.direction === "EXPENSE")
+		.filter(item => item.active && !isRecurrenceEnded(item.endDate) && item.direction === "EXPENSE")
 		.reduce((total, item) => total + item.monthlyAmount, 0);
 	const renderItem = (item: RecurringListItemData) => (
 		<RecurringListItem
@@ -136,6 +141,14 @@ function RecurringPage() {
 			toggling={toggle.isPending && toggle.variables?.id === item.id}
 		/>
 	);
+	const toggleInactiveSection = (section: "ended" | "paused") => {
+		setExpandedInactiveSections(current => {
+			const next = new Set(current);
+			if (next.has(section)) next.delete(section);
+			else next.add(section);
+			return next;
+		});
+	};
 
 	return (
 		<PageContainer className="space-y-6">
@@ -215,10 +228,32 @@ function RecurringPage() {
 					)}
 					{pausedItems.length > 0 && (
 						<section className="space-y-2">
-							<h2 className="font-medium text-muted-foreground text-sm">Pausadas</h2>
-							<div className="divide-y rounded-2xl border bg-card shadow-sm">
-								{pausedItems.map(renderItem)}
-							</div>
+							<HiddenRecurrencesToggle
+								expanded={expandedInactiveSections.has("paused")}
+								hiddenCount={pausedItems.length}
+								label="Pausadas"
+								onClick={() => toggleInactiveSection("paused")}
+							/>
+							{expandedInactiveSections.has("paused") && (
+								<div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
+									{pausedItems.map(renderItem)}
+								</div>
+							)}
+						</section>
+					)}
+					{endedItems.length > 0 && (
+						<section className="space-y-2">
+							<HiddenRecurrencesToggle
+								expanded={expandedInactiveSections.has("ended")}
+								hiddenCount={endedItems.length}
+								label="Encerradas"
+								onClick={() => toggleInactiveSection("ended")}
+							/>
+							{expandedInactiveSections.has("ended") && (
+								<div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
+									{endedItems.map(renderItem)}
+								</div>
+							)}
 						</section>
 					)}
 				</div>
