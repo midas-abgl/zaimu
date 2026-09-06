@@ -63,6 +63,32 @@ describe("calculateDebtSplit", () => {
 	});
 });
 
+describe("debtSplitError", () => {
+	test("explains each invalid split state", () => {
+		expect(
+			debtSplitError(68, {
+				mode: "SHARES",
+				ownerShares: 1,
+				participants: [],
+			}),
+		).toBe("Você não pode dividir uma compra sozinho.");
+		expect(
+			debtSplitError(68, {
+				mode: "SHARES",
+				ownerShares: null,
+				participants: [],
+			}),
+		).toBe("Adicione pelo menos uma pessoa para dividir a compra.");
+		expect(
+			debtSplitError(68, {
+				mode: "SHARES",
+				ownerShares: 1,
+				participants: [{ debtPersonId: "a", shares: 0 }],
+			}),
+		).toBe("Cada pessoa deve ter um valor positivo para a divisão.");
+	});
+});
+
 describe("debtSplitToInput", () => {
 	test("removes calculated fields before editing and sending the split", () => {
 		expect(

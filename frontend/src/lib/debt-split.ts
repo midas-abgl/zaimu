@@ -76,6 +76,10 @@ export function calculateDebtSplit(amount: number, split: DebtSplitInput): DebtS
 }
 
 export function debtSplitError(amount: number, split: DebtSplitInput): string | null {
+	if (split.participants.length === 0)
+		return (split.mode === "SHARES" ? split.ownerShares !== null : split.ownerIncluded)
+			? "Você não pode dividir uma compra sozinho."
+			: "Adicione pelo menos uma pessoa para dividir a compra.";
 	if (split.participants.some(item => !item.debtPersonId)) return "Selecione todas as pessoas.";
 	if (new Set(split.participants.map(item => item.debtPersonId)).size !== split.participants.length)
 		return "Cada pessoa pode aparecer uma vez.";
@@ -88,7 +92,7 @@ export function debtSplitError(amount: number, split: DebtSplitInput): string | 
 		return split.ownerIncluded
 			? "Distribua menos que o total; o restante será sua parte."
 			: "Distribua exatamente o total.";
-	return "Use cotas inteiras positivas e garanta ao menos R$ 0,01 por pessoa.";
+	return "Cada pessoa deve ter um valor positivo para a divisão.";
 }
 
 export function debtSplitToInput(split?: DebtSplit | null): DebtSplitInput {
