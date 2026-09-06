@@ -65,7 +65,7 @@ export function CreditCardOverviewCard({
 					</div>
 					<Progress value={percent} />
 				</div>
-				<div className="mt-auto grid gap-3 min-[420px]:grid-cols-2">
+				<div className="grid gap-3 min-[420px]:grid-cols-2">
 					<div className="rounded-xl bg-muted p-3">
 						<p className="text-muted-foreground text-xs">Fatura prevista</p>
 						<p className="mt-1 font-bold">{currency.format(currentBill)}</p>
@@ -87,18 +87,20 @@ export function CreditCardOverviewCard({
 						<p className="mt-1 font-bold">{currency.format(card.securityDeposit)}</p>
 					</div>
 				)}
-				{statement && (
-					<p className="flex items-center gap-2 text-muted-foreground text-sm">
-						<LuCalendarClock /> Vence em {formatLocalDate(statement.dueDate)}
-					</p>
-				)}
-				<div className="grid gap-3 min-[420px]:grid-cols-2">
-					<Button className="w-full cursor-pointer" onClick={onViewStatements} variant="outline">
-						<LuReceiptText /> Ver faturas
-					</Button>
-					<Button className="w-full cursor-pointer" onClick={onAddPurchase}>
-						<LuPlus /> Registrar compra
-					</Button>
+				<div className="mt-auto flex flex-col gap-5">
+					{statement && (
+						<p className="flex items-center gap-2 text-muted-foreground text-sm">
+							<LuCalendarClock /> Vence em {formatLocalDate(statement.dueDate)}
+						</p>
+					)}
+					<div className="grid gap-3 min-[420px]:grid-cols-2">
+						<Button className="w-full cursor-pointer" onClick={onViewStatements} variant="outline">
+							<LuReceiptText /> Ver faturas
+						</Button>
+						<Button className="w-full cursor-pointer" onClick={onAddPurchase}>
+							<LuPlus /> Registrar compra
+						</Button>
+					</div>
 				</div>
 			</div>
 		</article>
