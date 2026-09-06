@@ -77,7 +77,7 @@ export function DebtPersonPicker({
 	};
 
 	return (
-		<div className="grid gap-2">
+		<div className="grid min-w-0 max-w-full gap-2">
 			<p className="font-medium text-sm">
 				Pessoa {required ? <span className="text-destructive">*</span> : null}
 			</p>
@@ -85,7 +85,7 @@ export function DebtPersonPicker({
 				<PopoverTrigger asChild>
 					<Button
 						aria-label="Selecionar pessoa da dívida"
-						className="h-auto min-h-10 w-full cursor-pointer justify-between rounded-2xl px-3 py-2 font-normal"
+						className="h-auto min-h-10 w-full min-w-0 max-w-full cursor-pointer justify-between rounded-2xl px-3 py-2 font-normal"
 						disabled={disabled}
 						type="button"
 						variant="outline"

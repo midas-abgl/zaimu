@@ -33,8 +33,8 @@ export function DebtSplitParticipantRow({
 				? String((participant as { percentage: number }).percentage || "")
 				: String((participant as { fixedAmount: number }).fixedAmount || "");
 	return (
-		<div className="grid gap-3 rounded-xl border p-3">
-			<div className="flex items-end gap-2">
+		<div className="grid min-w-0 max-w-full gap-3 rounded-xl border p-3 [&>*]:min-w-0">
+			<div className="flex min-w-0 items-end gap-2">
 				<div className="min-w-0 flex-1">
 					<DebtPersonPicker
 						disabled={disabled}

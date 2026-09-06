@@ -89,7 +89,7 @@ export function DebtSplitEditor({ amount, disabled, onChange, value }: DebtSplit
 		onChange({ ...value, participants } as DebtSplitInput);
 	};
 	return (
-		<div className="grid gap-4 rounded-2xl border p-3">
+		<div className="grid min-w-0 max-w-full gap-4 rounded-2xl border p-3 [&>*]:min-w-0">
 			<CustomSelect
 				label="Forma de divisão"
 				onValueChange={mode => {
@@ -191,14 +191,14 @@ export function DebtSplitEditor({ amount, disabled, onChange, value }: DebtSplit
 			>
 				<LuPlus /> Adicionar pessoa
 			</Button>
-			<div className="grid grid-cols-3 gap-2 rounded-xl bg-muted/50 p-3 text-xs">
-				<span>
+			<div className="grid min-w-0 grid-cols-3 gap-2 overflow-hidden rounded-xl bg-muted/50 p-3 text-xs">
+				<span className="min-w-0 overflow-hidden">
 					Distribuído<strong className="block text-sm">{currency.format(distributed)}</strong>
 				</span>
-				<span>
+				<span className="min-w-0 overflow-hidden">
 					Sua parte<strong className="block text-sm">{currency.format(preview?.ownerAmount ?? 0)}</strong>
 				</span>
-				<span>
+				<span className="min-w-0 overflow-hidden">
 					Restante
 					<strong className="block text-sm">
 						{currency.format(amount - distributed - (preview?.ownerAmount ?? 0))}

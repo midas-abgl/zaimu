@@ -348,7 +348,7 @@ export function CreateRecurringDialog({
 								: "Cadastre uma entrada ou saída que se repete."}
 						</DialogDescription>
 					</DialogHeader>
-					<div className="scrollbar-themed grid min-h-0 gap-4 overflow-y-auto pr-1">
+					<div className="scrollbar-themed grid min-h-0 min-w-0 max-w-full gap-4 overflow-y-auto overflow-x-hidden pr-1">
 						{!isEditing && (
 							<CustomSelect
 								label="Tipo"
