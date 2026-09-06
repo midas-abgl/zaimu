@@ -41,6 +41,7 @@ export function DebtSplitParticipantRow({
 						excludedIds={excludedPersonIds}
 						onValueChange={onPersonChange}
 						required
+						selectionOnly
 						value={participant.debtPersonId}
 					/>
 				</div>
@@ -61,6 +62,7 @@ export function DebtSplitParticipantRow({
 					id={`debt-split-${index}`}
 					label="Valor"
 					onValueChange={value => onValueChange(Number(value))}
+					required
 					value={numericValue}
 				/>
 			) : (
@@ -70,6 +72,7 @@ export function DebtSplitParticipantRow({
 					label={mode === "SHARES" ? "Cotas" : "Porcentagem"}
 					onValueChange={value => onValueChange(Number(value))}
 					placeholder={mode === "SHARES" ? "Ex: 1" : "Ex: 25%"}
+					required
 					suffix={mode === "PERCENTAGE" ? "%" : undefined}
 					value={numericValue}
 				/>

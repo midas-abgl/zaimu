@@ -63,7 +63,6 @@ export function DebtSplitEditor({ amount, disabled, onChange, value }: DebtSplit
 		})),
 	} as DebtSplitInput;
 	const preview = calculateDebtSplit(amount, previewValue);
-	const calculated = calculateDebtSplit(amount, value);
 	const error = debtSplitError(amount, value);
 	const ownerIncluded = value.mode === "SHARES" ? value.ownerShares !== null : value.ownerIncluded;
 	const distributed =

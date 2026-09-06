@@ -15,12 +15,14 @@ export function DebtPersonPicker({
 	excludedIds = [],
 	onValueChange,
 	required,
+	selectionOnly = false,
 	value,
 }: {
 	disabled?: boolean;
 	excludedIds?: string[];
 	onValueChange: (personId: string) => void;
 	required?: boolean;
+	selectionOnly?: boolean;
 	value?: string;
 }) {
 	const queryClient = useQueryClient();
@@ -90,13 +92,17 @@ export function DebtPersonPicker({
 						type="button"
 						variant="outline"
 					>
-						<span className="flex min-w-0 items-center gap-2">
-							{selected?.isZaimuUser ? <LuUsersRound /> : <LuUserRound />}
-							<span className={selected ? "truncate" : "text-muted-foreground"}>
-								{selected?.name ?? "Selecione ou crie uma pessoa"}
+						<span className="flex min-w-0 flex-1 items-center gap-2">
+							{selected?.isZaimuUser ? (
+								<LuUsersRound className="shrink-0" />
+							) : (
+								<LuUserRound className="shrink-0" />
+							)}
+							<span className={selected ? "min-w-0 truncate" : "min-w-0 truncate text-muted-foreground"}>
+								{selected?.name ?? "Selecione uma pessoa"}
 							</span>
 						</span>
-						<LuChevronDown className="text-muted-foreground" />
+						<LuChevronDown className="shrink-0 text-muted-foreground" />
 					</Button>
 				</PopoverTrigger>
 				<PopoverContent
@@ -158,38 +164,40 @@ export function DebtPersonPicker({
 					</ScrollArea>
 				</PopoverContent>
 			</Popover>
-			{selected && !selected.isZaimuUser && selected.connectionStatus !== "PENDING" ? (
-				inviteOpen ? (
-					<div className="flex gap-2 rounded-2xl border p-2">
-						<Input
-							autoComplete="email"
-							name="debt-person-email"
-							onChange={event => setEmail(event.currentTarget.value)}
-							placeholder="pessoa@exemplo.com"
-							type="email"
-							value={email}
-						/>
+			{!selectionOnly ? (
+				selected && !selected.isZaimuUser && selected.connectionStatus !== "PENDING" ? (
+					inviteOpen ? (
+						<div className="flex gap-2 rounded-2xl border p-2">
+							<Input
+								autoComplete="email"
+								name="debt-person-email"
+								onChange={event => setEmail(event.currentTarget.value)}
+								placeholder="pessoa@exemplo.com"
+								type="email"
+								value={email}
+							/>
+							<Button
+								className="cursor-pointer"
+								disabled={!email.trim() || invite.isPending}
+								onClick={() => invite.mutate()}
+								type="button"
+							>
+								Enviar
+							</Button>
+						</div>
+					) : (
 						<Button
-							className="cursor-pointer"
-							disabled={!email.trim() || invite.isPending}
-							onClick={() => invite.mutate()}
+							className="cursor-pointer justify-start"
+							onClick={() => setInviteOpen(true)}
 							type="button"
+							variant="outline"
 						>
-							Enviar
+							<LuLink /> Associar conta Zaimu
 						</Button>
-					</div>
-				) : (
-					<Button
-						className="cursor-pointer justify-start"
-						onClick={() => setInviteOpen(true)}
-						type="button"
-						variant="outline"
-					>
-						<LuLink /> Associar conta Zaimu
-					</Button>
-				)
-			) : selected?.connectionStatus === "PENDING" ? (
-				<p className="text-muted-foreground text-xs">Convite Zaimu pendente.</p>
+					)
+				) : selected?.connectionStatus === "PENDING" ? (
+					<p className="text-muted-foreground text-xs">Convite Zaimu pendente.</p>
+				) : null
 			) : null}
 		</div>
 	);
