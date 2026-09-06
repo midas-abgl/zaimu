@@ -101,7 +101,7 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 	});
 	return (
 		<TabsContent
-			className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-3 overflow-hidden pt-4 sm:pl-6 min-[480px]:pt-0 min-[480px]:pl-4"
+			className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-3 overflow-hidden pt-4 sm:pt-0 sm:pl-6"
 			value={statement.id}
 		>
 			<header className="grid gap-2 rounded-xl border bg-muted/30 p-3">

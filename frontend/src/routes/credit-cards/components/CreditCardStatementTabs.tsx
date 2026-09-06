@@ -24,36 +24,48 @@ export function CreditCardStatementTabs({
 			'[data-slot="tabs-trigger"][data-state="active"]',
 		);
 
-		if (!viewport || !activeTab || viewport.scrollWidth <= viewport.clientWidth) return;
+		if (!viewport || !activeTab) return;
 
 		const viewportRect = viewport.getBoundingClientRect();
 		const activeTabRect = activeTab.getBoundingClientRect();
-		const targetLeft =
-			viewport.scrollLeft +
-			activeTabRect.left -
-			viewportRect.left -
-			(viewportRect.width - activeTabRect.width) / 2;
+		if (viewport.scrollHeight > viewport.clientHeight) {
+			const targetTop =
+				viewport.scrollTop +
+				activeTabRect.top -
+				viewportRect.top -
+				(viewportRect.height - activeTabRect.height) / 2;
 
-		viewport.scrollTo({ behavior: "auto", left: Math.max(0, targetLeft) });
+			viewport.scrollTo({ behavior: "auto", top: Math.max(0, targetTop) });
+			return;
+		}
+
+		if (viewport.scrollWidth > viewport.clientWidth) {
+			const targetLeft =
+				viewport.scrollLeft +
+				activeTabRect.left -
+				viewportRect.left -
+				(viewportRect.width - activeTabRect.width) / 2;
+
+			viewport.scrollTo({ behavior: "auto", left: Math.max(0, targetLeft) });
+		}
 	}, [selectedId]);
 
 	return (
 		<div className="h-full min-w-0" ref={scrollAreaRef}>
 			<ScrollArea
-				className="h-full border-b px-1 pb-3 min-[480px]:border-r min-[480px]:border-b-0 min-[480px]:pr-3 min-[480px]:pb-0"
+				className="h-full border-b px-1 pb-3 sm:border-r sm:border-b-0 sm:pr-3 sm:pb-0"
 				horizontalScrollbar
-				verticalScrollbar={false}
 			>
 				<TabsList
 					aria-label="Faturas"
-					className="!flex-row min-[480px]:!grid h-full w-max min-w-full gap-2 bg-transparent py-1 pr-1 pl-0 min-[480px]:w-full"
+					className="!flex-row sm:!grid sm:!h-auto sm:!w-full sm:!grid-cols-1 h-full w-max min-w-full gap-2 bg-transparent py-1 pr-1 pl-0"
 				>
 					{statements.map(statement => {
 						const selected = statement.id === selectedId;
 						return (
 							<TabsTrigger
 								className={cn(
-									"h-full w-36 shrink-0 cursor-pointer items-start justify-start whitespace-normal rounded-xl border-border p-3 text-left min-[480px]:h-auto min-[480px]:w-full",
+									"sm:!w-full h-full w-36 shrink-0 cursor-pointer items-start justify-start whitespace-normal rounded-xl border-border p-3 text-left sm:h-auto",
 									selected && "border-primary bg-primary/10 ring-1 ring-primary/30",
 								)}
 								key={statement.id}
