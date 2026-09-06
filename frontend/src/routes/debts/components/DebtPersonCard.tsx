@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import type { DebtEvent, DebtPerson } from "@/lib/api";
 import { formatLocalDate } from "@/lib/date";
-import { compareDebtEventsByDateThenLabel, getDebtEventLabel } from "./debt-event";
+import { compareDebtEventsByDateThenLabel, getDebtEventCreatorLabel, getDebtEventLabel } from "./debt-event";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
@@ -91,7 +91,7 @@ export function DebtPersonCard({
 								<p className="truncate font-medium text-sm">{getDebtEventLabel(event)}</p>
 								<p className="text-muted-foreground text-xs">
 									{event.date ? `${formatLocalDate(event.date)} · ` : ""}
-									{event.createdByMe ? "Você" : event.createdByName}
+									{getDebtEventCreatorLabel(event)}
 								</p>
 							</div>
 							<div className="col-span-2 flex items-center justify-end gap-2 border-t pt-2 sm:col-auto sm:ml-auto sm:border-0 sm:pt-0">

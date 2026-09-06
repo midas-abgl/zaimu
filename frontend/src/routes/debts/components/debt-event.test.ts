@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { DebtEvent } from "@/lib/api";
-import { compareDebtEventsByDateThenLabel, getDebtEventLabel } from "./debt-event";
+import { compareDebtEventsByDateThenLabel, getDebtEventCreatorLabel, getDebtEventLabel } from "./debt-event";
 
 const event = (id: string, date: string, description: string): DebtEvent => ({
 	amount: 1,
@@ -26,4 +26,16 @@ test("ordena lançamentos da dívida por data e descrição em caso de empate", 
 		"iPhone 17",
 		"Água",
 	]);
+});
+
+test("descreve quem criou o lançamento", () => {
+	const ownEvent = event("mine", "2026-09-01", "Meu lançamento");
+	const sharedEvent = {
+		...event("shared", "2026-09-01", "Lançamento compartilhado"),
+		createdByMe: false,
+		createdByName: "Maria da Silva",
+	};
+
+	expect(getDebtEventCreatorLabel(ownEvent)).toBe("Criado por você");
+	expect(getDebtEventCreatorLabel(sharedEvent)).toBe("Criado por Maria");
 });

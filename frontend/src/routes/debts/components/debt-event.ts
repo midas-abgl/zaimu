@@ -10,6 +10,13 @@ export function getDebtEventLabel(event: DebtEvent) {
 	return "Lançamento manual";
 }
 
+export function getDebtEventCreatorLabel(event: DebtEvent) {
+	if (event.createdByMe) return "Criado por você";
+
+	const [firstName] = event.createdByName.trim().split(/\s+/);
+	return `Criado por ${firstName}`;
+}
+
 export function compareDebtEventsByDateThenLabel(left: DebtEvent, right: DebtEvent) {
 	if (left.date && right.date) {
 		const dateComparison = right.date.localeCompare(left.date);
