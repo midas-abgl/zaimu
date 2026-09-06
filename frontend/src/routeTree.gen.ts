@@ -14,6 +14,7 @@ import { Route as AccountsRouteImport } from './routes/accounts'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CreditCardsRouteImport } from './routes/credit-cards'
 import { Route as DebtsRouteImport } from './routes/debts'
+import { Route as DeleteAccountRouteImport } from './routes/delete-account'
 import { Route as LoansRouteImport } from './routes/loans'
 import { Route as MoreRouteImport } from './routes/more'
 import { Route as PrivacyRouteImport } from './routes/privacy'
@@ -52,6 +53,11 @@ const CreditCardsRoute = CreditCardsRouteImport.update({
 const DebtsRoute = DebtsRouteImport.update({
   id: '/debts',
   path: '/debts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DeleteAccountRoute = DeleteAccountRouteImport.update({
+  id: '/delete-account',
+  path: '/delete-account',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoansRoute = LoansRouteImport.update({
@@ -131,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRouteWithChildren
   '/credit-cards': typeof CreditCardsRoute
   '/debts': typeof DebtsRoute
+  '/delete-account': typeof DeleteAccountRoute
   '/loans': typeof LoansRoute
   '/more': typeof MoreRoute
   '/privacy': typeof PrivacyRoute
@@ -151,6 +158,7 @@ export interface FileRoutesByTo {
   '/accounts': typeof AccountsRoute
   '/credit-cards': typeof CreditCardsRoute
   '/debts': typeof DebtsRoute
+  '/delete-account': typeof DeleteAccountRoute
   '/loans': typeof LoansRoute
   '/more': typeof MoreRoute
   '/privacy': typeof PrivacyRoute
@@ -173,6 +181,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRouteWithChildren
   '/credit-cards': typeof CreditCardsRoute
   '/debts': typeof DebtsRoute
+  '/delete-account': typeof DeleteAccountRoute
   '/loans': typeof LoansRoute
   '/more': typeof MoreRoute
   '/privacy': typeof PrivacyRoute
@@ -196,6 +205,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/credit-cards'
     | '/debts'
+    | '/delete-account'
     | '/loans'
     | '/more'
     | '/privacy'
@@ -216,6 +226,7 @@ export interface FileRouteTypes {
     | '/accounts'
     | '/credit-cards'
     | '/debts'
+    | '/delete-account'
     | '/loans'
     | '/more'
     | '/privacy'
@@ -237,6 +248,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/credit-cards'
     | '/debts'
+    | '/delete-account'
     | '/loans'
     | '/more'
     | '/privacy'
@@ -259,6 +271,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   CreditCardsRoute: typeof CreditCardsRoute
   DebtsRoute: typeof DebtsRoute
+  DeleteAccountRoute: typeof DeleteAccountRoute
   LoansRoute: typeof LoansRoute
   MoreRoute: typeof MoreRoute
   PrivacyRoute: typeof PrivacyRoute
@@ -305,6 +318,13 @@ declare module '@tanstack/react-router' {
       path: '/debts'
       fullPath: '/debts'
       preLoaderRoute: typeof DebtsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/delete-account': {
+      id: '/delete-account'
+      path: '/delete-account'
+      fullPath: '/delete-account'
+      preLoaderRoute: typeof DeleteAccountRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/loans': {
@@ -432,6 +452,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   CreditCardsRoute: CreditCardsRoute,
   DebtsRoute: DebtsRoute,
+  DeleteAccountRoute: DeleteAccountRoute,
   LoansRoute: LoansRoute,
   MoreRoute: MoreRoute,
   PrivacyRoute: PrivacyRoute,

@@ -28,7 +28,11 @@ function RootComponent() {
 	const navigate = useNavigate();
 	const initializeTheme = useThemeStore(state => state.initializeTheme);
 	const { initialize, isAuthenticated, isGuestMode, isInitialized, isRateLimited } = useAuthStore();
-	const isPublicRoute = pathname.startsWith("/auth") || pathname === "/privacy" || pathname === "/terms";
+	const isPublicRoute =
+		pathname.startsWith("/auth") ||
+		pathname === "/delete-account" ||
+		pathname === "/privacy" ||
+		pathname === "/terms";
 
 	useEffect(() => {
 		initializeTheme();
