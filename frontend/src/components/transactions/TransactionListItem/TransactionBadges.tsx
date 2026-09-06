@@ -10,6 +10,8 @@ export interface TransactionBadgeAccount {
 	type?: FinancialAccount["type"];
 }
 
+const transactionAttributeBadgeClass = "h-7 max-w-full gap-1.5 px-2.5 font-normal";
+
 function getAccountTypeLabel(type?: FinancialAccount["type"]) {
 	if (type === "CREDIT_CARD") return "Cartão";
 	const label = type ? getFinancialAccountTypeLabel(type) : "Conta";
@@ -74,7 +76,7 @@ export function TransactionBadges({
 			) : null}
 			{storeName ? (
 				<li className="min-w-0">
-					<Badge className="h-7 max-w-full gap-1.5 px-2.5 font-normal" variant="outline">
+					<Badge className={transactionAttributeBadgeClass} variant="outline">
 						<LuStore aria-hidden="true" />
 						<span className="min-w-0 truncate">
 							<span className="text-muted-foreground">Loja</span> {storeName}
@@ -84,7 +86,7 @@ export function TransactionBadges({
 			) : null}
 			{debtPersonName ? (
 				<li className="min-w-0">
-					<Badge className="h-7 max-w-full gap-1.5 px-2.5 font-normal" variant="outline">
+					<Badge className={transactionAttributeBadgeClass} variant="outline">
 						<LuUsersRound aria-hidden="true" />
 						<span className="truncate">
 							<span className="text-muted-foreground">Dívida</span> {debtPersonName}
@@ -94,7 +96,7 @@ export function TransactionBadges({
 			) : null}
 			{tags?.map(tag => (
 				<li className="min-w-0" key={tag.id}>
-					<Badge className="h-7 max-w-44 px-2.5" variant="secondary">
+					<Badge className={transactionAttributeBadgeClass} variant="outline">
 						<span
 							aria-hidden="true"
 							className="size-2 shrink-0 rounded-full"

@@ -1,5 +1,5 @@
-import { LuPencil, LuRefreshCw, LuTrash2, LuUsersRound } from "react-icons/lu";
-import { Badge } from "@/components/ui/Badge";
+import { LuPencil, LuRefreshCw, LuTrash2 } from "react-icons/lu";
+import { TransactionBadges } from "@/components/transactions/TransactionListItem/TransactionBadges";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
@@ -23,6 +23,18 @@ export function CreditPurchaseRow({
 	onRefinance: () => void;
 	purchase: CreditPurchase;
 }) {
+	const fallbackTag = purchase.categoryName
+		? {
+				color: purchase.categoryColor,
+				id: purchase.categoryId || `category-${purchase.categoryName}`,
+				name: purchase.categoryName,
+			}
+		: undefined;
+	const tags = purchase.tags?.length ? purchase.tags : fallbackTag ? [fallbackTag] : undefined;
+	const debtPersonName = purchase.debtSplit?.participants
+		.map(item => `${item.debtPersonName}: ${currency.format(item.amount)}`)
+		.join(" · ");
+
 	return (
 		<div className="grid min-w-0 gap-3 rounded-xl border bg-card p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
 			<div className="min-w-0">
@@ -30,23 +42,19 @@ export function CreditPurchaseRow({
 				<p className="truncate text-muted-foreground text-xs">
 					{formatLocalDate(purchase.purchaseDate)}
 					{formatLocalTime(purchase.time) ? ` · ${formatLocalTime(purchase.time)}` : ""}
-					{purchase.storeName ? ` · ${purchase.storeName}` : ""}
 					{purchase.isForecast ? " · Previsão" : ""}
-					{purchase.tags?.length
-						? ` · ${purchase.tags.map(tag => tag.name).join(" · ")}`
-						: purchase.categoryName
-							? ` · ${purchase.categoryName}`
-							: ""}
 					{purchase.installments > 1 ? ` · ${purchase.currentInstallment}/${purchase.installments}` : ""}
 					{purchase.isSettled ? " · Quitada por reparcelamento" : ""}
 				</p>
-				{purchase.debtSplit?.participants.length ? (
-					<Badge className="mt-2 gap-1.5" variant="outline">
-						<LuUsersRound /> Dívida ·{" "}
-						{purchase.debtSplit.participants
-							.map(item => `${item.debtPersonName}: ${currency.format(item.amount)}`)
-							.join(" · ")}
-					</Badge>
+				{purchase.storeName || debtPersonName || tags?.length ? (
+					<div className="mt-2">
+						<TransactionBadges
+							accounts={[]}
+							debtPersonName={debtPersonName}
+							storeName={purchase.storeName}
+							tags={tags}
+						/>
+					</div>
 				) : null}
 			</div>
 			<div className="grid min-w-0 justify-items-end gap-2">
