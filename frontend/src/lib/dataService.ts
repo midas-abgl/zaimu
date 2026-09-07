@@ -20,6 +20,7 @@ import type {
 	DebtSplit,
 	DebtSplitInput,
 	FinancialAccount,
+	FinancialAccountYieldHoliday,
 	FinancialInstitution,
 	Loan,
 	RecurringPayment,
@@ -128,6 +129,8 @@ export interface FinancialAccountUpdateDraft {
 	institutionName?: string;
 	name?: string | null;
 	rewardsAccount?: FinancialAccountDraft["rewardsAccount"];
+	yieldPeriod?: FinancialAccount["yieldPeriod"];
+	yieldRate?: FinancialAccount["yieldRate"];
 }
 
 // Check if we're in guest mode or authenticated
@@ -270,15 +273,17 @@ export const dataService = {
 		},
 		async getAll(): Promise<FinancialAccount[]> {
 			if (isGuestMode()) {
-				const [local, transactions, cashbackPurchases] = await Promise.all([
+				const [local, transactions, cashbackPurchases, holidays] = await Promise.all([
 					localAccounts.getAll(),
 					localTransactions.getAll(),
 					localCreditPurchases.getAll(),
+					localMeta.get("financial-account-yield-holidays"),
 				]);
 				return calculateFinancialAccountBalances(
 					local.map(item => item.data),
 					transactions.map(item => item.data),
 					cashbackPurchases.map(item => item.data),
+					(holidays as FinancialAccountYieldHoliday[] | null)?.map(holiday => holiday.date) ?? [],
 				);
 			}
 			const accounts = await fetchWithAuth<FinancialAccount[]>("/financial-accounts");
@@ -341,6 +346,49 @@ export const dataService = {
 			});
 			await localAccounts.put(account, account.id);
 			return account;
+		},
+	},
+
+	accountYieldHolidays: {
+		async create(date: string): Promise<FinancialAccountYieldHoliday> {
+			if (!isGuestMode()) {
+				return fetchWithAuth<FinancialAccountYieldHoliday>("/financial-account-yield-holidays", {
+					body: JSON.stringify({ date }),
+					method: "POST",
+				});
+			}
+			const existing =
+				((await localMeta.get("financial-account-yield-holidays")) as
+					| FinancialAccountYieldHoliday[]
+					| null) ?? [];
+			const holiday = existing.find(item => item.date.slice(0, 10) === date);
+			if (holiday) return holiday;
+			const created = { date, id: crypto.randomUUID() };
+			await localMeta.set("financial-account-yield-holidays", [...existing, created]);
+			return created;
+		},
+		async delete(id: string): Promise<void> {
+			if (!isGuestMode()) {
+				await fetchWithAuth(`/financial-account-yield-holidays/${id}`, { method: "DELETE" });
+				return;
+			}
+			const existing =
+				((await localMeta.get("financial-account-yield-holidays")) as
+					| FinancialAccountYieldHoliday[]
+					| null) ?? [];
+			await localMeta.set(
+				"financial-account-yield-holidays",
+				existing.filter(holiday => holiday.id !== id),
+			);
+		},
+		async getAll(): Promise<FinancialAccountYieldHoliday[]> {
+			if (isGuestMode())
+				return (
+					((await localMeta.get("financial-account-yield-holidays")) as
+						| FinancialAccountYieldHoliday[]
+						| null) ?? []
+				);
+			return fetchWithAuth<FinancialAccountYieldHoliday[]>("/financial-account-yield-holidays");
 		},
 	},
 
@@ -1228,7 +1276,7 @@ export const dataService = {
 						createdByName: "Você",
 						createdByUserId: getUserId(),
 						date: purchase.purchaseDate,
-						description: purchase.description,
+						description: purchase.description || purchase.storeName || "Compra",
 						effect: participant.amount,
 						id: `purchase:${purchase.id}:${participant.debtPersonId}`,
 						kind: "PURCHASE",
@@ -1751,6 +1799,7 @@ export const dataService = {
 					debtPeople,
 					salaries,
 					subscriptions,
+					yieldHolidays,
 				] = await Promise.all([
 					localAccounts.getAll(),
 					localCategories.getAll(),
@@ -1764,6 +1813,7 @@ export const dataService = {
 					localDebtPeople.getAll(),
 					localSalaries.getAll(),
 					localSubscriptions.getAll(),
+					localMeta.get("financial-account-yield-holidays"),
 				]);
 
 				// Send to server
@@ -1771,6 +1821,7 @@ export const dataService = {
 					syncResults: Record<string, { synced: number; errors: string[] }>;
 					serverData: {
 						financialAccounts: FinancialAccount[];
+						financialAccountYieldHolidays: FinancialAccountYieldHoliday[];
 						categories: Category[];
 						creditCards: CreditCard[];
 						creditCardStatements: CreditCardStatement[];
@@ -1792,6 +1843,7 @@ export const dataService = {
 						debtPeople: debtPeople.map(person => person.data),
 						debts: debts.map(d => d.data),
 						financialAccounts: accounts.map(a => a.data),
+						financialAccountYieldHolidays: (yieldHolidays as FinancialAccountYieldHoliday[] | null) ?? [],
 						loans: loans.map(l => l.data),
 						recurringPayments: recurringPayments.map(payment => payment.data),
 						salaries: salaries.map(s => normalizeSalary(s.data as LegacySalary)),
@@ -1811,6 +1863,10 @@ export const dataService = {
 								syncedAt: Date.now(),
 							})),
 						),
+					),
+					localMeta.set(
+						"financial-account-yield-holidays",
+						response.serverData.financialAccountYieldHolidays,
 					),
 					localCategories.clear().then(() =>
 						localCategories.bulkPut(

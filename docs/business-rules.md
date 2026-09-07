@@ -14,6 +14,12 @@ Salários, assinaturas, pagamentos recorrentes e parcelamentos devem prever sald
 
 Quando um seletor de contas em uma transação apresentar mais de um tipo de conta, cada opção deve começar pelo tipo resumido para evitar ambiguidade. Exemplos: `Poupança Mercado Pago`, `Conta Mercado Pago` e `Conta Nubank`. O rótulo comum da conta fora desses seletores permanece sem esse prefixo.
 
+## Rendimento de contas
+
+Toda conta exceto cartão de crédito pode ter rendimento composto opcional, com taxa positiva mensal ou anual. A taxa mensal equivale a 21 dias úteis e a anual a 252 dias úteis; o rendimento é aplicado ao fim de cada segunda a sexta-feira sobre saldo positivo. Saldo, lançamentos, taxa e feriados sempre são recalculados sob demanda, sem gravar lançamentos artificiais de rendimento.
+
+Feriados são individuais por usuário e data. Um feriado exclui rendimento de todas as contas daquele usuário no dia marcado; finais de semana já não rendem e podem ser marcados sem efeito adicional.
+
 ## Taxas de compras no cartão
 
 Uma compra no cartão pode ter uma taxa nomeada, como IOF. A taxa compõe o total cobrado, cada parcela, a fatura, o limite utilizado, cashback e eventual rateio de dívida. O lançamento preserva nome e valor da taxa para explicar a composição do total.

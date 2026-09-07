@@ -3,6 +3,7 @@ import { getFinancialAccountBalances } from "~/modules/accounts/application/get-
 import { resolveFinancialInstitution } from "~/modules/accounts/application/resolve-financial-institution";
 import { assertCashbackSettings } from "~/modules/accounts/domain/assert-cashback-settings";
 import { assertCreditCardBillingDays } from "~/modules/accounts/domain/assert-credit-card-billing-days";
+import { assertFinancialAccountYieldSettings } from "~/modules/accounts/domain/assert-financial-account-yield-settings";
 import { assertRewardsAccountDetails } from "~/modules/accounts/domain/assert-rewards-account-details";
 import { assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
@@ -19,6 +20,7 @@ const FinancialAccountType = t.Union([
 ]);
 
 const CashbackYieldPeriod = t.Union([t.Literal("MONTHLY"), t.Literal("YEARLY")]);
+const FinancialAccountYieldPeriod = t.Union([t.Literal("MONTHLY"), t.Literal("YEARLY")]);
 const RewardsAccountKind = t.Union([t.Literal("POINTS"), t.Literal("CASHBACK")]);
 const RewardsAccountCreate = t.Object({
 	conversionAmount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
@@ -74,6 +76,8 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					"name",
 					"type",
 					"institutionId",
+					"yieldRate",
+					"yieldPeriod",
 					"createdAt",
 					"updatedAt",
 				)
@@ -169,6 +173,8 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					"name",
 					"type",
 					"institutionId",
+					"yieldRate",
+					"yieldPeriod",
 					"createdAt",
 					"updatedAt",
 				)
@@ -269,6 +275,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				throw new HttpException("Informe os dados da conta de pontos ou cashback", 400);
 			if (type !== "REWARDS" && body.rewardsAccount)
 				throw new HttpException("Dados de recompensas exigem uma conta do tipo pontos/cashback", 400);
+			assertFinancialAccountYieldSettings({ type, yieldPeriod: body.yieldPeriod, yieldRate: body.yieldRate });
 			if (body.creditCard) {
 				assertCreditCardBillingDays(body.creditCard.statementDay, body.creditCard.dueDay);
 				assertCashbackSettings(body.creditCard);
@@ -357,9 +364,22 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						name: name as never,
 						type,
 						userId,
+						yieldPeriod: body.yieldPeriod ?? undefined,
+						...(body.yieldRate !== undefined &&
+							body.yieldRate !== null && { yieldRate: String(body.yieldRate) }),
 					},
 				])
-					.returning("id", "userId", "name", "type", "institutionId", "createdAt", "updatedAt")
+					.returning(
+						"id",
+						"userId",
+						"name",
+						"type",
+						"institutionId",
+						"yieldRate",
+						"yieldPeriod",
+						"createdAt",
+						"updatedAt",
+					)
 					.build(),
 			);
 			if (!account) throw new HttpException("FinancialAccount not created", 500);
@@ -451,6 +471,8 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				name: t.Optional(t.Union([t.String({ maxLength: 70 }), t.Null()])),
 				rewardsAccount: t.Optional(RewardsAccountCreate),
 				type: t.Optional(FinancialAccountType),
+				yieldPeriod: t.Optional(t.Nullable(FinancialAccountYieldPeriod)),
+				yieldRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
 			}),
 			detail: { tags: ["Accounts"] },
 		},
@@ -461,7 +483,15 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 			const userId = await requireUserId(request);
 			await assertDirectOwnership("FinancialAccount", params.id, userId);
 			const existing = await queryFirst(
-				db.sql.public.FinancialAccount.select("id", "institutionId", "name", "type", "userId")
+				db.sql.public.FinancialAccount.select(
+					"id",
+					"institutionId",
+					"name",
+					"type",
+					"userId",
+					"yieldRate",
+					"yieldPeriod",
+				)
 					.where((fields, functions) => functions.eq(fields.id, params.id))
 					.limit(1)
 					.build(),
@@ -474,6 +504,11 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				throw new HttpException("Dados de cartão exigem uma conta do tipo cartão de crédito", 400);
 			if (body.rewardsAccount && existing.type !== "REWARDS")
 				throw new HttpException("Dados de recompensas exigem uma conta do tipo pontos/cashback", 400);
+			assertFinancialAccountYieldSettings({
+				type: existing.type,
+				yieldPeriod: body.yieldPeriod === undefined ? existing.yieldPeriod : body.yieldPeriod,
+				yieldRate: body.yieldRate === undefined ? existing.yieldRate : body.yieldRate,
+			});
 			const institution =
 				body.institutionName === undefined
 					? existing.institutionId
@@ -520,10 +555,22 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					}),
 					// Prisma 8 currently omits null from nullable varchar write types.
 					...(body.name !== undefined && { name: name as never }),
+					...(body.yieldPeriod !== undefined && { yieldPeriod: body.yieldPeriod }),
+					...(body.yieldRate !== undefined && { yieldRate: nullableNumeric<7, 4>(body.yieldRate) }),
 					updatedAt: new Date(),
 				})
 					.where((fields, functions) => functions.eq(fields.id, params.id))
-					.returning("id", "userId", "name", "type", "institutionId", "createdAt", "updatedAt")
+					.returning(
+						"id",
+						"userId",
+						"name",
+						"type",
+						"institutionId",
+						"yieldRate",
+						"yieldPeriod",
+						"createdAt",
+						"updatedAt",
+					)
 					.build(),
 			);
 			if (!account) throw new HttpException("FinancialAccount not found", 404);
@@ -720,6 +767,8 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						kind: t.Optional(RewardsAccountKind),
 					}),
 				),
+				yieldPeriod: t.Optional(t.Nullable(FinancialAccountYieldPeriod)),
+				yieldRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
 			}),
 			detail: { tags: ["Accounts"] },
 			params: t.Object({

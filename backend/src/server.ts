@@ -1,4 +1,8 @@
-import { AccountsController, InstitutionsController } from "./modules/accounts/infra";
+import {
+	AccountsController,
+	FinancialAccountYieldHolidaysController,
+	InstitutionsController,
+} from "./modules/accounts/infra";
 import { CategoriesController } from "./modules/categories/infra";
 import { CreditCardsController } from "./modules/creditCards/infra";
 import { DashboardController } from "./modules/dashboard/infra";
@@ -15,6 +19,7 @@ import { app } from "./shared/infra/elysia";
 export const server = app.use([
 	AccountsController,
 	InstitutionsController,
+	FinancialAccountYieldHolidaysController,
 	TransactionsController,
 	CreditCardsController,
 	LoansController,

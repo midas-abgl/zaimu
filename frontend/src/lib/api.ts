@@ -59,8 +59,15 @@ export interface FinancialAccount {
 	institution?: FinancialInstitution | null;
 	createdAt: string;
 	updatedAt: string;
+	yieldPeriod?: "MONTHLY" | "YEARLY" | null;
+	yieldRate?: number | null;
 	creditCard?: CreditCard;
 	rewardsAccount?: RewardsAccount;
+}
+
+export interface FinancialAccountYieldHoliday {
+	id: string;
+	date: string;
 }
 
 export interface RewardsAccount {

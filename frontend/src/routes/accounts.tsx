@@ -6,12 +6,16 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
-import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
+import type { FinancialAccount, FinancialAccountYieldHoliday, FinancialInstitution } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { compareFinancialAccountsByTitle, getFinancialAccountCurrencyValue } from "@/lib/financial-account";
 import { getFinancialInstitutions } from "@/lib/financial-institution";
 import { showToast, useAuthStore } from "@/stores";
-import { CreateFinancialAccountDialog, FinancialInstitutionGroup } from "./accounts/components";
+import {
+	CreateFinancialAccountDialog,
+	FinancialAccountYieldHolidaysDialog,
+	FinancialInstitutionGroup,
+} from "./accounts/components";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
@@ -22,6 +26,11 @@ function AccountsPage() {
 		enabled: hasAccess,
 		queryFn: () => dataService.accounts.getAll(),
 		queryKey: ["financial-accounts"],
+	});
+	const holidays = useQuery({
+		enabled: hasAccess,
+		queryFn: () => dataService.accountYieldHolidays.getAll(),
+		queryKey: ["financial-account-yield-holidays"],
 	});
 	const invalidateAccountData = async () => {
 		await Promise.all([
@@ -64,6 +73,24 @@ function AccountsPage() {
 			showToast("Instituição atualizada.", "positive");
 		},
 	});
+	const createHoliday = useMutation({
+		mutationFn: dataService.accountYieldHolidays.create,
+		onError: error => showToast(error.message, "negative"),
+		onSuccess: async () => {
+			await invalidateAccountData();
+			await queryClient.invalidateQueries({ queryKey: ["financial-account-yield-holidays"] });
+			showToast("Feriado marcado. Rendimentos recalculados.", "positive");
+		},
+	});
+	const deleteHoliday = useMutation({
+		mutationFn: dataService.accountYieldHolidays.delete,
+		onError: error => showToast(error.message, "negative"),
+		onSuccess: async () => {
+			await invalidateAccountData();
+			await queryClient.invalidateQueries({ queryKey: ["financial-account-yield-holidays"] });
+			showToast("Feriado removido. Rendimentos recalculados.", "positive");
+		},
+	});
 	const deleteInstitution = useMutation({
 		mutationFn: dataService.financialInstitutions.delete,
 		onError: error => showToast(error.message, "negative"),
@@ -98,14 +125,22 @@ function AccountsPage() {
 		<PageContainer className="grid gap-8">
 			<PageHeader
 				actions={
-					<CreateFinancialAccountDialog
-						institutions={organization.institutions}
-						onCreate={async data => {
-							await createAccount.mutateAsync(data);
-						}}
-						pending={createAccount.isPending}
-						rewardAccounts={rewardAccounts}
-					/>
+					<div className="flex flex-wrap gap-2">
+						<FinancialAccountYieldHolidaysDialog
+							holidays={holidays.data ?? ([] as FinancialAccountYieldHoliday[])}
+							onCreate={date => createHoliday.mutateAsync(date)}
+							onDelete={id => deleteHoliday.mutateAsync(id)}
+							pending={createHoliday.isPending || deleteHoliday.isPending}
+						/>
+						<CreateFinancialAccountDialog
+							institutions={organization.institutions}
+							onCreate={async data => {
+								await createAccount.mutateAsync(data);
+							}}
+							pending={createAccount.isPending}
+							rewardAccounts={rewardAccounts}
+						/>
+					</div>
 				}
 				description="Organize bancos, dinheiro, investimentos e cartões sem misturar a tabela de autenticação."
 				eyebrow="Patrimônio"

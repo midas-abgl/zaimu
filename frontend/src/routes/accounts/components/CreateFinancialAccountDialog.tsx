@@ -18,6 +18,7 @@ import { NumericField } from "@/components/ui/NumericField";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
+import { AccountYieldFields } from "./AccountYieldFields";
 import { CashbackSettingsDialog } from "./CashbackSettingsDialog";
 
 const types = [
@@ -84,6 +85,9 @@ export function CreateFinancialAccountDialog({
 	const [dueDay, setDueDay] = useState(String(account?.creditCard?.dueDay ?? 17));
 	const [workingDueDate, setWorkingDueDate] = useState(account?.creditCard?.workingDueDate ?? false);
 	const [excludeFromTotals, setExcludeFromTotals] = useState(account?.creditCard?.excludeFromTotals ?? false);
+	const [yieldEnabled, setYieldEnabled] = useState(Boolean(account?.yieldRate));
+	const [yieldRate, setYieldRate] = useDebouncedInput(String(account?.yieldRate ?? ""), () => undefined);
+	const [yieldPeriod, setYieldPeriod] = useState<"MONTHLY" | "YEARLY">(account?.yieldPeriod ?? "MONTHLY");
 	const [rewardsKind, setRewardsKind] = useState(account?.rewardsAccount?.kind ?? "POINTS");
 	const [initialRewardsBalance, setInitialRewardsBalance] = useDebouncedInput(
 		String(account?.rewardsAccount?.initialBalance ?? ""),
@@ -138,6 +142,9 @@ export function CreateFinancialAccountDialog({
 		setDueDay(String(account?.creditCard?.dueDay ?? 17));
 		setWorkingDueDate(account?.creditCard?.workingDueDate ?? false);
 		setExcludeFromTotals(account?.creditCard?.excludeFromTotals ?? false);
+		setYieldEnabled(Boolean(account?.yieldRate));
+		setYieldRate(String(account?.yieldRate ?? ""));
+		setYieldPeriod(account?.yieldPeriod ?? "MONTHLY");
 		setRewardsKind(account?.rewardsAccount?.kind ?? "POINTS");
 		setInitialRewardsBalance(String(account?.rewardsAccount?.initialBalance ?? ""));
 		setConversionEnabled(
@@ -236,6 +243,8 @@ export function CreateFinancialAccountDialog({
 							}
 						: undefined,
 				type,
+				yieldPeriod: type !== "CREDIT_CARD" && yieldEnabled ? yieldPeriod : account ? null : undefined,
+				yieldRate: type !== "CREDIT_CARD" && yieldEnabled ? Number(yieldRate) : account ? null : undefined,
 			};
 			if (account && onUpdate) {
 				const { type: _, ...updateData } = data;
@@ -329,6 +338,16 @@ export function CreateFinancialAccountDialog({
 									placeholder="Selecione o tipo"
 									required
 									value={type}
+								/>
+							)}
+							{type !== "CREDIT_CARD" && (
+								<AccountYieldFields
+									enabled={yieldEnabled}
+									onEnabledChange={setYieldEnabled}
+									onPeriodChange={setYieldPeriod}
+									onRateChange={setYieldRate}
+									period={yieldPeriod}
+									rate={yieldRate}
 								/>
 							)}
 							{type === "REWARDS" && (

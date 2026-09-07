@@ -38,7 +38,17 @@ const entityTagIds = (entity: InputEntity) =>
 			(value<string | undefined>(entity, "categoryId") ? [value<string>(entity, "categoryId")] : []),
 	);
 
-const accountColumns = ["id", "userId", "name", "type", "institutionId", "createdAt", "updatedAt"] as const;
+const accountColumns = [
+	"id",
+	"userId",
+	"name",
+	"type",
+	"institutionId",
+	"yieldRate",
+	"yieldPeriod",
+	"createdAt",
+	"updatedAt",
+] as const;
 const categoryColumns = [
 	"id",
 	"userId",
@@ -172,6 +182,8 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				name: value<string>(entity, "name"),
 				type,
 				updatedAt: new Date(),
+				yieldPeriod: value<"MONTHLY" | "YEARLY" | null | undefined>(entity, "yieldPeriod") as never,
+				yieldRate: nullableNumeric<7, 4>(value<number | null | undefined>(entity, "yieldRate") ?? null),
 			};
 			if (existing)
 				await executeStatement(
@@ -223,6 +235,30 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					);
 			}
 			accountIds.add(id);
+		});
+
+		await sync("financialAccountYieldHolidays", body.financialAccountYieldHolidays, async entity => {
+			const id = value<string>(entity, "id");
+			const date = optionalDate(entity, "date");
+			if (!date) throw new Error("Informe a data do feriado");
+			const existing = await queryFirst(
+				db.sql.public.FinancialAccountYieldHoliday.select("id", "userId")
+					.where((fields, functions) => functions.eq(fields.id, id))
+					.limit(1)
+					.build(),
+			);
+			if (existing && existing.userId !== userId) throw new Error(`Feriado ${id} pertence a outro usuário`);
+			const values = { date, updatedAt: new Date(), userId };
+			if (existing)
+				await executeStatement(
+					db.sql.public.FinancialAccountYieldHoliday.update(values)
+						.where((fields, functions) => functions.eq(fields.id, id))
+						.build(),
+				);
+			else
+				await executeStatement(
+					db.sql.public.FinancialAccountYieldHoliday.insert([{ ...values, id }]).build(),
+				);
 		});
 
 		await sync("categories", body.categories, async entity => {
@@ -791,6 +827,11 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				.where((f, fn) => fn.eq(f.userId, userId))
 				.build(),
 		);
+		const financialAccountYieldHolidays = await queryRows(
+			db.sql.public.FinancialAccountYieldHoliday.select("id", "date")
+				.where((fields, functions) => functions.eq(fields.userId, userId))
+				.build(),
+		);
 		const institutionsById = new Map(financialInstitutions.map(institution => [institution.id, institution]));
 		const rewardsAccounts = financialAccounts.length
 			? await queryRows(
@@ -1012,6 +1053,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 						.build(),
 				),
 				financialAccounts: financialAccountsWithInstitutions,
+				financialAccountYieldHolidays,
 				loans: await queryRows(
 					db.sql.public.Loan.select(
 						"id",

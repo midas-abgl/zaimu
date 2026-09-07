@@ -121,6 +121,28 @@ describe("compareFinancialAccountsByOptionLabel", () => {
 });
 
 describe("calculateFinancialAccountBalances", () => {
+	test("compounds account yield on weekdays and excludes user holidays", () => {
+		const account = {
+			balance: 0,
+			createdAt: "2026-01-05T12:00:00",
+			id: "checking",
+			type: "CHECKING" as const,
+			yieldPeriod: "MONTHLY" as const,
+			yieldRate: 10,
+		};
+		const today = new Date("2026-01-06T12:00:00");
+		const transactions = [{ amount: 100, date: "2026-01-05", destinationFinancialAccountId: "checking" }];
+		const dailyRate = 1.1 ** (1 / 21) - 1;
+
+		expect(
+			calculateFinancialAccountBalances([account] as never, transactions, [], [], today)[0]?.balance,
+		).toBeCloseTo(100 * (1 + dailyRate) ** 2, 4);
+		expect(
+			calculateFinancialAccountBalances([account] as never, transactions, [], ["2026-01-06"], today)[0]
+				?.balance,
+		).toBeCloseTo(100 * (1 + dailyRate), 4);
+	});
+
 	test("derives balances from account transactions", () => {
 		const accounts = calculateFinancialAccountBalances(
 			[

@@ -22,6 +22,7 @@ namespace public {
     requestedDebtConnections DebtConnection[] @relation(name: "DebtConnection_requesterId_fkey")
     receivedDebtConnections DebtConnection[] @relation(name: "DebtConnection_recipientId_fkey")
     financialAccounts FinancialAccount[]
+    financialAccountYieldHolidays FinancialAccountYieldHoliday[]
     financialInstitutions FinancialInstitution[]
     loans             Loan[]
     salaries          Salary[]
@@ -127,6 +128,8 @@ namespace public {
     type                    pg.enum(FinancialAccountType) @default("CHECKING")
     balance                 Numeric(12, 2)?               @default(dbgenerated("0"))
     institutionId           VarChar(36)?
+    yieldRate               Numeric(7, 4)?
+    yieldPeriod             pg.enum(FinancialAccountYieldPeriod)?
     createdAt               Timestamp(3)                  @default(now())
     updatedAt               Timestamp(3)                  @default(now())
     creditCards             CreditCard[]                     @relation(name: "CreditCard_accountId_fkey")
@@ -146,6 +149,18 @@ namespace public {
     @@index([userId, institutionId, name, type], map: "FinancialAccount_userId_institutionId_name_type_key", unique: true)
 
     @@map("FinancialAccount")
+  }
+
+  model FinancialAccountYieldHoliday {
+    id        VarChar(36)  @id(map: "FinancialAccountYieldHoliday_pkey") @default(dbgenerated("cuid2()"))
+    userId    VarChar(36)
+    date      Date
+    createdAt Timestamp(3) @default(now())
+    updatedAt Timestamp(3) @default(now())
+    user      User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "FinancialAccountYieldHoliday_userId_fkey", index: false)
+
+    @@index([userId, date], map: "FinancialAccountYieldHoliday_userId_date_key", unique: true)
+    @@map("FinancialAccountYieldHoliday")
   }
 
   model CreditCard {
@@ -744,6 +759,11 @@ namespace public {
   }
 
   native_enum CashbackYieldPeriod {
+    MONTHLY = "MONTHLY"
+    YEARLY = "YEARLY"
+  }
+
+  native_enum FinancialAccountYieldPeriod {
     MONTHLY = "MONTHLY"
     YEARLY = "YEARLY"
   }
