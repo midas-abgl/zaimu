@@ -1,9 +1,10 @@
 import { type ComponentProps, type ReactNode, useEffect, useState } from "react";
+import { LuCheck } from "react-icons/lu";
 import { Button } from "./Button";
 
 export function ConfirmActionButton({
 	confirmation = "Confirmar ação?",
-	confirmChildren = "Confirmar",
+	confirmChildren,
 	onConfirm,
 	...props
 }: Omit<ComponentProps<typeof Button>, "onClick"> & {
@@ -12,6 +13,8 @@ export function ConfirmActionButton({
 	onConfirm: () => void | Promise<void>;
 }) {
 	const [confirming, setConfirming] = useState(false);
+	const isIconButton = props.size?.startsWith("icon");
+	const confirmationContent = confirmChildren ?? (isIconButton ? <LuCheck /> : "Confirmar");
 	useEffect(() => {
 		if (!confirming) return;
 		const timeout = window.setTimeout(() => setConfirming(false), 3000);
@@ -29,7 +32,7 @@ export function ConfirmActionButton({
 				aria-label={confirming ? confirmation : props["aria-label"]}
 				onClick={() => (confirming ? void onConfirm() : setConfirming(true))}
 			>
-				{confirming ? confirmChildren : props.children}
+				{confirming ? confirmationContent : props.children}
 			</Button>
 		</div>
 	);
