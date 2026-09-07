@@ -443,50 +443,70 @@ export const dataService = {
 				card.cashbackAccountId && card.cashbackRate
 					? Number(((data.totalAmount * card.cashbackRate) / 100).toFixed(4))
 					: undefined;
+			const rootPurchaseId = crypto.randomUUID();
 			const purchaseDate = new Date(`${data.purchaseDate}T12:00:00`);
-			if (purchaseDate.getDate() > card.statementDay) purchaseDate.setMonth(purchaseDate.getMonth() + 1);
-			const statementDate = new Date(purchaseDate.getFullYear(), purchaseDate.getMonth(), card.statementDay);
-			const statementKey = `${cardId}:${statementDate.toISOString().slice(0, 10)}`;
-			const storedStatement = await localCreditCardStatements.getById(statementKey);
-			const dueDate = new Date(statementDate.getFullYear(), statementDate.getMonth(), card.dueDay);
-			if (dueDate <= statementDate) dueDate.setMonth(dueDate.getMonth() + 1);
-			const statement: CreditCardStatement = storedStatement?.data ?? {
-				balanceAmount: 0,
-				creditCardId: cardId,
-				dueDate: dueDate.toISOString(),
-				id: statementKey,
-				isPaid: false,
-				paidAmount: 0,
-				statementDate: statementDate.toISOString(),
-				totalAmount: 0,
-			};
-			statement.totalAmount += installmentAmount;
-			const purchase: CreditPurchase = {
-				cashbackAccountId: cashbackAmount ? card.cashbackAccountId : undefined,
-				cashbackAmount,
-				cashbackYieldPeriod: cashbackAmount ? card.cashbackYieldPeriod : undefined,
-				cashbackYieldRate: cashbackAmount ? card.cashbackYieldRate : undefined,
-				categoryId: data.tagIds?.[0] ?? data.categoryId,
-				currentInstallment: 1,
-				debtSplit: await hydrateLocalDebtSplit(data.totalAmount, data.debtSplit),
-				description: data.description ?? "",
-				id: crypto.randomUUID(),
-				installmentAmount,
-				installments,
-				purchaseDate: data.purchaseDate,
-				statementId: statement.id,
-				storeName: data.storeName,
-				subscriptionId: data.subscriptionId,
-				subscriptionOccurrenceDate: data.subscriptionOccurrenceDate,
-				tagIds: data.tagIds,
-				time: data.time === undefined ? getCurrentLocalTime() : data.time,
-				totalAmount: data.totalAmount,
-			};
+			const debtSplit = await hydrateLocalDebtSplit(data.totalAmount, data.debtSplit);
+			const time = data.time === undefined ? getCurrentLocalTime() : data.time;
+			const purchases: CreditPurchase[] = [];
+			const statements = new Map<string, CreditCardStatement>();
+			for (let currentInstallment = 1; currentInstallment <= installments; currentInstallment++) {
+				const occurrenceDate = new Date(purchaseDate);
+				occurrenceDate.setMonth(occurrenceDate.getMonth() + currentInstallment - 1);
+				const statementMonth = new Date(occurrenceDate);
+				if (statementMonth.getDate() > card.statementDay)
+					statementMonth.setMonth(statementMonth.getMonth() + 1);
+				const statementDate = new Date(
+					statementMonth.getFullYear(),
+					statementMonth.getMonth(),
+					card.statementDay,
+				);
+				const statementKey = `${cardId}:${statementDate.toISOString().slice(0, 10)}`;
+				const storedStatement = await localCreditCardStatements.getById(statementKey);
+				const dueDate = new Date(statementDate.getFullYear(), statementDate.getMonth(), card.dueDay);
+				if (dueDate <= statementDate) dueDate.setMonth(dueDate.getMonth() + 1);
+				const statement = statements.get(statementKey) ??
+					storedStatement?.data ?? {
+						balanceAmount: 0,
+						creditCardId: cardId,
+						dueDate: dueDate.toISOString(),
+						id: statementKey,
+						isPaid: false,
+						paidAmount: 0,
+						statementDate: statementDate.toISOString(),
+						totalAmount: 0,
+					};
+				statement.totalAmount += installmentAmount;
+				statements.set(statementKey, statement);
+				purchases.push({
+					...(currentInstallment === 1 && {
+						cashbackAccountId: cashbackAmount ? card.cashbackAccountId : undefined,
+						cashbackAmount,
+						cashbackYieldPeriod: cashbackAmount ? card.cashbackYieldPeriod : undefined,
+						cashbackYieldRate: cashbackAmount ? card.cashbackYieldRate : undefined,
+						debtSplit,
+					}),
+					categoryId: data.tagIds?.[0] ?? data.categoryId,
+					currentInstallment,
+					description: data.description ?? "",
+					id: currentInstallment === 1 ? rootPurchaseId : crypto.randomUUID(),
+					installmentAmount,
+					installments,
+					...(currentInstallment > 1 && { parentId: rootPurchaseId }),
+					purchaseDate: data.purchaseDate,
+					statementId: statement.id,
+					storeName: data.storeName,
+					subscriptionId: data.subscriptionId,
+					subscriptionOccurrenceDate: data.subscriptionOccurrenceDate,
+					tagIds: data.tagIds,
+					time,
+					totalAmount: data.totalAmount,
+				});
+			}
 			await Promise.all([
-				localCreditCardStatements.put(statement, statement.id),
-				localCreditPurchases.put(purchase, purchase.id),
+				...statements.values().map(statement => localCreditCardStatements.put(statement, statement.id)),
+				...purchases.map(purchase => localCreditPurchases.put(purchase, purchase.id)),
 			]);
-			return [purchase];
+			return purchases;
 		},
 		async createFromAccount(
 			account: FinancialAccount,

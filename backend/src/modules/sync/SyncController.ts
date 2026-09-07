@@ -443,7 +443,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				description: value<string>(entity, "description"),
 				installmentAmount: String(value<number>(entity, "installmentAmount")),
 				installments: Number(value<number>(entity, "installments") ?? 1),
-				parentId: undefined,
+				parentId: value<string | undefined>(entity, "parentId"),
 				purchaseDate: new Date(value<string>(entity, "purchaseDate")),
 				statementId,
 				storeName: value<string | undefined>(entity, "storeName"),

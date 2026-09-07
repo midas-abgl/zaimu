@@ -1168,7 +1168,7 @@ suite("Prisma 8 SQL query builder", () => {
 		);
 		expect(purchaseResponse.status).toBe(200);
 		const purchases = (await purchaseResponse.json()) as Array<{ currentInstallment: number; id: string }>;
-		expect(purchases).toHaveLength(1);
+		expect(purchases.map(purchase => purchase.currentInstallment).toSorted()).toEqual([1, 2, 3]);
 		const afterInstallments = (await (
 			await jsonRequest("/debts", "GET", undefined, owner.cookie)
 		).json()) as Ledger;

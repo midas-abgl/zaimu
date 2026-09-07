@@ -1148,6 +1148,51 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					.where((fields, functions) => functions.eq(fields.id, statement.id))
 					.build(),
 			);
+			for (let currentInstallment = 2; currentInstallment <= installments; currentInstallment++) {
+				const occurrenceDate = addMonths(purchaseDate, currentInstallment - 1);
+				const { dueDate: installmentDueDate, statementDate: installmentStatementDate } = getStatementDates(
+					card,
+					occurrenceDate,
+				);
+				const installmentStatement = await getOrCreateStatement(
+					params.id,
+					installmentDueDate,
+					installmentStatementDate,
+				);
+				const installmentPurchase = await queryFirst(
+					db.sql.public.CreditPurchase.insert([
+						{
+							categoryId: tagIds[0],
+							currentInstallment,
+							description: body.description ?? "",
+							installmentAmount: String(installmentAmount),
+							installments,
+							parentId: purchase.id,
+							purchaseDate,
+							statementId: installmentStatement.id,
+							storeName: body.storeName,
+							time,
+							totalAmount: String(body.totalAmount),
+						},
+					])
+						.returning(...purchaseColumns)
+						.build(),
+				);
+				if (!installmentPurchase) throw new HttpException("Purchase not created", 500);
+				createdPurchases.push({
+					...installmentPurchase,
+					installmentAmount: Number(installmentPurchase.installmentAmount),
+					totalAmount: Number(installmentPurchase.totalAmount),
+				});
+				await executeStatement(
+					db.sql.public.CreditCardStatement.update((fields, functions) => ({
+						totalAmount: functions.raw`${fields.totalAmount} + ${amount}`.returns("pg/numeric@1"),
+						updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
+					}))
+						.where((fields, functions) => functions.eq(fields.id, installmentStatement.id))
+						.build(),
+				);
+			}
 			await replaceEntityTags({
 				entityIds: createdPurchases.map(purchase => purchase.id),
 				entityType: tagEntityType.creditPurchase,
