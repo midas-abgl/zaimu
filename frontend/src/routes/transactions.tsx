@@ -17,6 +17,7 @@ import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate, formatLocalTime } from "@/lib/date";
 import { EditCreditPurchaseDialog } from "@/routes/credit-cards/components/EditCreditPurchaseDialog";
+import { RefundCreditPurchaseDialog } from "@/routes/credit-cards/components/RefundCreditPurchaseDialog";
 import { showToast } from "@/stores";
 import { groupTransactionsForDisplay } from "./transactions/-transaction-display-groups";
 import { transactionToCreditPurchase } from "./transactions/-transaction-to-credit-purchase";
@@ -34,6 +35,7 @@ function TransactionsPage() {
 	const [editingStatementPayment, setEditingStatementPayment] = useState<Transaction | null>(null);
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 	const [editingPurchase, setEditingPurchase] = useState<Transaction | null>(null);
+	const [refundingPurchase, setRefundingPurchase] = useState<Transaction | null>(null);
 	const [filterType, setFilterType] = useState<string>("all");
 	const [expandedHiddenGroups, setExpandedHiddenGroups] = useState<Set<string>>(() => new Set());
 	const queryClient = useQueryClient();
@@ -112,6 +114,33 @@ function TransactionsPage() {
 				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
 			]);
 			showToast("Compra excluída.", "positive");
+		},
+	});
+	const refundPurchase = useMutation({
+		mutationFn: ({
+			data,
+			transaction,
+		}: {
+			data: { amount?: number; date?: string };
+			transaction: Transaction;
+		}) => {
+			if (!transaction.creditCardId) throw new Error("Cartão da compra não encontrado");
+			return dataService.creditCards.refundPurchase(transaction.creditCardId, transaction.id, data);
+		},
+		onError: error =>
+			showToast(
+				error instanceof Error ? error.message : "Não foi possível registrar o reembolso.",
+				"negative",
+			),
+		onSuccess: async () => {
+			setRefundingPurchase(null);
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: ["credit-card-statement"] }),
+				queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
+				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+			]);
+			showToast("Reembolso registrado e faturas recalculadas.", "positive");
 		},
 	});
 	const renderTransaction = (transaction: Transaction) => {
@@ -282,12 +311,31 @@ function TransactionsPage() {
 					cards={creditCardsQuery.data}
 					creditCardId={editingPurchase.creditCardId}
 					onOpenChange={open => !open && setEditingPurchase(null)}
+					onRefund={
+						editingPurchase.isRefund
+							? undefined
+							: () => {
+									setRefundingPurchase(editingPurchase);
+									setEditingPurchase(null);
+								}
+					}
 					onSubmit={async data => {
 						await updatePurchase.mutateAsync({ data, transaction: editingPurchase });
 					}}
 					open
 					pending={updatePurchase.isPending}
 					purchase={transactionToCreditPurchase(editingPurchase)}
+				/>
+			) : null}
+			{refundingPurchase?.creditCardId && refundingPurchase.installmentAmount !== undefined ? (
+				<RefundCreditPurchaseDialog
+					onOpenChange={open => !open && setRefundingPurchase(null)}
+					onSubmit={async data => {
+						await refundPurchase.mutateAsync({ data, transaction: refundingPurchase });
+					}}
+					open
+					pending={refundPurchase.isPending}
+					purchase={transactionToCreditPurchase(refundingPurchase)}
 				/>
 			) : null}
 		</PageContainer>

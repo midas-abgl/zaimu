@@ -1,4 +1,5 @@
 import { type SyntheticEvent, useEffect, useState } from "react";
+import { LuUndo2 } from "react-icons/lu";
 import { DebtSplitEditor } from "@/components/debts";
 import { StorePicker } from "@/components/stores";
 import { TagPicker } from "@/components/tags";
@@ -42,6 +43,7 @@ interface CreditPurchaseUpdate {
 
 export function EditCreditPurchaseDialog({
 	onOpenChange,
+	onRefund,
 	onSubmit,
 	open,
 	pending,
@@ -52,6 +54,7 @@ export function EditCreditPurchaseDialog({
 	cards?: CreditCard[];
 	creditCardId?: string;
 	onOpenChange: (open: boolean) => void;
+	onRefund?: () => void;
 	onSubmit: (data: CreditPurchaseUpdate) => Promise<unknown>;
 	open: boolean;
 	pending: boolean;
@@ -220,6 +223,12 @@ export function EditCreditPurchaseDialog({
 								) : null}
 							</div>
 							<DialogFooter>
+								{onRefund ? (
+									<Button className="cursor-pointer" onClick={onRefund} type="button" variant="outline">
+										<LuUndo2 />
+										Reembolsar
+									</Button>
+								) : null}
 								<Button
 									className="cursor-pointer"
 									onClick={() => onOpenChange(false)}
