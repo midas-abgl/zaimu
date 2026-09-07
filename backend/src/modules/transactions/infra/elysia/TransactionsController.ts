@@ -332,6 +332,19 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				tagEntityType.creditPurchase,
 				purchases.map(purchase => purchase.id),
 			);
+			const purchaseIds = purchases.filter(purchase => !purchase.isRefund).map(purchase => purchase.id);
+			const refundedPurchases = purchaseIds.length
+				? await queryRows(
+						db.sql.public.CreditPurchase.select("refundOfPurchaseId")
+							.where((fields, functions) => functions.in(fields.refundOfPurchaseId, purchaseIds))
+							.build(),
+					)
+				: [];
+			const refundedPurchaseIds = new Set(
+				refundedPurchases.flatMap(purchase =>
+					purchase.refundOfPurchaseId ? [purchase.refundOfPurchaseId] : [],
+				),
+			);
 			const normalizedPurchases = (
 				await Promise.all(
 					purchases.map(async purchase => {
@@ -346,6 +359,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 							),
 							destinationFinancialAccountId: null,
 							destinationName: null,
+							hasRefund: !purchase.isRefund && refundedPurchaseIds.has(purchase.id),
 							originName: purchase.sourceName,
 							source: "CREDIT_CARD" as const,
 							tagIds: tags.map(tag => tag.id),

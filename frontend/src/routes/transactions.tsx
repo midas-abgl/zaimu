@@ -312,7 +312,7 @@ function TransactionsPage() {
 					creditCardId={editingPurchase.creditCardId}
 					onOpenChange={open => !open && setEditingPurchase(null)}
 					onRefund={
-						editingPurchase.isRefund
+						editingPurchase.isRefund || editingPurchase.hasRefund
 							? undefined
 							: () => {
 									setRefundingPurchase(editingPurchase);

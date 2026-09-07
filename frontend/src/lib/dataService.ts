@@ -190,15 +190,26 @@ export const dataService = {
 						name: institutionName!.normalize("NFKC").trim().replace(/\s+/gu, " "),
 					};
 				}
+				const now = new Date();
 				let newAccount: FinancialAccount = {
 					...accountData,
 					balance: data.type === "CREDIT_CARD" ? null : 0,
-					createdAt: new Date().toISOString(),
+					createdAt: now.toISOString(),
 					id: crypto.randomUUID(),
 					institution,
 					institutionId: institution?.id ?? null,
-					updatedAt: new Date().toISOString(),
+					updatedAt: now.toISOString(),
 					userId,
+					...(data.yieldRate &&
+						data.yieldPeriod && {
+							yieldRateHistories: [
+								{
+									effectiveDate: now.toISOString().slice(0, 10),
+									yieldPeriod: data.yieldPeriod,
+									yieldRate: data.yieldRate,
+								},
+							],
+						}),
 				};
 				if (data.type === "REWARDS" && rewardsAccount) {
 					newAccount = {
@@ -322,6 +333,21 @@ export const dataService = {
 							})
 						: null;
 				}
+				const yieldChanged = data.yieldPeriod !== undefined || data.yieldRate !== undefined;
+				const effectiveDate = new Date();
+				effectiveDate.setDate(effectiveDate.getDate() + 1);
+				const nextYieldHistory = yieldChanged
+					? [
+							...(existing.data.yieldRateHistories ?? []).filter(
+								history => history.effectiveDate.slice(0, 10) !== effectiveDate.toISOString().slice(0, 10),
+							),
+							{
+								effectiveDate: effectiveDate.toISOString().slice(0, 10),
+								yieldPeriod: data.yieldPeriod === undefined ? existing.data.yieldPeriod : data.yieldPeriod,
+								yieldRate: data.yieldRate === undefined ? existing.data.yieldRate : data.yieldRate,
+							},
+						]
+					: existing.data.yieldRateHistories;
 				const updated: FinancialAccount = {
 					...existing.data,
 					...accountData,
@@ -336,6 +362,7 @@ export const dataService = {
 							? { ...existing.data.rewardsAccount, ...data.rewardsAccount }
 							: existing.data.rewardsAccount,
 					updatedAt: new Date().toISOString(),
+					yieldRateHistories: nextYieldHistory,
 				};
 				await localAccounts.put(updated, id);
 				return updated;
@@ -628,6 +655,11 @@ export const dataService = {
 					localTransactions.getAll(),
 				]);
 				const categories = new Map(storedCategories.map(item => [item.data.id, item.data]));
+				const refundedPurchaseIds = new Set(
+					storedPurchases.flatMap(item =>
+						item.data.refundOfPurchaseId ? [item.data.refundOfPurchaseId] : [],
+					),
+				);
 				const purchases = storedPurchases
 					.map(item => item.data)
 					.filter(purchase => purchase.statementId === statementId)
@@ -641,6 +673,7 @@ export const dataService = {
 							...purchase,
 							categoryColor: tags[0]?.color ?? undefined,
 							categoryName: tags[0]?.name,
+							hasRefund: !purchase.isRefund && refundedPurchaseIds.has(purchase.parentId ?? purchase.id),
 							tags,
 						};
 					})
@@ -777,6 +810,8 @@ export const dataService = {
 			const card = (await localCreditCards.getById(cardId))?.data;
 			if (!card) throw new Error("Cartão não encontrado");
 			const allPurchases = (await localCreditPurchases.getAll()).map(item => item.data);
+			if (allPurchases.some(purchase => purchase.refundOfPurchaseId === rootPurchaseId))
+				throw new Error("Esta compra já foi reembolsada");
 			const refundedAmount = allPurchases
 				.filter(purchase => purchase.refundOfPurchaseId === rootPurchaseId)
 				.reduce((sum, purchase) => sum + Math.abs(purchase.totalAmount), 0);
@@ -2089,6 +2124,11 @@ export const dataService = {
 				const cards = new Map(storedCards.map(item => [item.data.id, item.data]));
 				const categories = new Map(storedCategories.map(item => [item.data.id, item.data]));
 				const accounts = new Map(storedAccounts.map(item => [item.data.id, item.data]));
+				const refundedPurchaseIds = new Set(
+					storedPurchases.flatMap(item =>
+						item.data.refundOfPurchaseId ? [item.data.refundOfPurchaseId] : [],
+					),
+				);
 				const purchases: Transaction[] = storedPurchases
 					.map(item => item.data)
 					.filter(
@@ -2118,6 +2158,7 @@ export const dataService = {
 								date: purchase.purchaseDate,
 								debtSplit: purchase.debtSplit,
 								description: purchase.description,
+								hasRefund: !purchase.isRefund && refundedPurchaseIds.has(purchase.id),
 								id: purchase.id,
 								installmentAmount: purchase.installmentAmount,
 								installments: purchase.installments,

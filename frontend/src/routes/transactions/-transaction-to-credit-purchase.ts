@@ -7,6 +7,7 @@ export const transactionToCreditPurchase = (transaction: Transaction): CreditPur
 	description: transaction.description ?? "",
 	feeAmount: transaction.feeAmount,
 	feeDescription: transaction.feeDescription,
+	hasRefund: transaction.hasRefund,
 	id: transaction.id,
 	installmentAmount: transaction.installmentAmount ?? transaction.amount,
 	installments: transaction.installments ?? 1,

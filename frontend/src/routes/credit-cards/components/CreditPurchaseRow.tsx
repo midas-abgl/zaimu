@@ -46,7 +46,7 @@ export function CreditPurchaseRow({
 				<p className="truncate text-muted-foreground text-xs">
 					{formatLocalDate(purchase.purchaseDate)}
 					{formatLocalTime(purchase.time) ? ` · ${formatLocalTime(purchase.time)}` : ""}
-					{purchase.isRefund ? " · Reembolso" : ""}
+					{purchase.isRefund ? " · Reembolso" : purchase.hasRefund ? " · Reembolsada" : ""}
 					{purchase.isForecast ? " · Previsão" : ""}
 					{purchase.installments > 1 ? ` · ${purchase.currentInstallment}/${purchase.installments}` : ""}
 					{purchase.isSettled ? " · Quitada por reparcelamento" : ""}
@@ -72,7 +72,7 @@ export function CreditPurchaseRow({
 					{currency.format(purchase.installmentAmount)}
 				</strong>
 				<div className="flex flex-wrap justify-end gap-2">
-					{!purchase.isRefund ? (
+					{!purchase.isRefund && !purchase.hasRefund ? (
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<Button

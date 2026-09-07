@@ -61,8 +61,15 @@ export interface FinancialAccount {
 	updatedAt: string;
 	yieldPeriod?: "MONTHLY" | "YEARLY" | null;
 	yieldRate?: number | null;
+	yieldRateHistories?: FinancialAccountYieldRateHistory[];
 	creditCard?: CreditCard;
 	rewardsAccount?: RewardsAccount;
+}
+
+export interface FinancialAccountYieldRateHistory {
+	effectiveDate: string;
+	yieldPeriod?: "MONTHLY" | "YEARLY" | null;
+	yieldRate?: number | null;
 }
 
 export interface FinancialAccountYieldHoliday {
@@ -166,6 +173,8 @@ export interface Transaction {
 	feeAmount?: number | null;
 	refundOfPurchaseId?: string | null;
 	isRefund?: boolean;
+	hasRefund?: boolean;
+	hasRefund?: boolean;
 	type: "INCOME" | "EXPENSE" | "TRANSFER";
 	categoryId?: string;
 	categoryName?: string;
@@ -393,6 +402,8 @@ export interface CreditPurchase {
 	parentId?: string;
 	refundOfPurchaseId?: string | null;
 	isRefund?: boolean;
+	hasRefund?: boolean;
+	hasRefund?: boolean;
 	subscriptionId?: string;
 	subscriptionOccurrenceDate?: string;
 	isForecast?: boolean;

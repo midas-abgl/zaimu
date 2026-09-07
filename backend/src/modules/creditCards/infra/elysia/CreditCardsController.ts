@@ -919,6 +919,21 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				tagEntityType.creditPurchase,
 				purchases.map(purchase => purchase.id),
 			);
+			const rootPurchaseIds = purchases
+				.filter(purchase => !purchase.isRefund)
+				.map(purchase => purchase.parentId ?? purchase.id);
+			const refundedPurchases = rootPurchaseIds.length
+				? await queryRows(
+						db.sql.public.CreditPurchase.select("refundOfPurchaseId")
+							.where((fields, functions) => functions.in(fields.refundOfPurchaseId, rootPurchaseIds))
+							.build(),
+					)
+				: [];
+			const refundedPurchaseIds = new Set(
+				refundedPurchases.flatMap(purchase =>
+					purchase.refundOfPurchaseId ? [purchase.refundOfPurchaseId] : [],
+				),
+			);
 			return {
 				...statement,
 				balanceAmount: Number(statement.totalAmount) - Number(statement.paidAmount),
@@ -934,6 +949,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 								{ creditPurchaseId: purchase.parentId ?? purchase.id },
 								Math.abs(Number(purchase.totalAmount)),
 							),
+							hasRefund: !purchase.isRefund && refundedPurchaseIds.has(purchase.parentId ?? purchase.id),
 							tagIds: tags.map(tag => tag.id),
 							tags,
 						};
@@ -1472,6 +1488,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					.where((fields, functions) => functions.eq(fields.refundOfPurchaseId, rootPurchaseId))
 					.build(),
 			);
+			if (refunds.length) throw new HttpException("This purchase has already been refunded", 409);
 			const refundedAmount = refunds.reduce((sum, refund) => sum + Math.abs(Number(refund.totalAmount)), 0);
 			const remainingAmount = Math.round((Number(sourcePurchase.totalAmount) - refundedAmount) * 100) / 100;
 			const refundAmount = body.amount ?? remainingAmount;
