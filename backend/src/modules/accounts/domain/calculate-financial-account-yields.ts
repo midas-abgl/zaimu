@@ -32,6 +32,14 @@ export interface CashbackCredit {
 	purchaseDate: Date;
 }
 
+export interface FinancialAccountYield {
+	amount?: null | number;
+	date: Date;
+	financialAccountId: string;
+	isExcluded: boolean;
+	kind: "AUTOMATIC" | "MANUAL";
+}
+
 export function calculateFinancialAccountYieldBalances({
 	accounts,
 	cashbackCredits,
@@ -39,6 +47,7 @@ export function calculateFinancialAccountYieldBalances({
 	initialRewardsBalances,
 	today = new Date(),
 	transactions,
+	yields = [],
 }: {
 	accounts: YieldAccount[];
 	cashbackCredits: CashbackCredit[];
@@ -46,6 +55,7 @@ export function calculateFinancialAccountYieldBalances({
 	initialRewardsBalances: Map<string, number>;
 	today?: Date;
 	transactions: YieldTransaction[];
+	yields?: FinancialAccountYield[];
 }) {
 	const todayKey = format(startOfDay(today), "yyyy-MM-dd");
 	const holidayKeys = new Set(holidays.map(dateKey));
@@ -54,6 +64,12 @@ export function calculateFinancialAccountYieldBalances({
 	);
 	const events = new Map<string, Map<string, number>>();
 	const cashbackEvents = new Map<string, Map<string, CashbackCredit[]>>();
+	const yieldsByAccountId = new Map<string, FinancialAccountYield[]>();
+	for (const yieldEntry of yields) {
+		const accountYields = yieldsByAccountId.get(yieldEntry.financialAccountId) ?? [];
+		accountYields.push(yieldEntry);
+		yieldsByAccountId.set(yieldEntry.financialAccountId, accountYields);
+	}
 	const addEvent = (accountId: string, date: Date, amount: number) => {
 		const day = dateKey(date);
 		if (day > todayKey || !accountById.has(accountId)) return;
@@ -92,6 +108,7 @@ export function calculateFinancialAccountYieldBalances({
 							cashbackEvents.get(account.id),
 							holidayKeys,
 							todayKey,
+							yieldsByAccountId.get(account.id),
 						).toFixed(4),
 					),
 		]),
@@ -113,8 +130,13 @@ function calculateYieldedBalance(
 	cashbackEvents: Map<string, CashbackCredit[]> | undefined,
 	holidays: Set<string>,
 	todayKey: string,
+	yields: FinancialAccountYield[] | undefined,
 ) {
-	const firstDay = [...(events?.keys() ?? []), ...(cashbackEvents?.keys() ?? [])].toSorted()[0];
+	const firstDay = [
+		...(events?.keys() ?? []),
+		...(cashbackEvents?.keys() ?? []),
+		...(yields?.map(yieldEntry => dateKey(yieldEntry.date)) ?? []),
+	].toSorted()[0];
 	if (!firstDay) return 0;
 	let balance = 0;
 	const cashbackBalances = new Map<number, number>();
@@ -126,11 +148,27 @@ function calculateYieldedBalance(
 			if (rate) cashbackBalances.set(rate, (cashbackBalances.get(rate) ?? 0) + Number(credit.cashbackAmount));
 			else balance += Number(credit.cashbackAmount);
 		}
-		if (isWeekend(day) || holidays.has(key)) continue;
+		const manualYields = yields?.filter(
+			yieldEntry =>
+				yieldEntry.kind === "MANUAL" && dateKey(yieldEntry.date) === key && !yieldEntry.isExcluded,
+		);
+		if (isWeekend(day) || holidays.has(key)) {
+			for (const manualYield of manualYields ?? []) balance += manualYield.amount ?? 0;
+			continue;
+		}
 		const yieldSettings = getYieldSettings(account, key);
-		if (balance > 0) balance *= 1 + dailyRate(yieldSettings.yieldRate, yieldSettings.yieldPeriod);
+		const automaticYield = yields?.find(
+			yieldEntry => yieldEntry.kind === "AUTOMATIC" && dateKey(yieldEntry.date) === key,
+		);
+		if (balance > 0 && !automaticYield?.isExcluded) {
+			const calculatedAmount = balance * dailyRate(yieldSettings.yieldRate, yieldSettings.yieldPeriod);
+			balance += automaticYield?.amount ?? calculatedAmount;
+		}
 		for (const [rate, cashbackBalance] of cashbackBalances) {
 			if (cashbackBalance > 0) cashbackBalances.set(rate, cashbackBalance * (1 + rate));
+		}
+		for (const manualYield of manualYields ?? []) {
+			balance += manualYield.amount ?? 0;
 		}
 	}
 	return balance + [...cashbackBalances.values()].reduce((total, value) => total + value, 0);

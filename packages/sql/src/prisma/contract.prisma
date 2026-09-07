@@ -135,6 +135,7 @@ namespace public {
     creditCards             CreditCard[]                     @relation(name: "CreditCard_accountId_fkey")
     cashbackCreditCards     CreditCard[]                     @relation(name: "CreditCard_cashbackAccountId_fkey")
     cashbackPurchases       CreditPurchase[]                 @relation(name: "CreditPurchase_cashbackAccountId_fkey")
+    yields                  FinancialAccountYield[]
     yieldRateHistories      FinancialAccountYieldRateHistory[]
     loanPayments            LoanPayment[]
     rewardsAccount          RewardsAccount?
@@ -176,6 +177,21 @@ namespace public {
 
     @@index([financialAccountId, effectiveDate], map: "FinancialAccountYieldRateHistory_accountId_effectiveDate_key", unique: true)
     @@map("FinancialAccountYieldRateHistory")
+  }
+
+  model FinancialAccountYield {
+    id                 VarChar(36)                       @id(map: "FinancialAccountYield_pkey") @default(dbgenerated("cuid2()"))
+    financialAccountId VarChar(36)
+    date               Date
+    amount             Numeric(12, 4)?
+    kind               pg.enum(FinancialAccountYieldKind)
+    isExcluded         Boolean                           @default(false)
+    createdAt          Timestamp(3)                      @default(now())
+    updatedAt          Timestamp(3)                      @default(now())
+    financialAccount   FinancialAccount                  @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "FinancialAccountYield_financialAccountId_fkey", index: false)
+
+    @@index([financialAccountId, date, kind], map: "FinancialAccountYield_accountId_date_kind_key", unique: true)
+    @@map("FinancialAccountYield")
   }
 
   model CreditCard {
@@ -781,6 +797,11 @@ namespace public {
   native_enum FinancialAccountYieldPeriod {
     MONTHLY = "MONTHLY"
     YEARLY = "YEARLY"
+  }
+
+  native_enum FinancialAccountYieldKind {
+    AUTOMATIC = "AUTOMATIC"
+    MANUAL = "MANUAL"
   }
 
   native_enum FinancialAccountType {

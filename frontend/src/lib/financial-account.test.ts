@@ -192,6 +192,46 @@ describe("calculateFinancialAccountBalances", () => {
 		);
 	});
 
+	test("includes manually created and edited yields in the statement", () => {
+		const account = {
+			balance: 0,
+			id: "checking",
+			type: "CHECKING" as const,
+			yieldPeriod: "MONTHLY" as const,
+			yieldRate: 10,
+		};
+		const entries = calculateFinancialAccountYieldEntries(
+			account as never,
+			[{ amount: 100, date: "2026-01-05", destinationFinancialAccountId: "checking" }],
+			[],
+			new Date("2026-01-06T12:00:00"),
+			[
+				{
+					amount: 1,
+					date: "2026-01-05",
+					financialAccountId: "checking",
+					id: "automatic-edit",
+					isExcluded: false,
+					kind: "AUTOMATIC",
+				},
+				{
+					amount: 2,
+					date: "2026-01-06",
+					financialAccountId: "checking",
+					id: "manual-yield",
+					isExcluded: false,
+					kind: "MANUAL",
+				},
+			],
+		);
+
+		expect(entries.map(entry => [entry.id, entry.amount])).toEqual([
+			["automatic-edit", 1],
+			["automatic-yield-checking-2026-01-06", expect.any(Number)],
+			["manual-yield", 2],
+		]);
+	});
+
 	test("keeps rewards in native units and compounds cashback", () => {
 		const accounts = calculateFinancialAccountBalances(
 			[

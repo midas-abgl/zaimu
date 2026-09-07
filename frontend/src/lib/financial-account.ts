@@ -1,5 +1,5 @@
 import { addDays, differenceInMonths, differenceInYears, format, isWeekend, startOfDay } from "date-fns";
-import type { FinancialAccount } from "./api";
+import type { FinancialAccount, FinancialAccountYield } from "./api";
 import { normalizeInstitutionName } from "./financial-institution";
 
 type AccountTransaction = Pick<
@@ -14,6 +14,9 @@ type CashbackPurchase = Pick<
 export interface FinancialAccountYieldEntry {
 	amount: number;
 	date: string;
+	financialAccountId: string;
+	id: string;
+	kind: "AUTOMATIC" | "MANUAL";
 }
 
 export function calculateCashbackValue(
@@ -37,6 +40,7 @@ export function calculateFinancialAccountBalances(
 	cashbackPurchases: CashbackPurchase[] = [],
 	holidays: string[] = [],
 	today = new Date(),
+	yields: FinancialAccountYield[] = [],
 ): FinancialAccount[] {
 	const todayKey = format(startOfDay(today), "yyyy-MM-dd");
 	const holidayKeys = new Set(holidays.map(date => date.slice(0, 10)));
@@ -51,6 +55,12 @@ export function calculateFinancialAccountBalances(
 			Array<{ amount: number; yieldPeriod?: "MONTHLY" | "YEARLY" | null; yieldRate?: null | number }>
 		>
 	>();
+	const yieldsByAccountId = new Map<string, FinancialAccountYield[]>();
+	for (const yieldEntry of yields) {
+		const accountYields = yieldsByAccountId.get(yieldEntry.financialAccountId) ?? [];
+		accountYields.push(yieldEntry);
+		yieldsByAccountId.set(yieldEntry.financialAccountId, accountYields);
+	}
 	const addEvent = (accountId: string, date: string | Date | undefined, amount: number) => {
 		const day = dateKey(date ?? todayKey);
 		if (day > todayKey || !accountById.has(accountId)) return;
@@ -97,6 +107,7 @@ export function calculateFinancialAccountBalances(
 							cashbackEvents.get(account.id),
 							holidayKeys,
 							todayKey,
+							yieldsByAccountId.get(account.id),
 						).toFixed(4),
 					),
 	}));
@@ -107,6 +118,7 @@ export function calculateFinancialAccountYieldEntries(
 	transactions: AccountTransaction[],
 	holidays: string[] = [],
 	today = new Date(),
+	yields: FinancialAccountYield[] = [],
 ): FinancialAccountYieldEntry[] {
 	if (account.type === "CREDIT_CARD") return [];
 	const todayKey = format(startOfDay(today), "yyyy-MM-dd");
@@ -122,7 +134,10 @@ export function calculateFinancialAccountYieldEntries(
 					: 0;
 		events.set(day, (events.get(day) ?? 0) + amount);
 	}
-	const firstDay = [...events.keys()].toSorted()[0];
+	const firstDay = [
+		...events.keys(),
+		...yields.map(yieldEntry => yieldEntry.date.slice(0, 10)),
+	].toSorted()[0];
 	if (!firstDay) return [];
 	const holidayKeys = new Set(holidays.map(date => date.slice(0, 10)));
 	const entries: FinancialAccountYieldEntry[] = [];
@@ -134,12 +149,40 @@ export function calculateFinancialAccountYieldEntries(
 	) {
 		const key = format(day, "yyyy-MM-dd");
 		balance += events.get(key) ?? 0;
-		if (isWeekend(day) || holidayKeys.has(key) || balance <= 0) continue;
-		const settings = getYieldSettings(account, key);
-		const amount = balance * getDailyYieldRate(settings.yieldRate, settings.yieldPeriod);
-		if (amount > 0) {
-			entries.push({ amount, date: key });
-			balance += amount;
+		const manualYields = yields.filter(
+			yieldEntry =>
+				yieldEntry.kind === "MANUAL" && !yieldEntry.isExcluded && yieldEntry.date.slice(0, 10) === key,
+		);
+		if (isWeekend(day) || holidayKeys.has(key)) {
+			for (const manualYield of manualYields) {
+				if (!manualYield.amount) continue;
+				entries.push({ ...manualYield, amount: manualYield.amount, date: key });
+				balance += manualYield.amount;
+			}
+			continue;
+		}
+		const automaticYield = yields.find(
+			yieldEntry => yieldEntry.kind === "AUTOMATIC" && yieldEntry.date.slice(0, 10) === key,
+		);
+		if (balance > 0 && !automaticYield?.isExcluded) {
+			const settings = getYieldSettings(account, key);
+			const calculatedAmount = balance * getDailyYieldRate(settings.yieldRate, settings.yieldPeriod);
+			const amount = automaticYield?.amount ?? calculatedAmount;
+			if (amount > 0) {
+				entries.push({
+					amount,
+					date: key,
+					financialAccountId: account.id,
+					id: automaticYield?.id ?? `automatic-yield-${account.id}-${key}`,
+					kind: "AUTOMATIC",
+				});
+				balance += amount;
+			}
+		}
+		for (const manualYield of manualYields) {
+			if (!manualYield.amount) continue;
+			entries.push({ ...manualYield, amount: manualYield.amount, date: key });
+			balance += manualYield.amount;
 		}
 	}
 	return entries;
@@ -166,8 +209,13 @@ function calculateYieldedBalance(
 		| undefined,
 	holidays: Set<string>,
 	todayKey: string,
+	yields: FinancialAccountYield[] | undefined,
 ) {
-	const firstDay = [...(events?.keys() ?? []), ...(cashbackEvents?.keys() ?? [])].toSorted()[0];
+	const firstDay = [
+		...(events?.keys() ?? []),
+		...(cashbackEvents?.keys() ?? []),
+		...(yields?.map(yieldEntry => yieldEntry.date.slice(0, 10)) ?? []),
+	].toSorted()[0];
 	if (!firstDay) return 0;
 	let balance = 0;
 	const cashbackBalances = new Map<number, number>();
@@ -184,12 +232,27 @@ function calculateYieldedBalance(
 				cashbackBalances.set(dailyRate, (cashbackBalances.get(dailyRate) ?? 0) + cashback.amount);
 			else balance += cashback.amount;
 		}
-		if (isWeekend(day) || holidays.has(key)) continue;
+		const manualYields = yields?.filter(
+			yieldEntry =>
+				yieldEntry.kind === "MANUAL" && !yieldEntry.isExcluded && yieldEntry.date.slice(0, 10) === key,
+		);
+		if (isWeekend(day) || holidays.has(key)) {
+			for (const manualYield of manualYields ?? []) balance += manualYield.amount ?? 0;
+			continue;
+		}
 		const yieldSettings = getYieldSettings(account, key);
-		if (balance > 0) balance *= 1 + getDailyYieldRate(yieldSettings.yieldRate, yieldSettings.yieldPeriod);
+		const automaticYield = yields?.find(
+			yieldEntry => yieldEntry.kind === "AUTOMATIC" && yieldEntry.date.slice(0, 10) === key,
+		);
+		if (balance > 0 && !automaticYield?.isExcluded) {
+			const calculatedAmount =
+				balance * getDailyYieldRate(yieldSettings.yieldRate, yieldSettings.yieldPeriod);
+			balance += automaticYield?.amount ?? calculatedAmount;
+		}
 		for (const [dailyRate, cashbackBalance] of cashbackBalances) {
 			if (cashbackBalance > 0) cashbackBalances.set(dailyRate, cashbackBalance * (1 + dailyRate));
 		}
+		for (const manualYield of manualYields ?? []) balance += manualYield.amount ?? 0;
 	}
 	return balance + [...cashbackBalances.values()].reduce((total, value) => total + value, 0);
 }

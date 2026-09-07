@@ -77,6 +77,15 @@ export interface FinancialAccountYieldHoliday {
 	date: string;
 }
 
+export interface FinancialAccountYield {
+	amount: number | null;
+	date: string;
+	financialAccountId: string;
+	id: string;
+	isExcluded: boolean;
+	kind: "AUTOMATIC" | "MANUAL";
+}
+
 export interface RewardsAccount {
 	id: string;
 	financialAccountId: string;

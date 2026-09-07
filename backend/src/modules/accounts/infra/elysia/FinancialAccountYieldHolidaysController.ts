@@ -48,14 +48,20 @@ export const FinancialAccountYieldHolidaysController = new Elysia({
 		"/:id",
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
-			const deleted = await executeStatement(
-				db.sql.public.FinancialAccountYieldHoliday.delete()
+			const existing = await queryFirst(
+				db.sql.public.FinancialAccountYieldHoliday.select("id")
 					.where((fields, functions) =>
 						functions.and(functions.eq(fields.id, params.id), functions.eq(fields.userId, userId)),
 					)
+					.limit(1)
 					.build(),
 			);
-			if (!deleted.count) throw new HttpException("Feriado não encontrado", 404);
+			if (!existing) throw new HttpException("Feriado não encontrado", 404);
+			await executeStatement(
+				db.sql.public.FinancialAccountYieldHoliday.delete()
+					.where((fields, functions) => functions.eq(fields.id, existing.id))
+					.build(),
+			);
 			return { success: true };
 		},
 		{ detail: { tags: ["Accounts"] }, params: t.Object({ id: t.String({ maxLength: 36, minLength: 1 }) }) },

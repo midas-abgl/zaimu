@@ -35,7 +35,7 @@ const initialDraft = () => ({
 	storeName: "",
 	tagIds: [] as string[],
 	time: getCurrentLocalTime(),
-	type: "EXPENSE" as Transaction["type"],
+	type: "EXPENSE" as Transaction["type"] | "YIELD",
 });
 
 export function CreateTransactionDialog({
@@ -103,7 +103,9 @@ export function CreateTransactionDialog({
 		item => item.statement.id === draft.creditCardStatementId,
 	);
 	const primaryAccountId =
-		draft.type === "INCOME" ? draft.destinationFinancialAccountId : draft.originFinancialAccountId;
+		draft.type === "INCOME" || draft.type === "YIELD"
+			? draft.destinationFinancialAccountId
+			: draft.originFinancialAccountId;
 	const reset = () => {
 		setDraft(initialDraft());
 		setDescription("");
@@ -118,6 +120,13 @@ export function CreateTransactionDialog({
 	const create = useMutation({
 		mutationFn: async () => {
 			const amount = Number.parseFloat(draft.amount);
+			if (draft.type === "YIELD") {
+				return dataService.accountYields.create({
+					amount,
+					date: draft.date,
+					financialAccountId: draft.destinationFinancialAccountId,
+				});
+			}
 			if (selectedStatement) {
 				return dataService.creditCards.payStatement(
 					selectedStatement.card.id,
@@ -155,7 +164,14 @@ export function CreateTransactionDialog({
 				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
 				queryClient.invalidateQueries({ queryKey: ["debts"] }),
 			]);
-			showToast(selectedStatement ? "Pagamento da fatura registrado." : "Transação registrada.", "positive");
+			showToast(
+				selectedStatement
+					? "Pagamento da fatura registrado."
+					: draft.type === "YIELD"
+						? "Rendimento registrado."
+						: "Transação registrada.",
+				"positive",
+			);
 			handleOpenChange(false);
 		},
 	});
@@ -172,6 +188,7 @@ export function CreateTransactionDialog({
 						amount={draft.amount}
 						date={draft.date}
 						description={description}
+						includeYield
 						isHidden={draft.isHidden}
 						onAmountChange={amount => setDraft(current => ({ ...current, amount }))}
 						onDateChange={date => setDraft(current => ({ ...current, date }))}
@@ -186,13 +203,17 @@ export function CreateTransactionDialog({
 							setDraft(current => ({
 								...current,
 								creditCardStatementId: type === "EXPENSE" ? current.creditCardStatementId : "",
+								destinationFinancialAccountId:
+									type === "INCOME" || type === "YIELD" ? current.destinationFinancialAccountId : "",
+								originFinancialAccountId:
+									type === "INCOME" || type === "YIELD" ? "" : current.originFinancialAccountId,
 								type,
 							}));
 						}}
 						sendWithoutTime={sendWithoutTime}
-						showDescription={!selectedStatement}
+						showDescription={!selectedStatement && draft.type !== "YIELD"}
 						showStore={draft.type === "EXPENSE" && !selectedStatement}
-						showTags={draft.type !== "TRANSFER" && !selectedStatement}
+						showTags={draft.type !== "TRANSFER" && draft.type !== "YIELD" && !selectedStatement}
 						storeName={draft.storeName}
 						tagIds={draft.tagIds}
 						time={draft.time}
@@ -222,7 +243,7 @@ export function CreateTransactionDialog({
 							value={draft.creditCardStatementId}
 						/>
 					) : null}
-					{draft.type !== "TRANSFER" && !selectedStatement ? (
+					{draft.type !== "TRANSFER" && draft.type !== "YIELD" && !selectedStatement ? (
 						<div className="grid gap-3 rounded-2xl border p-3">
 							<label className="flex cursor-pointer items-center gap-3 text-sm" htmlFor="transaction-is-debt">
 								<Checkbox
@@ -243,7 +264,7 @@ export function CreateTransactionDialog({
 					{balanceAccounts.length > 0 && (
 						<CustomSelect
 							label={
-								draft.type === "INCOME"
+								draft.type === "INCOME" || draft.type === "YIELD"
 									? "Conta de destino"
 									: draft.type === "TRANSFER"
 										? "Conta de origem"
@@ -251,7 +272,7 @@ export function CreateTransactionDialog({
 							}
 							onValueChange={accountId =>
 								setDraft(current =>
-									current.type === "INCOME"
+									current.type === "INCOME" || current.type === "YIELD"
 										? { ...current, destinationFinancialAccountId: accountId, originFinancialAccountId: "" }
 										: {
 												...current,

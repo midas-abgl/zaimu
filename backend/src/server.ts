@@ -1,6 +1,7 @@
 import {
 	AccountsController,
 	FinancialAccountYieldHolidaysController,
+	FinancialAccountYieldsController,
 	InstitutionsController,
 } from "./modules/accounts/infra";
 import { CategoriesController } from "./modules/categories/infra";
@@ -20,6 +21,7 @@ export const server = app.use([
 	AccountsController,
 	InstitutionsController,
 	FinancialAccountYieldHolidaysController,
+	FinancialAccountYieldsController,
 	TransactionsController,
 	CreditCardsController,
 	LoansController,

@@ -62,4 +62,35 @@ describe("calculateFinancialAccountYieldBalances", () => {
 		});
 		expect(balances.get("account")).toBeCloseTo(100 * 1.1 ** (1 / 21) * 1.2 ** (1 / 21), 4);
 	});
+
+	test("uses edits and manual yields in the account balance", () => {
+		const balances = calculateFinancialAccountYieldBalances({
+			accounts: [account],
+			cashbackCredits: [],
+			holidays: [],
+			initialRewardsBalances: new Map(),
+			today: new Date("2026-01-06T12:00:00"),
+			transactions: [
+				{ amount: 100, date: new Date("2026-01-05T12:00:00"), destinationFinancialAccountId: "account" },
+			],
+			yields: [
+				{
+					amount: 1,
+					date: new Date("2026-01-05T12:00:00"),
+					financialAccountId: "account",
+					isExcluded: false,
+					kind: "AUTOMATIC",
+				},
+				{
+					amount: 2,
+					date: new Date("2026-01-06T12:00:00"),
+					financialAccountId: "account",
+					isExcluded: false,
+					kind: "MANUAL",
+				},
+			],
+		});
+		const dailyRate = 1.1 ** (1 / 21) - 1;
+		expect(balances.get("account")).toBeCloseTo(101 * (1 + dailyRate) + 2, 4);
+	});
 });

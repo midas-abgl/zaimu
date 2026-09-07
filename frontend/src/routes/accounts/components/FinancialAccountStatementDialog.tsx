@@ -15,8 +15,10 @@ import { dataService } from "@/lib/dataService";
 import { formatLocalTime } from "@/lib/date";
 import {
 	calculateFinancialAccountYieldEntries,
+	type FinancialAccountYieldEntry,
 	getFinancialAccountDisplayName,
 } from "@/lib/financial-account";
+import { EditFinancialAccountYieldDialog } from "./EditFinancialAccountYieldDialog";
 import { FinancialAccountYieldStatementItem } from "./FinancialAccountYieldStatementItem";
 
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
@@ -51,16 +53,24 @@ export function FinancialAccountStatementDialog({
 	});
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 	const [editingStatementPayment, setEditingStatementPayment] = useState<Transaction | null>(null);
+	const [editingYield, setEditingYield] = useState<FinancialAccountYieldEntry | null>(null);
 	const holidays = useQuery({
 		enabled: open,
 		queryFn: () => dataService.accountYieldHolidays.getAll(),
 		queryKey: ["financial-account-yield-holidays"],
+	});
+	const yields = useQuery({
+		enabled: open,
+		queryFn: () => dataService.accountYields.getAll(account.id),
+		queryKey: ["financial-account-yields", account.id],
 	});
 	const groupedTransactions = groupTransactionsByDate(statement.data ?? []);
 	const yieldEntries = calculateFinancialAccountYieldEntries(
 		account,
 		statement.data ?? [],
 		holidays.data?.map(holiday => holiday.date) ?? [],
+		undefined,
+		yields.data ?? [],
 	);
 	const dates = [
 		...new Set([...Object.keys(groupedTransactions), ...yieldEntries.map(entry => entry.date)]),
@@ -80,13 +90,13 @@ export function FinancialAccountStatementDialog({
 					<DialogTitle>Extrato · {displayName}</DialogTitle>
 					<DialogDescription>Movimentações que compõem saldo desta conta.</DialogDescription>
 				</DialogHeader>
-				{statement.isPending ? (
+				{statement.isPending || holidays.isPending || yields.isPending ? (
 					<div className="space-y-3">
 						{[1, 2, 3].map(item => (
 							<Skeleton className="h-24 rounded-2xl" key={item} />
 						))}
 					</div>
-				) : statement.isError ? (
+				) : statement.isError || holidays.isError || yields.isError ? (
 					<EmptyState
 						description="Tente novamente em instantes."
 						icon={<LuLandmark className="size-7" />}
@@ -107,6 +117,7 @@ export function FinancialAccountStatementDialog({
 												<FinancialAccountYieldStatementItem
 													amount={entry.amount}
 													key={`yield-${entry.date}`}
+													onEdit={() => setEditingYield(entry)}
 												/>
 											))}
 										{(groupedTransactions[date] ?? []).map(transaction => (
@@ -144,6 +155,11 @@ export function FinancialAccountStatementDialog({
 					onOpenChange={nextOpen => !nextOpen && setEditingStatementPayment(null)}
 					open={editingStatementPayment !== null}
 					transaction={editingStatementPayment}
+				/>
+				<EditFinancialAccountYieldDialog
+					entry={editingYield}
+					onOpenChange={nextOpen => !nextOpen && setEditingYield(null)}
+					open={editingYield !== null}
 				/>
 			</DialogContent>
 		</Dialog>

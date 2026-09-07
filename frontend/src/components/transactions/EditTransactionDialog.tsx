@@ -131,6 +131,7 @@ export function EditTransactionDialog({
 						onTagIdsChange={tagIds => setDraft(current => (current ? { ...current, tagIds } : current))}
 						onTimeChange={time => setDraft(current => (current ? { ...current, time } : current))}
 						onTypeChange={type => {
+							if (type === "YIELD") return;
 							if (type === "TRANSFER") setIsDebt(false);
 							setDraft(current =>
 								current

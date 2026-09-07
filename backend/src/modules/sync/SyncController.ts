@@ -278,6 +278,48 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 			accountIds.add(id);
 		});
 
+		await sync("financialAccountYields", body.financialAccountYields, async entity => {
+			const id = value<string>(entity, "id");
+			const financialAccountId = value<string>(entity, "financialAccountId");
+			const date = optionalDate(entity, "date");
+			const kind = value<"AUTOMATIC" | "MANUAL">(entity, "kind");
+			if (!date || !kind) throw new Error("Informe os dados do rendimento");
+			const account = await queryFirst(
+				db.sql.public.FinancialAccount.select("id", "type")
+					.where((fields, functions) =>
+						functions.and(functions.eq(fields.id, financialAccountId), functions.eq(fields.userId, userId)),
+					)
+					.limit(1)
+					.build(),
+			);
+			if (!account || account.type === "CREDIT_CARD") throw new Error("Conta de rendimento indisponível");
+			const existing = await queryFirst(
+				db.sql.public.FinancialAccountYield.select("id", "financialAccountId")
+					.where((fields, functions) => functions.eq(fields.id, id))
+					.limit(1)
+					.build(),
+			);
+			if (existing && existing.financialAccountId !== financialAccountId)
+				throw new Error(`Rendimento ${id} pertence a outra conta`);
+			const values = {
+				amount: nullableNumeric<12, 4>(value<number | null | undefined>(entity, "amount") ?? null),
+				date,
+				isExcluded: value<boolean | undefined>(entity, "isExcluded") ?? false,
+				kind,
+				updatedAt: new Date(),
+			};
+			if (existing)
+				await executeStatement(
+					db.sql.public.FinancialAccountYield.update(values)
+						.where((fields, functions) => functions.eq(fields.id, existing.id))
+						.build(),
+				);
+			else
+				await executeStatement(
+					db.sql.public.FinancialAccountYield.insert([{ ...values, financialAccountId, id }]).build(),
+				);
+		});
+
 		await sync("financialAccountYieldHolidays", body.financialAccountYieldHolidays, async entity => {
 			const id = value<string>(entity, "id");
 			const date = optionalDate(entity, "date");
@@ -873,6 +915,25 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				.where((fields, functions) => functions.eq(fields.userId, userId))
 				.build(),
 		);
+		const financialAccountYields = financialAccounts.length
+			? await queryRows(
+					db.sql.public.FinancialAccountYield.select(
+						"id",
+						"financialAccountId",
+						"date",
+						"amount",
+						"kind",
+						"isExcluded",
+					)
+						.where((fields, functions) =>
+							functions.in(
+								fields.financialAccountId,
+								financialAccounts.map(account => account.id),
+							),
+						)
+						.build(),
+				)
+			: [];
 		const yieldRateHistories = financialAccounts.length
 			? await queryRows(
 					db.sql.public.FinancialAccountYieldRateHistory.select(
@@ -1119,6 +1180,10 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				),
 				financialAccounts: financialAccountsWithInstitutions,
 				financialAccountYieldHolidays,
+				financialAccountYields: financialAccountYields.map(yieldEntry => ({
+					...yieldEntry,
+					amount: yieldEntry.amount === null ? null : Number(yieldEntry.amount),
+				})),
 				loans: await queryRows(
 					db.sql.public.Loan.select(
 						"id",

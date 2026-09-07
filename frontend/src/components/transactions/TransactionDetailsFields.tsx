@@ -7,6 +7,8 @@ import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import type { Transaction } from "@/lib/api";
 
+type TransactionFormType = Transaction["type"] | "YIELD";
+
 export function TransactionDetailsFields({
 	amount,
 	date,
@@ -26,6 +28,7 @@ export function TransactionDetailsFields({
 	storeName,
 	sendWithoutTime = false,
 	isHidden = false,
+	includeYield = false,
 	showType = true,
 	tagIds,
 	time,
@@ -42,27 +45,29 @@ export function TransactionDetailsFields({
 	onDescriptionChange: (description: string) => void;
 	onStoreNameChange: (storeName: string) => void;
 	onTagIdsChange: (tagIds: string[]) => void;
-	onTypeChange: (type: Transaction["type"]) => void;
+	onTypeChange: (type: TransactionFormType) => void;
 	showDescription?: boolean;
 	showTags?: boolean;
 	showStore?: boolean;
 	storeName: string;
 	sendWithoutTime?: boolean;
 	isHidden?: boolean;
+	includeYield?: boolean;
 	showType?: boolean;
 	tagIds: string[];
 	time: string;
-	type: Transaction["type"];
+	type: TransactionFormType;
 }) {
 	return (
 		<>
 			{showType ? (
 				<CustomSelect
 					label="Tipo"
-					onValueChange={value => onTypeChange(value as Transaction["type"])}
+					onValueChange={value => onTypeChange(value as TransactionFormType)}
 					options={[
 						{ label: "Saída", value: "EXPENSE" },
 						{ label: "Entrada", value: "INCOME" },
+						...(includeYield ? [{ label: "Rendimento", value: "YIELD" }] : []),
 						{ label: "Transferência", value: "TRANSFER" },
 					]}
 					placeholder="Selecione o tipo"

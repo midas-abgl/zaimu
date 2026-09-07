@@ -1,5 +1,8 @@
 import { differenceInMonths, differenceInYears } from "date-fns";
-import { calculateFinancialAccountYieldBalances } from "~/modules/accounts/domain/calculate-financial-account-yields";
+import {
+	calculateFinancialAccountYieldBalances,
+	type YieldPeriod,
+} from "~/modules/accounts/domain/calculate-financial-account-yields";
 import { db, queryRows } from "~/shared/infra/sql";
 
 export function calculateCashbackValue(
@@ -55,6 +58,11 @@ export async function getFinancialAccountBalances(accountIds: string[]) {
 			.where((fields, functions) => functions.in(fields.financialAccountId, accountIds))
 			.build(),
 	);
+	const yields = await queryRows(
+		db.sql.public.FinancialAccountYield.select("amount", "date", "financialAccountId", "isExcluded", "kind")
+			.where((fields, functions) => functions.in(fields.financialAccountId, accountIds))
+			.build(),
+	);
 	const yieldRateHistoriesByAccountId = new Map<string, typeof yieldRateHistories>();
 	for (const history of yieldRateHistories) {
 		const accountHistories = yieldRateHistoriesByAccountId.get(history.financialAccountId) ?? [];
@@ -87,11 +95,16 @@ export async function getFinancialAccountBalances(accountIds: string[]) {
 	return calculateFinancialAccountYieldBalances({
 		accounts: accounts.map(account => ({
 			...account,
-			yieldRateHistories: yieldRateHistoriesByAccountId.get(account.id) ?? [],
+			yieldPeriod: account.yieldPeriod as null | YieldPeriod,
+			yieldRateHistories: (yieldRateHistoriesByAccountId.get(account.id) ?? []).map(history => ({
+				...history,
+				yieldPeriod: history.yieldPeriod as null | YieldPeriod,
+			})),
 		})),
 		cashbackCredits: cashbackPurchases.map(purchase => ({
 			...purchase,
 			cashbackAmount: Number(purchase.cashbackAmount ?? 0),
+			cashbackYieldPeriod: purchase.cashbackYieldPeriod as null | YieldPeriod,
 			cashbackYieldRate: purchase.cashbackYieldRate,
 		})),
 		holidays: holidays.map(holiday => holiday.date),
@@ -99,5 +112,10 @@ export async function getFinancialAccountBalances(accountIds: string[]) {
 			rewardsAccounts.map(account => [account.financialAccountId, Number(account.initialBalance)]),
 		),
 		transactions: transactions.map(transaction => ({ ...transaction, amount: Number(transaction.amount) })),
+		yields: yields.map(yieldEntry => ({
+			...yieldEntry,
+			amount: yieldEntry.amount === null ? null : Number(yieldEntry.amount),
+			kind: yieldEntry.kind as "AUTOMATIC" | "MANUAL",
+		})),
 	});
 }

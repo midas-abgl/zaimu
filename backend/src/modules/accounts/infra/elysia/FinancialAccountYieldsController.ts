@@ -1,0 +1,193 @@
+import Elysia, { t } from "elysia";
+import { requireUserId } from "~/modules/auth";
+import { HttpException } from "~/shared/errors";
+import { db, executeStatement, nullableNumeric, queryFirst, queryRows } from "~/shared/infra/sql";
+
+const Id = t.String({ maxLength: 36, minLength: 1 });
+const DateKey = t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}$" });
+const YieldKind = t.Union([t.Literal("AUTOMATIC"), t.Literal("MANUAL")]);
+
+function parseDate(date: string) {
+	const value = new Date(`${date}T12:00:00`);
+	if (Number.isNaN(value.valueOf())) throw new HttpException("Informe uma data válida", 400);
+	return value;
+}
+
+async function assertYieldAccount(accountId: string, userId: string) {
+	const account = await queryFirst(
+		db.sql.public.FinancialAccount.select("id", "type")
+			.where((fields, functions) =>
+				functions.and(functions.eq(fields.id, accountId), functions.eq(fields.userId, userId)),
+			)
+			.limit(1)
+			.build(),
+	);
+	if (!account) throw new HttpException("Conta não encontrada", 404);
+	if (account.type === "CREDIT_CARD") throw new HttpException("Cartão de crédito não possui rendimento", 400);
+}
+
+function serializeYield(yieldEntry: {
+	amount: null | number | string;
+	date: Date;
+	financialAccountId: string;
+	id: string;
+	isExcluded: boolean;
+	kind: string;
+}) {
+	return {
+		...yieldEntry,
+		amount: yieldEntry.amount === null ? null : Number(yieldEntry.amount),
+		kind: yieldEntry.kind as "AUTOMATIC" | "MANUAL",
+	};
+}
+
+export const FinancialAccountYieldsController = new Elysia({ prefix: "/financial-account-yields" })
+	.get(
+		"/",
+		async ({ query, request }) => {
+			const userId = await requireUserId(request);
+			await assertYieldAccount(query.financialAccountId, userId);
+			const yields = await queryRows(
+				db.sql.public.FinancialAccountYield.select(
+					"id",
+					"financialAccountId",
+					"date",
+					"amount",
+					"kind",
+					"isExcluded",
+				)
+					.where((fields, functions) => functions.eq(fields.financialAccountId, query.financialAccountId))
+					.orderBy("date", { direction: "asc" })
+					.build(),
+			);
+			return yields.map(serializeYield);
+		},
+		{ detail: { tags: ["Accounts"] }, query: t.Object({ financialAccountId: Id }) },
+	)
+	.post(
+		"/",
+		async ({ body, request }) => {
+			const userId = await requireUserId(request);
+			await assertYieldAccount(body.financialAccountId, userId);
+			const date = parseDate(body.date);
+			if (body.kind === "MANUAL" && body.amount === undefined)
+				throw new HttpException("Informe o valor do rendimento manual", 400);
+			if (body.kind === "AUTOMATIC" && !body.isExcluded && body.amount === undefined)
+				throw new HttpException("Informe o valor do rendimento", 400);
+			if (body.kind === "MANUAL" && body.isExcluded)
+				throw new HttpException("Rendimento manual não pode ser excluído na criação", 400);
+			const existing = await queryFirst(
+				db.sql.public.FinancialAccountYield.select("id")
+					.where((fields, functions) =>
+						functions.and(
+							functions.eq(fields.financialAccountId, body.financialAccountId),
+							functions.eq(fields.date, date),
+							functions.eq(fields.kind, body.kind),
+						),
+					)
+					.limit(1)
+					.build(),
+			);
+			const values = {
+				amount: body.isExcluded ? null : nullableNumeric<12, 4>(body.amount ?? null),
+				date,
+				isExcluded: body.isExcluded ?? false,
+				kind: body.kind,
+				updatedAt: new Date(),
+			};
+			if (existing)
+				await executeStatement(
+					db.sql.public.FinancialAccountYield.update(values)
+						.where((fields, functions) => functions.eq(fields.id, existing.id))
+						.build(),
+				);
+			else
+				await executeStatement(
+					db.sql.public.FinancialAccountYield.insert([
+						{ ...values, financialAccountId: body.financialAccountId },
+					]).build(),
+				);
+			const saved = await queryFirst(
+				db.sql.public.FinancialAccountYield.select(
+					"id",
+					"financialAccountId",
+					"date",
+					"amount",
+					"kind",
+					"isExcluded",
+				)
+					.where((fields, functions) =>
+						functions.and(
+							functions.eq(fields.financialAccountId, body.financialAccountId),
+							functions.eq(fields.date, date),
+							functions.eq(fields.kind, body.kind),
+						),
+					)
+					.limit(1)
+					.build(),
+			);
+			if (!saved) throw new HttpException("Rendimento não criado", 500);
+			return serializeYield(saved);
+		},
+		{
+			body: t.Object({
+				amount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
+				date: DateKey,
+				financialAccountId: Id,
+				isExcluded: t.Optional(t.Boolean()),
+				kind: YieldKind,
+			}),
+			detail: { tags: ["Accounts"] },
+		},
+	)
+	.patch(
+		"/:id",
+		async ({ body, params, request }) => {
+			const userId = await requireUserId(request);
+			const existing = await queryFirst(
+				db.sql.public.FinancialAccountYield.select("id", "financialAccountId", "kind")
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.limit(1)
+					.build(),
+			);
+			if (!existing) throw new HttpException("Rendimento não encontrado", 404);
+			await assertYieldAccount(existing.financialAccountId, userId);
+			if (existing.kind !== "MANUAL")
+				throw new HttpException("Use o ajuste automático para este rendimento", 400);
+			await executeStatement(
+				db.sql.public.FinancialAccountYield.update({
+					amount: nullableNumeric<12, 4>(body.amount),
+					updatedAt: new Date(),
+				})
+					.where((fields, functions) => functions.eq(fields.id, existing.id))
+					.build(),
+			);
+			return { success: true };
+		},
+		{
+			body: t.Object({ amount: t.Number({ exclusiveMinimum: 0 }) }),
+			detail: { tags: ["Accounts"] },
+			params: t.Object({ id: Id }),
+		},
+	)
+	.delete(
+		"/:id",
+		async ({ params, request }) => {
+			const userId = await requireUserId(request);
+			const existing = await queryFirst(
+				db.sql.public.FinancialAccountYield.select("id", "financialAccountId")
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.limit(1)
+					.build(),
+			);
+			if (!existing) throw new HttpException("Rendimento não encontrado", 404);
+			await assertYieldAccount(existing.financialAccountId, userId);
+			await executeStatement(
+				db.sql.public.FinancialAccountYield.delete()
+					.where((fields, functions) => functions.eq(fields.id, existing.id))
+					.build(),
+			);
+			return { success: true };
+		},
+		{ detail: { tags: ["Accounts"] }, params: t.Object({ id: Id }) },
+	);

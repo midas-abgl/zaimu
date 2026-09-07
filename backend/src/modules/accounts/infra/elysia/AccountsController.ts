@@ -9,6 +9,7 @@ import { assertCashbackSettings } from "~/modules/accounts/domain/assert-cashbac
 import { assertCreditCardBillingDays } from "~/modules/accounts/domain/assert-credit-card-billing-days";
 import { assertFinancialAccountYieldSettings } from "~/modules/accounts/domain/assert-financial-account-yield-settings";
 import { assertRewardsAccountDetails } from "~/modules/accounts/domain/assert-rewards-account-details";
+import type { YieldPeriod } from "~/modules/accounts/domain/calculate-financial-account-yields";
 import { assertDirectOwnership, requireUserId } from "~/modules/auth";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, nullableNumeric, queryFirst, queryRows } from "~/shared/infra/sql";
@@ -620,7 +621,9 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				await scheduleFinancialAccountYieldRate({
 					effectiveDate: tomorrow(),
 					financialAccountId: account.id,
-					yieldPeriod: body.yieldPeriod === undefined ? existing.yieldPeriod : body.yieldPeriod,
+					yieldPeriod: (body.yieldPeriod === undefined
+						? existing.yieldPeriod
+						: body.yieldPeriod) as null | YieldPeriod,
 					yieldRate: body.yieldRate === undefined ? existing.yieldRate : body.yieldRate,
 				});
 			}
