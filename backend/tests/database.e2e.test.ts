@@ -10,6 +10,7 @@ interface Server {
 let server: Server;
 let db: typeof import("sql")["db"];
 let closeDatabase: () => Promise<void>;
+let executeStatement: typeof import("sql")["executeStatement"];
 let queryRows: typeof import("sql")["queryRows"];
 const userIds: string[] = [];
 
@@ -56,7 +57,7 @@ suite("Prisma 8 SQL query builder", () => {
 		process.env.NODE_ENV = "test";
 		process.env.BETTER_AUTH_SECRET ??= "zaimu-e2e-secret-with-at-least-32-characters";
 		({ server } = await import("../src/server"));
-		({ closeDatabase, db, queryRows } = await import("sql"));
+		({ closeDatabase, db, executeStatement, queryRows } = await import("sql"));
 	});
 
 	afterAll(async () => {
@@ -1175,6 +1176,24 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(afterInstallments.people[0]?.balance).toBe(40);
 		expect(
 			afterInstallments.people[0]?.events.filter(event => event.amount === 90 && event.effect === 90),
+		).toEqual([expect.objectContaining({ description: "Mercado da esquina" })]);
+		await executeStatement(
+			db.sql.public.DebtEvent.update({ description: "Compra", updatedAt: new Date() })
+				.where((fields, functions) =>
+					functions.and(
+						functions.eq(fields.debtPersonId, ownerPerson.id),
+						functions.eq(fields.kind, "PURCHASE"),
+					),
+				)
+				.build(),
+		);
+		const ledgerWithLegacyPurchaseEvent = (await (
+			await jsonRequest("/debts", "GET", undefined, owner.cookie)
+		).json()) as Ledger;
+		expect(
+			ledgerWithLegacyPurchaseEvent.people[0]?.events.filter(
+				event => event.amount === 90 && event.effect === 90,
+			),
 		).toEqual([expect.objectContaining({ description: "Mercado da esquina" })]);
 		const rootPurchase = purchases.find(purchase => purchase.currentInstallment === 1)!;
 		const refundResponse = await jsonRequest(

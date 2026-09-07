@@ -99,6 +99,30 @@ async function getConnection(connectionId: string | null | undefined) {
 	return connection ? { ...connection, status: connection.status as DebtConnectionState } : undefined;
 }
 
+async function getPurchaseNamesByDebtEventId(eventIds: string[]) {
+	if (!eventIds.length) return new Map<string, string>();
+	const purchases = await queryRows(
+		db.sql.public.DebtPurchaseLink.innerJoin(db.sql.public.CreditPurchase, (fields, functions) =>
+			functions.eq(fields.DebtPurchaseLink.creditPurchaseId, fields.CreditPurchase.id),
+		)
+			.select(fields => ({
+				description: fields.CreditPurchase.description,
+				eventId: fields.DebtPurchaseLink.eventId,
+				storeName: fields.CreditPurchase.storeName,
+			}))
+			.where((fields, functions) =>
+				functions.and(
+					functions.eq(fields.DebtPurchaseLink.isCreator, true),
+					functions.in(fields.DebtPurchaseLink.eventId, eventIds),
+				),
+			)
+			.build(),
+	);
+	return new Map(
+		purchases.map(purchase => [purchase.eventId, purchase.description || purchase.storeName || "Compra"]),
+	);
+}
+
 async function getPersonEvents(person: { connectionId: null | string; id: string }, userId: string) {
 	const connection = await getConnection(person.connectionId);
 	const shared = connection?.status === "ACCEPTED";
@@ -155,12 +179,14 @@ async function getPersonEvents(person: { connectionId: null | string; id: string
 			)
 		: [];
 	const hiddenIds = new Set(hidden.filter(item => item.hiddenAt).map(item => item.eventId));
+	const purchaseNamesByDebtEventId = await getPurchaseNamesByDebtEventId(events.map(event => event.id));
 	return events
 		.filter(event => !hiddenIds.has(event.id))
 		.map(event => ({
 			...event,
 			amount: Number(event.amount),
 			createdByMe: event.createdByUserId === userId,
+			description: purchaseNamesByDebtEventId.get(event.id) ?? event.description,
 			effect: event.createdByUserId === userId ? Number(event.effect) : -Number(event.effect),
 			kind: event.kind as DebtEventType,
 		}))
