@@ -110,7 +110,12 @@ export function DebtSplitEditor({ amount, disabled, onChange, value }: DebtSplit
 				placeholder="Selecione"
 				value={value.mode}
 			/>
-			<p className="text-muted-foreground text-xs">Trocar a forma redistribui os valores igualmente.</p>
+			<p className="text-muted-foreground text-xs">
+				Trocar a forma redistribui os valores igualmente.
+				{value.mode === "PERCENTAGE" || value.mode === "FIXED"
+					? " Valores não distribuídos ficam com você."
+					: null}
+			</p>
 			<div className="flex items-center gap-3 text-sm">
 				<Checkbox
 					aria-label="Incluir minha parte"

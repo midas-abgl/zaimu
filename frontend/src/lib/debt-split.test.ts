@@ -17,10 +17,10 @@ describe("calculateDebtSplit", () => {
 		expect(split?.ownerAmount).toBe(0);
 	});
 
-	test("leaves the percentage remainder with the owner", () => {
+	test("leaves the percentage remainder with the owner even when they are not included", () => {
 		const split = calculateDebtSplit(99.99, {
 			mode: "PERCENTAGE",
-			ownerIncluded: true,
+			ownerIncluded: false,
 			participants: [{ debtPersonId: "a", percentage: 33.33 }],
 		});
 
@@ -28,10 +28,10 @@ describe("calculateDebtSplit", () => {
 		expect(split?.ownerAmount).toBe(66.67);
 	});
 
-	test("keeps fixed participant amounts and assigns the difference to the owner", () => {
+	test("keeps fixed participant amounts and assigns the difference to the owner even when they are not included", () => {
 		const split = calculateDebtSplit(120, {
 			mode: "FIXED",
-			ownerIncluded: true,
+			ownerIncluded: false,
 			participants: [
 				{ debtPersonId: "a", fixedAmount: 25 },
 				{ debtPersonId: "b", fixedAmount: 35 },
@@ -42,7 +42,7 @@ describe("calculateDebtSplit", () => {
 		expect(split?.ownerAmount).toBe(60);
 	});
 
-	test("rejects duplicate people and totals that do not close", () => {
+	test("rejects duplicate people and totals that exceed the purchase", () => {
 		expect(
 			debtSplitError(10, {
 				mode: "FIXED",
@@ -57,7 +57,7 @@ describe("calculateDebtSplit", () => {
 			calculateDebtSplit(10, {
 				mode: "PERCENTAGE",
 				ownerIncluded: false,
-				participants: [{ debtPersonId: "a", percentage: 99.99 }],
+				participants: [{ debtPersonId: "a", percentage: 100.01 }],
 			}),
 		).toBeNull();
 	});

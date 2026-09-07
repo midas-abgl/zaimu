@@ -93,17 +93,11 @@ export function calculateDebtSplit(amount: number, split: DebtSplitInput): Calcu
 		)
 			throw new DebtSplitValidationError("Percentuais devem ser positivos e ter até duas casas decimais");
 		const percentageTotal = percentageUnits.reduce((sum, value) => sum + value, 0);
-		if (split.ownerIncluded ? percentageTotal >= 10_000 : percentageTotal !== 10_000)
-			throw new DebtSplitValidationError(
-				split.ownerIncluded
-					? "Os percentuais das pessoas devem somar menos de 100%"
-					: "Os percentuais das pessoas devem somar 100%",
-			);
-		const participantCents = split.ownerIncluded
-			? percentageUnits.map(value => Math.floor((totalCents * value) / 10_000))
-			: allocateByLargestRemainder(totalCents, percentageUnits, 10_000);
+		if (percentageTotal > 10_000)
+			throw new DebtSplitValidationError("Os percentuais das pessoas não podem ultrapassar 100%");
+		const participantCents = percentageUnits.map(value => Math.floor((totalCents * value) / 10_000));
 		const ownerCents = totalCents - participantCents.reduce((sum, value) => sum + value, 0);
-		assertPositiveAllocations(ownerCents, participantCents, split.ownerIncluded);
+		assertPositiveAllocations(ownerCents, participantCents, false);
 		return {
 			...split,
 			ownerAmount: fromCents(ownerCents),
@@ -125,14 +119,10 @@ export function calculateDebtSplit(amount: number, split: DebtSplitInput): Calcu
 	)
 		throw new DebtSplitValidationError("Valores fixos devem ser positivos e ter até duas casas decimais");
 	const distributedCents = participantCents.reduce((sum, value) => sum + value, 0);
-	if (split.ownerIncluded ? distributedCents >= totalCents : distributedCents !== totalCents)
-		throw new DebtSplitValidationError(
-			split.ownerIncluded
-				? "Os valores das pessoas devem ser menores que o total"
-				: "Os valores das pessoas devem ser iguais ao total",
-		);
+	if (distributedCents > totalCents)
+		throw new DebtSplitValidationError("Os valores das pessoas não podem ultrapassar o total");
 	const ownerCents = totalCents - distributedCents;
-	assertPositiveAllocations(ownerCents, participantCents, split.ownerIncluded);
+	assertPositiveAllocations(ownerCents, participantCents, false);
 	return {
 		...split,
 		ownerAmount: fromCents(ownerCents),

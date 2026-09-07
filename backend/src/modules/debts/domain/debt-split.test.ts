@@ -39,10 +39,10 @@ describe("calculateDebtSplit", () => {
 		expect(result.participants[0].amount).toBe(20);
 	});
 
-	test("calcula percentuais e deixa restante com titular", () => {
+	test("calcula percentuais e deixa restante com titular mesmo sem incluí-lo", () => {
 		const result = calculateDebtSplit(99.99, {
 			mode: "PERCENTAGE",
-			ownerIncluded: true,
+			ownerIncluded: false,
 			participants: [
 				{ debtPersonId: "ana", percentage: 20 },
 				{ debtPersonId: "bia", percentage: 30 },
@@ -52,7 +52,7 @@ describe("calculateDebtSplit", () => {
 		expect(result.ownerAmount).toBe(50.01);
 	});
 
-	test("fecha 100% sem titular", () => {
+	test("deixa o arredondamento de 100% com o titular", () => {
 		const result = calculateDebtSplit(10, {
 			mode: "PERCENTAGE",
 			ownerIncluded: false,
@@ -62,13 +62,14 @@ describe("calculateDebtSplit", () => {
 				{ debtPersonId: "caio", percentage: 33.34 },
 			],
 		});
-		expect(result.participants.map(item => item.amount)).toEqual([3.33, 3.33, 3.34]);
+		expect(result.participants.map(item => item.amount)).toEqual([3.33, 3.33, 3.33]);
+		expect(result.ownerAmount).toBe(0.01);
 	});
 
-	test("mantém valores fixos e calcula restante do titular", () => {
+	test("mantém valores fixos e calcula restante do titular mesmo sem incluí-lo", () => {
 		const result = calculateDebtSplit(250, {
 			mode: "FIXED",
-			ownerIncluded: true,
+			ownerIncluded: false,
 			participants: [
 				{ debtPersonId: "ana", fixedAmount: 45.5 },
 				{ debtPersonId: "bia", fixedAmount: 70 },
@@ -93,9 +94,9 @@ describe("calculateDebtSplit", () => {
 			calculateDebtSplit(10, {
 				mode: "PERCENTAGE",
 				ownerIncluded: false,
-				participants: [{ debtPersonId: "ana", percentage: 99 }],
+				participants: [{ debtPersonId: "ana", percentage: 101 }],
 			}),
-		).toThrow("somar 100%");
+		).toThrow("ultrapassar 100%");
 		expect(() =>
 			calculateDebtSplit(0.01, {
 				mode: "SHARES",
