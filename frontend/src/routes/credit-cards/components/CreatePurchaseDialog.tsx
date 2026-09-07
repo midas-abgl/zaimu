@@ -22,10 +22,15 @@ import type { CreditCard, DebtSplitInput } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { getCurrentLocalTime } from "@/lib/date";
 import { calculateDebtSplit } from "@/lib/debt-split";
+import { CreditPurchaseFeeFields } from "./CreditPurchaseFeeFields";
+
+const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 interface PurchaseDraft {
 	debtSplit?: DebtSplitInput;
 	description: string;
+	feeAmount?: number;
+	feeDescription?: string;
 	storeName?: string;
 	installments?: number;
 	matchDebtEventId?: string;
@@ -58,6 +63,8 @@ export function CreatePurchaseDialog({
 	});
 	const [isDebt, setIsDebt] = useState(false);
 	const [amount, setAmount] = useState("");
+	const [feeAmount, setFeeAmount] = useState("");
+	const [feeDescription, setFeeDescription] = useDebouncedInput("", () => undefined);
 	const [count, setCount] = useDebouncedInput("1", () => undefined);
 	const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
 	const [time, setTime] = useState(getCurrentLocalTime());
@@ -70,7 +77,8 @@ export function CreatePurchaseDialog({
 	const [tagIds, setTagIds] = useState<string[]>([]);
 	const [storeName, setStoreName] = useState("");
 	const [cardId, setCardId] = useState(initialCardId ?? "");
-	const total = Number(amount || 0);
+	const purchaseAmount = Number(amount || 0);
+	const total = purchaseAmount + Number(feeAmount || 0);
 	const installmentCount = Number.parseInt(count, 10);
 	const installmentValue = total / (installmentCount || 1);
 	const reset = () => {
@@ -78,6 +86,8 @@ export function CreatePurchaseDialog({
 		setDebtSplit({ mode: "SHARES", ownerShares: null, participants: [{ debtPersonId: "", shares: 1 }] });
 		setIsDebt(false);
 		setAmount("");
+		setFeeAmount("");
+		setFeeDescription("");
 		setCount("1");
 		setDate(new Date().toISOString().slice(0, 10));
 		setTime(getCurrentLocalTime());
@@ -97,6 +107,8 @@ export function CreatePurchaseDialog({
 		await onSubmit(cardId, {
 			debtSplit: isDebt ? debtSplit : undefined,
 			description: description.trim(),
+			feeAmount: Number(feeAmount || 0) || undefined,
+			feeDescription: feeAmount ? feeDescription.trim() || undefined : undefined,
 			installments: installmentCount,
 			purchaseDate: date,
 			storeName: storeName.trim() || undefined,
@@ -138,11 +150,17 @@ export function CreatePurchaseDialog({
 							<StorePicker onValueChange={setStoreName} value={storeName} />
 							<MoneyField
 								id="purchase-amount"
-								label="Valor total"
+								label="Valor da compra"
 								onValueChange={setAmount}
 								placeholder="R$ 480,00"
 								required
 								value={amount}
+							/>
+							<CreditPurchaseFeeFields
+								feeAmount={feeAmount}
+								feeDescription={feeDescription}
+								onFeeAmountChange={setFeeAmount}
+								onFeeDescriptionChange={setFeeDescription}
 							/>
 							<div className="grid gap-4 sm:grid-cols-3">
 								<FormField
@@ -204,15 +222,21 @@ export function CreatePurchaseDialog({
 								</label>
 								{isDebt ? <DebtSplitEditor amount={total} onChange={setDebtSplit} value={debtSplit} /> : null}
 							</div>
-							{installmentCount > 1 && total > 0 && (
+							{total > 0 && (
 								<div className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-sm">
-									<strong>
-										{count}x de{" "}
-										{new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(
-											installmentValue,
-										)}
-									</strong>
-									<p className="mt-1 text-muted-foreground">Cada parcela entra na fatura correspondente.</p>
+									<strong>{currency.format(total)} no cartão</strong>
+									{Number(feeAmount) > 0 ? (
+										<p className="mt-1 text-muted-foreground">
+											{currency.format(purchaseAmount)} da compra + {feeDescription || "taxa"} de{" "}
+											{currency.format(Number(feeAmount))}.
+										</p>
+									) : null}
+									{installmentCount > 1 ? (
+										<p className="mt-1 text-muted-foreground">
+											{count}x de {currency.format(installmentValue)}. Cada parcela entra na fatura
+											correspondente.
+										</p>
+									) : null}
 								</div>
 							)}
 							<DialogFooter>

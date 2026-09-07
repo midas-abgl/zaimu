@@ -14,6 +14,10 @@ Salários, assinaturas, pagamentos recorrentes e parcelamentos devem prever sald
 
 Quando um seletor de contas em uma transação apresentar mais de um tipo de conta, cada opção deve começar pelo tipo resumido para evitar ambiguidade. Exemplos: `Poupança Mercado Pago`, `Conta Mercado Pago` e `Conta Nubank`. O rótulo comum da conta fora desses seletores permanece sem esse prefixo.
 
+## Taxas de compras no cartão
+
+Uma compra no cartão pode ter uma taxa nomeada, como IOF. A taxa compõe o total cobrado, cada parcela, a fatura, o limite utilizado, cashback e eventual rateio de dívida. O lançamento preserva nome e valor da taxa para explicar a composição do total.
+
 ## Pagamentos excedentes de fatura
 
 Pagamento de fatura pode exceder o saldo atual e sempre aparece entre as transações da fatura, na ordem cronológica dos lançamentos. Antes do fechamento, pagamentos parciais reduzem o saldo pendente sem marcar a fatura como paga. Qualquer excedente consome cronologicamente os totais das faturas seguintes, mesmo antes do fechamento: a fatura diretamente paga fica zerada, e cada fatura posterior exibe seu saldo negativo após consumir suas próprias compras. Compras lançadas depois recalculam toda a cadeia e reduzem ou puxam de volta o crédito das faturas posteriores. O valor pago nunca deve ser limitado pelo total já lançado, pois compras e reembolsos podem ser preenchidos após o pagamento.
