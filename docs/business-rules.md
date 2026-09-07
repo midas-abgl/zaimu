@@ -16,7 +16,7 @@ Quando um seletor de contas em uma transação apresentar mais de um tipo de con
 
 ## Rendimento de contas
 
-Toda conta exceto cartão de crédito pode ter rendimento composto opcional, com taxa positiva mensal ou anual. A taxa mensal equivale a 21 dias úteis e a anual a 252 dias úteis; o rendimento é aplicado ao fim de cada segunda a sexta-feira sobre saldo positivo. Saldo, lançamentos, taxa e feriados sempre são recalculados sob demanda, sem gravar lançamentos artificiais de rendimento.
+Toda conta exceto cartão de crédito pode ter rendimento composto opcional, com taxa positiva mensal ou anual. A taxa mensal equivale a 21 dias úteis e a anual a 252 dias úteis; o rendimento é aplicado ao fim de cada segunda a sexta-feira sobre saldo positivo. Saldo, lançamentos e feriados sempre são recalculados sob demanda, sem gravar lançamentos artificiais de rendimento. Alterar ou remover uma taxa cria uma regra válida a partir do dia seguinte; rendimentos de dias anteriores preservam a taxa histórica.
 
 Feriados são individuais por usuário e data. Um feriado exclui rendimento de todas as contas daquele usuário no dia marcado; finais de semana já não rendem e podem ser marcados sem efeito adicional.
 

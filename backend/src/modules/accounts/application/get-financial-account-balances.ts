@@ -45,6 +45,22 @@ export async function getFinancialAccountBalances(accountIds: string[]) {
 			.where((fields, functions) => functions.in(fields.financialAccountId, accountIds))
 			.build(),
 	);
+	const yieldRateHistories = await queryRows(
+		db.sql.public.FinancialAccountYieldRateHistory.select(
+			"financialAccountId",
+			"effectiveDate",
+			"yieldRate",
+			"yieldPeriod",
+		)
+			.where((fields, functions) => functions.in(fields.financialAccountId, accountIds))
+			.build(),
+	);
+	const yieldRateHistoriesByAccountId = new Map<string, typeof yieldRateHistories>();
+	for (const history of yieldRateHistories) {
+		const accountHistories = yieldRateHistoriesByAccountId.get(history.financialAccountId) ?? [];
+		accountHistories.push(history);
+		yieldRateHistoriesByAccountId.set(history.financialAccountId, accountHistories);
+	}
 	const rewardsAccountIds = rewardsAccounts.map(account => account.financialAccountId);
 	const cashbackPurchases = rewardsAccountIds.length
 		? await queryRows(
@@ -69,7 +85,10 @@ export async function getFinancialAccountBalances(accountIds: string[]) {
 			)
 		: [];
 	return calculateFinancialAccountYieldBalances({
-		accounts,
+		accounts: accounts.map(account => ({
+			...account,
+			yieldRateHistories: yieldRateHistoriesByAccountId.get(account.id) ?? [],
+		})),
 		cashbackCredits: cashbackPurchases.map(purchase => ({
 			...purchase,
 			cashbackAmount: Number(purchase.cashbackAmount ?? 0),

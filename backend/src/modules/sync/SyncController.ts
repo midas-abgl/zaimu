@@ -192,6 +192,47 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 						.build(),
 				);
 			else await executeStatement(db.sql.public.FinancialAccount.insert([{ ...values, id, userId }]).build());
+			const yieldRateHistories = value<
+				Array<{
+					effectiveDate?: string;
+					yieldPeriod?: "MONTHLY" | "YEARLY" | null;
+					yieldRate?: number | null;
+				}>
+			>(entity, "yieldRateHistories");
+			for (const history of yieldRateHistories ?? []) {
+				if (!history.effectiveDate) continue;
+				const effectiveDate = new Date(`${history.effectiveDate.slice(0, 10)}T00:00:00`);
+				if (Number.isNaN(effectiveDate.getTime())) continue;
+				const existingHistory = await queryFirst(
+					db.sql.public.FinancialAccountYieldRateHistory.select("id")
+						.where((fields, functions) =>
+							functions.and(
+								functions.eq(fields.financialAccountId, id),
+								functions.eq(fields.effectiveDate, effectiveDate),
+							),
+						)
+						.limit(1)
+						.build(),
+				);
+				const historyValues = {
+					effectiveDate,
+					updatedAt: new Date(),
+					yieldPeriod: history.yieldPeriod as never,
+					yieldRate: nullableNumeric<7, 4>(history.yieldRate ?? null),
+				};
+				if (existingHistory)
+					await executeStatement(
+						db.sql.public.FinancialAccountYieldRateHistory.update(historyValues)
+							.where((fields, functions) => functions.eq(fields.id, existingHistory.id))
+							.build(),
+					);
+				else
+					await executeStatement(
+						db.sql.public.FinancialAccountYieldRateHistory.insert([
+							{ ...historyValues, financialAccountId: id },
+						]).build(),
+					);
+			}
 			if (type === "REWARDS") {
 				const rewardsInput = value<
 					| {
@@ -832,6 +873,29 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				.where((fields, functions) => functions.eq(fields.userId, userId))
 				.build(),
 		);
+		const yieldRateHistories = financialAccounts.length
+			? await queryRows(
+					db.sql.public.FinancialAccountYieldRateHistory.select(
+						"effectiveDate",
+						"financialAccountId",
+						"yieldPeriod",
+						"yieldRate",
+					)
+						.where((fields, functions) =>
+							functions.in(
+								fields.financialAccountId,
+								financialAccounts.map(account => account.id),
+							),
+						)
+						.build(),
+				)
+			: [];
+		const yieldRateHistoriesByAccountId = new Map<string, typeof yieldRateHistories>();
+		for (const history of yieldRateHistories) {
+			const histories = yieldRateHistoriesByAccountId.get(history.financialAccountId) ?? [];
+			histories.push(history);
+			yieldRateHistoriesByAccountId.set(history.financialAccountId, histories);
+		}
 		const institutionsById = new Map(financialInstitutions.map(institution => [institution.id, institution]));
 		const rewardsAccounts = financialAccounts.length
 			? await queryRows(
@@ -862,6 +926,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 			...account,
 			balance: account.type === "CREDIT_CARD" ? null : (balances.get(account.id) ?? 0),
 			institution: account.institutionId ? (institutionsById.get(account.institutionId) ?? null) : null,
+			yieldRateHistories: yieldRateHistoriesByAccountId.get(account.id) ?? [],
 			...(account.type === "REWARDS" && {
 				rewardsAccount: rewardsAccountsByFinancialAccountId.get(account.id) ?? null,
 			}),

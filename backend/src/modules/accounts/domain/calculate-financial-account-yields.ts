@@ -8,6 +8,13 @@ export interface YieldAccount {
 	type: string;
 	yieldPeriod?: null | YieldPeriod;
 	yieldRate?: null | number;
+	yieldRateHistories?: YieldRateHistory[];
+}
+
+export interface YieldRateHistory {
+	effectiveDate: Date;
+	yieldPeriod?: null | YieldPeriod;
+	yieldRate?: null | number;
 }
 
 export interface YieldTransaction {
@@ -120,10 +127,19 @@ function calculateYieldedBalance(
 			else balance += Number(credit.cashbackAmount);
 		}
 		if (isWeekend(day) || holidays.has(key)) continue;
-		if (balance > 0) balance *= 1 + dailyRate(account.yieldRate, account.yieldPeriod);
+		const yieldSettings = getYieldSettings(account, key);
+		if (balance > 0) balance *= 1 + dailyRate(yieldSettings.yieldRate, yieldSettings.yieldPeriod);
 		for (const [rate, cashbackBalance] of cashbackBalances) {
 			if (cashbackBalance > 0) cashbackBalances.set(rate, cashbackBalance * (1 + rate));
 		}
 	}
 	return balance + [...cashbackBalances.values()].reduce((total, value) => total + value, 0);
+}
+
+function getYieldSettings(account: YieldAccount, day: string) {
+	const history = account.yieldRateHistories
+		?.filter(item => dateKey(item.effectiveDate) <= day)
+		.toSorted((left, right) => left.effectiveDate.valueOf() - right.effectiveDate.valueOf())
+		.at(-1);
+	return history ?? { yieldPeriod: account.yieldPeriod, yieldRate: account.yieldRate };
 }

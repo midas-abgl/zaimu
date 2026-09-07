@@ -1,6 +1,10 @@
 import Elysia, { t } from "elysia";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
 import { resolveFinancialInstitution } from "~/modules/accounts/application/resolve-financial-institution";
+import {
+	scheduleFinancialAccountYieldRate,
+	tomorrow,
+} from "~/modules/accounts/application/schedule-financial-account-yield-rate";
 import { assertCashbackSettings } from "~/modules/accounts/domain/assert-cashback-settings";
 import { assertCreditCardBillingDays } from "~/modules/accounts/domain/assert-credit-card-billing-days";
 import { assertFinancialAccountYieldSettings } from "~/modules/accounts/domain/assert-financial-account-yield-settings";
@@ -138,6 +142,23 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 							.build(),
 					)
 				: [];
+			const yieldRateHistories = accounts.length
+				? await queryRows(
+						db.sql.public.FinancialAccountYieldRateHistory.select(
+							"financialAccountId",
+							"effectiveDate",
+							"yieldRate",
+							"yieldPeriod",
+						)
+							.where((fields, functions) =>
+								functions.in(
+									fields.financialAccountId,
+									accounts.map(account => account.id),
+								),
+							)
+							.build(),
+					)
+				: [];
 			const institutionsById = new Map(institutions.map(institution => [institution.id, institution]));
 			const creditCardsByAccountId = new Map(
 				creditCards.map(creditCard => [creditCard.financialAccountId, creditCard]),
@@ -145,6 +166,12 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 			const rewardsAccountsByAccountId = new Map(
 				rewardsAccounts.map(rewardsAccount => [rewardsAccount.financialAccountId, rewardsAccount]),
 			);
+			const yieldRateHistoriesByAccountId = new Map<string, typeof yieldRateHistories>();
+			for (const history of yieldRateHistories) {
+				const accountHistories = yieldRateHistoriesByAccountId.get(history.financialAccountId) ?? [];
+				accountHistories.push(history);
+				yieldRateHistoriesByAccountId.set(history.financialAccountId, accountHistories);
+			}
 			const balances = await getFinancialAccountBalances(accounts.map(account => account.id));
 			return accounts.map(account => ({
 				...account,
@@ -156,6 +183,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					rewardsAccount: rewardsAccountsByAccountId.get(account.id) ?? null,
 				}),
 				institution: account.institutionId ? (institutionsById.get(account.institutionId) ?? null) : null,
+				yieldRateHistories: yieldRateHistoriesByAccountId.get(account.id) ?? [],
 			}));
 		},
 		{
@@ -208,6 +236,12 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				account.type === "CREDIT_CARD"
 					? null
 					: (await getFinancialAccountBalances([account.id])).get(account.id);
+			const yieldRateHistories = await queryRows(
+				db.sql.public.FinancialAccountYieldRateHistory.select("effectiveDate", "yieldRate", "yieldPeriod")
+					.where((fields, functions) => functions.eq(fields.financialAccountId, account.id))
+					.orderBy("effectiveDate", { direction: "asc" })
+					.build(),
+			);
 			if (account.type === "CREDIT_CARD") {
 				const creditCard = await queryFirst(
 					db.sql.public.CreditCard.select(
@@ -231,7 +265,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						.build(),
 				);
 
-				return { ...account, balance, creditCard, institution };
+				return { ...account, balance, creditCard, institution, yieldRateHistories };
 			}
 			if (account.type === "REWARDS") {
 				const rewardsAccount = await queryFirst(
@@ -249,10 +283,10 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						.limit(1)
 						.build(),
 				);
-				return { ...account, balance, institution, rewardsAccount };
+				return { ...account, balance, institution, rewardsAccount, yieldRateHistories };
 			}
 
-			return { ...account, balance, institution };
+			return { ...account, balance, institution, yieldRateHistories };
 		},
 		{
 			detail: { tags: ["Accounts"] },
@@ -383,6 +417,14 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					.build(),
 			);
 			if (!account) throw new HttpException("FinancialAccount not created", 500);
+			if (type !== "CREDIT_CARD" && body.yieldRate && body.yieldPeriod) {
+				await scheduleFinancialAccountYieldRate({
+					effectiveDate: new Date(),
+					financialAccountId: account.id,
+					yieldPeriod: body.yieldPeriod,
+					yieldRate: body.yieldRate,
+				});
+			}
 
 			// If it's a credit card, create the credit card details
 			if (type === "CREDIT_CARD" && body.creditCard) {
@@ -574,6 +616,14 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					.build(),
 			);
 			if (!account) throw new HttpException("FinancialAccount not found", 404);
+			if (body.yieldPeriod !== undefined || body.yieldRate !== undefined) {
+				await scheduleFinancialAccountYieldRate({
+					effectiveDate: tomorrow(),
+					financialAccountId: account.id,
+					yieldPeriod: body.yieldPeriod === undefined ? existing.yieldPeriod : body.yieldPeriod,
+					yieldRate: body.yieldRate === undefined ? existing.yieldRate : body.yieldRate,
+				});
+			}
 
 			// Update credit card if provided
 			if (body.creditCard && existing.type === "CREDIT_CARD") {

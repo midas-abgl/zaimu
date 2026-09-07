@@ -1,6 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { LuLandmark } from "react-icons/lu";
-import { TransactionListItem } from "@/components/transactions";
+import {
+	EditStatementPaymentDialog,
+	EditTransactionDialog,
+	TransactionListItem,
+} from "@/components/transactions";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScrollArea } from "@/components/ui/ScrollArea";
@@ -8,7 +13,11 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import type { FinancialAccount, Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { formatLocalTime } from "@/lib/date";
-import { getFinancialAccountDisplayName } from "@/lib/financial-account";
+import {
+	calculateFinancialAccountYieldEntries,
+	getFinancialAccountDisplayName,
+} from "@/lib/financial-account";
+import { FinancialAccountYieldStatementItem } from "./FinancialAccountYieldStatementItem";
 
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
 	day: "numeric",
@@ -40,8 +49,29 @@ export function FinancialAccountStatementDialog({
 		queryFn: () => dataService.transactions.getAll({ financialAccountId: account.id }),
 		queryKey: ["transactions", "financial-account", account.id],
 	});
+	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+	const [editingStatementPayment, setEditingStatementPayment] = useState<Transaction | null>(null);
+	const holidays = useQuery({
+		enabled: open,
+		queryFn: () => dataService.accountYieldHolidays.getAll(),
+		queryKey: ["financial-account-yield-holidays"],
+	});
 	const groupedTransactions = groupTransactionsByDate(statement.data ?? []);
+	const yieldEntries = calculateFinancialAccountYieldEntries(
+		account,
+		statement.data ?? [],
+		holidays.data?.map(holiday => holiday.date) ?? [],
+	);
+	const dates = [
+		...new Set([...Object.keys(groupedTransactions), ...yieldEntries.map(entry => entry.date)]),
+	].toSorted((left, right) => right.localeCompare(left));
 	const displayName = getFinancialAccountDisplayName(account);
+	const editTransaction = (transaction: Transaction) => {
+		const isStatementPayment =
+			Boolean(transaction.creditCardStatementId) && transaction.source !== "CREDIT_CARD";
+		if (isStatementPayment) setEditingStatementPayment(transaction);
+		else setEditingTransaction(transaction);
+	};
 
 	return (
 		<Dialog onOpenChange={onOpenChange} open={open}>
@@ -62,16 +92,24 @@ export function FinancialAccountStatementDialog({
 						icon={<LuLandmark className="size-7" />}
 						title="Não foi possível carregar extrato"
 					/>
-				) : statement.data?.length ? (
+				) : dates.length ? (
 					<ScrollArea className="h-[min(34rem,calc(100dvh-14rem))] pr-3">
 						<div className="space-y-5">
-							{Object.entries(groupedTransactions).map(([date, transactions]) => (
+							{dates.map(date => (
 								<section className="space-y-2" key={date}>
 									<h3 className="font-medium text-muted-foreground text-sm">
 										{dateFormatter.format(new Date(`${date}T12:00:00`))}
 									</h3>
 									<div className="divide-y rounded-2xl border bg-card shadow-sm">
-										{transactions.map(transaction => (
+										{yieldEntries
+											.filter(entry => entry.date === date)
+											.map(entry => (
+												<FinancialAccountYieldStatementItem
+													amount={entry.amount}
+													key={`yield-${entry.date}`}
+												/>
+											))}
+										{(groupedTransactions[date] ?? []).map(transaction => (
 											<TransactionListItem
 												key={transaction.id}
 												metadataPrefix={
@@ -81,6 +119,7 @@ export function FinancialAccountStatementDialog({
 														</span>
 													) : undefined
 												}
+												onEdit={() => editTransaction(transaction)}
 												transaction={transaction}
 											/>
 										))}
@@ -96,6 +135,16 @@ export function FinancialAccountStatementDialog({
 						title="Extrato vazio"
 					/>
 				)}
+				<EditTransactionDialog
+					onOpenChange={nextOpen => !nextOpen && setEditingTransaction(null)}
+					open={editingTransaction !== null}
+					transaction={editingTransaction}
+				/>
+				<EditStatementPaymentDialog
+					onOpenChange={nextOpen => !nextOpen && setEditingStatementPayment(null)}
+					open={editingStatementPayment !== null}
+					transaction={editingStatementPayment}
+				/>
 			</DialogContent>
 		</Dialog>
 	);

@@ -135,6 +135,7 @@ namespace public {
     creditCards             CreditCard[]                     @relation(name: "CreditCard_accountId_fkey")
     cashbackCreditCards     CreditCard[]                     @relation(name: "CreditCard_cashbackAccountId_fkey")
     cashbackPurchases       CreditPurchase[]                 @relation(name: "CreditPurchase_cashbackAccountId_fkey")
+    yieldRateHistories      FinancialAccountYieldRateHistory[]
     loanPayments            LoanPayment[]
     rewardsAccount          RewardsAccount?
     salaries                Salary[]
@@ -161,6 +162,20 @@ namespace public {
 
     @@index([userId, date], map: "FinancialAccountYieldHoliday_userId_date_key", unique: true)
     @@map("FinancialAccountYieldHoliday")
+  }
+
+  model FinancialAccountYieldRateHistory {
+    id                 VarChar(36)                         @id(map: "FinancialAccountYieldRateHistory_pkey") @default(dbgenerated("cuid2()"))
+    financialAccountId VarChar(36)
+    effectiveDate      Date
+    yieldRate          Numeric(7, 4)?
+    yieldPeriod        pg.enum(FinancialAccountYieldPeriod)?
+    createdAt          Timestamp(3)                        @default(now())
+    updatedAt          Timestamp(3)                        @default(now())
+    financialAccount   FinancialAccount                    @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "FinancialAccountYieldRateHistory_financialAccountId_fkey", index: false)
+
+    @@index([financialAccountId, effectiveDate], map: "FinancialAccountYieldRateHistory_accountId_effectiveDate_key", unique: true)
+    @@map("FinancialAccountYieldRateHistory")
   }
 
   model CreditCard {

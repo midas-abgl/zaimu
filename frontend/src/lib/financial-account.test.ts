@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
 	calculateFinancialAccountBalances,
+	calculateFinancialAccountYieldEntries,
 	compareFinancialAccountsByDisplayName,
 	compareFinancialAccountsByOptionLabel,
 	compareFinancialAccountsByTitle,
@@ -158,6 +159,37 @@ describe("calculateFinancialAccountBalances", () => {
 		);
 
 		expect(accounts.map(account => account.balance)).toEqual([65, 10, null]);
+	});
+
+	test("keeps the prior rate for yields already recorded in the statement", () => {
+		const account = {
+			balance: 0,
+			id: "checking",
+			type: "CHECKING" as const,
+			yieldPeriod: "MONTHLY" as const,
+			yieldRate: 20,
+			yieldRateHistories: [
+				{ effectiveDate: "2026-01-05", yieldPeriod: "MONTHLY" as const, yieldRate: 10 },
+				{ effectiveDate: "2026-01-06", yieldPeriod: "MONTHLY" as const, yieldRate: 20 },
+			],
+		};
+		const transactions = [{ amount: 100, date: "2026-01-05", destinationFinancialAccountId: "checking" }];
+		const monthlyTenPercentDailyRate = 1.1 ** (1 / 21) - 1;
+		const monthlyTwentyPercentDailyRate = 1.2 ** (1 / 21) - 1;
+
+		const entries = calculateFinancialAccountYieldEntries(
+			account as never,
+			transactions,
+			[],
+			new Date("2026-01-06T12:00:00"),
+		);
+
+		expect(entries.map(entry => entry.date)).toEqual(["2026-01-05", "2026-01-06"]);
+		expect(entries[0]?.amount).toBeCloseTo(100 * monthlyTenPercentDailyRate, 10);
+		expect(entries[1]?.amount).toBeCloseTo(
+			100 * (1 + monthlyTenPercentDailyRate) * monthlyTwentyPercentDailyRate,
+			10,
+		);
 	});
 
 	test("keeps rewards in native units and compounds cashback", () => {
