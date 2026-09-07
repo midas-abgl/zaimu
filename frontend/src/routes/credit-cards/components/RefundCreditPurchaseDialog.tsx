@@ -20,15 +20,19 @@ export function RefundCreditPurchaseDialog({
 	open,
 	pending,
 	purchase,
+	refund,
 }: {
 	onOpenChange: (open: boolean) => void;
 	onSubmit: (data: { amount?: number; date?: string }) => Promise<unknown>;
 	open: boolean;
 	pending: boolean;
 	purchase: CreditPurchase;
+	refund?: NonNullable<CreditPurchase["refund"]>;
 }) {
-	const [amount, setAmount] = useState("");
-	const [date, setDate] = useState("");
+	const [amount, setAmount] = useState(refund ? String(refund.amount) : "");
+	const [date, setDate] = useState(
+		refund?.date.slice(0, 10) === purchase.purchaseDate.slice(0, 10) ? "" : (refund?.date.slice(0, 10) ?? ""),
+	);
 	const amountValue = amount ? Number(amount) : undefined;
 
 	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
@@ -40,7 +44,7 @@ export function RefundCreditPurchaseDialog({
 		<Dialog onOpenChange={onOpenChange} open={open}>
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
-					<DialogTitle>Registrar reembolso</DialogTitle>
+					<DialogTitle>{refund ? "Editar reembolso" : "Registrar reembolso"}</DialogTitle>
 					<DialogDescription>
 						Deixe o valor em branco para devolver {currency.format(Math.abs(purchase.totalAmount))}. Sem data,
 						o crédito entra junto da compra original.
@@ -76,7 +80,7 @@ export function RefundCreditPurchaseDialog({
 							disabled={pending || (amountValue !== undefined && amountValue <= 0)}
 							type="submit"
 						>
-							{pending ? "Registrando…" : "Registrar reembolso"}
+							{pending ? "Salvando…" : refund ? "Salvar reembolso" : "Registrar reembolso"}
 						</Button>
 					</DialogFooter>
 				</form>

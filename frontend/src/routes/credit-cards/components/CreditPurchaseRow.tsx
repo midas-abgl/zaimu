@@ -72,7 +72,7 @@ export function CreditPurchaseRow({
 					{currency.format(purchase.installmentAmount)}
 				</strong>
 				<div className="flex flex-wrap justify-end gap-2">
-					{!purchase.isRefund && !purchase.hasRefund ? (
+					{!purchase.isRefund ? (
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<Button
@@ -86,7 +86,7 @@ export function CreditPurchaseRow({
 									<LuUndo2 />
 								</Button>
 							</TooltipTrigger>
-							<TooltipContent>Reembolsar</TooltipContent>
+							<TooltipContent>{purchase.hasRefund ? "Editar reembolso" : "Reembolsar"}</TooltipContent>
 						</Tooltip>
 					) : null}
 					<Tooltip>

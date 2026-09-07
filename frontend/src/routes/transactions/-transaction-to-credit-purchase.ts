@@ -13,6 +13,7 @@ export const transactionToCreditPurchase = (transaction: Transaction): CreditPur
 	installments: transaction.installments ?? 1,
 	isRefund: transaction.isRefund,
 	purchaseDate: transaction.date,
+	refund: transaction.refund,
 	refundOfPurchaseId: transaction.refundOfPurchaseId,
 	statementId: transaction.creditCardStatementId ?? "",
 	storeName: transaction.storeName,

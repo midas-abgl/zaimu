@@ -335,14 +335,14 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			const purchaseIds = purchases.filter(purchase => !purchase.isRefund).map(purchase => purchase.id);
 			const refundedPurchases = purchaseIds.length
 				? await queryRows(
-						db.sql.public.CreditPurchase.select("refundOfPurchaseId")
+						db.sql.public.CreditPurchase.select("id", "purchaseDate", "refundOfPurchaseId", "totalAmount")
 							.where((fields, functions) => functions.in(fields.refundOfPurchaseId, purchaseIds))
 							.build(),
 					)
 				: [];
-			const refundedPurchaseIds = new Set(
+			const refundsByPurchaseId = new Map(
 				refundedPurchases.flatMap(purchase =>
-					purchase.refundOfPurchaseId ? [purchase.refundOfPurchaseId] : [],
+					purchase.refundOfPurchaseId ? [[purchase.refundOfPurchaseId, purchase] as const] : [],
 				),
 			);
 			const normalizedPurchases = (
@@ -359,8 +359,18 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 							),
 							destinationFinancialAccountId: null,
 							destinationName: null,
-							hasRefund: !purchase.isRefund && refundedPurchaseIds.has(purchase.id),
+							hasRefund: !purchase.isRefund && refundsByPurchaseId.has(purchase.id),
 							originName: purchase.sourceName,
+							refund: (() => {
+								const refund = refundsByPurchaseId.get(purchase.id);
+								return refund
+									? {
+											amount: Math.abs(Number(refund.totalAmount)),
+											date: refund.purchaseDate.toISOString(),
+											id: refund.id,
+										}
+									: undefined;
+							})(),
 							source: "CREDIT_CARD" as const,
 							tagIds: tags.map(tag => tag.id),
 							tags,

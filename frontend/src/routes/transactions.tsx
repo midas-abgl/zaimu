@@ -125,7 +125,13 @@ function TransactionsPage() {
 			transaction: Transaction;
 		}) => {
 			if (!transaction.creditCardId) throw new Error("Cartão da compra não encontrado");
-			return dataService.creditCards.refundPurchase(transaction.creditCardId, transaction.id, data);
+			return transaction.refund
+				? dataService.creditCards
+						.deletePurchase(transaction.creditCardId, transaction.refund.id)
+						.then(() =>
+							dataService.creditCards.refundPurchase(transaction.creditCardId!, transaction.id, data),
+						)
+				: dataService.creditCards.refundPurchase(transaction.creditCardId, transaction.id, data);
 		},
 		onError: error =>
 			showToast(
@@ -312,7 +318,7 @@ function TransactionsPage() {
 					creditCardId={editingPurchase.creditCardId}
 					onOpenChange={open => !open && setEditingPurchase(null)}
 					onRefund={
-						editingPurchase.isRefund || editingPurchase.hasRefund
+						editingPurchase.isRefund
 							? undefined
 							: () => {
 									setRefundingPurchase(editingPurchase);
@@ -336,6 +342,7 @@ function TransactionsPage() {
 					open
 					pending={refundPurchase.isPending}
 					purchase={transactionToCreditPurchase(refundingPurchase)}
+					refund={refundingPurchase.refund}
 				/>
 			) : null}
 		</PageContainer>

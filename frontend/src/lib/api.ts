@@ -174,6 +174,7 @@ export interface Transaction {
 	refundOfPurchaseId?: string | null;
 	isRefund?: boolean;
 	hasRefund?: boolean;
+	refund?: { amount: number; date: string; id: string };
 	type: "INCOME" | "EXPENSE" | "TRANSFER";
 	categoryId?: string;
 	categoryName?: string;
@@ -402,6 +403,7 @@ export interface CreditPurchase {
 	refundOfPurchaseId?: string | null;
 	isRefund?: boolean;
 	hasRefund?: boolean;
+	refund?: { amount: number; date: string; id: string };
 	subscriptionId?: string;
 	subscriptionOccurrenceDate?: string;
 	isForecast?: boolean;
