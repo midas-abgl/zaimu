@@ -155,6 +155,10 @@ export interface Transaction {
 	isHidden?: boolean;
 	debtSplit?: DebtSplit | null;
 	storeName?: string | null;
+	feeDescription?: string | null;
+	feeAmount?: number | null;
+	refundOfPurchaseId?: string | null;
+	isRefund?: boolean;
 	type: "INCOME" | "EXPENSE" | "TRANSFER";
 	categoryId?: string;
 	categoryName?: string;
@@ -366,6 +370,8 @@ export interface CreditPurchase {
 	description: string;
 	debtSplit?: DebtSplit | null;
 	storeName?: string | null;
+	feeDescription?: string | null;
+	feeAmount?: number | null;
 	totalAmount: number;
 	installments: number;
 	currentInstallment: number;
@@ -378,6 +384,8 @@ export interface CreditPurchase {
 	tagIds?: string[];
 	tags?: Tag[];
 	parentId?: string;
+	refundOfPurchaseId?: string | null;
+	isRefund?: boolean;
 	subscriptionId?: string;
 	subscriptionOccurrenceDate?: string;
 	isForecast?: boolean;

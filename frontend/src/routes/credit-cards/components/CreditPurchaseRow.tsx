@@ -1,4 +1,4 @@
-import { LuPencil, LuRefreshCw, LuTrash2 } from "react-icons/lu";
+import { LuPencil, LuRefreshCw, LuTrash2, LuUndo2 } from "react-icons/lu";
 import { TransactionBadges } from "@/components/transactions/TransactionListItem/TransactionBadges";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
@@ -11,16 +11,20 @@ const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "curre
 export function CreditPurchaseRow({
 	disabled,
 	refinanceDisabled,
+	refundDisabled,
 	onDelete,
 	onEdit,
 	onRefinance,
+	onRefund,
 	purchase,
 }: {
 	disabled: boolean;
 	refinanceDisabled: boolean;
+	refundDisabled: boolean;
 	onDelete: () => void | Promise<void>;
 	onEdit: () => void;
 	onRefinance: () => void;
+	onRefund: () => void;
 	purchase: CreditPurchase;
 }) {
 	const fallbackTag = purchase.categoryName
@@ -42,10 +46,16 @@ export function CreditPurchaseRow({
 				<p className="truncate text-muted-foreground text-xs">
 					{formatLocalDate(purchase.purchaseDate)}
 					{formatLocalTime(purchase.time) ? ` · ${formatLocalTime(purchase.time)}` : ""}
+					{purchase.isRefund ? " · Reembolso" : ""}
 					{purchase.isForecast ? " · Previsão" : ""}
 					{purchase.installments > 1 ? ` · ${purchase.currentInstallment}/${purchase.installments}` : ""}
 					{purchase.isSettled ? " · Quitada por reparcelamento" : ""}
 				</p>
+				{purchase.feeAmount && purchase.feeDescription ? (
+					<p className="mt-1 text-muted-foreground text-xs">
+						Inclui {purchase.feeDescription}: {currency.format(purchase.feeAmount)}
+					</p>
+				) : null}
 				{purchase.storeName || debtPersonName || tags?.length ? (
 					<div className="mt-2">
 						<TransactionBadges
@@ -58,8 +68,27 @@ export function CreditPurchaseRow({
 				) : null}
 			</div>
 			<div className="grid min-w-0 justify-items-end gap-2">
-				<strong>{currency.format(purchase.installmentAmount)}</strong>
+				<strong className={purchase.isRefund ? "text-emerald-600" : undefined}>
+					{currency.format(purchase.installmentAmount)}
+				</strong>
 				<div className="flex flex-wrap justify-end gap-2">
+					{!purchase.isRefund ? (
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									aria-label={`Reembolsar ${purchase.description}`}
+									className="cursor-pointer"
+									disabled={refundDisabled}
+									onClick={onRefund}
+									size="icon-sm"
+									variant="outline"
+								>
+									<LuUndo2 />
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>Reembolsar</TooltipContent>
+						</Tooltip>
+					) : null}
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button

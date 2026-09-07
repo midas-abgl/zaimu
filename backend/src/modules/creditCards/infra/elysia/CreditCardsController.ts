@@ -44,6 +44,8 @@ const purchaseColumns = [
 	"cashbackYieldRate",
 	"description",
 	"storeName",
+	"feeDescription",
+	"feeAmount",
 	"totalAmount",
 	"installments",
 	"currentInstallment",
@@ -52,6 +54,8 @@ const purchaseColumns = [
 	"time",
 	"categoryId",
 	"parentId",
+	"refundOfPurchaseId",
+	"isRefund",
 	"settledByPurchaseId",
 	"isSettled",
 	"refinancingFeeAmount",
@@ -106,6 +110,14 @@ function resolvePurchaseTime(value: string | null | undefined): string | null {
 	return new Date().toTimeString().slice(0, 5);
 }
 
+function normalizePurchaseFee(input: { feeAmount?: number; feeDescription?: string }) {
+	const feeAmount = input.feeAmount ?? 0;
+	if (feeAmount === 0) return { feeAmount: null, feeDescription: null };
+	const feeDescription = input.feeDescription?.trim();
+	if (!feeDescription) throw new HttpException("Informe o nome da taxa", 400);
+	return { feeAmount: String(feeAmount), feeDescription };
+}
+
 function forecastInstallments(
 	card: { dueDay: number; statementDay: number },
 	purchases: CreditPurchaseRow[],
@@ -142,6 +154,8 @@ interface CreditPurchaseRow {
 	cashbackYieldRate?: number | null;
 	description: string;
 	storeName: string | null;
+	feeDescription: string | null;
+	feeAmount: number | null;
 	totalAmount: number;
 	installments: number;
 	currentInstallment: number;
@@ -150,6 +164,8 @@ interface CreditPurchaseRow {
 	time: string | null;
 	categoryId: string | null;
 	parentId: string | null;
+	refundOfPurchaseId: string | null;
+	isRefund: boolean;
 	settledByPurchaseId: string | null;
 	isSettled: boolean;
 	refinancingFeeAmount: number | null;
@@ -522,13 +538,17 @@ async function forecastSubscriptionPurchases(
 				currentInstallment: 1,
 				debtSplit,
 				description: subscription.name,
+				feeAmount: null,
+				feeDescription: null,
 				id: `subscription-${subscription.id}-${occurrenceDate.toISOString().slice(0, 10)}`,
 				installmentAmount: Number(subscription.amount),
 				installments: 1,
+				isRefund: false,
 				isSettled: false,
 				parentId: null,
 				purchaseDate: occurrenceDate,
 				refinancingFeeAmount: null,
+				refundOfPurchaseId: null,
 				settledByPurchaseId: null,
 				statementId: forecastStatementId(statementDate),
 				storeName: subscription.storeName,
@@ -576,13 +596,19 @@ const findPurchaseForCard = (creditCardId: string, purchaseId: string) =>
 				creditCardId: fields.CreditCardStatement.creditCardId,
 				currentInstallment: fields.CreditPurchase.currentInstallment,
 				description: fields.CreditPurchase.description,
+				feeAmount: fields.CreditPurchase.feeAmount,
+				feeDescription: fields.CreditPurchase.feeDescription,
 				id: fields.CreditPurchase.id,
 				installmentAmount: fields.CreditPurchase.installmentAmount,
 				installments: fields.CreditPurchase.installments,
 				isPaid: fields.CreditCardStatement.isPaid,
+				isRefund: fields.CreditPurchase.isRefund,
 				parentId: fields.CreditPurchase.parentId,
 				purchaseDate: fields.CreditPurchase.purchaseDate,
+				refundOfPurchaseId: fields.CreditPurchase.refundOfPurchaseId,
 				statementId: fields.CreditPurchase.statementId,
+				storeName: fields.CreditPurchase.storeName,
+				time: fields.CreditPurchase.time,
 				totalAmount: fields.CreditPurchase.totalAmount,
 			}))
 			.where((fields, functions) =>
@@ -1002,6 +1028,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const time = body.subscriptionId ? null : resolvePurchaseTime(body.time);
 			const installments = body.installments ?? 1;
 			if (body.storeName) await resolveStore(userId, body.storeName);
+			const fee = normalizePurchaseFee(body);
 			const installmentAmount = body.totalAmount / installments;
 			const cashback = cashbackSnapshot(card, body.totalAmount);
 
@@ -1050,6 +1077,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 								...cashback,
 								currentInstallment: 1,
 								description: body.description ?? "",
+								...fee,
 								installmentAmount: String(installmentAmount),
 								installments,
 								purchaseDate,
@@ -1165,6 +1193,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 							categoryId: tagIds[0],
 							currentInstallment,
 							description: body.description ?? "",
+							...fee,
 							installmentAmount: String(installmentAmount),
 							installments,
 							parentId: purchase.id,
@@ -1235,6 +1264,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				categoryId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				debtSplit: t.Optional(DebtSplitInputDTO),
 				description: t.Optional(t.String({ maxLength: 500 })),
+				feeAmount: t.Optional(t.Number({ minimum: 0 })),
+				feeDescription: t.Optional(t.String({ maxLength: 100 })),
 				installments: t.Optional(t.Number({ maximum: 48, minimum: 1 })),
 				matchDebtEventId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				purchaseDate: t.String(),
@@ -1419,6 +1450,98 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			}),
 		},
 	)
+	.post(
+		"/:id/purchases/:purchaseId/refunds",
+		async ({ params, body, request }) => {
+			const userId = await requireUserId(request);
+			await assertCreditCardOwnership(params.id, userId);
+			const selectedPurchase = await findPurchaseForCard(params.id, params.purchaseId);
+			if (!selectedPurchase) throw new HttpException("Purchase not found", 404);
+			if (selectedPurchase.isRefund) throw new HttpException("Refunds cannot be refunded", 409);
+
+			const rootPurchaseId = selectedPurchase.parentId ?? selectedPurchase.id;
+			const sourcePurchase =
+				rootPurchaseId === selectedPurchase.id
+					? selectedPurchase
+					: await findPurchaseForCard(params.id, rootPurchaseId);
+			if (!sourcePurchase) throw new HttpException("Purchase not found", 404);
+			const refunds = await queryRows(
+				db.sql.public.CreditPurchase.select("totalAmount")
+					.where((fields, functions) => functions.eq(fields.refundOfPurchaseId, rootPurchaseId))
+					.build(),
+			);
+			const refundedAmount = refunds.reduce((sum, refund) => sum + Math.abs(Number(refund.totalAmount)), 0);
+			const remainingAmount = Math.round((Number(sourcePurchase.totalAmount) - refundedAmount) * 100) / 100;
+			const refundAmount = body.amount ?? remainingAmount;
+			if (refundAmount <= 0) throw new HttpException("Refund amount must be greater than zero", 400);
+
+			const card = await queryFirst(
+				db.sql.public.CreditCard.select("dueDay", "statementDay")
+					.where((fields, functions) => functions.eq(fields.id, params.id))
+					.limit(1)
+					.build(),
+			);
+			if (!card) throw new HttpException("Credit card not found", 404);
+			const refundDate = body.date ? new Date(body.date) : sourcePurchase.purchaseDate;
+			let statementId = sourcePurchase.statementId;
+			if (body.date) {
+				const { dueDate, statementDate } = getStatementDates(card, refundDate);
+				statementId = (await getOrCreateStatement(params.id, dueDate, statementDate)).id;
+			}
+			const refund = await queryFirst(
+				db.sql.public.CreditPurchase.insert([
+					{
+						categoryId: sourcePurchase.categoryId,
+						currentInstallment: 1,
+						description: `Reembolso — ${sourcePurchase.description || sourcePurchase.storeName || "Compra"}`,
+						installmentAmount: String(-refundAmount),
+						installments: 1,
+						isRefund: true,
+						purchaseDate: refundDate,
+						refundOfPurchaseId: rootPurchaseId,
+						statementId,
+						storeName: sourcePurchase.storeName,
+						time: resolvePurchaseTime(undefined),
+						totalAmount: String(-refundAmount),
+					},
+				])
+					.returning(...purchaseColumns)
+					.build(),
+			);
+			if (!refund) throw new HttpException("Refund not created", 500);
+			const sourceTags = await getTagsByEntity(tagEntityType.creditPurchase, [rootPurchaseId]);
+			const tagIds = (sourceTags.get(rootPurchaseId) ?? []).map(tag => tag.id);
+			await replaceEntityTags({ entityIds: [refund.id], entityType: tagEntityType.creditPurchase, tagIds });
+			const amount = param(numeric<12, 2>(-refundAmount), { codecId: "pg/numeric@1" });
+			await executeStatement(
+				db.sql.public.CreditCardStatement.update((fields, functions) => ({
+					totalAmount: functions.raw`${fields.totalAmount} + ${amount}`.returns("pg/numeric@1"),
+					updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
+				}))
+					.where((fields, functions) => functions.eq(fields.id, statementId))
+					.build(),
+			);
+			const tags = (await getTagsByEntity(tagEntityType.creditPurchase, [refund.id])).get(refund.id) ?? [];
+			return {
+				...refund,
+				installmentAmount: Number(refund.installmentAmount),
+				tagIds: tags.map(tag => tag.id),
+				tags,
+				totalAmount: Number(refund.totalAmount),
+			};
+		},
+		{
+			body: t.Object({
+				amount: t.Optional(t.Number({ exclusiveMinimum: 0 })),
+				date: t.Optional(t.String()),
+			}),
+			detail: { tags: ["Credit Cards"] },
+			params: t.Object({
+				id: t.String({ maxLength: 36, minLength: 1 }),
+				purchaseId: t.String({ maxLength: 36, minLength: 1 }),
+			}),
+		},
+	)
 	.patch(
 		"/:id/purchases/:purchaseId",
 		async ({ params, body, request }) => {
@@ -1431,6 +1554,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			if (body.storeName) await resolveStore(userId, body.storeName);
 			const tagIds = body.tagIds === undefined ? undefined : await assertTagOwnership(body.tagIds, userId);
 			const previousAmount = Number(purchase.installmentAmount);
+			const fee = body.feeAmount === undefined ? undefined : normalizePurchaseFee(body);
 
 			const nextInstallments = body.installments ?? purchase.installments;
 			const nextTotalAmount = body.totalAmount ?? Number(purchase.totalAmount);
@@ -1512,6 +1636,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 							cashbackYieldRate: nextCashback.cashbackYieldRate,
 						}),
 					...(body.description !== undefined && { description: body.description }),
+					...(fee && fee),
 					...(body.storeName !== undefined && { storeName: body.storeName }),
 					...((body.totalAmount !== undefined || body.installments !== undefined) && {
 						installmentAmount: String(nextAmount),
@@ -1599,6 +1724,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				creditCardId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				debtSplit: t.Optional(t.Nullable(DebtSplitInputDTO)),
 				description: t.Optional(t.String({ maxLength: 500 })),
+				feeAmount: t.Optional(t.Number({ minimum: 0 })),
+				feeDescription: t.Optional(t.String({ maxLength: 100 })),
 				installments: t.Optional(t.Number({ maximum: 48, minimum: 1 })),
 				matchDebtEventId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				purchaseDate: t.Optional(t.String()),
@@ -1637,7 +1764,9 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const amount = param(numeric<12, 2>(purchase.installmentAmount), { codecId: "pg/numeric@1" });
 			await executeStatement(
 				db.sql.public.CreditCardStatement.update((fields, functions) => ({
-					totalAmount: functions.raw`GREATEST(0, ${fields.totalAmount} - ${amount})`.returns("pg/numeric@1"),
+					totalAmount: purchase.isRefund
+						? functions.raw`${fields.totalAmount} - ${amount}`.returns("pg/numeric@1")
+						: functions.raw`GREATEST(0, ${fields.totalAmount} - ${amount})`.returns("pg/numeric@1"),
 					updatedAt: functions.raw`CURRENT_TIMESTAMP`.returns("pg/timestamp@1"),
 				}))
 					.where((fields, functions) => functions.eq(fields.id, purchase.statementId))

@@ -253,16 +253,20 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				currentInstallment: number;
 				date: Date;
 				description: string;
+				feeAmount: number | null;
+				feeDescription: string | null;
 				id: string;
 				installmentAmount: unknown;
 				installments: number;
+				isRefund: boolean;
 				originFinancialAccountId: string;
+				refundOfPurchaseId: string | null;
 				statementId: string;
 				storeName: string | null;
 				time: string | null;
 				sourceName: string;
 			}> = [];
-			if (!query.type || query.type === "EXPENSE") {
+			if (!query.type || query.type === "EXPENSE" || query.type === "INCOME") {
 				let purchaseQuery = db.sql.public.CreditPurchase.innerJoin(
 					db.sql.public.CreditCardStatement,
 					(f, fn) => fn.eq(f.CreditPurchase.statementId, f.CreditCardStatement.id),
@@ -286,11 +290,15 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						currentInstallment: f.CreditPurchase.currentInstallment,
 						date: f.CreditPurchase.purchaseDate,
 						description: f.CreditPurchase.description,
+						feeAmount: f.CreditPurchase.feeAmount,
+						feeDescription: f.CreditPurchase.feeDescription,
 						id: f.CreditPurchase.id,
 						installmentAmount: f.CreditPurchase.installmentAmount,
 						installments: f.CreditPurchase.installments,
+						isRefund: f.CreditPurchase.isRefund,
 						originAccountType: fn.raw`'CREDIT_CARD'`.returns("sql/varchar@1"),
 						originFinancialAccountId: f.FinancialAccount.id,
+						refundOfPurchaseId: f.CreditPurchase.refundOfPurchaseId,
 						sourceName:
 							fn.raw`COALESCE(${f.FinancialAccount.name}, ${f.FinancialInstitution.name}, 'Cartão de crédito')`.returns(
 								"sql/varchar@1",
@@ -314,6 +322,10 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					purchaseQuery = purchaseQuery.where((f, fn) =>
 						fn.eq(f.FinancialAccount.id, query.financialAccountId!),
 					);
+				if (query.type === "EXPENSE")
+					purchaseQuery = purchaseQuery.where((f, fn) => fn.eq(f.CreditPurchase.isRefund, false));
+				if (query.type === "INCOME")
+					purchaseQuery = purchaseQuery.where((f, fn) => fn.eq(f.CreditPurchase.isRefund, true));
 				purchases = await queryRows(purchaseQuery.build());
 			}
 			const purchaseTags = await getTagsByEntity(
@@ -326,6 +338,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 						const tags = purchaseTags.get(purchase.id) ?? [];
 						return {
 							...purchase,
+							amount: purchase.isRefund ? Math.abs(Number(purchase.amount)) : Number(purchase.amount),
 							creditCardStatementId: purchase.statementId,
 							debtSplit: await getDebtSplitReturn({ creditPurchaseId: purchase.id }, Number(purchase.amount)),
 							destinationFinancialAccountId: null,
@@ -334,7 +347,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 							source: "CREDIT_CARD" as const,
 							tagIds: tags.map(tag => tag.id),
 							tags,
-							type: "EXPENSE" as const,
+							type: purchase.isRefund ? ("INCOME" as const) : ("EXPENSE" as const),
 						};
 					}),
 				)

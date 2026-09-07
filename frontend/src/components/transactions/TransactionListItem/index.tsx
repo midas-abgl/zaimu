@@ -115,7 +115,11 @@ export function TransactionListItem({
 			}
 			amount={
 				amount ??
-				(isCreditCardPurchase && transaction.installments && transaction.installmentAmount ? (
+				(isCreditCardPurchase && transaction.isRefund ? (
+					<p className="whitespace-nowrap font-bold text-emerald-600">
+						+{formatCurrency(Number(transaction.amount))}
+					</p>
+				) : isCreditCardPurchase && transaction.installments && transaction.installmentAmount ? (
 					<InstallmentPurchaseDetails
 						installmentAmount={Number(transaction.installmentAmount)}
 						installments={transaction.installments}

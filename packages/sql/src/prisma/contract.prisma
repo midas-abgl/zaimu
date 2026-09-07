@@ -224,6 +224,8 @@ namespace public {
     statementId             VarChar(36)
     description             VarChar(500)
     storeName               VarChar(200)?
+    feeDescription          VarChar(100)?
+    feeAmount               Numeric(12, 2)?
     totalAmount             Numeric(12, 2)
     installments            SmallInt                @default(1)
     currentInstallment      SmallInt                @default(1)
@@ -232,6 +234,8 @@ namespace public {
     time                    Time(3)?
     categoryId              VarChar(36)?
     parentId                VarChar(36)?
+		refundOfPurchaseId      VarChar(36)?
+		isRefund                Boolean                 @default(false)
 		settledByPurchaseId     VarChar(36)?
 		isSettled               Boolean                 @default(false)
 		refinancingFeeAmount    Numeric(12, 2)?
@@ -249,6 +253,8 @@ namespace public {
     category                Category?               @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchase_categoryId_fkey", index: false)
     parent                  CreditPurchase?         @relation(name: "CreditPurchase_parentId_fkey", fields: [parentId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchase_parentId_fkey", index: false)
     creditPurchases         CreditPurchase[]        @relation(name: "CreditPurchase_parentId_fkey")
+		refundOfPurchase        CreditPurchase?         @relation(name: "CreditPurchase_refundOfPurchaseId_fkey", fields: [refundOfPurchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditPurchase_refundOfPurchaseId_fkey", index: false)
+		refunds                 CreditPurchase[]        @relation(name: "CreditPurchase_refundOfPurchaseId_fkey")
 		settledByPurchase       CreditPurchase?         @relation(name: "CreditPurchase_settledByPurchaseId_fkey", fields: [settledByPurchaseId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchase_settledByPurchaseId_fkey", index: false)
 		settledPurchases        CreditPurchase[]        @relation(name: "CreditPurchase_settledByPurchaseId_fkey")
     cashbackAccount         FinancialAccount?       @relation(name: "CreditPurchase_cashbackAccountId_fkey", fields: [cashbackAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "CreditPurchase_cashbackAccountId_fkey", index: false)
@@ -258,6 +264,7 @@ namespace public {
 		@@index([subscriptionId, subscriptionOccurrenceDate], map: "CreditPurchase_subscriptionId_occurrenceDate_key", unique: true)
 		@@index([cashbackAccountId], map: "CreditPurchase_cashbackAccountId_idx")
 		@@index([settledByPurchaseId], map: "CreditPurchase_settledByPurchaseId_idx")
+		@@index([refundOfPurchaseId], map: "CreditPurchase_refundOfPurchaseId_idx")
 
     @@map("CreditPurchase")
   }

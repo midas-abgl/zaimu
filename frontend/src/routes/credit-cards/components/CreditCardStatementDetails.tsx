@@ -14,6 +14,7 @@ import { CreditCardPaymentRow } from "./CreditCardPaymentRow";
 import { CreditPurchaseRow } from "./CreditPurchaseRow";
 import { EditCreditPurchaseDialog } from "./EditCreditPurchaseDialog";
 import { RefinanceCreditPurchaseDialog } from "./RefinanceCreditPurchaseDialog";
+import { RefundCreditPurchaseDialog } from "./RefundCreditPurchaseDialog";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
@@ -21,6 +22,7 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 	const queryClient = useQueryClient();
 	const [editingPurchase, setEditingPurchase] = useState<CreditPurchase | null>(null);
 	const [refinancingPurchase, setRefinancingPurchase] = useState<CreditPurchase | null>(null);
+	const [refundingPurchase, setRefundingPurchase] = useState<CreditPurchase | null>(null);
 	const detail = useQuery({
 		queryFn: () => dataService.creditCards.getStatement(statement.creditCardId, statement.id),
 		queryKey: ["credit-card-statement", statement.creditCardId, statement.id],
@@ -99,6 +101,20 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 			showToast("Compra reparcelada e faturas recalculadas.", "positive");
 		},
 	});
+	const refundPurchase = useMutation({
+		mutationFn: ({ data, purchaseId }: { data: { amount?: number; date?: string }; purchaseId: string }) =>
+			dataService.creditCards.refundPurchase(statement.creditCardId, purchaseId, data),
+		onError: error =>
+			showToast(
+				error instanceof Error ? error.message : "Não foi possível registrar o reembolso.",
+				"negative",
+			),
+		onSuccess: async () => {
+			setRefundingPurchase(null);
+			await refreshStatement();
+			showToast("Reembolso registrado e faturas recalculadas.", "positive");
+		},
+	});
 	return (
 		<TabsContent
 			className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-3 overflow-hidden pt-4 sm:pt-0 sm:pl-6"
@@ -170,12 +186,14 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 										onDelete={() => deletePurchase.mutateAsync(entry.purchase.id)}
 										onEdit={() => setEditingPurchase(entry.purchase)}
 										onRefinance={() => setRefinancingPurchase(entry.purchase)}
+										onRefund={() => setRefundingPurchase(entry.purchase)}
 										purchase={entry.purchase}
 										refinanceDisabled={
 											statement.isForecast === true ||
 											refinancePurchase.isPending ||
 											entry.purchase.isSettled === true
 										}
+										refundDisabled={statement.isForecast === true || refundPurchase.isPending}
 									/>
 								),
 							)}
@@ -210,6 +228,17 @@ export function CreditCardStatementDetails({ statement }: { statement: CreditCar
 					open
 					pending={refinancePurchase.isPending}
 					purchase={refinancingPurchase}
+				/>
+			)}
+			{refundingPurchase && (
+				<RefundCreditPurchaseDialog
+					onOpenChange={open => !open && setRefundingPurchase(null)}
+					onSubmit={async data => {
+						await refundPurchase.mutateAsync({ data, purchaseId: refundingPurchase.id });
+					}}
+					open
+					pending={refundPurchase.isPending}
+					purchase={refundingPurchase}
 				/>
 			)}
 		</TabsContent>
