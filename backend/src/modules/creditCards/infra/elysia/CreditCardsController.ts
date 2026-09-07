@@ -1509,6 +1509,17 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					.build(),
 			);
 			if (!refund) throw new HttpException("Refund not created", 500);
+			const debtSplit = await getDebtSplitInput({ creditPurchaseId: rootPurchaseId });
+			if (debtSplit)
+				await linkPurchaseToDebt({
+					creditPurchaseId: refund.id,
+					date: toDateKey(refundDate),
+					debtEffectMultiplier: -1,
+					debtSplit,
+					description: refund.description,
+					totalAmount: refundAmount,
+					userId,
+				});
 			const sourceTags = await getTagsByEntity(tagEntityType.creditPurchase, [rootPurchaseId]);
 			const tagIds = (sourceTags.get(rootPurchaseId) ?? []).map(tag => tag.id);
 			await replaceEntityTags({ entityIds: [refund.id], entityType: tagEntityType.creditPurchase, tagIds });
@@ -1524,6 +1535,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 			const tags = (await getTagsByEntity(tagEntityType.creditPurchase, [refund.id])).get(refund.id) ?? [];
 			return {
 				...refund,
+				debtSplit: await getDebtSplitReturn({ creditPurchaseId: refund.id }, refundAmount),
 				installmentAmount: Number(refund.installmentAmount),
 				tagIds: tags.map(tag => tag.id),
 				tags,

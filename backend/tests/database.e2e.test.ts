@@ -1177,6 +1177,57 @@ suite("Prisma 8 SQL query builder", () => {
 			afterInstallments.people[0]?.events.filter(event => event.amount === 90 && event.effect === 90),
 		).toHaveLength(1);
 		const rootPurchase = purchases.find(purchase => purchase.currentInstallment === 1)!;
+		const refundResponse = await jsonRequest(
+			`/credit-cards/${cardAccount.creditCard.id}/purchases/${rootPurchase.id}/refunds`,
+			"POST",
+			{},
+			owner.cookie,
+		);
+		expect(refundResponse.status).toBe(200);
+		const refund = (await refundResponse.json()) as { id: string; isRefund: boolean };
+		expect(refund.isRefund).toBe(true);
+		expect(
+			(
+				await jsonRequest(
+					`/credit-cards/${cardAccount.creditCard.id}/purchases/${refund.id}/refunds`,
+					"POST",
+					{},
+					owner.cookie,
+				)
+			).status,
+		).toBe(409);
+		expect(
+			((await (await jsonRequest("/debts", "GET", undefined, owner.cookie)).json()) as Ledger).people[0]
+				?.balance,
+		).toBe(-50);
+		expect(
+			(
+				await jsonRequest(
+					`/credit-cards/${cardAccount.creditCard.id}/purchases/${refund.id}`,
+					"DELETE",
+					undefined,
+					owner.cookie,
+				)
+			).status,
+		).toBe(200);
+		expect(
+			await queryRows(
+				db.sql.public.DebtPurchaseLink.select("id")
+					.where((fields, functions) => functions.eq(fields.creditPurchaseId, refund.id))
+					.build(),
+			),
+		).toEqual([]);
+		expect(
+			await queryRows(
+				db.sql.public.DebtSplit.select("id")
+					.where((fields, functions) => functions.eq(fields.creditPurchaseId, refund.id))
+					.build(),
+			),
+		).toEqual([]);
+		expect(
+			((await (await jsonRequest("/debts", "GET", undefined, owner.cookie)).json()) as Ledger).people[0]
+				?.balance,
+		).toBe(40);
 		expect(
 			(
 				await jsonRequest(

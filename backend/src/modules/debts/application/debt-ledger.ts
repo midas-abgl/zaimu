@@ -361,6 +361,7 @@ export async function linkPurchaseToDebt(input: {
 	creditPurchaseId: string;
 	date: string;
 	debtSplit?: DebtSplitInput;
+	debtEffectMultiplier?: -1 | 1;
 	debtPersonId?: string;
 	description?: string;
 	matchEventId?: string;
@@ -379,6 +380,7 @@ export async function linkPurchaseToDebt(input: {
 	if (requestedSplit && input.matchEventId)
 		throw new HttpException("Rateio e conciliação não podem ser usados juntos", 400);
 	if (!requestedSplit && !input.matchEventId) return;
+	const debtEffectMultiplier = input.debtEffectMultiplier ?? 1;
 	if (input.matchEventId) {
 		const event = await getAccessibleDebtEvent(input.matchEventId, input.userId);
 		if (!event.date) throw new HttpException("Lançamentos sem data não podem ser conciliados", 409);
@@ -410,7 +412,7 @@ export async function linkPurchaseToDebt(input: {
 			date: input.date,
 			debtPersonId: participant.debtPersonId,
 			description: input.description,
-			effect: participant.amount,
+			effect: participant.amount * debtEffectMultiplier,
 			kind: "PURCHASE",
 		});
 		await executeStatement(
