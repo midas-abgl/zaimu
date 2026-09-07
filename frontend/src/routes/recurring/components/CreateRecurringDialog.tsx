@@ -25,6 +25,7 @@ import {
 } from "@/lib/financial-account";
 import { showToast } from "@/stores";
 import { frequencyOptions, paymentMethodOptions, sourceOptions } from "./constants";
+import { getCreationSource } from "./creation-source";
 import { DebouncedFormField } from "./DebouncedFormField";
 import { DebouncedMoneyField } from "./DebouncedMoneyField";
 import { PastTransactionsDialog } from "./PastTransactionsDialog";
@@ -107,6 +108,7 @@ export function CreateRecurringDialog({
 	const create = useMutation<RecurringPayment | Salary | Subscription, Error, boolean>({
 		mutationFn: async (addPastTransactions = false) => {
 			const amount = Number.parseFloat(draft.amount);
+			const creationSource = getCreationSource(draft);
 			const selectedDebtSplit = isDebtSplitEnabled ? debtSplit : null;
 			const day = Number.parseInt(draft.day, 10);
 			if (item) {
@@ -185,7 +187,7 @@ export function CreateRecurringDialog({
 				}
 				return salary;
 			}
-			if (draft.source === "subscription") {
+			if (creationSource === "subscription") {
 				const subscription = await dataService.subscriptions.create({
 					amount,
 					billingDay: day,
@@ -295,8 +297,8 @@ export function CreateRecurringDialog({
 				isEditing
 					? "Recorrência atualizada."
 					: addPastTransactions
-						? `${successMessages[draft.source].replace(".", "")} e transações passadas adicionadas.`
-						: successMessages[draft.source],
+						? `${successMessages[getCreationSource(draft)].replace(".", "")} e transações passadas adicionadas.`
+						: successMessages[getCreationSource(draft)],
 				"positive",
 			);
 			handleOpenChange(false);
