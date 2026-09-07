@@ -1,5 +1,5 @@
 import { type SyntheticEvent, useEffect, useState } from "react";
-import { DebtPersonPicker } from "@/components/debts";
+import { DebtPersonPicker, DebtSplitEditor } from "@/components/debts";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { DateField } from "@/components/ui/DateField";
@@ -15,35 +15,58 @@ import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
+import type { DebtSplitInput } from "@/lib/api";
+import { calculateDebtSplit } from "@/lib/debt-split";
 
-export interface DebtOriginDraft {
+interface DebtOriginFields {
 	amount: number;
 	date?: null | string;
 	description?: string;
 	dueDate?: string;
 	isOwedToMe: boolean;
+}
+
+export interface CreateDebtOriginDraft extends DebtOriginFields {
+	debtSplit: DebtSplitInput;
+}
+
+export interface UpdateDebtOriginDraft extends DebtOriginFields {
 	personId: string;
 }
 
-export function CreateDebtDialog({
-	initialValue,
-	onOpenChange,
-	onSubmit,
-	open,
-	pending,
-}: {
-	initialValue?: DebtOriginDraft;
-	onOpenChange: (open: boolean) => void;
-	onSubmit: (draft: DebtOriginDraft) => Promise<void>;
-	open: boolean;
-	pending: boolean;
-}) {
+type CreateDebtDialogProps =
+	| {
+			mode: "create";
+			onOpenChange: (open: boolean) => void;
+			onSubmit: (draft: CreateDebtOriginDraft) => Promise<void>;
+			open: boolean;
+			pending: boolean;
+	  }
+	| {
+			initialValue: UpdateDebtOriginDraft;
+			mode: "edit";
+			onOpenChange: (open: boolean) => void;
+			onSubmit: (draft: UpdateDebtOriginDraft) => Promise<void>;
+			open: boolean;
+			pending: boolean;
+	  };
+
+const initialDebtSplit = (): DebtSplitInput => ({
+	mode: "SHARES",
+	ownerShares: null,
+	participants: [{ debtPersonId: "", shares: 1 }],
+});
+
+export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
+	const { mode, onOpenChange, open, pending } = props;
+	const initialValue = props.mode === "edit" ? props.initialValue : null;
 	const [amount, setAmount] = useState("");
 	const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
 	const [sendWithoutDate, setSendWithoutDate] = useState(false);
 	const [dueDate, setDueDate] = useState("");
 	const [description, setDescription] = useDebouncedInput("", () => undefined);
 	const [personId, setPersonId] = useState("");
+	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(initialDebtSplit);
 	const [isOwedToMe, setIsOwedToMe] = useState(true);
 	useEffect(() => {
 		if (!open || !initialValue) return;
@@ -62,6 +85,7 @@ export function CreateDebtDialog({
 		setDueDate("");
 		setDescription("");
 		setPersonId("");
+		setDebtSplit(initialDebtSplit());
 		setIsOwedToMe(true);
 	};
 	const handleOpenChange = (nextOpen: boolean) => {
@@ -70,16 +94,18 @@ export function CreateDebtDialog({
 	};
 	const submit = async (event: SyntheticEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		await onSubmit({
+		const fields = {
 			amount: Number(amount),
 			date: sendWithoutDate ? null : date || undefined,
 			description: description.trim() || undefined,
 			dueDate: dueDate || undefined,
 			isOwedToMe,
-			personId,
-		});
+		};
+		if (props.mode === "edit") await props.onSubmit({ ...fields, personId });
+		else await props.onSubmit({ ...fields, debtSplit });
 		handleOpenChange(false);
 	};
+	const hasValidSplit = Boolean(calculateDebtSplit(Number(amount), debtSplit));
 
 	return (
 		<Dialog onOpenChange={handleOpenChange} open={open}>
@@ -87,9 +113,9 @@ export function CreateDebtDialog({
 				<ScrollArea className="max-h-[92dvh]">
 					<form className="grid gap-5 p-6" onSubmit={submit}>
 						<DialogHeader>
-							<DialogTitle>{initialValue ? "Editar lançamento" : "Novo lançamento"}</DialogTitle>
+							<DialogTitle>{mode === "edit" ? "Editar lançamento" : "Novo lançamento"}</DialogTitle>
 							<DialogDescription>
-								{initialValue
+								{mode === "edit"
 									? "A alteração recalcula o saldo dos dois participantes."
 									: isOwedToMe
 										? "Este valor aumenta o total que a pessoa deve a você."
@@ -114,7 +140,11 @@ export function CreateDebtDialog({
 								Pagamentos
 							</Button>
 						</div>
-						<DebtPersonPicker onValueChange={setPersonId} required value={personId} />
+						{mode === "edit" ? (
+							<DebtPersonPicker onValueChange={setPersonId} required value={personId} />
+						) : (
+							<DebtSplitEditor amount={Number(amount)} onChange={setDebtSplit} value={debtSplit} />
+						)}
 						<MoneyField
 							id="debt-origin-amount"
 							label="Valor"
@@ -173,10 +203,10 @@ export function CreateDebtDialog({
 							</Button>
 							<Button
 								className="cursor-pointer"
-								disabled={pending || !personId || Number(amount) <= 0}
+								disabled={pending || Number(amount) <= 0 || (mode === "edit" ? !personId : !hasValidSplit)}
 								type="submit"
 							>
-								{pending ? "Salvando…" : initialValue ? "Salvar alterações" : "Salvar lançamento"}
+								{pending ? "Salvando…" : mode === "edit" ? "Salvar alterações" : "Salvar lançamento"}
 							</Button>
 						</DialogFooter>
 					</form>

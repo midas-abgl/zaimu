@@ -12,7 +12,7 @@ export type DebtSplitTarget =
 type TargetField = "creditPurchaseId" | "recurringPaymentId" | "subscriptionId" | "transactionId";
 const targetEntry = (target: DebtSplitTarget) => Object.entries(target)[0] as [TargetField, string];
 
-function calculateOrThrow(amount: number, split: DebtSplitInput) {
+export function calculateDebtSplitOrThrow(amount: number, split: DebtSplitInput) {
 	try {
 		return calculateDebtSplit(amount, split);
 	} catch (error) {
@@ -125,7 +125,7 @@ export async function replaceDebtSplit(input: {
 		return;
 	}
 	const nextSplit = input.split;
-	const calculated = calculateOrThrow(input.amount, nextSplit);
+	const calculated = calculateDebtSplitOrThrow(input.amount, nextSplit);
 	await assertParticipantsOwned(nextSplit, input.userId);
 	if (existing)
 		await executeStatement(
@@ -173,7 +173,7 @@ export async function replaceDebtSplit(input: {
 export async function getDebtSplitReturn(target: DebtSplitTarget, amount: number) {
 	const split = await getDebtSplitInput(target);
 	if (!split) return null;
-	const calculated = calculateOrThrow(amount, split);
+	const calculated = calculateDebtSplitOrThrow(amount, split);
 	const ids = calculated.participants.map(participant => participant.debtPersonId);
 	const people = await queryRows(
 		db.sql.public.DebtPerson.select("id", "name")

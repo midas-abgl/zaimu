@@ -75,4 +75,6 @@ export const DebtMutationEventReturn = t.Object({
 	kind: EventKind,
 });
 
+export const DebtMutationEventsReturn = t.Array(DebtMutationEventReturn);
+
 export const DebtSuccessReturn = t.Object({ success: t.Literal(true) });

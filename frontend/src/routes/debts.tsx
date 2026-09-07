@@ -7,7 +7,13 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import type { DebtEvent } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { showToast } from "@/stores";
-import { CreateDebtDialog, DebtInvitations, type DebtOriginDraft, DebtPersonCard } from "./debts/components";
+import {
+	CreateDebtDialog,
+	type CreateDebtOriginDraft,
+	DebtInvitations,
+	DebtPersonCard,
+	type UpdateDebtOriginDraft,
+} from "./debts/components";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 function DebtsPage() {
@@ -17,7 +23,7 @@ function DebtsPage() {
 	const ledger = useQuery({ queryFn: () => dataService.debts.getLedger(), queryKey: ["debts"] });
 	const refresh = () => queryClient.invalidateQueries({ queryKey: ["debts"] });
 	const create = useMutation({
-		mutationFn: (draft: DebtOriginDraft) => dataService.debts.createOrigin(draft),
+		mutationFn: (draft: CreateDebtOriginDraft) => dataService.debts.createOrigin(draft),
 		onError: error =>
 			showToast(error instanceof Error ? error.message : "Lançamento não criado.", "negative"),
 		onSuccess: async () => {
@@ -40,7 +46,7 @@ function DebtsPage() {
 		},
 	});
 	const update = useMutation({
-		mutationFn: ({ id, draft }: { id: string; draft: DebtOriginDraft }) =>
+		mutationFn: ({ id, draft }: { id: string; draft: UpdateDebtOriginDraft }) =>
 			dataService.debts.updateOrigin(id, draft),
 		onError: error =>
 			showToast(error instanceof Error ? error.message : "Lançamento não atualizado.", "negative"),
@@ -116,31 +122,31 @@ function DebtsPage() {
 				)}
 			</section>
 			<CreateDebtDialog
+				mode="create"
 				onOpenChange={setCreateOpen}
 				onSubmit={draft => create.mutateAsync(draft)}
 				open={createOpen}
 				pending={create.isPending}
 			/>
-			<CreateDebtDialog
-				initialValue={
-					editing
-						? {
-								amount: editing.event.amount,
-								date: editing.event.date,
-								description: editing.event.description ?? undefined,
-								dueDate: editing.event.dueDate ?? undefined,
-								isOwedToMe: editing.event.effect >= 0,
-								personId: editing.personId,
-							}
-						: undefined
-				}
-				onOpenChange={open => {
-					if (!open) setEditing(null);
-				}}
-				onSubmit={draft => update.mutateAsync({ draft, id: editing!.event.id })}
-				open={Boolean(editing)}
-				pending={update.isPending}
-			/>
+			{editing ? (
+				<CreateDebtDialog
+					initialValue={{
+						amount: editing.event.amount,
+						date: editing.event.date,
+						description: editing.event.description ?? undefined,
+						dueDate: editing.event.dueDate ?? undefined,
+						isOwedToMe: editing.event.effect >= 0,
+						personId: editing.personId,
+					}}
+					mode="edit"
+					onOpenChange={open => {
+						if (!open) setEditing(null);
+					}}
+					onSubmit={draft => update.mutateAsync({ draft, id: editing.event.id })}
+					open
+					pending={update.isPending}
+				/>
+			) : null}
 		</main>
 	);
 }

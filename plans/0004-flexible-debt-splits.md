@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Permitir que transações, compras, assinaturas e pagamentos recorrentes distribuam seu valor entre várias pessoas por cotas, percentuais ou valores fixos. Cada parcela externa gera um evento independente no livro da pessoa.
+Permitir que transações, compras, assinaturas, pagamentos recorrentes e lançamentos manuais distribuam seu valor entre várias pessoas por cotas, percentuais ou valores fixos. Cada parcela externa gera um evento independente no livro da pessoa.
 
 ## Decisões
 
@@ -11,7 +11,7 @@ Permitir que transações, compras, assinaturas e pagamentos recorrentes distrib
 - Percentuais sem titular somam 100%; valores fixos sem titular somam o total.
 - Ocorrências concretas guardam snapshot do rateio da agenda. Previsões nunca alteram o livro.
 - Associação legada vira uma cota externa de 100%, preservando saldo.
-- Salários, transferências, pagamentos de fatura e lançamentos manuais não ganham rateio.
+- Salários, transferências e pagamentos de fatura não ganham rateio.
 
 ## Etapas
 

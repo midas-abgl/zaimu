@@ -7,13 +7,16 @@ import {
 	normalizeDebtPersonName,
 	resolveDebtPersonConnection,
 } from "~/modules/debts/application";
+import { calculateDebtSplitOrThrow } from "~/modules/debts/application/debt-splits";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows } from "~/shared/infra/sql";
+import { DebtSplitInputDTO } from "./DebtSplitsDTO";
 import {
 	DebtConnectionReturn,
 	DebtInvitationReturn,
 	DebtLedgerReturn,
 	DebtMutationEventReturn,
+	DebtMutationEventsReturn,
 	DebtPersonReturn,
 	DebtSuccessReturn,
 	DebtSummaryReturn,
@@ -431,28 +434,47 @@ export const DebtsController = new Elysia({ prefix: "/debts" })
 		"/events",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
-			return createDebtEvent({
-				amount: body.amount,
-				createdByUserId: userId,
-				date: body.date,
-				debtPersonId: body.personId,
-				description: body.description,
-				dueDate: body.dueDate,
-				effect: body.isOwedToMe ? body.amount : -body.amount,
-				kind: "ORIGIN",
-			});
+			const split =
+				body.debtSplit ??
+				(body.personId
+					? {
+							mode: "SHARES" as const,
+							ownerShares: null,
+							participants: [{ debtPersonId: body.personId, shares: 1 }],
+						}
+					: undefined);
+			if (!split) throw new HttpException("Informe ao menos uma pessoa", 400);
+			const calculated = calculateDebtSplitOrThrow(body.amount, split);
+			await Promise.all(
+				calculated.participants.map(participant => getOwnedDebtPerson(participant.debtPersonId, userId)),
+			);
+			return Promise.all(
+				calculated.participants.map(participant =>
+					createDebtEvent({
+						amount: participant.amount,
+						createdByUserId: userId,
+						date: body.date,
+						debtPersonId: participant.debtPersonId,
+						description: body.description,
+						dueDate: body.dueDate,
+						effect: body.isOwedToMe ? participant.amount : -participant.amount,
+						kind: "ORIGIN",
+					}),
+				),
+			);
 		},
 		{
 			body: t.Object({
 				amount: t.Number({ exclusiveMinimum: 0 }),
 				date: t.Optional(t.Nullable(t.String())),
+				debtSplit: t.Optional(DebtSplitInputDTO),
 				description: t.Optional(t.String({ maxLength: 1000 })),
 				dueDate: t.Optional(t.String()),
 				isOwedToMe: t.Boolean(),
-				personId: t.String({ maxLength: 36, minLength: 1 }),
+				personId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 			}),
 			detail: { tags: ["Debts"] },
-			response: DebtMutationEventReturn,
+			response: DebtMutationEventsReturn,
 		},
 	)
 	.post(

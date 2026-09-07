@@ -923,27 +923,38 @@ export const dataService = {
 		async createOrigin(data: {
 			amount: number;
 			date?: null | string;
+			debtSplit: DebtSplitInput;
 			description?: string;
 			dueDate?: string;
 			isOwedToMe: boolean;
-			personId: string;
 		}): Promise<void> {
 			if (isGuestMode()) {
-				const person = await localDebtPeople.getById(data.personId);
-				if (!person) throw new Error("Pessoa não encontrada");
-				const debt: Debt = {
-					amount: data.amount,
-					date: data.date ?? undefined,
-					description: data.description,
-					dueDate: data.dueDate,
-					id: crypto.randomUUID(),
-					isOwedToMe: data.isOwedToMe,
-					isPaid: false,
-					personId: person.data.id,
-					personName: person.data.name,
-					userId: getUserId(),
-				};
-				await localDebts.put(debt, debt.id);
+				const calculated = calculateDebtSplit(data.amount, data.debtSplit);
+				if (!calculated) throw new Error("O rateio da dívida não fecha com o valor total.");
+				const people = await Promise.all(
+					calculated.participants.map(async participant => {
+						const person = await localDebtPeople.getById(participant.debtPersonId);
+						if (!person) throw new Error("Pessoa não encontrada");
+						return { amount: participant.amount, person: person.data };
+					}),
+				);
+				await Promise.all(
+					people.map(({ amount, person }) => {
+						const debt: Debt = {
+							amount,
+							date: data.date ?? undefined,
+							description: data.description,
+							dueDate: data.dueDate,
+							id: crypto.randomUUID(),
+							isOwedToMe: data.isOwedToMe,
+							isPaid: false,
+							personId: person.id,
+							personName: person.name,
+							userId: getUserId(),
+						};
+						return localDebts.put(debt, debt.id);
+					}),
+				);
 				return;
 			}
 			await fetchWithAuth("/debts/events", { body: JSON.stringify(data), method: "POST" });
