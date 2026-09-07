@@ -1159,9 +1159,9 @@ suite("Prisma 8 SQL query builder", () => {
 			"POST",
 			{
 				debtPersonId: ownerPerson.id,
-				description: "Compra parcelada",
 				installments: 3,
 				purchaseDate: date,
+				storeName: "Mercado da esquina",
 				totalAmount: 90,
 			},
 			owner.cookie,
@@ -1175,7 +1175,7 @@ suite("Prisma 8 SQL query builder", () => {
 		expect(afterInstallments.people[0]?.balance).toBe(40);
 		expect(
 			afterInstallments.people[0]?.events.filter(event => event.amount === 90 && event.effect === 90),
-		).toHaveLength(1);
+		).toEqual([expect.objectContaining({ description: "Mercado da esquina" })]);
 		const rootPurchase = purchases.find(purchase => purchase.currentInstallment === 1)!;
 		const refundResponse = await jsonRequest(
 			`/credit-cards/${cardAccount.creditCard.id}/purchases/${rootPurchase.id}/refunds`,
@@ -1184,8 +1184,20 @@ suite("Prisma 8 SQL query builder", () => {
 			owner.cookie,
 		);
 		expect(refundResponse.status).toBe(200);
-		const refund = (await refundResponse.json()) as { id: string; isRefund: boolean };
+		const refund = (await refundResponse.json()) as { id: string; isRefund: boolean; statementId: string };
 		expect(refund.isRefund).toBe(true);
+		expect((await jsonRequest("/transactions/", "GET", undefined, owner.cookie)).status).toBe(200);
+		expect((await jsonRequest("/sync/", "POST", {}, owner.cookie)).status).toBe(200);
+		expect(
+			(
+				await jsonRequest(
+					`/credit-cards/${cardAccount.creditCard.id}/statements/${refund.statementId}`,
+					"GET",
+					undefined,
+					owner.cookie,
+				)
+			).status,
+		).toBe(200);
 		expect(
 			(
 				await jsonRequest(

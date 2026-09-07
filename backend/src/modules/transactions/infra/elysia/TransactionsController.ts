@@ -340,7 +340,10 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 							...purchase,
 							amount: purchase.isRefund ? Math.abs(Number(purchase.amount)) : Number(purchase.amount),
 							creditCardStatementId: purchase.statementId,
-							debtSplit: await getDebtSplitReturn({ creditPurchaseId: purchase.id }, Number(purchase.amount)),
+							debtSplit: await getDebtSplitReturn(
+								{ creditPurchaseId: purchase.id },
+								Math.abs(Number(purchase.amount)),
+							),
 							destinationFinancialAccountId: null,
 							destinationName: null,
 							originName: purchase.sourceName,

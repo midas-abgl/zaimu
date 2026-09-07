@@ -1021,7 +1021,7 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 						...purchase,
 						debtSplit: await getDebtSplitReturn(
 							{ creditPurchaseId: purchase.id },
-							Number(purchase.totalAmount),
+							Math.abs(Number(purchase.totalAmount)),
 						),
 						tagIds: (purchaseTags.get(purchase.id) ?? []).map(tag => tag.id),
 						tags: purchaseTags.get(purchase.id) ?? [],

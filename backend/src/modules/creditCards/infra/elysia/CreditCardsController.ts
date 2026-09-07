@@ -68,6 +68,8 @@ const forecastStatementId = (statementDate: Date) => `forecast-${statementDate.t
 const timePattern = /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
 const toCents = (amount: number | string) => Math.round(Number(amount) * 100);
 const toDateKey = (date: Date) => date.toISOString().slice(0, 10);
+const getCreditPurchaseName = (purchase: Pick<CreditPurchaseRow, "description" | "storeName">) =>
+	purchase.description || purchase.storeName || "Compra";
 
 function applyStatementCredits<
 	T extends {
@@ -930,7 +932,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 							categoryName: tags[0]?.name,
 							debtSplit: await getDebtSplitReturn(
 								{ creditPurchaseId: purchase.parentId ?? purchase.id },
-								Number(purchase.totalAmount),
+								Math.abs(Number(purchase.totalAmount)),
 							),
 							tagIds: tags.map(tag => tag.id),
 							tags,
@@ -1238,7 +1240,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				creditPurchaseId: purchase.id,
 				date: body.purchaseDate,
 				debtSplit: inheritedDebtSplit ?? body.debtSplit,
-				description: body.description,
+				description: getCreditPurchaseName(purchase),
 				matchEventId: body.matchDebtEventId,
 				totalAmount: body.totalAmount,
 				userId,
@@ -1670,7 +1672,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				creditPurchaseId: purchase.parentId ?? purchase.id,
 				date: updatedPurchase.purchaseDate.toISOString().slice(0, 10),
 				debtSplit: body.debtSplit,
-				description: updatedPurchase.description,
+				description: getCreditPurchaseName(updatedPurchase),
 				matchEventId: body.matchDebtEventId,
 				totalAmount: Number(updatedPurchase.totalAmount),
 				userId,
@@ -1725,7 +1727,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				...updatedPurchase,
 				debtSplit: await getDebtSplitReturn(
 					{ creditPurchaseId: purchase.parentId ?? purchase.id },
-					Number(updatedPurchase.totalAmount),
+					Math.abs(Number(updatedPurchase.totalAmount)),
 				),
 				tagIds: tags.map(tag => tag.id),
 				tags,
