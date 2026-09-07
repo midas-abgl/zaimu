@@ -119,6 +119,12 @@ export function EditCreditPurchaseDialog({
 								As alterações afetam a compra inteira e suas próximas parcelas.
 							</DialogDescription>
 						</DialogHeader>
+						{onRefund ? (
+							<Button className="cursor-pointer" onClick={onRefund} type="button" variant="outline">
+								<LuUndo2 />
+								Reembolsar compra
+							</Button>
+						) : null}
 						<form className="grid gap-5" onSubmit={submit}>
 							{cards?.length && creditCardId ? (
 								<CustomSelect
@@ -223,12 +229,6 @@ export function EditCreditPurchaseDialog({
 								) : null}
 							</div>
 							<DialogFooter>
-								{onRefund ? (
-									<Button className="cursor-pointer" onClick={onRefund} type="button" variant="outline">
-										<LuUndo2 />
-										Reembolsar
-									</Button>
-								) : null}
 								<Button
 									className="cursor-pointer"
 									onClick={() => onOpenChange(false)}
