@@ -1,0 +1,198 @@
+import { addMonths, format, isAfter, parseISO, startOfMonth, subMonths } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { useState } from "react";
+import { LuCalendarDays, LuChevronLeft, LuChevronRight } from "react-icons/lu";
+import { Button } from "@/components/ui/Button";
+import {
+	Popover,
+	PopoverContent,
+	PopoverDescription,
+	PopoverHeader,
+	PopoverTitle,
+	PopoverTrigger,
+} from "@/components/ui/Popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
+import { CalendarMonth } from "./CalendarMonth";
+import type { DateRangeValue } from "./types";
+
+interface DateRangePickerProps {
+	onChange: (value: DateRangeValue) => void;
+	value: DateRangeValue;
+}
+
+export function DateRangePicker({ onChange, value }: DateRangePickerProps) {
+	const [open, setOpen] = useState(false);
+	const [draftRange, setDraftRange] = useState(value);
+	const [activeBoundary, setActiveBoundary] = useState<"end" | "start">("start");
+	const [hoveredDate, setHoveredDate] = useState<Date>();
+	const [visibleMonth, setVisibleMonth] = useState(() => getVisibleMonth(value));
+	const startDate = draftRange.startDate ? parseISO(draftRange.startDate) : undefined;
+	const endDate = draftRange.endDate ? parseISO(draftRange.endDate) : undefined;
+
+	const handleOpenChange = (nextOpen: boolean) => {
+		if (nextOpen) {
+			setDraftRange(value);
+			setActiveBoundary(value.startDate ? "end" : "start");
+			setHoveredDate(undefined);
+			setVisibleMonth(getVisibleMonth(value));
+		}
+		setOpen(nextOpen);
+	};
+	const handleDateSelect = (date: Date) => {
+		const selectedDate = format(date, "yyyy-MM-dd");
+
+		if (activeBoundary === "start") {
+			setDraftRange(currentRange => ({
+				endDate:
+					currentRange.endDate && isAfter(date, parseISO(currentRange.endDate))
+						? undefined
+						: currentRange.endDate,
+				startDate: selectedDate,
+			}));
+			setActiveBoundary("end");
+			return;
+		}
+
+		setDraftRange(currentRange => ({
+			endDate: selectedDate,
+			startDate:
+				currentRange.startDate && isAfter(parseISO(currentRange.startDate), date)
+					? undefined
+					: currentRange.startDate,
+		}));
+		setActiveBoundary("start");
+	};
+	const handleApply = () => {
+		onChange(draftRange);
+		setOpen(false);
+	};
+	const handleCurrentMonth = () => {
+		const now = new Date();
+		const currentMonth = {
+			endDate: format(new Date(now.getFullYear(), now.getMonth() + 1, 0), "yyyy-MM-dd"),
+			startDate: format(startOfMonth(now), "yyyy-MM-dd"),
+		};
+		setDraftRange(currentMonth);
+		setVisibleMonth(startOfMonth(now));
+	};
+
+	return (
+		<Popover onOpenChange={handleOpenChange} open={open}>
+			<PopoverTrigger asChild>
+				<Button className="min-w-60 cursor-pointer justify-start" variant="outline">
+					<LuCalendarDays />
+					<span>{formatDateRange(value)}</span>
+				</Button>
+			</PopoverTrigger>
+			<PopoverContent align="end" className="w-[22rem] gap-5 p-4">
+				<PopoverHeader>
+					<PopoverTitle>Período da dashboard</PopoverTitle>
+					<PopoverDescription>Os limites são opcionais.</PopoverDescription>
+				</PopoverHeader>
+				<div className="grid grid-cols-2 gap-2">
+					<Button
+						aria-pressed={activeBoundary === "start"}
+						className="h-auto cursor-pointer flex-col items-start gap-0 rounded-xl px-3 py-2 text-left"
+						onClick={() => setActiveBoundary("start")}
+						type="button"
+						variant="outline"
+					>
+						<span className="text-muted-foreground text-xs">De</span>
+						<span>{formatBoundary(draftRange.startDate)}</span>
+					</Button>
+					<Button
+						aria-pressed={activeBoundary === "end"}
+						className="h-auto cursor-pointer flex-col items-start gap-0 rounded-xl px-3 py-2 text-left"
+						onClick={() => setActiveBoundary("end")}
+						type="button"
+						variant="outline"
+					>
+						<span className="text-muted-foreground text-xs">Até</span>
+						<span>{formatBoundary(draftRange.endDate)}</span>
+					</Button>
+				</div>
+				<div className="flex items-center justify-between">
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								aria-label="Mês anterior"
+								className="cursor-pointer"
+								onClick={() => setVisibleMonth(month => subMonths(month, 1))}
+								size="icon-sm"
+								type="button"
+								variant="outline"
+							>
+								<LuChevronLeft />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>Mês anterior</TooltipContent>
+					</Tooltip>
+					<Button
+						className="cursor-pointer"
+						onClick={handleCurrentMonth}
+						size="sm"
+						type="button"
+						variant="outline"
+					>
+						Mês atual
+					</Button>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								aria-label="Próximo mês"
+								className="cursor-pointer"
+								onClick={() => setVisibleMonth(month => addMonths(month, 1))}
+								size="icon-sm"
+								type="button"
+								variant="outline"
+							>
+								<LuChevronRight />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>Próximo mês</TooltipContent>
+					</Tooltip>
+				</div>
+				<div onMouseLeave={() => setHoveredDate(undefined)}>
+					<CalendarMonth
+						activeBoundary={activeBoundary}
+						endDate={endDate}
+						hoveredDate={hoveredDate}
+						month={visibleMonth}
+						onDateHover={setHoveredDate}
+						onDateSelect={handleDateSelect}
+						startDate={startDate}
+					/>
+				</div>
+				<div className="flex items-center justify-between gap-3 border-t pt-4">
+					<Button
+						className="cursor-pointer"
+						onClick={() => setDraftRange({})}
+						size="sm"
+						type="button"
+						variant="outline"
+					>
+						Limpar
+					</Button>
+					<Button className="cursor-pointer" onClick={handleApply} size="sm" type="button">
+						Aplicar
+					</Button>
+				</div>
+			</PopoverContent>
+		</Popover>
+	);
+}
+
+function formatDateRange({ endDate, startDate }: DateRangeValue) {
+	if (startDate && endDate) return `${formatBoundary(startDate)} — ${formatBoundary(endDate)}`;
+	if (startDate) return `A partir de ${formatBoundary(startDate)}`;
+	if (endDate) return `Até ${formatBoundary(endDate)}`;
+	return "Todas as datas";
+}
+
+function formatBoundary(value?: string) {
+	return value ? format(parseISO(value), "dd MMM yyyy", { locale: ptBR }) : "Sem limite";
+}
+
+function getVisibleMonth({ endDate, startDate }: DateRangeValue) {
+	return startOfMonth(parseISO(startDate ?? endDate ?? format(new Date(), "yyyy-MM-dd")));
+}
