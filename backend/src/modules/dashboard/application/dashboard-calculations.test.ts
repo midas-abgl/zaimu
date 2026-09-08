@@ -1,0 +1,42 @@
+import { expect, test } from "bun:test";
+import { buildComparisonPeriods, nextOccurrence, resolveDashboardRange } from "./dashboard-calculations";
+
+test("finds next occurrence without materializing it", () => {
+	const occurrence = nextOccurrence({
+		dayOfMonth: 31,
+		frequency: "MONTHLY",
+		from: new Date("2026-02-01T00:00:00"),
+		startDate: new Date("2026-01-31T00:00:00"),
+	});
+	expect(occurrence?.toISOString().slice(0, 10)).toBe("2026-02-28");
+});
+
+test("stops an ended schedule and keeps inclusive dates", () => {
+	expect(
+		nextOccurrence({
+			endDate: new Date("2026-02-02T00:00:00"),
+			frequency: "DAILY",
+			from: new Date("2026-02-02T00:00:00"),
+			startDate: new Date("2026-02-01T00:00:00"),
+		})
+			?.toISOString()
+			.slice(0, 10),
+	).toBe("2026-02-02");
+	expect(
+		nextOccurrence({
+			endDate: new Date("2026-02-02T00:00:00"),
+			frequency: "DAILY",
+			from: new Date("2026-02-03T00:00:00"),
+			startDate: new Date("2026-02-01T00:00:00"),
+		}),
+	).toBeUndefined();
+});
+
+test("builds thirteen contiguous inclusive comparison intervals", () => {
+	const base = resolveDashboardRange("2026-03-01", "2026-03-31", new Date("2026-03-10T00:00:00"));
+	const periods = buildComparisonPeriods({ base, initialBalance: 100, transactions: [] });
+	expect(periods).toHaveLength(13);
+	expect(periods[0]?.endDate).toBe("2025-09-26");
+	expect(periods[6]?.startDate).toBe("2026-03-01");
+	expect(periods[12]?.endDate).toBe("2026-10-03");
+});

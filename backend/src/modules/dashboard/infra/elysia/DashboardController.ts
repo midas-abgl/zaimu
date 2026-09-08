@@ -1,210 +1,445 @@
-import { endOfMonth, startOfMonth, subMonths } from "date-fns";
-import Elysia from "elysia";
+import { startOfDay } from "date-fns";
+import Elysia, { t } from "elysia";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
 import { requireUserId } from "~/modules/auth";
-import { getDebtBalanceTotals } from "~/modules/debts/application";
+import {
+	buildComparisonPeriods,
+	type DashboardForecast,
+	dateKey,
+	nextOccurrence,
+	period,
+	type RecurrenceFrequency,
+	resolveDashboardRange,
+} from "~/modules/dashboard/application";
 import { materializeSalaryTransactions } from "~/modules/salaries/application/materialize-salary-transactions";
-import { db, queryFirst, queryRows } from "~/shared/infra/sql";
+import { db, queryRows } from "~/shared/infra/sql";
+
+const DateQuery = t.Optional(t.String({ format: "date" }));
+const ForecastReturn = t.Object({
+	amount: t.Number(),
+	date: t.String(),
+	direction: t.Union([t.Literal("INCOME"), t.Literal("EXPENSE")]),
+	id: t.String(),
+	name: t.String(),
+	sourceId: t.String(),
+	type: t.Union([
+		t.Literal("CARD"),
+		t.Literal("LOAN"),
+		t.Literal("RECURRING"),
+		t.Literal("SALARY"),
+		t.Literal("SUBSCRIPTION"),
+		t.Literal("TRANSACTION"),
+	]),
+});
+const PeriodReturn = t.Object({
+	endDate: t.String(),
+	expenses: t.Number(),
+	income: t.Number(),
+	initialBalance: t.Number(),
+	net: t.Number(),
+	startDate: t.String(),
+});
+export const DashboardReturn = t.Object({
+	accounts: t.Array(
+		t.Object({ balance: t.Number(), id: t.String(), name: t.Nullable(t.String()), type: t.String() }),
+	),
+	comparison: t.Array(PeriodReturn),
+	creditCards: t.Array(
+		t.Object({
+			availableLimit: t.Number(),
+			creditLimit: t.Number(),
+			excludeFromTotals: t.Boolean(),
+			financialAccountId: t.String(),
+			id: t.String(),
+			name: t.Nullable(t.String()),
+			statement: t.Nullable(t.Object({ balanceAmount: t.Number(), dueDate: t.String(), id: t.String() })),
+		}),
+	),
+	debts: t.Object({
+		iOwe: t.Number(),
+		net: t.Number(),
+		owedToMe: t.Number(),
+		people: t.Array(
+			t.Object({
+				balance: t.Number(),
+				direction: t.Union([t.Literal("OWED"), t.Literal("OWES")]),
+				id: t.String(),
+				name: t.String(),
+			}),
+		),
+	}),
+	forecasts: t.Array(ForecastReturn),
+	period: PeriodReturn,
+	totalAvailableCredit: t.Number(),
+});
+export type DashboardReturn = typeof DashboardReturn.static;
 
 export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 	"/",
-	async ({ request }) => {
+	async ({ query, request }) => {
 		const userId = await requireUserId(request);
 		await materializeSalaryTransactions(userId);
 		const now = new Date();
-		const currentMonthStart = startOfMonth(now);
-		const currentMonthEnd = endOfMonth(now);
-		const lastMonthStart = startOfMonth(subMonths(now, 1));
-		const lastMonthEnd = endOfMonth(subMonths(now, 1));
-
-		// Get accounts summary
+		const today = startOfDay(now);
+		const range = resolveDashboardRange(query.startDate, query.endDate, now);
 		const accounts = await queryRows(
 			db.sql.public.FinancialAccount.select("id", "name", "type")
 				.where((f, fn) => fn.eq(f.userId, userId))
 				.build(),
 		);
 		const accountIds = accounts.map(account => account.id);
-
-		const balances = await getFinancialAccountBalances(accountIds);
-		const totalBalance = accounts
-			.filter(account => account.type !== "CREDIT_CARD" && account.type !== "REWARDS")
-			.reduce((sum, account) => sum + (balances.get(account.id) ?? 0), 0);
-
-		// Get current month income
-		const getTransactionTotal = async (type: "INCOME" | "EXPENSE", start: Date, end: Date) => {
-			if (accountIds.length === 0) return { total: 0 };
-			return queryFirst(
-				db.sql.public.Transaction.select("total", (f, fn) =>
-					fn.raw`COALESCE(SUM(${f.amount}), 0)`.returns("pg/numeric@1"),
+		const [cards, salaries, subscriptions, recurring, loans, transactions, debtPeople] = await Promise.all([
+			queryRows(
+				db.sql.public.CreditCard.innerJoin(db.sql.public.FinancialAccount, (f, fn) =>
+					fn.eq(f.CreditCard.financialAccountId, f.FinancialAccount.id),
 				)
-					.where((f, fn) =>
-						fn.and(
-							fn.eq(f.type, type),
-							fn.gte(f.date, start),
-							fn.lte(f.date, end),
-							fn.or(
-								fn.in(f.destinationFinancialAccountId, accountIds),
-								fn.in(f.originFinancialAccountId, accountIds),
-							),
-						),
-					)
+					.select(f => ({
+						creditLimit: f.CreditCard.creditLimit,
+						excludeFromTotals: f.CreditCard.excludeFromTotals,
+						financialAccountId: f.CreditCard.financialAccountId,
+						id: f.CreditCard.id,
+						name: f.FinancialAccount.name,
+					}))
+					.where((f, fn) => fn.eq(f.FinancialAccount.userId, userId))
 					.build(),
-			);
-		};
-		const [currentMonthIncome, currentMonthExpenses, lastMonthIncome, lastMonthExpenses] = await Promise.all([
-			getTransactionTotal("INCOME", currentMonthStart, currentMonthEnd),
-			getTransactionTotal("EXPENSE", currentMonthStart, currentMonthEnd),
-			getTransactionTotal("INCOME", lastMonthStart, lastMonthEnd),
-			getTransactionTotal("EXPENSE", lastMonthStart, lastMonthEnd),
-		]);
-
-		// Get upcoming bills (subscriptions due this month)
-		const subscriptions = await queryRows(
-			db.sql.public.Subscription.select("id", "name", "amount", "billingDay", "isActive")
-				.where((f, fn) => fn.and(fn.eq(f.userId, userId), fn.eq(f.isActive, true)))
-				.build(),
-		);
-
-		const upcomingBills = subscriptions.filter(s => s.billingDay >= now.getDate());
-
-		// Get pending credit card statements
-		const creditCards = await queryRows(
-			db.sql.public.CreditCard.innerJoin(db.sql.public.FinancialAccount, (f, fn) =>
-				fn.eq(f.CreditCard.financialAccountId, f.FinancialAccount.id),
-			)
-				.select(f => ({ id: f.CreditCard.id, name: f.FinancialAccount.name }))
-				.where((f, fn) => fn.eq(f.FinancialAccount.userId, userId))
-				.build(),
-		);
-
-		const cardIds = creditCards.map(card => card.id);
-		const pendingStatements =
-			cardIds.length === 0
-				? []
-				: await queryRows(
-						db.sql.public.CreditCardStatement.select(
+			),
+			queryRows(
+				db.sql.public.Salary.select(
+					"id",
+					"amount",
+					"endDate",
+					"frequency",
+					"isActive",
+					"payDay",
+					"source",
+					"startDate",
+				)
+					.where((f, fn) => fn.eq(f.userId, userId))
+					.build(),
+			),
+			queryRows(
+				db.sql.public.Subscription.select(
+					"id",
+					"amount",
+					"billingDay",
+					"endDate",
+					"frequency",
+					"isActive",
+					"name",
+					"startDate",
+				)
+					.where((f, fn) => fn.eq(f.userId, userId))
+					.build(),
+			),
+			queryRows(
+				db.sql.public.RecurringPayment.select(
+					"id",
+					"amount",
+					"dayOfMonth",
+					"dayOfWeek",
+					"endDate",
+					"frequency",
+					"isActive",
+					"name",
+					"startDate",
+				)
+					.where((f, fn) => fn.eq(f.userId, userId))
+					.build(),
+			),
+			queryRows(
+				db.sql.public.Loan.select("id", "installmentAmount", "lender")
+					.where((f, fn) => fn.eq(f.userId, userId))
+					.build(),
+			),
+			accountIds.length
+				? queryRows(
+						db.sql.public.Transaction.select(
+							"amount",
+							"date",
+							"description",
 							"id",
-							"creditCardId",
-							"statementDate",
-							"dueDate",
-							"totalAmount",
-							"paidAmount",
-							"isPaid",
-							"createdAt",
-							"updatedAt",
+							"recurrenceId",
+							"salaryId",
+							"subscriptionId",
+							"type",
 						)
-							.where((f, fn) =>
-								fn.and(fn.in(f.creditCardId, cardIds), fn.eq(f.isPaid, false), fn.gte(f.dueDate, now)),
-							)
-							.orderBy("dueDate", { direction: "asc" })
-							.build(),
-					);
-
-		// Get active loans summary
-		const loans = await queryRows(
-			db.sql.public.Loan.select("id", "lender", "totalInstallments", "installmentAmount")
-				.where((f, fn) => fn.eq(f.userId, userId))
-				.build(),
-		);
-
-		const loansWithPayments = await Promise.all(
-			loans.map(async loan => {
-				const paidCount = await queryFirst(
-					db.sql.public.LoanPayment.select("count", (f, fn) => fn.raw`COUNT(${f.id})`.returns("pg/int8@1"))
-						.where((f, fn) =>
-							fn.and(fn.eq(f.loanId, loan.id), fn.raw`${f.paidDate} IS NOT NULL`.returns("pg/bool@1")),
-						)
-						.build(),
-				);
-
-				const remainingInstallments = loan.totalInstallments - Number(paidCount?.count ?? 0);
-				const remainingAmount = remainingInstallments * Number(loan.installmentAmount);
-
-				return {
-					id: loan.id,
-					installmentAmount: Number(loan.installmentAmount),
-					lender: loan.lender,
-					remainingAmount,
-					remainingInstallments,
-				};
-			}),
-		);
-
-		const activeLoans = loansWithPayments.filter(l => l.remainingInstallments > 0);
-
-		const debtsSummary = await getDebtBalanceTotals(userId);
-
-		// Recent transactions
-		const recentTransactions =
-			accountIds.length === 0
-				? []
-				: await queryRows(
-						db.sql.public.Transaction.outerLeftJoin(db.sql.public.Category, (f, fn) =>
-							fn.eq(f.Transaction.categoryId, f.Category.id),
-						)
-							.select(f => ({
-								amount: f.Transaction.amount,
-								categoryColor: f.Category.color,
-								categoryName: f.Category.name,
-								date: f.Transaction.date,
-								description: f.Transaction.description,
-								id: f.Transaction.id,
-								time: f.Transaction.time,
-								type: f.Transaction.type,
-							}))
 							.where((f, fn) =>
 								fn.or(
-									fn.in(f.Transaction.destinationFinancialAccountId, accountIds),
-									fn.in(f.Transaction.originFinancialAccountId, accountIds),
+									fn.in(f.originFinancialAccountId, accountIds),
+									fn.in(f.destinationFinancialAccountId, accountIds),
 								),
 							)
-							.orderBy(f => f.Transaction.date, { direction: "desc" })
-							.orderBy(f => f.Transaction.createdAt, { direction: "desc" })
-							.limit(10)
 							.build(),
-					);
+					)
+				: [],
+			queryRows(
+				db.sql.public.DebtPerson.select("id", "name")
+					.where((f, fn) => fn.eq(f.userId, userId))
+					.build(),
+			),
+		]);
+		const [balances, statements, payments, debtEvents] = await Promise.all([
+			getFinancialAccountBalances(accountIds),
+			cards.length
+				? queryRows(
+						db.sql.public.CreditCardStatement.select(
+							"creditCardId",
+							"dueDate",
+							"id",
+							"paidAmount",
+							"totalAmount",
+						)
+							.where((f, fn) =>
+								fn.in(
+									f.creditCardId,
+									cards.map(card => card.id),
+								),
+							)
+							.build(),
+					)
+				: [],
+			loans.length
+				? queryRows(
+						db.sql.public.LoanPayment.select("loanId", "dueDate", "id", "paidDate", "totalPaid")
+							.where((f, fn) =>
+								fn.in(
+									f.loanId,
+									loans.map(loan => loan.id),
+								),
+							)
+							.build(),
+					)
+				: [],
+			debtPeople.length
+				? queryRows(
+						db.sql.public.DebtEvent.select("amount", "createdByUserId", "debtPersonId", "effect")
+							.where((f, fn) =>
+								fn.in(
+									f.debtPersonId,
+									debtPeople.map(person => person.id),
+								),
+							)
+							.build(),
+					)
+				: [],
+		]);
+		const monetaryAccounts = accounts.filter(
+			account =>
+				account.type !== "CREDIT_CARD" && account.type !== "INVESTMENT" && account.type !== "REWARDS",
+		);
+		const currentBalance = monetaryAccounts.reduce(
+			(sum, account) => sum + (balances.get(account.id) ?? 0),
+			0,
+		);
+		const normalizedTransactions = transactions.map(transaction => ({
+			...transaction,
+			amount: Number(transaction.amount),
+			date: startOfDay(transaction.date),
+			type: transaction.type as "EXPENSE" | "INCOME" | "TRANSFER",
+		}));
+		const periodTransactions = normalizedTransactions.filter(
+			transaction =>
+				transaction.date >= range.start && transaction.date <= range.end && transaction.type !== "TRANSFER",
+		);
+		const income = periodTransactions
+			.filter(transaction => transaction.type === "INCOME")
+			.reduce((sum, transaction) => sum + transaction.amount, 0);
+		const expenses = periodTransactions
+			.filter(transaction => transaction.type === "EXPENSE")
+			.reduce((sum, transaction) => sum + transaction.amount, 0);
+		const afterRange = normalizedTransactions
+			.filter(transaction => transaction.date > range.end && transaction.type !== "TRANSFER")
+			.reduce(
+				(sum, transaction) =>
+					sum + (transaction.type === "INCOME" ? transaction.amount : -transaction.amount),
+				0,
+			);
+		const dashboardPeriod = period({
+			end: range.end,
+			expenses,
+			income,
+			initialBalance: currentBalance - afterRange - income + expenses,
+			start: range.start,
+		});
 
+		const forecasts: DashboardForecast[] = [];
+		for (const salary of salaries.filter(item => item.isActive)) {
+			const occurrence = nextOccurrence({
+				dayOfMonth: salary.payDay,
+				endDate: salary.endDate,
+				frequency: salary.frequency as RecurrenceFrequency,
+				from: today,
+				startDate: salary.startDate,
+			});
+			if (occurrence)
+				forecasts.push({
+					amount: Number(salary.amount),
+					date: dateKey(occurrence),
+					direction: "INCOME",
+					id: `salary-${salary.id}`,
+					name: salary.source,
+					sourceId: salary.id,
+					type: "SALARY",
+				});
+		}
+		for (const subscription of subscriptions.filter(item => item.isActive)) {
+			const occurrence = nextOccurrence({
+				dayOfMonth: subscription.billingDay,
+				endDate: subscription.endDate,
+				frequency: subscription.frequency as RecurrenceFrequency,
+				from: today,
+				startDate: subscription.startDate,
+			});
+			if (occurrence)
+				forecasts.push({
+					amount: Number(subscription.amount),
+					date: dateKey(occurrence),
+					direction: "EXPENSE",
+					id: `subscription-${subscription.id}`,
+					name: subscription.name,
+					sourceId: subscription.id,
+					type: "SUBSCRIPTION",
+				});
+		}
+		for (const recurrence of recurring.filter(item => item.isActive)) {
+			const occurrence = nextOccurrence({
+				dayOfMonth: recurrence.dayOfMonth,
+				dayOfWeek: recurrence.dayOfWeek,
+				endDate: recurrence.endDate,
+				frequency: recurrence.frequency as RecurrenceFrequency,
+				from: today,
+				startDate: recurrence.startDate,
+			});
+			if (occurrence)
+				forecasts.push({
+					amount: Number(recurrence.amount),
+					date: dateKey(occurrence),
+					direction: "EXPENSE",
+					id: `recurring-${recurrence.id}`,
+					name: recurrence.name,
+					sourceId: recurrence.id,
+					type: "RECURRING",
+				});
+		}
+		for (const payment of payments.filter(item => !item.paidDate && item.dueDate >= today)) {
+			const loan = loans.find(item => item.id === payment.loanId);
+			if (loan)
+				forecasts.push({
+					amount: Number(payment.totalPaid),
+					date: dateKey(payment.dueDate),
+					direction: "EXPENSE",
+					id: `loan-${payment.id}`,
+					name: loan.lender,
+					sourceId: loan.id,
+					type: "LOAN",
+				});
+		}
+		for (const statement of statements.filter(
+			item => item.dueDate >= today && Number(item.totalAmount) > Number(item.paidAmount),
+		)) {
+			const card = cards.find(item => item.id === statement.creditCardId);
+			if (card)
+				forecasts.push({
+					amount: Number(statement.totalAmount) - Number(statement.paidAmount),
+					date: dateKey(statement.dueDate),
+					direction: "EXPENSE",
+					id: `card-${statement.id}`,
+					name: card.name ?? "Cartão",
+					sourceId: card.id,
+					type: "CARD",
+				});
+		}
+		for (const transaction of normalizedTransactions.filter(
+			item =>
+				item.date > today &&
+				!item.recurrenceId &&
+				!item.salaryId &&
+				!item.subscriptionId &&
+				item.type !== "TRANSFER",
+		))
+			forecasts.push({
+				amount: transaction.amount,
+				date: dateKey(transaction.date),
+				direction: transaction.type as "EXPENSE" | "INCOME",
+				id: `transaction-${transaction.id}`,
+				name: transaction.description ?? "Movimentação",
+				sourceId: transaction.id,
+				type: "TRANSACTION",
+			});
+		const cardsWithStatements = cards.map(card => {
+			const cardStatements = statements.filter(statement => statement.creditCardId === card.id);
+			const statement =
+				cardStatements
+					.filter(item => item.dueDate >= today)
+					.toSorted((left, right) => left.dueDate.getTime() - right.dueDate.getTime())[0] ??
+				cardStatements.toSorted((left, right) => right.dueDate.getTime() - left.dueDate.getTime())[0];
+			const used = cardStatements.reduce(
+				(sum, item) => sum + Math.max(0, Number(item.totalAmount) - Number(item.paidAmount)),
+				0,
+			);
+			return {
+				availableLimit: Math.max(0, Number(card.creditLimit) - used),
+				creditLimit: Number(card.creditLimit),
+				excludeFromTotals: card.excludeFromTotals,
+				financialAccountId: card.financialAccountId,
+				id: card.id,
+				name: card.name,
+				statement: statement
+					? {
+							balanceAmount: Math.max(0, Number(statement.totalAmount) - Number(statement.paidAmount)),
+							dueDate: dateKey(statement.dueDate),
+							id: statement.id,
+						}
+					: null,
+			};
+		});
+		const people = debtPeople
+			.map(person => {
+				const balance = debtEvents
+					.filter(event => event.debtPersonId === person.id)
+					.reduce(
+						(sum, event) =>
+							sum + (event.createdByUserId === userId ? Number(event.effect) : -Number(event.effect)),
+						0,
+					);
+				return {
+					balance,
+					direction: balance >= 0 ? ("OWED" as const) : ("OWES" as const),
+					id: person.id,
+					name: person.name,
+				};
+			})
+			.filter(person => person.balance !== 0);
+		const owedToMe = people
+			.filter(person => person.balance > 0)
+			.reduce((sum, person) => sum + person.balance, 0);
+		const iOwe = people
+			.filter(person => person.balance < 0)
+			.reduce((sum, person) => sum + Math.abs(person.balance), 0);
 		return {
-			accounts: accounts.map(account => ({
-				...account,
-				balance: account.type === "CREDIT_CARD" ? null : (balances.get(account.id) ?? 0),
+			accounts: monetaryAccounts.map(account => ({
+				balance: balances.get(account.id) ?? 0,
+				id: account.id,
+				name: account.name,
+				type: account.type,
 			})),
-			debts: {
-				...debtsSummary,
-				net: debtsSummary.owedToMe - debtsSummary.iOwe,
-			},
-			loans: {
-				active: activeLoans,
-				monthlyPayment: activeLoans.reduce((sum, l) => sum + l.installmentAmount, 0),
-				totalRemaining: activeLoans.reduce((sum, l) => sum + l.remainingAmount, 0),
-			},
-			pendingStatements: pendingStatements.map(s => ({
-				...s,
-				paidAmount: Number(s.paidAmount),
-				totalAmount: Number(s.totalAmount),
-			})),
-			recentTransactions,
-			summary: {
-				currentMonth: {
-					expenses: Number(currentMonthExpenses?.total ?? 0),
-					income: Number(currentMonthIncome?.total ?? 0),
-					net: Number(currentMonthIncome?.total ?? 0) - Number(currentMonthExpenses?.total ?? 0),
-				},
-				lastMonth: {
-					expenses: Number(lastMonthExpenses?.total ?? 0),
-					income: Number(lastMonthIncome?.total ?? 0),
-				},
-				totalBalance,
-			},
-			upcomingBills: upcomingBills.map(s => ({
-				amount: Number(s.amount),
-				dueDay: s.billingDay,
-				id: s.id,
-				name: s.name,
-			})),
+			comparison: buildComparisonPeriods({
+				base: range,
+				initialBalance: dashboardPeriod.initialBalance,
+				transactions: normalizedTransactions,
+			}),
+			creditCards: cardsWithStatements,
+			debts: { iOwe, net: owedToMe - iOwe, owedToMe, people },
+			forecasts: forecasts.toSorted((left, right) => left.date.localeCompare(right.date)),
+			period: dashboardPeriod,
+			totalAvailableCredit: cardsWithStatements
+				.filter(card => !card.excludeFromTotals)
+				.reduce((sum, card) => sum + card.availableLimit, 0),
 		};
 	},
 	{
 		detail: { tags: ["Dashboard"] },
+		query: t.Object({ endDate: DateQuery, startDate: DateQuery }),
+		response: DashboardReturn,
 	},
 );

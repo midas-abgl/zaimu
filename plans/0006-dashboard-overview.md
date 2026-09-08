@@ -53,7 +53,7 @@
 ## Progresso
 
 - [x] Registrar regra de negócio.
-- [ ] Implementar contrato e cálculos do backend.
+- [x] Implementar contrato e cálculos do backend.
 - [ ] Implementar paridade do modo guest.
 - [ ] Implementar blocos, modais e gráfico.
 - [ ] Cobrir cenários e validar pacotes afetados.
@@ -65,4 +65,4 @@ Planejado. Implementação ainda não iniciada.
 
 ## Próximo passo
 
-Evoluir contrato e cálculos do backend.
+Implementar paridade do modo guest.
