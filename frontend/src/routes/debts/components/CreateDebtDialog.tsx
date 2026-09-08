@@ -160,7 +160,7 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 									id="debt-origin-date"
 									label="Data"
 									name="debt-origin-date"
-									onChange={event => setDate(event.currentTarget.value)}
+									onValueChange={setDate}
 									value={sendWithoutDate ? "" : date}
 								/>
 								<label className="flex cursor-pointer items-start gap-3 text-sm" htmlFor="debt-without-date">
@@ -178,7 +178,7 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 								id="debt-origin-due-date"
 								label="Vencimento"
 								name="debt-origin-due-date"
-								onChange={event => setDueDate(event.currentTarget.value)}
+								onValueChange={setDueDate}
 								value={dueDate}
 							/>
 						</div>

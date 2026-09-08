@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { HiBanknotes, HiCalculator, HiCheck, HiCheckCircle, HiClock, HiPlus, HiXMark } from "react-icons/hi2";
+import { DateField } from "@/components/ui/DateField";
 import { api, type Loan } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { type AuthState, useAuthStore } from "@/stores";
@@ -435,26 +436,20 @@ function EmpréstimosPage() {
 							</div>
 
 							<div className="grid gap-3 sm:grid-cols-2">
-								<div>
-									<span className="mb-2 block font-medium text-foreground-muted text-sm">Data inicial</span>
-									<input
-										className="input"
-										onChange={e => setNewLoan({ ...newLoan, startDate: e.target.value })}
-										type="date"
-										value={newLoan.startDate}
-									/>
-								</div>
-								<div>
-									<span className="mb-2 block font-medium text-foreground-muted text-sm">
-										Primeiro vencimento
-									</span>
-									<input
-										className="input"
-										onChange={e => setNewLoan({ ...newLoan, firstDueDate: e.target.value })}
-										type="date"
-										value={newLoan.firstDueDate}
-									/>
-								</div>
+								<DateField
+									id="loan-start-date"
+									label="Data inicial"
+									name="loan-start-date"
+									onValueChange={startDate => setNewLoan({ ...newLoan, startDate })}
+									value={newLoan.startDate}
+								/>
+								<DateField
+									id="loan-first-due-date"
+									label="Primeiro vencimento"
+									name="loan-first-due-date"
+									onValueChange={firstDueDate => setNewLoan({ ...newLoan, firstDueDate })}
+									value={newLoan.firstDueDate}
+								/>
 							</div>
 
 							<div>

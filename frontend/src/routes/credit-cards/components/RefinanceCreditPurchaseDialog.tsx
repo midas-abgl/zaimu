@@ -80,7 +80,7 @@ export function RefinanceCreditPurchaseDialog({
 							id="refinance-credit-purchase-date"
 							label="Data do novo parcelamento"
 							name="refinance-credit-purchase-date"
-							onChange={event => setPurchaseDate(event.currentTarget.value)}
+							onValueChange={setPurchaseDate}
 							required
 							value={purchaseDate}
 						/>

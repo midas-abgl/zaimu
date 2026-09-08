@@ -181,7 +181,7 @@ export function CreatePurchaseDialog({
 									id="purchase-date"
 									label="Data da compra"
 									name="purchase-date"
-									onChange={event => setDate(event.currentTarget.value)}
+									onValueChange={setDate}
 									required
 									value={date}
 								/>

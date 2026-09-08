@@ -63,7 +63,7 @@ export function RefundCreditPurchaseDialog({
 						id="credit-purchase-refund-date"
 						label="Data do reembolso (opcional)"
 						name="credit-purchase-refund-date"
-						onChange={event => setDate(event.currentTarget.value)}
+						onValueChange={setDate}
 						value={date}
 					/>
 					<DialogFooter>

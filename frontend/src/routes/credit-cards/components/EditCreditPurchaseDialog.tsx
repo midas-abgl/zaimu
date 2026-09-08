@@ -179,7 +179,7 @@ export function EditCreditPurchaseDialog({
 									id="credit-purchase-date"
 									label="Data da compra"
 									name="credit-purchase-date"
-									onChange={event => setDate(event.currentTarget.value)}
+									onValueChange={setDate}
 									required
 									value={date}
 								/>

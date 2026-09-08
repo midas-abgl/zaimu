@@ -100,7 +100,7 @@ export function TransactionDetailsFields({
 					id="transaction-date"
 					label="Data"
 					name="date"
-					onChange={event => onDateChange(event.currentTarget.value)}
+					onValueChange={onDateChange}
 					required
 					value={date}
 				/>

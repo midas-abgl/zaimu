@@ -58,7 +58,7 @@ export function FinancialAccountYieldHolidaysDialog({
 						id="financial-account-yield-holiday"
 						label="Data do feriado"
 						name="financial-account-yield-holiday"
-						onChange={event => setDate(event.currentTarget.value)}
+						onValueChange={setDate}
 						placeholder="Ex: 25/12/2026"
 						required
 						value={date}

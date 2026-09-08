@@ -494,7 +494,7 @@ export function CreateRecurringDialog({
 							id="recurring-start-date"
 							label="Data inicial"
 							name="start-date"
-							onChange={event => setField("startDate", event.currentTarget.value)}
+							onValueChange={value => setField("startDate", value)}
 							required
 							value={draft.startDate}
 						/>
@@ -505,7 +505,7 @@ export function CreateRecurringDialog({
 							label="Data final"
 							min={draft.startDate}
 							name="end-date"
-							onChange={event => setField("endDate", event.currentTarget.value)}
+							onValueChange={value => setField("endDate", value)}
 							value={draft.endDate}
 						/>
 						<TagPicker onValueChange={tagIds => setField("tagIds", tagIds)} value={draft.tagIds} />
