@@ -52,7 +52,7 @@
 
 ## Progresso
 
-- [ ] Registrar regra de negócio.
+- [x] Registrar regra de negócio.
 - [ ] Implementar contrato e cálculos do backend.
 - [ ] Implementar paridade do modo guest.
 - [ ] Implementar blocos, modais e gráfico.
@@ -65,4 +65,4 @@ Planejado. Implementação ainda não iniciada.
 
 ## Próximo passo
 
-Registrar a regra de negócio da dashboard e iniciar o contrato do backend.
+Evoluir contrato e cálculos do backend.

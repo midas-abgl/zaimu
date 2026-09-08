@@ -1,5 +1,9 @@
 # Regras de negócio
 
+## Visão geral financeira
+
+A dashboard resume todos os domínios financeiros relevantes: contas monetárias, cartões, previsões, dívidas e comparativos por período. Ao criar um novo domínio que afete saldo, entradas, saídas, compromissos ou crédito disponível, sua integração na dashboard deve ser avaliada no mesmo trabalho. Investimentos e pontos permanecem fora do saldo monetário consolidado; cashback em reais permanece incluído.
+
 ## Rateio de dívidas
 
 Transações, compras, assinaturas, pagamentos recorrentes e lançamentos manuais podem repartir seu valor entre várias pessoas por um único método: cotas, percentuais ou valores fixos. O titular pode participar; nas divisões por percentuais ou valores fixos, ele sempre absorve diferenças de arredondamento e qualquer restante não distribuído. Percentuais das pessoas não podem ultrapassar 100%, e valores fixos não podem ultrapassar o total. Cada participante externo recebe um evento independente e privado no próprio livro.
