@@ -1,0 +1,78 @@
+import { Link } from "@tanstack/react-router";
+import { useState } from "react";
+import { LuArrowRight, LuLandmark } from "react-icons/lu";
+import { Button } from "@/components/ui/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
+import { ScrollArea } from "@/components/ui/ScrollArea";
+import type { Dashboard } from "@/lib/api";
+
+const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
+
+export function DashboardAccounts({ accounts }: Pick<Dashboard, "accounts">) {
+	const [open, setOpen] = useState(false);
+	const ordered = accounts.toSorted((left, right) => (left.name ?? "").localeCompare(right.name ?? ""));
+	return (
+		<>
+			<Card>
+				<CardHeader className="flex-row items-center justify-between">
+					<CardTitle className="flex items-center gap-2">
+						<LuLandmark className="text-primary" /> Contas
+					</CardTitle>
+					<Button className="cursor-pointer" onClick={() => setOpen(true)} size="sm" variant="outline">
+						Ver todas <LuArrowRight />
+					</Button>
+				</CardHeader>
+				<CardContent className="space-y-3">
+					{ordered.slice(0, 4).map(account => (
+						<div className="flex items-center justify-between rounded-xl border p-3" key={account.id}>
+							<span>{account.name ?? "Conta sem nome"}</span>
+							<strong>{currency.format(account.balance)}</strong>
+						</div>
+					))}
+					{!ordered.length && (
+						<p className="text-muted-foreground text-sm">Nenhuma conta corrente ou poupança.</p>
+					)}
+				</CardContent>
+			</Card>
+			<Dialog onOpenChange={setOpen} open={open}>
+				<DialogContent className="max-h-[calc(100dvh-2rem)] sm:max-w-lg">
+					<DialogHeader>
+						<DialogTitle>Todas as contas</DialogTitle>
+						<DialogDescription>Contas correntes e poupanças incluídas no saldo.</DialogDescription>
+					</DialogHeader>
+					<ScrollArea className="max-h-[min(30rem,calc(100dvh-14rem))] pr-3">
+						<div className="space-y-3">
+							{ordered.map(account => (
+								<div
+									className="flex items-center justify-between gap-3 rounded-xl border p-3"
+									key={account.id}
+								>
+									<div>
+										<p className="font-medium">{account.name ?? "Conta sem nome"}</p>
+										<p className="text-muted-foreground text-xs">
+											{account.type === "SAVINGS" ? "Poupança" : "Conta corrente"}
+										</p>
+									</div>
+									<div className="text-right">
+										<strong>{currency.format(account.balance)}</strong>
+										<Button asChild className="mt-2 cursor-pointer" size="sm" variant="outline">
+											<Link to="/accounts">
+												Extrato <LuArrowRight />
+											</Link>
+										</Button>
+									</div>
+								</div>
+							))}
+						</div>
+					</ScrollArea>
+					<Button asChild className="cursor-pointer" variant="outline">
+						<Link to="/accounts">
+							Gerenciar contas <LuArrowRight />
+						</Link>
+					</Button>
+				</DialogContent>
+			</Dialog>
+		</>
+	);
+}

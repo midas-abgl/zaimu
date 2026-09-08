@@ -1205,92 +1205,235 @@ export const dataService = {
 
 	// ============== DASHBOARD ==============
 	dashboard: {
-		async get(): Promise<Dashboard> {
+		async get(dateRange?: { endDate?: string; startDate?: string }): Promise<Dashboard> {
 			if (isGuestMode()) {
-				// Build dashboard from local data
-				const [accounts, transactions, loans, debts, subscriptions] = await Promise.all([
-					dataService.accounts.getAll(),
-					dataService.transactions.getAll(),
-					dataService.loans.getAll(),
-					dataService.debts.getAll(),
-					dataService.subscriptions.getAll(),
-				]);
-
+				const [accounts, transactions, loans, debts, subscriptions, salaries, recurring, cards, statements] =
+					await Promise.all([
+						dataService.accounts.getAll(),
+						dataService.transactions.getAll(),
+						dataService.loans.getAll(),
+						dataService.debts.getAll(),
+						dataService.subscriptions.getAll(),
+						dataService.salaries.getAll(),
+						dataService.recurringPayments.getAll(),
+						localCreditCards.getAll().then(items => items.map(item => item.data)),
+						localCreditCardStatements.getAll().then(items => items.map(item => item.data)),
+					]);
 				const now = new Date();
-				const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-				const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
-				const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
-				const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0).toISOString();
-
-				const currentMonthTx = transactions.filter(t => t.date >= startOfMonth && t.date <= endOfMonth);
-				const lastMonthTx = transactions.filter(t => t.date >= startOfLastMonth && t.date <= endOfLastMonth);
-
-				const currentIncome = currentMonthTx
-					.filter(t => t.type === "INCOME")
-					.reduce((sum, t) => sum + t.amount, 0);
-				const currentExpenses = currentMonthTx
-					.filter(t => t.type === "EXPENSE")
-					.reduce((sum, t) => sum + t.amount, 0);
-				const lastIncome = lastMonthTx.filter(t => t.type === "INCOME").reduce((sum, t) => sum + t.amount, 0);
-				const lastExpenses = lastMonthTx
-					.filter(t => t.type === "EXPENSE")
-					.reduce((sum, t) => sum + t.amount, 0);
-
+				const rangeStart = new Date(
+					`${dateRange?.startDate ?? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`}T00:00:00`,
+				);
+				const rangeEnd = new Date(
+					`${dateRange?.endDate ?? new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10)}T23:59:59`,
+				);
+				const dateKey = (value: Date | string) => new Date(value).toISOString().slice(0, 10);
+				const periodTransactions = transactions.filter(transaction => {
+					const date = new Date(`${transaction.date.slice(0, 10)}T12:00:00`);
+					return transaction.type !== "TRANSFER" && date >= rangeStart && date <= rangeEnd;
+				});
+				const income = periodTransactions
+					.filter(item => item.type === "INCOME")
+					.reduce((sum, item) => sum + item.amount, 0);
+				const expenses = periodTransactions
+					.filter(item => item.type === "EXPENSE")
+					.reduce((sum, item) => sum + item.amount, 0);
 				const totalBalance = accounts
-					.filter(account => account.type !== "CREDIT_CARD" && account.type !== "REWARDS")
+					.filter(account => !["CREDIT_CARD", "INVESTMENT", "REWARDS"].includes(account.type))
 					.reduce((sum, account) => sum + (account.balance ?? 0), 0);
+				const afterRange = transactions
+					.filter(
+						item => item.type !== "TRANSFER" && new Date(`${item.date.slice(0, 10)}T12:00:00`) > rangeEnd,
+					)
+					.reduce((sum, item) => sum + (item.type === "INCOME" ? item.amount : -item.amount), 0);
+				const period = {
+					endDate: dateKey(rangeEnd),
+					expenses,
+					income,
+					initialBalance: totalBalance - afterRange - income + expenses,
+					net: income - expenses,
+					startDate: dateKey(rangeStart),
+				};
 				const owedToMe = debts.filter(d => d.isOwedToMe && !d.isPaid).reduce((sum, d) => sum + d.amount, 0);
 				const iOwe = debts.filter(d => !d.isOwedToMe && !d.isPaid).reduce((sum, d) => sum + d.amount, 0);
-
+				const nextMonthly = (start: string, day: number) => {
+					const date = new Date(now.getFullYear(), now.getMonth(), day);
+					if (date < now) date.setMonth(date.getMonth() + 1);
+					return date < new Date(`${start.slice(0, 10)}T00:00:00`)
+						? new Date(`${start.slice(0, 10)}T00:00:00`)
+						: date;
+				};
+				const forecasts = [
+					...salaries
+						.filter(item => item.isActive)
+						.map(item => ({
+							amount: item.amount,
+							date: dateKey(nextMonthly(item.startDate, item.payDay)),
+							direction: "INCOME" as const,
+							id: `salary-${item.id}`,
+							name: item.source,
+							sourceId: item.id,
+							type: "SALARY" as const,
+						})),
+					...subscriptions
+						.filter(item => item.isActive)
+						.map(item => ({
+							amount: item.amount,
+							date: dateKey(nextMonthly(item.startDate, item.billingDay)),
+							direction: "EXPENSE" as const,
+							id: `subscription-${item.id}`,
+							name: item.name,
+							sourceId: item.id,
+							type: "SUBSCRIPTION" as const,
+						})),
+					...recurring
+						.filter(item => item.isActive)
+						.map(item => ({
+							amount: item.amount,
+							date: dateKey(
+								nextMonthly(item.startDate, item.dayOfMonth ?? new Date(item.startDate).getDate()),
+							),
+							direction: item.type === "INCOME" ? ("INCOME" as const) : ("EXPENSE" as const),
+							id: `recurring-${item.id}`,
+							name: item.name,
+							sourceId: item.id,
+							type: "RECURRING" as const,
+						})),
+					...loans
+						.filter(item => (item.remainingInstallments ?? item.totalInstallments) > 0)
+						.map(item => ({
+							amount: item.installmentAmount,
+							date: dateKey(new Date(item.firstDueDate)),
+							direction: "EXPENSE" as const,
+							id: `loan-${item.id}`,
+							name: item.lender,
+							sourceId: item.id,
+							type: "LOAN" as const,
+						})),
+					...statements
+						.filter(item => item.dueDate >= dateKey(now) && item.totalAmount > item.paidAmount)
+						.map(item => ({
+							amount: item.totalAmount - item.paidAmount,
+							date: item.dueDate.slice(0, 10),
+							direction: "EXPENSE" as const,
+							id: `card-${item.id}`,
+							name:
+								accounts.find(
+									account =>
+										account.id === cards.find(card => card.id === item.creditCardId)?.financialAccountId,
+								)?.name ?? "Cartão",
+							sourceId: item.creditCardId,
+							type: "CARD" as const,
+						})),
+					...transactions
+						.filter(
+							item =>
+								item.type !== "TRANSFER" &&
+								new Date(`${item.date.slice(0, 10)}T12:00:00`) > now &&
+								!item.recurrenceId &&
+								!item.salaryId &&
+								!item.subscriptionId,
+						)
+						.map(item => ({
+							amount: item.amount,
+							date: item.date.slice(0, 10),
+							direction: item.type as "INCOME" | "EXPENSE",
+							id: `transaction-${item.id}`,
+							name: item.description ?? "Movimentação",
+							sourceId: item.id,
+							type: "TRANSACTION" as const,
+						})),
+				].toSorted((left, right) => left.date.localeCompare(right.date));
+				const creditCards = cards.map(card => {
+					const cardStatements = statements.filter(statement => statement.creditCardId === card.id);
+					const statement =
+						cardStatements
+							.toSorted((left, right) => left.dueDate.localeCompare(right.dueDate))
+							.find(item => item.dueDate >= dateKey(now)) ?? cardStatements.at(-1);
+					const used = cardStatements.reduce(
+						(sum, item) => sum + Math.max(0, item.totalAmount - item.paidAmount),
+						0,
+					);
+					return {
+						availableLimit: Math.max(0, card.creditLimit - used),
+						creditLimit: card.creditLimit,
+						excludeFromTotals: card.excludeFromTotals,
+						financialAccountId: card.financialAccountId,
+						id: card.id,
+						name:
+							accounts.find(account => account.id === card.financialAccountId)?.name ??
+							card.accountName ??
+							null,
+						statement: statement
+							? {
+									balanceAmount: Math.max(0, statement.totalAmount - statement.paidAmount),
+									dueDate: statement.dueDate.slice(0, 10),
+									id: statement.id,
+								}
+							: null,
+					};
+				});
+				const duration = Math.round((rangeEnd.getTime() - rangeStart.getTime()) / 86_400_000) + 1;
+				const comparison = Array.from({ length: 13 }, (_, index) => {
+					const start = new Date(rangeStart);
+					start.setDate(start.getDate() + (index - 6) * duration);
+					const end = new Date(start);
+					end.setDate(end.getDate() + duration - 1);
+					const movements = transactions.filter(
+						item =>
+							item.type !== "TRANSFER" &&
+							new Date(`${item.date.slice(0, 10)}T12:00:00`) >= start &&
+							new Date(`${item.date.slice(0, 10)}T12:00:00`) <= end,
+					);
+					const comparisonIncome = movements
+						.filter(item => item.type === "INCOME")
+						.reduce((sum, item) => sum + item.amount, 0);
+					const comparisonExpenses = movements
+						.filter(item => item.type === "EXPENSE")
+						.reduce((sum, item) => sum + item.amount, 0);
+					return {
+						endDate: dateKey(end),
+						expenses: comparisonExpenses,
+						income: comparisonIncome,
+						initialBalance: period.initialBalance,
+						net: comparisonIncome - comparisonExpenses,
+						startDate: dateKey(start),
+					};
+				});
 				return {
-					accounts: accounts.map(a => ({
-						balance: a.balance,
-						id: a.id,
-						name: a.name,
-						type: a.type,
-					})),
+					accounts: accounts
+						.filter(account => account.type === "CHECKING" || account.type === "SAVINGS")
+						.map(account => ({
+							balance: account.balance ?? 0,
+							id: account.id,
+							name: account.name,
+							type: account.type as "CHECKING" | "SAVINGS",
+						})),
+					comparison,
+					creditCards,
 					debts: {
 						iOwe,
 						net: owedToMe - iOwe,
 						owedToMe,
+						people: debts
+							.filter(item => !item.isPaid)
+							.map(item => ({
+								balance: item.isOwedToMe ? item.amount : -item.amount,
+								direction: item.isOwedToMe ? ("OWED" as const) : ("OWES" as const),
+								id: item.personId ?? item.id,
+								name: item.personName,
+							})),
 					},
-					loans: {
-						active: loans.map(l => ({
-							id: l.id,
-							installmentAmount: l.installmentAmount,
-							lender: l.lender,
-							remainingAmount: l.principalAmount,
-							remainingInstallments: l.remainingInstallments || l.totalInstallments,
-						})),
-						monthlyPayment: loans.reduce((sum, l) => sum + l.installmentAmount, 0),
-						totalRemaining: loans.reduce((sum, l) => sum + l.principalAmount, 0),
-					},
-					pendingStatements: [],
-					recentTransactions: transactions.slice(0, 10),
-					summary: {
-						currentMonth: {
-							expenses: currentExpenses,
-							income: currentIncome,
-							net: currentIncome - currentExpenses,
-						},
-						lastMonth: {
-							expenses: lastExpenses,
-							income: lastIncome,
-						},
-						totalBalance,
-					},
-					upcomingBills: subscriptions
-						.filter(s => s.isActive)
-						.map(s => ({
-							amount: s.amount,
-							dueDay: s.billingDay,
-							id: s.id,
-							name: s.name,
-						})),
+					forecasts,
+					period,
+					totalAvailableCredit: creditCards
+						.filter(card => !card.excludeFromTotals)
+						.reduce((sum, card) => sum + card.availableLimit, 0),
 				};
 			}
-
-			return fetchWithAuth<Dashboard>("/dashboard");
+			const params = new URLSearchParams();
+			if (dateRange?.startDate) params.set("startDate", dateRange.startDate);
+			if (dateRange?.endDate) params.set("endDate", dateRange.endDate);
+			return fetchWithAuth<Dashboard>(`/dashboard${params.size ? `?${params}` : ""}`);
 		},
 	},
 

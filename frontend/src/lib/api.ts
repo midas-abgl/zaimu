@@ -438,7 +438,7 @@ export interface CreditCardStatementDetail extends CreditCardStatement {
 	purchases: CreditPurchase[];
 }
 
-export interface Dashboard {
+export interface LegacyDashboard {
 	summary: {
 		totalBalance: number;
 		currentMonth: {
@@ -481,6 +481,51 @@ export interface Dashboard {
 		net: number;
 	};
 	recentTransactions: Transaction[];
+}
+
+export interface DashboardPeriod {
+	endDate: string;
+	expenses: number;
+	income: number;
+	initialBalance: number;
+	net: number;
+	startDate: string;
+}
+
+export interface Dashboard {
+	accounts: Array<{
+		balance: number;
+		id: string;
+		name: string | null;
+		type: "CHECKING" | "SAVINGS";
+	}>;
+	comparison: DashboardPeriod[];
+	creditCards: Array<{
+		availableLimit: number;
+		creditLimit: number;
+		excludeFromTotals: boolean;
+		financialAccountId: string;
+		id: string;
+		name: string | null;
+		statement: { balanceAmount: number; dueDate: string; id: string } | null;
+	}>;
+	debts: {
+		iOwe: number;
+		net: number;
+		owedToMe: number;
+		people: Array<{ balance: number; direction: "OWED" | "OWES"; id: string; name: string }>;
+	};
+	forecasts: Array<{
+		amount: number;
+		date: string;
+		direction: "INCOME" | "EXPENSE";
+		id: string;
+		name: string;
+		sourceId: string;
+		type: "CARD" | "LOAN" | "RECURRING" | "SALARY" | "SUBSCRIPTION" | "TRANSACTION";
+	}>;
+	period: DashboardPeriod;
+	totalAvailableCredit: number;
 }
 
 // API functions

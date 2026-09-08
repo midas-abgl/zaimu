@@ -1,0 +1,64 @@
+import { Bar, CartesianGrid, ComposedChart, Line, Tooltip, XAxis, YAxis } from "recharts";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { type ChartConfig, ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
+import type { Dashboard } from "@/lib/api";
+
+const currency = new Intl.NumberFormat("pt-BR", {
+	currency: "BRL",
+	maximumFractionDigits: 0,
+	style: "currency",
+});
+const chartConfig = {
+	endingBalance: { color: "var(--color-primary)", label: "Saldo final" },
+	expenses: { color: "var(--color-rose-500)", label: "Saídas" },
+	income: { color: "var(--color-emerald-500)", label: "Entradas" },
+} satisfies ChartConfig;
+
+export function DashboardComparisonChart({ comparison }: Pick<Dashboard, "comparison">) {
+	const data = comparison.map(item => ({
+		...item,
+		endingBalance: item.initialBalance + item.net,
+		label: new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" }).format(
+			new Date(`${item.startDate}T12:00:00`),
+		),
+	}));
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle>Comparativo financeiro</CardTitle>
+				<p className="text-muted-foreground text-sm">
+					Seis períodos anteriores, período selecionado e seis seguintes.
+				</p>
+			</CardHeader>
+			<CardContent>
+				<ChartContainer className="h-72 w-full" config={chartConfig}>
+					<ComposedChart data={data}>
+						<CartesianGrid strokeDasharray="3 3" vertical={false} />
+						<XAxis dataKey="label" tickLine={false} />
+						<YAxis tickFormatter={value => currency.format(value)} width={76} />
+						<Tooltip
+							content={
+								<ChartTooltipContent
+									formatter={value => currency.format(Number(value))}
+									labelFormatter={(_, payload) => {
+										const item = payload[0]?.payload as (typeof data)[number] | undefined;
+										return item ? `${item.startDate} até ${item.endDate}` : "";
+									}}
+								/>
+							}
+						/>
+						<Bar dataKey="income" fill="var(--color-income)" radius={4} />
+						<Bar dataKey="expenses" fill="var(--color-expenses)" radius={4} />
+						<Line
+							dataKey="endingBalance"
+							dot={false}
+							stroke="var(--color-endingBalance)"
+							strokeWidth={3}
+							type="monotone"
+						/>
+					</ComposedChart>
+				</ChartContainer>
+			</CardContent>
+		</Card>
+	);
+}

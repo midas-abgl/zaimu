@@ -54,10 +54,10 @@
 
 - [x] Registrar regra de negócio.
 - [x] Implementar contrato e cálculos do backend.
-- [ ] Implementar paridade do modo guest.
-- [ ] Implementar blocos, modais e gráfico.
-- [ ] Cobrir cenários e validar pacotes afetados.
-- [ ] Criar commits locais atômicos.
+- [x] Implementar paridade do modo guest.
+- [x] Implementar blocos, modais e gráfico.
+- [x] Cobrir cenários e validar pacotes afetados.
+- [x] Criar commits locais atômicos.
 
 ## Estado atual
 
@@ -65,4 +65,4 @@ Planejado. Implementação ainda não iniciada.
 
 ## Próximo passo
 
-Implementar paridade do modo guest.
+Plano concluído.
