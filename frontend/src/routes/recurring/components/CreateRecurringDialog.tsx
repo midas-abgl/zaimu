@@ -5,7 +5,7 @@ import { DebtSplitEditor } from "@/components/debts";
 import { StorePicker } from "@/components/stores";
 import { TagPicker } from "@/components/tags";
 import { Button } from "@/components/ui/Button";
-import { Checkbox } from "@/components/ui/Checkbox";
+import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import {
@@ -389,14 +389,14 @@ export function CreateRecurringDialog({
 						</div>
 						{draft.source !== "salary" && (
 							<div className="grid gap-3">
-								<div className="flex items-center gap-3 text-sm">
-									<Checkbox
-										aria-label="Dividir com outras pessoas"
-										checked={isDebtSplitEnabled}
-										onCheckedChange={checked => setIsDebtSplitEnabled(checked === true)}
-									/>
-									<span>Dividir com outras pessoas</span>
-								</div>
+								<CheckboxField
+									checkboxProps={{
+										checked: isDebtSplitEnabled,
+										onCheckedChange: checked => setIsDebtSplitEnabled(checked === true),
+									}}
+								>
+									Dividir com outras pessoas
+								</CheckboxField>
 								{isDebtSplitEnabled ? (
 									<DebtSplitEditor
 										amount={Number.parseFloat(draft.amount) || 0}

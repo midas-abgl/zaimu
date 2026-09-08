@@ -1,7 +1,7 @@
 import { type SyntheticEvent, useState } from "react";
 import { LuPencil, LuPlus } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
-import { Checkbox } from "@/components/ui/Checkbox";
+import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import {
 	Dialog,
@@ -469,23 +469,21 @@ export function CreateFinancialAccountDialog({
 									)}
 									{rewardsKind === "POINTS" && (
 										<>
-											<label
-												className="flex cursor-pointer items-start gap-3 text-sm"
-												htmlFor="conversion-enabled"
+											<CheckboxField
+												align="start"
+												checkboxProps={{
+													checked: conversionEnabled,
+													id: "conversion-enabled",
+													onCheckedChange: checked => setConversionEnabled(checked === true),
+												}}
 											>
-												<Checkbox
-													checked={conversionEnabled}
-													className="mt-0.5 cursor-pointer"
-													id="conversion-enabled"
-													onCheckedChange={checked => setConversionEnabled(checked === true)}
-												/>
 												<span>
 													<strong className="block">Informar conversão para reais</strong>
 													<span className="text-muted-foreground">
 														Saldo continua guardado e exibido em pontos.
 													</span>
 												</span>
-											</label>
+											</CheckboxField>
 											{conversionEnabled && (
 												<div className="grid gap-4 sm:grid-cols-2">
 													<NumericField
@@ -559,24 +557,25 @@ export function CreateFinancialAccountDialog({
 											O vencimento deve ser posterior ao fechamento da fatura.
 										</p>
 									)}
-									<label className="flex cursor-pointer items-start gap-3 text-sm" htmlFor="cashback-enabled">
-										<Checkbox
-											checked={cashbackEnabled}
-											className="mt-0.5 cursor-pointer"
-											id="cashback-enabled"
-											onCheckedChange={checked => {
+									<CheckboxField
+										align="start"
+										checkboxProps={{
+											checked: cashbackEnabled,
+											id: "cashback-enabled",
+											onCheckedChange: checked => {
 												setCashbackEnabled(checked === true);
 												if (checked === true) setCashbackConfigOpen(true);
 												if (checked !== true) setCashbackYieldEnabled(false);
-											}}
-										/>
+											},
+										}}
+									>
 										<span>
 											<strong className="block">Este cartão oferece cashback</strong>
 											<span className="text-muted-foreground">
 												Cada compra credita a recompensa automaticamente.
 											</span>
 										</span>
-									</label>
+									</CheckboxField>
 									{cashbackEnabled && (
 										<Button
 											className="cursor-pointer"
@@ -650,23 +649,21 @@ export function CreateFinancialAccountDialog({
 											</p>
 											{cashbackKind === "POINTS" && (
 												<>
-													<label
-														className="flex cursor-pointer items-start gap-3 text-sm"
-														htmlFor="cashback-conversion-enabled"
+													<CheckboxField
+														align="start"
+														checkboxProps={{
+															checked: cashbackConversionEnabled,
+															id: "cashback-conversion-enabled",
+															onCheckedChange: checked => setCashbackConversionEnabled(checked === true),
+														}}
 													>
-														<Checkbox
-															checked={cashbackConversionEnabled}
-															className="mt-0.5 cursor-pointer"
-															id="cashback-conversion-enabled"
-															onCheckedChange={checked => setCashbackConversionEnabled(checked === true)}
-														/>
 														<span>
 															<strong className="block">Informar conversão para reais</strong>
 															<span className="text-muted-foreground">
 																Opcional. Pontos continuam guardados em pontos.
 															</span>
 														</span>
-													</label>
+													</CheckboxField>
 													{cashbackConversionEnabled && (
 														<div className="grid gap-4 sm:grid-cols-2">
 															<NumericField
@@ -690,21 +687,19 @@ export function CreateFinancialAccountDialog({
 													)}
 												</>
 											)}
-											<label
-												className="flex cursor-pointer items-start gap-3 text-sm"
-												htmlFor="cashback-yield-enabled"
+											<CheckboxField
+												align="start"
+												checkboxProps={{
+													checked: cashbackYieldEnabled,
+													id: "cashback-yield-enabled",
+													onCheckedChange: checked => setCashbackYieldEnabled(checked === true),
+												}}
 											>
-												<Checkbox
-													checked={cashbackYieldEnabled}
-													className="mt-0.5 cursor-pointer"
-													id="cashback-yield-enabled"
-													onCheckedChange={checked => setCashbackYieldEnabled(checked === true)}
-												/>
 												<span>
 													<strong className="block">Cashback rende ao longo do tempo</strong>
 													<span className="text-muted-foreground">Rendimento composto mensal ou anual.</span>
 												</span>
-											</label>
+											</CheckboxField>
 											{cashbackYieldEnabled && (
 												<div className="grid gap-4 sm:grid-cols-2">
 													<NumericField
@@ -732,30 +727,29 @@ export function CreateFinancialAccountDialog({
 											)}
 										</div>
 									)} */}
-									<label className="flex cursor-pointer items-start gap-3 text-sm" htmlFor="working-due-date">
-										<Checkbox
-											checked={workingDueDate}
-											className="mt-0.5 cursor-pointer"
-											id="working-due-date"
-											onCheckedChange={checked => setWorkingDueDate(checked === true)}
-										/>
+									<CheckboxField
+										align="start"
+										checkboxProps={{
+											checked: workingDueDate,
+											id: "working-due-date",
+											onCheckedChange: checked => setWorkingDueDate(checked === true),
+										}}
+									>
 										<span>
 											<strong className="block">Ajustar para dia útil</strong>
 											<span className="text-muted-foreground">
 												Move vencimentos que caem em fim de semana.
 											</span>
 										</span>
-									</label>
-									<label
-										className="flex cursor-pointer items-start gap-3 text-sm"
-										htmlFor="exclude-from-totals"
+									</CheckboxField>
+									<CheckboxField
+										align="start"
+										checkboxProps={{
+											checked: excludeFromTotals,
+											id: "exclude-from-totals",
+											onCheckedChange: checked => setExcludeFromTotals(checked === true),
+										}}
 									>
-										<Checkbox
-											checked={excludeFromTotals}
-											className="mt-0.5 cursor-pointer"
-											id="exclude-from-totals"
-											onCheckedChange={checked => setExcludeFromTotals(checked === true)}
-										/>
 										<span>
 											<strong className="block">Não considerar nos totais</strong>
 											<span className="text-muted-foreground">
@@ -763,7 +757,7 @@ export function CreateFinancialAccountDialog({
 												limites.
 											</span>
 										</span>
-									</label>
+									</CheckboxField>
 								</div>
 							)}
 							<DialogFooter>

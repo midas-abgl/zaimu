@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { LuChevronDown, LuPlus, LuTags } from "react-icons/lu";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Checkbox } from "@/components/ui/Checkbox";
+import { CheckboxField } from "@/components/ui/CheckboxField";
 import { Input } from "@/components/ui/Input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { ScrollArea } from "@/components/ui/ScrollArea";
@@ -134,23 +134,24 @@ export function TagPicker({
 						) : filteredTags.length ? (
 							<div className="grid gap-1">
 								{filteredTags.map(tag => (
-									<label
-										className="flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2 hover:bg-muted"
-										htmlFor={`tag-${tag.id}`}
+									<CheckboxField
+										checkboxProps={{
+											checked: value.includes(tag.id),
+											id: `tag-${tag.id}`,
+											onCheckedChange: () => toggleTag(tag.id),
+										}}
+										className="w-full py-2"
 										key={tag.id}
 									>
-										<Checkbox
-											checked={value.includes(tag.id)}
-											id={`tag-${tag.id}`}
-											onCheckedChange={() => toggleTag(tag.id)}
-										/>
-										<span
-											aria-hidden="true"
-											className="size-2.5 rounded-full"
-											style={{ backgroundColor: tag.color || "var(--primary)" }}
-										/>
-										<span className="truncate">{tag.name}</span>
-									</label>
+										<span className="flex min-w-0 items-center gap-3">
+											<span
+												aria-hidden="true"
+												className="size-2.5 shrink-0 rounded-full"
+												style={{ backgroundColor: tag.color || "var(--primary)" }}
+											/>
+											<span className="truncate">{tag.name}</span>
+										</span>
+									</CheckboxField>
 								))}
 							</div>
 						) : (

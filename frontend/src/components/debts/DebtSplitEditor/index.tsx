@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { LuPlus } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
-import { Checkbox } from "@/components/ui/Checkbox";
+import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { NumericField } from "@/components/ui/NumericField";
 import type { DebtSplitInput } from "@/lib/api";
@@ -116,15 +116,15 @@ export function DebtSplitEditor({ amount, disabled, onChange, value }: DebtSplit
 					? " Valores não distribuídos ficam com você."
 					: null}
 			</p>
-			<div className="flex items-center gap-3 text-sm">
-				<Checkbox
-					aria-label="Incluir minha parte"
-					checked={ownerIncluded}
-					disabled={disabled}
-					onCheckedChange={checked => updateOwner(checked === true)}
-				/>
-				<span>Incluir minha parte</span>
-			</div>
+			<CheckboxField
+				checkboxProps={{
+					checked: ownerIncluded,
+					disabled,
+					onCheckedChange: checked => updateOwner(checked === true),
+				}}
+			>
+				Incluir minha parte
+			</CheckboxField>
 			{value.mode === "SHARES" && value.ownerShares !== null ? (
 				<NumericField
 					decimalScale={0}

@@ -4,7 +4,7 @@ import { DebtSplitEditor } from "@/components/debts";
 import { StorePicker } from "@/components/stores";
 import { TagPicker } from "@/components/tags";
 import { Button } from "@/components/ui/Button";
-import { Checkbox } from "@/components/ui/Checkbox";
+import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import {
@@ -210,20 +210,17 @@ export function EditCreditPurchaseDialog({
 							) : null}
 							<TagPicker disabled={pending} onValueChange={setTagIds} value={tagIds} />
 							<div className="grid gap-3 rounded-2xl border p-3">
-								<label
-									className="flex cursor-pointer items-center gap-3 text-sm"
-									htmlFor="edit-purchase-is-debt"
-								>
-									<Checkbox
-										checked={isDebt}
-										className="cursor-pointer"
-										id="edit-purchase-is-debt"
-										onCheckedChange={checked => {
+								<CheckboxField
+									checkboxProps={{
+										checked: isDebt,
+										id: "edit-purchase-is-debt",
+										onCheckedChange: checked => {
 											setIsDebt(checked === true);
-										}}
-									/>
+										},
+									}}
+								>
 									<span>Esta compra é de uma dívida</span>
-								</label>
+								</CheckboxField>
 								{isDebt ? (
 									<DebtSplitEditor amount={totalAmount} onChange={setDebtSplit} value={debtSplit} />
 								) : null}

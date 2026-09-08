@@ -3,7 +3,7 @@ import { DebtSplitEditor } from "@/components/debts";
 import { StorePicker } from "@/components/stores";
 import { TagPicker } from "@/components/tags";
 import { Button } from "@/components/ui/Button";
-import { Checkbox } from "@/components/ui/Checkbox";
+import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import {
@@ -195,31 +195,29 @@ export function CreatePurchaseDialog({
 									value={sendWithoutTime ? "" : time}
 								/>
 							</div>
-							<label
-								className="flex cursor-pointer items-start gap-3 text-sm"
-								htmlFor="purchase-without-time"
+							<CheckboxField
+								align="start"
+								checkboxProps={{
+									checked: sendWithoutTime,
+									id: "purchase-without-time",
+									onCheckedChange: checked => setSendWithoutTime(checked === true),
+								}}
 							>
-								<Checkbox
-									checked={sendWithoutTime}
-									className="mt-0.5 cursor-pointer"
-									id="purchase-without-time"
-									onCheckedChange={checked => setSendWithoutTime(checked === true)}
-								/>
 								<span className="font-medium text-foreground-muted">Enviar sem horário</span>
-							</label>
+							</CheckboxField>
 							<TagPicker onValueChange={setTagIds} value={tagIds} />
 							<div className="grid gap-3 rounded-2xl border p-3">
-								<label className="flex cursor-pointer items-center gap-3 text-sm" htmlFor="purchase-is-debt">
-									<Checkbox
-										checked={isDebt}
-										className="cursor-pointer"
-										id="purchase-is-debt"
-										onCheckedChange={checked => {
+								<CheckboxField
+									checkboxProps={{
+										checked: isDebt,
+										id: "purchase-is-debt",
+										onCheckedChange: checked => {
 											setIsDebt(checked === true);
-										}}
-									/>
+										},
+									}}
+								>
 									<span>Esta compra é de uma dívida</span>
-								</label>
+								</CheckboxField>
 								{isDebt ? <DebtSplitEditor amount={total} onChange={setDebtSplit} value={debtSplit} /> : null}
 							</div>
 							{total > 0 && (

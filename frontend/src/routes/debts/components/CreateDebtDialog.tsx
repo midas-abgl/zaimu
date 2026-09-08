@@ -1,7 +1,7 @@
 import { type SyntheticEvent, useEffect, useState } from "react";
 import { DebtPersonPicker, DebtSplitEditor } from "@/components/debts";
 import { Button } from "@/components/ui/Button";
-import { Checkbox } from "@/components/ui/Checkbox";
+import { CheckboxField } from "@/components/ui/CheckboxField";
 import { DateField } from "@/components/ui/DateField";
 import {
 	Dialog,
@@ -163,15 +163,16 @@ export function CreateDebtDialog({ ...props }: CreateDebtDialogProps) {
 									onValueChange={setDate}
 									value={sendWithoutDate ? "" : date}
 								/>
-								<label className="flex cursor-pointer items-start gap-3 text-sm" htmlFor="debt-without-date">
-									<Checkbox
-										checked={sendWithoutDate}
-										className="mt-0.5 cursor-pointer"
-										id="debt-without-date"
-										onCheckedChange={checked => setSendWithoutDate(checked === true)}
-									/>
+								<CheckboxField
+									align="start"
+									checkboxProps={{
+										checked: sendWithoutDate,
+										id: "debt-without-date",
+										onCheckedChange: checked => setSendWithoutDate(checked === true),
+									}}
+								>
 									<span className="font-medium text-foreground-muted">Não incluir data</span>
-								</label>
+								</CheckboxField>
 							</div>
 							<DateField
 								autoComplete="off"

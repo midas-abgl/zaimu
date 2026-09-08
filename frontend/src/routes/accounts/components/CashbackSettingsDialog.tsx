@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import { Button } from "@/components/ui/Button";
-import { Checkbox } from "@/components/ui/Checkbox";
+import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import {
 	Dialog,
@@ -149,23 +149,21 @@ export function CashbackSettingsDialog({
 							)}
 							{cashbackKind === "POINTS" && (
 								<>
-									<label
-										className="flex cursor-pointer items-start gap-3 text-sm"
-										htmlFor="cashback-conversion-enabled"
+									<CheckboxField
+										align="start"
+										checkboxProps={{
+											checked: cashbackConversionEnabled,
+											id: "cashback-conversion-enabled",
+											onCheckedChange: checked => setCashbackConversionEnabled(checked === true),
+										}}
 									>
-										<Checkbox
-											checked={cashbackConversionEnabled}
-											className="mt-0.5 cursor-pointer"
-											id="cashback-conversion-enabled"
-											onCheckedChange={checked => setCashbackConversionEnabled(checked === true)}
-										/>
 										<span>
 											<strong className="block">Informar conversão para reais</strong>
 											<span className="text-muted-foreground">
 												Opcional. Pontos continuam guardados em pontos.
 											</span>
 										</span>
-									</label>
+									</CheckboxField>
 									{cashbackConversionEnabled && (
 										<div className="grid gap-4 sm:grid-cols-2">
 											<NumericField
@@ -189,21 +187,19 @@ export function CashbackSettingsDialog({
 									)}
 								</>
 							)}
-							<label
-								className="flex cursor-pointer items-start gap-3 text-sm"
-								htmlFor="cashback-yield-enabled"
+							<CheckboxField
+								align="start"
+								checkboxProps={{
+									checked: cashbackYieldEnabled,
+									id: "cashback-yield-enabled",
+									onCheckedChange: checked => setCashbackYieldEnabled(checked === true),
+								}}
 							>
-								<Checkbox
-									checked={cashbackYieldEnabled}
-									className="mt-0.5 cursor-pointer"
-									id="cashback-yield-enabled"
-									onCheckedChange={checked => setCashbackYieldEnabled(checked === true)}
-								/>
 								<span>
 									<strong className="block">Cashback rende ao longo do tempo</strong>
 									<span className="text-muted-foreground">Rendimento composto mensal ou anual.</span>
 								</span>
-							</label>
+							</CheckboxField>
 							{cashbackYieldEnabled && (
 								<div className="grid gap-4 sm:grid-cols-3">
 									<NumericField

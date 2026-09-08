@@ -1,6 +1,6 @@
 import { StorePicker } from "@/components/stores";
 import { TagPicker } from "@/components/tags";
-import { Checkbox } from "@/components/ui/Checkbox";
+import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { DateField } from "@/components/ui/DateField";
 import { FormField } from "@/components/ui/FormField";
@@ -115,26 +115,28 @@ export function TransactionDetailsFields({
 				/>
 			</div>
 			{onSendWithoutTimeChange ? (
-				<label className="flex cursor-pointer items-start gap-3 text-sm" htmlFor="transaction-without-time">
-					<Checkbox
-						checked={sendWithoutTime}
-						className="mt-0.5 cursor-pointer"
-						id="transaction-without-time"
-						onCheckedChange={checked => onSendWithoutTimeChange(checked === true)}
-					/>
+				<CheckboxField
+					align="start"
+					checkboxProps={{
+						checked: sendWithoutTime,
+						id: "transaction-without-time",
+						onCheckedChange: checked => onSendWithoutTimeChange(checked === true),
+					}}
+				>
 					<span className="font-medium text-foreground-muted">Enviar sem horário</span>
-				</label>
+				</CheckboxField>
 			) : null}
 			{onIsHiddenChange ? (
-				<label className="flex cursor-pointer items-start gap-3 text-sm" htmlFor="transaction-is-hidden">
-					<Checkbox
-						checked={isHidden}
-						className="mt-0.5 cursor-pointer"
-						id="transaction-is-hidden"
-						onCheckedChange={checked => onIsHiddenChange(checked === true)}
-					/>
+				<CheckboxField
+					align="start"
+					checkboxProps={{
+						checked: isHidden,
+						id: "transaction-is-hidden",
+						onCheckedChange: checked => onIsHiddenChange(checked === true),
+					}}
+				>
 					<span className="font-medium text-foreground-muted">Ocultar na lista do dia</span>
-				</label>
+				</CheckboxField>
 			) : null}
 			{showTags ? <TagPicker onValueChange={onTagIdsChange} value={tagIds} /> : null}
 		</>

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { DebtSplitEditor } from "@/components/debts";
 import { Button } from "@/components/ui/Button";
-import { Checkbox } from "@/components/ui/Checkbox";
+import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import {
 	Dialog,
@@ -153,20 +153,17 @@ export function EditTransactionDialog({
 					/>
 					{draft.type !== "TRANSFER" ? (
 						<div className="grid gap-3 rounded-2xl border p-3">
-							<label
-								className="flex cursor-pointer items-center gap-3 text-sm"
-								htmlFor="edit-transaction-is-debt"
-							>
-								<Checkbox
-									checked={isDebt}
-									className="cursor-pointer"
-									id="edit-transaction-is-debt"
-									onCheckedChange={checked => {
+							<CheckboxField
+								checkboxProps={{
+									checked: isDebt,
+									id: "edit-transaction-is-debt",
+									onCheckedChange: checked => {
 										setIsDebt(checked === true);
-									}}
-								/>
+									},
+								}}
+							>
 								<span>Esta movimentação é de uma dívida</span>
-							</label>
+							</CheckboxField>
 							{isDebt ? (
 								<DebtSplitEditor amount={Number(draft.amount)} onChange={setDebtSplit} value={debtSplit} />
 							) : null}

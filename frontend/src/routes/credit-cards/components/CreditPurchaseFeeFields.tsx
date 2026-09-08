@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { LuBadgeDollarSign } from "react-icons/lu";
-import { Checkbox } from "@/components/ui/Checkbox";
+import { CheckboxField } from "@/components/ui/CheckboxField";
 import { FormField } from "@/components/ui/FormField";
 import { MoneyField } from "@/components/ui/MoneyField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
@@ -28,24 +28,24 @@ export function CreditPurchaseFeeFields({
 
 	return (
 		<div className="grid gap-3 rounded-2xl border p-3">
-			<label className="flex cursor-pointer items-center gap-3 text-sm" htmlFor="purchase-has-fee">
-				<Checkbox
-					checked={hasFee}
-					className="cursor-pointer"
-					id="purchase-has-fee"
-					onCheckedChange={checked => {
+			<CheckboxField
+				checkboxProps={{
+					checked: hasFee,
+					id: "purchase-has-fee",
+					onCheckedChange: checked => {
 						const nextHasFee = checked === true;
 						setHasFee(nextHasFee);
 						if (!nextHasFee) {
 							onFeeAmountChange("");
 							onFeeDescriptionChange("");
 						}
-					}}
-				/>
+					},
+				}}
+			>
 				<span className="flex items-center gap-2">
 					<LuBadgeDollarSign className="size-4" /> Adicionar taxa
 				</span>
-			</label>
+			</CheckboxField>
 			{hasFee ? (
 				<div className="grid gap-4 sm:grid-cols-2">
 					<FormField

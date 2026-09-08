@@ -1,4 +1,4 @@
-import { Checkbox } from "@/components/ui/Checkbox";
+import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { NumericField } from "@/components/ui/NumericField";
 
@@ -33,20 +33,21 @@ export function AccountYieldFields({
 	const hasAnyRate = hasReference || Boolean(fixedRate);
 	return (
 		<div className="grid gap-4 rounded-2xl border bg-muted/35 p-4">
-			<label className="flex cursor-pointer items-start gap-3 text-sm" htmlFor="account-yield-enabled">
-				<Checkbox
-					checked={enabled}
-					className="mt-0.5 cursor-pointer"
-					id="account-yield-enabled"
-					onCheckedChange={checked => onEnabledChange(checked === true)}
-				/>
+			<CheckboxField
+				align="start"
+				checkboxProps={{
+					checked: enabled,
+					id: "account-yield-enabled",
+					onCheckedChange: checked => onEnabledChange(checked === true),
+				}}
+			>
 				<span>
 					<strong className="block">Esta conta rende</strong>
 					<span className="text-muted-foreground">
 						Calculado diariamente de segunda a sexta. Feriados pausam todas as contas.
 					</span>
 				</span>
-			</label>
+			</CheckboxField>
 			{enabled && (
 				<div className="grid gap-4">
 					<p className="text-muted-foreground text-xs">
