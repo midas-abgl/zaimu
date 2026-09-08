@@ -5,27 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import type { Dashboard } from "@/lib/api";
-
-const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
-const date = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" });
+import { DashboardForecastItem } from "./DashboardForecastItem";
 
 export function DashboardForecasts({ forecasts }: Pick<Dashboard, "forecasts">) {
 	const [open, setOpen] = useState(false);
-	const rows = (items: Dashboard["forecasts"]) =>
-		items.map(item => (
-			<div className="flex items-center justify-between gap-3 rounded-xl border p-3" key={item.id}>
-				<div>
-					<p className="font-medium">{item.name}</p>
-					<p className="text-muted-foreground text-xs">
-						{item.type} · {date.format(new Date(`${item.date}T12:00:00`))}
-					</p>
-				</div>
-				<strong className={item.direction === "INCOME" ? "text-emerald-600" : "text-rose-600"}>
-					{item.direction === "INCOME" ? "+" : "−"}
-					{currency.format(item.amount)}
-				</strong>
-			</div>
-		));
 	return (
 		<>
 			<Card>
@@ -38,7 +21,9 @@ export function DashboardForecasts({ forecasts }: Pick<Dashboard, "forecasts">) 
 					</Button>
 				</CardHeader>
 				<CardContent className="space-y-3">
-					{rows(forecasts.slice(0, 4))}
+					{forecasts.slice(0, 4).map(forecast => (
+						<DashboardForecastItem forecast={forecast} key={forecast.id} variant="compact" />
+					))}
 					{!forecasts.length && <p className="text-muted-foreground text-sm">Nenhum compromisso futuro.</p>}
 				</CardContent>
 			</Card>
@@ -49,7 +34,11 @@ export function DashboardForecasts({ forecasts }: Pick<Dashboard, "forecasts">) 
 						<DialogDescription>Previsões calculadas. Nenhum lançamento futuro é criado.</DialogDescription>
 					</DialogHeader>
 					<ScrollArea className="max-h-[min(30rem,calc(100dvh-14rem))] pr-3">
-						<div className="space-y-3">{rows(forecasts)}</div>
+						<div className="space-y-3">
+							{forecasts.map(forecast => (
+								<DashboardForecastItem forecast={forecast} key={forecast.id} variant="detailed" />
+							))}
+						</div>
 					</ScrollArea>
 				</DialogContent>
 			</Dialog>

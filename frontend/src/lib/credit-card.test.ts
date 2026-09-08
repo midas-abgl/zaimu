@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { CreditCard, CreditCardStatement } from "./api";
-import { applyStatementCredits, calculateCreditCardLimit } from "./credit-card";
+import { applyStatementCredits, calculateCreditCardLimit, getCreditCardDisplayName } from "./credit-card";
 
 const card = { creditLimit: 1_000 } as CreditCard;
 
@@ -142,5 +142,16 @@ describe("calculateCreditCardLimit", () => {
 			calculateCreditCardLimit(cardWithDeposit, [statement("first", "2026-08-01", 100, 150)], "2026-08-01")
 				.effectiveLimit,
 		).toBe(1_050);
+	});
+});
+
+describe("getCreditCardDisplayName", () => {
+	test("uses the account name and falls back to its institution", () => {
+		expect(
+			getCreditCardDisplayName({ accountName: "Cartão viagens", institutionName: "Banco Exemplo" }),
+		).toBe("Cartão viagens");
+		expect(getCreditCardDisplayName({ accountName: null, institutionName: "Banco Exemplo" })).toBe(
+			"Banco Exemplo",
+		);
 	});
 });

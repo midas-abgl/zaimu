@@ -14,10 +14,12 @@ export function DashboardDebts({ debts }: Pick<Dashboard, "debts">) {
 	const people = debts.people.toSorted((left, right) => Math.abs(right.balance) - Math.abs(left.balance));
 	const rows = (items: typeof people) =>
 		items.map(person => (
-			<div className="flex items-center justify-between rounded-xl border p-3" key={person.id}>
-				<span className="font-medium">{person.name}</span>
-				<strong className={person.balance >= 0 ? "text-emerald-600" : "text-rose-600"}>
-					{person.balance >= 0 ? "A receber " : "A pagar "}
+			<div className="flex items-center justify-between gap-6 rounded-xl border p-3" key={person.id}>
+				<span className="min-w-0 truncate font-medium">{person.name}</span>
+				<strong
+					className={`shrink-0 tabular-nums ${person.balance >= 0 ? "text-emerald-600" : "text-rose-600"}`}
+				>
+					{person.balance >= 0 ? "+" : "−"}
 					{currency.format(Math.abs(person.balance))}
 				</strong>
 			</div>

@@ -496,6 +496,7 @@ export interface Dashboard {
 	accounts: Array<{
 		balance: number;
 		id: string;
+		institutionName: string | null;
 		name: string | null;
 		type: "CHECKING" | "SAVINGS";
 	}>;
@@ -506,6 +507,7 @@ export interface Dashboard {
 		excludeFromTotals: boolean;
 		financialAccountId: string;
 		id: string;
+		institutionName: string | null;
 		name: string | null;
 		statement: { balanceAmount: number; dueDate: string; id: string } | null;
 	}>;

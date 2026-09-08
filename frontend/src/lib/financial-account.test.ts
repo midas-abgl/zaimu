@@ -8,6 +8,7 @@ import {
 	getEffectiveYieldRate,
 	getFinancialAccountDisplayName,
 	getFinancialAccountOptionLabel,
+	getFinancialAccountSummaryName,
 	getFinancialAccountTitle,
 } from "./financial-account";
 
@@ -83,6 +84,25 @@ describe("getFinancialAccountOptionLabel", () => {
 		expect(getFinancialAccountOptionLabel({ institution: null, name: null, type: "SAVINGS" })).toBe(
 			"Poupança",
 		);
+	});
+});
+
+describe("getFinancialAccountSummaryName", () => {
+	test("uses the account title or prefixes its type to the institution", () => {
+		expect(
+			getFinancialAccountSummaryName({
+				institution: { name: "Banco Exemplo" },
+				name: "Conta do dia a dia",
+				type: "CHECKING",
+			}),
+		).toBe("Conta do dia a dia");
+		expect(
+			getFinancialAccountSummaryName({
+				institution: { name: "Banco Exemplo" },
+				name: null,
+				type: "SAVINGS",
+			}),
+		).toBe("Poupança Banco Exemplo");
 	});
 });
 

@@ -28,8 +28,10 @@ export function applyStatementCredits(
 	return statements.map(statement => ({ ...statement, ...effectiveById.get(statement.id)! }));
 }
 
-export function getCreditCardDisplayName(card: Pick<CreditCard, "accountName">) {
-	return card.accountName || "Cartão de crédito";
+export function getCreditCardDisplayName(
+	card: Pick<CreditCard, "accountName"> & { institutionName?: string | null },
+) {
+	return card.accountName?.trim() || card.institutionName || "Cartão de crédito";
 }
 
 export function calculateCreditCardLimit(

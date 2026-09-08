@@ -340,6 +340,16 @@ export function getFinancialAccountDisplayName(
 	return account.name?.trim() || account.institution?.name || financialAccountTypeLabels[account.type];
 }
 
+export function getFinancialAccountSummaryName(
+	account: Pick<FinancialAccount, "name" | "type"> & { institution?: { name: string } | null },
+) {
+	const name = account.name?.trim();
+	if (name) return name;
+	const institution = account.institution?.name;
+	if (!institution) return financialAccountTypeLabels[account.type];
+	return `${financialAccountOptionPrefixes[account.type]} ${institution}`;
+}
+
 export function getFinancialAccountTitle(account: Pick<FinancialAccount, "institution" | "name" | "type">) {
 	const name = account.name?.trim();
 	const repeatsInstitution =

@@ -1,6 +1,11 @@
-import { Bar, CartesianGrid, ComposedChart, Line, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, CartesianGrid, ComposedChart, Legend, Line, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { type ChartConfig, ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
+import {
+	type ChartConfig,
+	ChartContainer,
+	ChartLegendContent,
+	ChartTooltipContent,
+} from "@/components/ui/chart";
 import type { Dashboard } from "@/lib/api";
 
 const currency = new Intl.NumberFormat("pt-BR", {
@@ -47,6 +52,7 @@ export function DashboardComparisonChart({ comparison }: Pick<Dashboard, "compar
 								/>
 							}
 						/>
+						<Legend content={<ChartLegendContent />} />
 						<Bar dataKey="income" fill="var(--color-income)" radius={4} />
 						<Bar dataKey="expenses" fill="var(--color-expenses)" radius={4} />
 						<Line

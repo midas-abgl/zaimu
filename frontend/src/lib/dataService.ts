@@ -1309,21 +1309,6 @@ export const dataService = {
 							sourceId: item.id,
 							type: "LOAN" as const,
 						})),
-					...statements
-						.filter(item => item.dueDate >= dateKey(now) && item.totalAmount > item.paidAmount)
-						.map(item => ({
-							amount: item.totalAmount - item.paidAmount,
-							date: item.dueDate.slice(0, 10),
-							direction: "EXPENSE" as const,
-							id: `card-${item.id}`,
-							name:
-								accounts.find(
-									account =>
-										account.id === cards.find(card => card.id === item.creditCardId)?.financialAccountId,
-								)?.name ?? "Cartão",
-							sourceId: item.creditCardId,
-							type: "CARD" as const,
-						})),
 					...transactions
 						.filter(
 							item =>
@@ -1359,6 +1344,8 @@ export const dataService = {
 						excludeFromTotals: card.excludeFromTotals,
 						financialAccountId: card.financialAccountId,
 						id: card.id,
+						institutionName:
+							accounts.find(account => account.id === card.financialAccountId)?.institution?.name ?? null,
 						name:
 							accounts.find(account => account.id === card.financialAccountId)?.name ??
 							card.accountName ??
@@ -1405,6 +1392,7 @@ export const dataService = {
 						.map(account => ({
 							balance: account.balance ?? 0,
 							id: account.id,
+							institutionName: account.institution?.name ?? null,
 							name: account.name,
 							type: account.type as "CHECKING" | "SAVINGS",
 						})),

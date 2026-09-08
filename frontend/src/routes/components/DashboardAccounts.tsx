@@ -6,12 +6,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import type { Dashboard } from "@/lib/api";
+import { getFinancialAccountSummaryName } from "@/lib/financial-account";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
 export function DashboardAccounts({ accounts }: Pick<Dashboard, "accounts">) {
 	const [open, setOpen] = useState(false);
-	const ordered = accounts.toSorted((left, right) => (left.name ?? "").localeCompare(right.name ?? ""));
+	const getName = (account: Dashboard["accounts"][number]) =>
+		getFinancialAccountSummaryName({
+			institution: account.institutionName ? { name: account.institutionName } : null,
+			name: account.name,
+			type: account.type,
+		});
+	const ordered = accounts.toSorted((left, right) => getName(left).localeCompare(getName(right), "pt-BR"));
 	return (
 		<>
 			<Card>
@@ -26,7 +33,7 @@ export function DashboardAccounts({ accounts }: Pick<Dashboard, "accounts">) {
 				<CardContent className="space-y-3">
 					{ordered.slice(0, 4).map(account => (
 						<div className="flex items-center justify-between rounded-xl border p-3" key={account.id}>
-							<span>{account.name ?? "Conta sem nome"}</span>
+							<span>{getName(account)}</span>
 							<strong>{currency.format(account.balance)}</strong>
 						</div>
 					))}
@@ -49,7 +56,7 @@ export function DashboardAccounts({ accounts }: Pick<Dashboard, "accounts">) {
 									key={account.id}
 								>
 									<div>
-										<p className="font-medium">{account.name ?? "Conta sem nome"}</p>
+										<p className="font-medium">{getName(account)}</p>
 										<p className="text-muted-foreground text-xs">
 											{account.type === "SAVINGS" ? "Poupança" : "Conta corrente"}
 										</p>

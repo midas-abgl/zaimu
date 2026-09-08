@@ -41,7 +41,13 @@ const PeriodReturn = t.Object({
 });
 export const DashboardReturn = t.Object({
 	accounts: t.Array(
-		t.Object({ balance: t.Number(), id: t.String(), name: t.Nullable(t.String()), type: t.String() }),
+		t.Object({
+			balance: t.Number(),
+			id: t.String(),
+			institutionName: t.Nullable(t.String()),
+			name: t.Nullable(t.String()),
+			type: t.String(),
+		}),
 	),
 	comparison: t.Array(PeriodReturn),
 	creditCards: t.Array(
@@ -51,6 +57,7 @@ export const DashboardReturn = t.Object({
 			excludeFromTotals: t.Boolean(),
 			financialAccountId: t.String(),
 			id: t.String(),
+			institutionName: t.Nullable(t.String()),
 			name: t.Nullable(t.String()),
 			statement: t.Nullable(t.Object({ balanceAmount: t.Number(), dueDate: t.String(), id: t.String() })),
 		}),
@@ -83,101 +90,117 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 		const today = startOfDay(now);
 		const range = resolveDashboardRange(query.startDate, query.endDate, now);
 		const accounts = await queryRows(
-			db.sql.public.FinancialAccount.select("id", "name", "type")
+			db.sql.public.FinancialAccount.select("id", "institutionId", "name", "type")
 				.where((f, fn) => fn.eq(f.userId, userId))
 				.build(),
 		);
 		const accountIds = accounts.map(account => account.id);
-		const [cards, salaries, subscriptions, recurring, loans, transactions, debtPeople] = await Promise.all([
-			queryRows(
-				db.sql.public.CreditCard.innerJoin(db.sql.public.FinancialAccount, (f, fn) =>
-					fn.eq(f.CreditCard.financialAccountId, f.FinancialAccount.id),
-				)
-					.select(f => ({
-						creditLimit: f.CreditCard.creditLimit,
-						excludeFromTotals: f.CreditCard.excludeFromTotals,
-						financialAccountId: f.CreditCard.financialAccountId,
-						id: f.CreditCard.id,
-						name: f.FinancialAccount.name,
-					}))
-					.where((f, fn) => fn.eq(f.FinancialAccount.userId, userId))
-					.build(),
-			),
-			queryRows(
-				db.sql.public.Salary.select(
-					"id",
-					"amount",
-					"endDate",
-					"frequency",
-					"isActive",
-					"payDay",
-					"source",
-					"startDate",
-				)
-					.where((f, fn) => fn.eq(f.userId, userId))
-					.build(),
-			),
-			queryRows(
-				db.sql.public.Subscription.select(
-					"id",
-					"amount",
-					"billingDay",
-					"endDate",
-					"frequency",
-					"isActive",
-					"name",
-					"startDate",
-				)
-					.where((f, fn) => fn.eq(f.userId, userId))
-					.build(),
-			),
-			queryRows(
-				db.sql.public.RecurringPayment.select(
-					"id",
-					"amount",
-					"dayOfMonth",
-					"dayOfWeek",
-					"endDate",
-					"frequency",
-					"isActive",
-					"name",
-					"startDate",
-				)
-					.where((f, fn) => fn.eq(f.userId, userId))
-					.build(),
-			),
-			queryRows(
-				db.sql.public.Loan.select("id", "installmentAmount", "lender")
-					.where((f, fn) => fn.eq(f.userId, userId))
-					.build(),
-			),
-			accountIds.length
-				? queryRows(
-						db.sql.public.Transaction.select(
-							"amount",
-							"date",
-							"description",
-							"id",
-							"recurrenceId",
-							"salaryId",
-							"subscriptionId",
-							"type",
+		const institutionIds = accounts.flatMap(account =>
+			account.institutionId ? [account.institutionId] : [],
+		);
+		const [institutions, cards, salaries, subscriptions, recurring, loans, transactions, debtPeople] =
+			await Promise.all([
+				institutionIds.length
+					? queryRows(
+							db.sql.public.FinancialInstitution.select("id", "name")
+								.where((f, fn) => fn.in(f.id, institutionIds))
+								.build(),
 						)
-							.where((f, fn) =>
-								fn.or(
-									fn.in(f.originFinancialAccountId, accountIds),
-									fn.in(f.destinationFinancialAccountId, accountIds),
-								),
-							)
-							.build(),
+					: [],
+				queryRows(
+					db.sql.public.CreditCard.innerJoin(db.sql.public.FinancialAccount, (f, fn) =>
+						fn.eq(f.CreditCard.financialAccountId, f.FinancialAccount.id),
 					)
-				: [],
-			queryRows(
-				db.sql.public.DebtPerson.select("id", "name")
-					.where((f, fn) => fn.eq(f.userId, userId))
-					.build(),
-			),
-		]);
+						.select(f => ({
+							creditLimit: f.CreditCard.creditLimit,
+							excludeFromTotals: f.CreditCard.excludeFromTotals,
+							financialAccountId: f.CreditCard.financialAccountId,
+							id: f.CreditCard.id,
+							name: f.FinancialAccount.name,
+						}))
+						.where((f, fn) => fn.eq(f.FinancialAccount.userId, userId))
+						.build(),
+				),
+				queryRows(
+					db.sql.public.Salary.select(
+						"id",
+						"amount",
+						"endDate",
+						"frequency",
+						"isActive",
+						"payDay",
+						"source",
+						"startDate",
+					)
+						.where((f, fn) => fn.eq(f.userId, userId))
+						.build(),
+				),
+				queryRows(
+					db.sql.public.Subscription.select(
+						"id",
+						"amount",
+						"billingDay",
+						"endDate",
+						"frequency",
+						"isActive",
+						"name",
+						"startDate",
+					)
+						.where((f, fn) => fn.eq(f.userId, userId))
+						.build(),
+				),
+				queryRows(
+					db.sql.public.RecurringPayment.select(
+						"id",
+						"amount",
+						"dayOfMonth",
+						"dayOfWeek",
+						"endDate",
+						"frequency",
+						"isActive",
+						"name",
+						"startDate",
+					)
+						.where((f, fn) => fn.eq(f.userId, userId))
+						.build(),
+				),
+				queryRows(
+					db.sql.public.Loan.select("id", "installmentAmount", "lender")
+						.where((f, fn) => fn.eq(f.userId, userId))
+						.build(),
+				),
+				accountIds.length
+					? queryRows(
+							db.sql.public.Transaction.select(
+								"amount",
+								"date",
+								"description",
+								"id",
+								"recurrenceId",
+								"salaryId",
+								"subscriptionId",
+								"type",
+							)
+								.where((f, fn) =>
+									fn.or(
+										fn.in(f.originFinancialAccountId, accountIds),
+										fn.in(f.destinationFinancialAccountId, accountIds),
+									),
+								)
+								.build(),
+						)
+					: [],
+				queryRows(
+					db.sql.public.DebtPerson.select("id", "name")
+						.where((f, fn) => fn.eq(f.userId, userId))
+						.build(),
+				),
+			]);
+		const institutionsById = new Map(institutions.map(institution => [institution.id, institution.name]));
+		const institutionNameForAccount = (accountId: string) => {
+			const account = accounts.find(item => item.id === accountId);
+			return account?.institutionId ? (institutionsById.get(account.institutionId) ?? null) : null;
+		};
 		const [balances, statements, payments, debtEvents] = await Promise.all([
 			getFinancialAccountBalances(accountIds),
 			cards.length
@@ -334,21 +357,6 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 					type: "LOAN",
 				});
 		}
-		for (const statement of statements.filter(
-			item => item.dueDate >= today && Number(item.totalAmount) > Number(item.paidAmount),
-		)) {
-			const card = cards.find(item => item.id === statement.creditCardId);
-			if (card)
-				forecasts.push({
-					amount: Number(statement.totalAmount) - Number(statement.paidAmount),
-					date: dateKey(statement.dueDate),
-					direction: "EXPENSE",
-					id: `card-${statement.id}`,
-					name: card.name ?? "Cartão",
-					sourceId: card.id,
-					type: "CARD",
-				});
-		}
 		for (const transaction of normalizedTransactions.filter(
 			item =>
 				item.date > today &&
@@ -383,6 +391,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 				excludeFromTotals: card.excludeFromTotals,
 				financialAccountId: card.financialAccountId,
 				id: card.id,
+				institutionName: institutionNameForAccount(card.financialAccountId),
 				name: card.name,
 				statement: statement
 					? {
@@ -420,6 +429,7 @@ export const DashboardController = new Elysia({ prefix: "/dashboard" }).get(
 			accounts: monetaryAccounts.map(account => ({
 				balance: balances.get(account.id) ?? 0,
 				id: account.id,
+				institutionName: institutionNameForAccount(account.id),
 				name: account.name,
 				type: account.type,
 			})),

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import type { Dashboard } from "@/lib/api";
+import { getCreditCardDisplayName } from "@/lib/credit-card";
 
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 
@@ -14,21 +15,23 @@ export function DashboardCreditCards({
 	totalAvailableCredit,
 }: Pick<Dashboard, "creditCards" | "totalAvailableCredit">) {
 	const [open, setOpen] = useState(false);
-	const ordered = creditCards.toSorted((left, right) => (left.name ?? "").localeCompare(right.name ?? ""));
+	const getName = (card: Dashboard["creditCards"][number]) =>
+		getCreditCardDisplayName({ accountName: card.name, institutionName: card.institutionName });
+	const ordered = creditCards.toSorted((left, right) => getName(left).localeCompare(getName(right), "pt-BR"));
 	const rows = (items: typeof ordered) =>
 		items.map(card => (
-			<div className="flex items-center justify-between gap-3 rounded-xl border p-3" key={card.id}>
-				<div>
-					<p className="font-medium">{card.name ?? "Cartão sem nome"}</p>
+			<div className="flex items-start justify-between gap-5 rounded-xl border p-3" key={card.id}>
+				<div className="min-w-0">
+					<p className="truncate font-medium">{getName(card)}</p>
 					<p className="text-muted-foreground text-xs">
 						{card.excludeFromTotals ? "Oculto do limite total" : "Incluído no limite total"}
 					</p>
 				</div>
-				<div className="text-right">
-					<p className="font-semibold">{currency.format(card.availableLimit)}</p>
-					<p className="text-muted-foreground text-xs">
-						Fatura: {currency.format(card.statement?.balanceAmount ?? 0)}
-					</p>
+				<div className="shrink-0 space-y-1 text-right text-xs">
+					<p className="text-muted-foreground">Limite disponível</p>
+					<p className="font-semibold text-sm tabular-nums">{currency.format(card.availableLimit)}</p>
+					<p className="pt-1 text-muted-foreground">Fatura atual</p>
+					<p className="font-medium tabular-nums">{currency.format(card.statement?.balanceAmount ?? 0)}</p>
 				</div>
 			</div>
 		));
