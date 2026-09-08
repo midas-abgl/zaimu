@@ -20,6 +20,7 @@ import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { FinancialAccount, FinancialInstitution } from "@/lib/api";
 import { AccountYieldFields } from "./AccountYieldFields";
 import { CashbackSettingsDialog } from "./CashbackSettingsDialog";
+import { RecalculateCurrentDayYieldDialog } from "./RecalculateCurrentDayYieldDialog";
 
 const types = [
 	{ label: "Conta corrente", value: "CHECKING" },
@@ -105,7 +106,7 @@ export function CreateFinancialAccountDialog({
 		() => undefined,
 	);
 	const [yieldPeriod, setYieldPeriod] = useState<"MONTHLY" | "YEARLY">(account?.yieldPeriod ?? "MONTHLY");
-	const [recalculateCurrentDay, setRecalculateCurrentDay] = useState(false);
+	const [isRecalculateCurrentDayYieldDialogOpen, setIsRecalculateCurrentDayYieldDialogOpen] = useState(false);
 	const [rewardsKind, setRewardsKind] = useState(account?.rewardsAccount?.kind ?? "POINTS");
 	const [initialRewardsBalance, setInitialRewardsBalance] = useDebouncedInput(
 		String(account?.rewardsAccount?.initialBalance ?? ""),
@@ -170,7 +171,7 @@ export function CreateFinancialAccountDialog({
 		setYieldReferencePercentage(String(account?.yieldReferencePercentage ?? 100));
 		setYieldTaxRate(String(account?.yieldTaxRate ?? ""));
 		setYieldPeriod(account?.yieldPeriod ?? "MONTHLY");
-		setRecalculateCurrentDay(false);
+		setIsRecalculateCurrentDayYieldDialogOpen(false);
 		setRewardsKind(account?.rewardsAccount?.kind ?? "POINTS");
 		setInitialRewardsBalance(String(account?.rewardsAccount?.initialBalance ?? ""));
 		setConversionEnabled(
@@ -198,9 +199,19 @@ export function CreateFinancialAccountDialog({
 		onOpenChange?.(nextOpen);
 		if (!nextOpen) reset();
 	};
-	const handleSubmit = async (event: SyntheticEvent<HTMLFormElement>) => {
-		event.preventDefault();
-		if (type === "CREDIT_CARD" && hasInvalidBillingDays) return;
+	const yieldConfigurationChanged = () => {
+		if (!account || type === "CREDIT_CARD") return false;
+		return (
+			(yieldEnabled && yieldFixedRate ? Number(yieldFixedRate) : null) !== (account.yieldFixedRate ?? null) ||
+			(yieldEnabled ? yieldPeriod : null) !== (account.yieldPeriod ?? null) ||
+			(yieldEnabled && yieldReferenceRate ? Number(yieldReferencePercentage) : null) !==
+				(account.yieldReferencePercentage ?? null) ||
+			(yieldEnabled && yieldReferenceRate ? Number(yieldReferenceRate) : null) !==
+				(account.yieldReferenceRate ?? null) ||
+			(yieldEnabled && yieldTaxRate !== "" ? Number(yieldTaxRate) : null) !== (account.yieldTaxRate ?? null)
+		);
+	};
+	const save = async (recalculateCurrentDay: boolean) => {
 		try {
 			const institutionName =
 				institutionId === NEW_INSTITUTION
@@ -312,6 +323,15 @@ export function CreateFinancialAccountDialog({
 		}
 		handleOpenChange(false);
 	};
+	const handleSubmit = (event: SyntheticEvent<HTMLFormElement>) => {
+		event.preventDefault();
+		if (type === "CREDIT_CARD" && hasInvalidBillingDays) return;
+		if (yieldConfigurationChanged()) {
+			setIsRecalculateCurrentDayYieldDialogOpen(true);
+			return;
+		}
+		void save(false);
+	};
 
 	return (
 		<Dialog onOpenChange={handleOpenChange} open={open}>
@@ -404,15 +424,12 @@ export function CreateFinancialAccountDialog({
 									onEnabledChange={setYieldEnabled}
 									onFixedRateChange={setYieldFixedRate}
 									onPeriodChange={setYieldPeriod}
-									onRecalculateCurrentDayChange={setRecalculateCurrentDay}
 									onReferencePercentageChange={setYieldReferencePercentage}
 									onReferenceRateChange={setYieldReferenceRate}
 									onTaxRateChange={setYieldTaxRate}
 									period={yieldPeriod}
-									recalculateCurrentDay={recalculateCurrentDay}
 									referencePercentage={yieldReferencePercentage}
 									referenceRate={yieldReferenceRate}
-									showRecalculateOption={Boolean(account)}
 									taxRate={yieldTaxRate}
 								/>
 							)}
@@ -825,6 +842,18 @@ export function CreateFinancialAccountDialog({
 				setCashbackYieldPeriod={setCashbackYieldPeriod}
 				setCashbackYieldRate={setCashbackYieldRate}
 				setCashbackYieldReferencePercentage={setCashbackYieldReferencePercentage}
+			/>
+			<RecalculateCurrentDayYieldDialog
+				onOpenChange={setIsRecalculateCurrentDayYieldDialogOpen}
+				onRecalculate={() => {
+					setIsRecalculateCurrentDayYieldDialogOpen(false);
+					void save(true);
+				}}
+				onSkip={() => {
+					setIsRecalculateCurrentDayYieldDialogOpen(false);
+					void save(false);
+				}}
+				open={isRecalculateCurrentDayYieldDialogOpen}
 			/>
 		</Dialog>
 	);

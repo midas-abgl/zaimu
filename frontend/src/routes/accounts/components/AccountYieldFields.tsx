@@ -6,15 +6,12 @@ export function AccountYieldFields({
 	enabled,
 	fixedRate,
 	period,
-	recalculateCurrentDay,
 	referencePercentage,
 	referenceRate,
 	taxRate,
-	showRecalculateOption = false,
 	onEnabledChange,
 	onFixedRateChange,
 	onPeriodChange,
-	onRecalculateCurrentDayChange,
 	onReferencePercentageChange,
 	onReferenceRateChange,
 	onTaxRateChange,
@@ -22,15 +19,12 @@ export function AccountYieldFields({
 	enabled: boolean;
 	fixedRate: string;
 	period: "MONTHLY" | "YEARLY";
-	recalculateCurrentDay: boolean;
 	referencePercentage: string;
 	referenceRate: string;
 	taxRate: string;
-	showRecalculateOption?: boolean;
 	onEnabledChange: (enabled: boolean) => void;
 	onFixedRateChange: (rate: string) => void;
 	onPeriodChange: (period: "MONTHLY" | "YEARLY") => void;
-	onRecalculateCurrentDayChange: (recalculate: boolean) => void;
 	onReferencePercentageChange: (percentage: string) => void;
 	onReferenceRateChange: (rate: string) => void;
 	onTaxRateChange: (rate: string) => void;
@@ -109,26 +103,6 @@ export function AccountYieldFields({
 							value={period}
 						/>
 					</div>
-					{showRecalculateOption && (
-						<div className="grid gap-2">
-							<CustomSelect
-								label="Recalcular o rendimento de hoje?"
-								onValueChange={value => onRecalculateCurrentDayChange(value === "YES")}
-								options={[
-									{ label: "Não", value: "NO" },
-									{ label: "Sim", value: "YES" },
-								]}
-								placeholder="Selecione"
-								sortOptions={false}
-								value={recalculateCurrentDay ? "YES" : "NO"}
-							/>
-							{recalculateCurrentDay && (
-								<p className="text-destructive text-xs">
-									Ajustes ou exclusões do rendimento automático de hoje serão removidos.
-								</p>
-							)}
-						</div>
-					)}
 				</div>
 			)}
 		</div>
