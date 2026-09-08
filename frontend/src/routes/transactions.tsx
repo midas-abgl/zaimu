@@ -15,7 +15,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
-import { formatLocalDate, formatLocalTime } from "@/lib/date";
+import { formatLocalDate } from "@/lib/date";
+import { sortTransactionsByMostRecent } from "@/lib/transaction-sort";
 import { EditCreditPurchaseDialog } from "@/routes/credit-cards/components/EditCreditPurchaseDialog";
 import { RefundCreditPurchaseDialog } from "@/routes/credit-cards/components/RefundCreditPurchaseDialog";
 import { showToast } from "@/stores";
@@ -53,15 +54,17 @@ function TransactionsPage() {
 		queryKey: ["credit-cards"],
 	});
 
-	const groupedTransactions = transactionsQuery.data?.reduce<Record<string, Transaction[]>>(
-		(groups, transaction) => {
-			const date = transaction.date.slice(0, 10);
-			if (!groups[date]) groups[date] = [];
-			groups[date].push(transaction);
-			return groups;
-		},
-		{},
-	);
+	const groupedTransactions = transactionsQuery.data
+		? sortTransactionsByMostRecent(transactionsQuery.data).reduce<Record<string, Transaction[]>>(
+				(groups, transaction) => {
+					const date = transaction.date.slice(0, 10);
+					if (!groups[date]) groups[date] = [];
+					groups[date].push(transaction);
+					return groups;
+				},
+				{},
+			)
+		: undefined;
 	const remove = useMutation({
 		mutationFn: (id: string) => dataService.transactions.delete(id),
 		onError: error => showToast(error.message, "negative"),
@@ -161,11 +164,6 @@ function TransactionsPage() {
 						transaction.id
 				}
 				key={transaction.id}
-				metadataPrefix={
-					formatLocalTime(transaction.time) ? (
-						<span className="text-muted-foreground text-xs">{formatLocalTime(transaction.time)}</span>
-					) : undefined
-				}
 				onDelete={
 					isStatementPayment
 						? undefined

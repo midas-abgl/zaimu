@@ -53,6 +53,7 @@ import {
 	localSubscriptions,
 	localTransactions,
 } from "./localStorage";
+import { sortTransactionsByMostRecent } from "./transaction-sort";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3333";
 
@@ -2580,8 +2581,7 @@ export const dataService = {
 					);
 				}
 
-				// Sort by date descending
-				transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+				transactions = sortTransactionsByMostRecent(transactions);
 
 				// Apply pagination
 				if (params?.offset) {
