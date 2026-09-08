@@ -1,4 +1,4 @@
-import { addMonths, format, isAfter, parseISO, startOfMonth, subMonths } from "date-fns";
+import { addMonths, format, parseISO, startOfMonth, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState } from "react";
 import { LuCalendarDays, LuChevronLeft, LuChevronRight } from "react-icons/lu";
@@ -12,7 +12,9 @@ import {
 	PopoverTrigger,
 } from "@/components/ui/Popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
+import { cn } from "@/lib/utils";
 import { CalendarMonth } from "./CalendarMonth";
+import { getNextActiveBoundary, selectDateRangeBoundary } from "./range-selection";
 import type { DateRangeValue } from "./types";
 
 interface DateRangePickerProps {
@@ -40,27 +42,8 @@ export function DateRangePicker({ onChange, value }: DateRangePickerProps) {
 	};
 	const handleDateSelect = (date: Date) => {
 		const selectedDate = format(date, "yyyy-MM-dd");
-
-		if (activeBoundary === "start") {
-			setDraftRange(currentRange => ({
-				endDate:
-					currentRange.endDate && isAfter(date, parseISO(currentRange.endDate))
-						? undefined
-						: currentRange.endDate,
-				startDate: selectedDate,
-			}));
-			setActiveBoundary("end");
-			return;
-		}
-
-		setDraftRange(currentRange => ({
-			endDate: selectedDate,
-			startDate:
-				currentRange.startDate && isAfter(parseISO(currentRange.startDate), date)
-					? undefined
-					: currentRange.startDate,
-		}));
-		setActiveBoundary("start");
+		setDraftRange(currentRange => selectDateRangeBoundary(currentRange, activeBoundary, selectedDate));
+		setActiveBoundary(getNextActiveBoundary(draftRange, activeBoundary));
 	};
 	const handleApply = () => {
 		onChange(draftRange);
@@ -92,7 +75,10 @@ export function DateRangePicker({ onChange, value }: DateRangePickerProps) {
 				<div className="grid grid-cols-2 gap-2">
 					<Button
 						aria-pressed={activeBoundary === "start"}
-						className="h-auto cursor-pointer flex-col items-start gap-0 rounded-xl px-3 py-2 text-left"
+						className={cn(
+							"h-auto cursor-pointer flex-col items-start gap-0 rounded-xl px-3 py-2 text-left",
+							activeBoundary === "start" && "border-primary ring-1 ring-primary",
+						)}
 						onClick={() => setActiveBoundary("start")}
 						type="button"
 						variant="outline"
@@ -102,7 +88,10 @@ export function DateRangePicker({ onChange, value }: DateRangePickerProps) {
 					</Button>
 					<Button
 						aria-pressed={activeBoundary === "end"}
-						className="h-auto cursor-pointer flex-col items-start gap-0 rounded-xl px-3 py-2 text-left"
+						className={cn(
+							"h-auto cursor-pointer flex-col items-start gap-0 rounded-xl px-3 py-2 text-left",
+							activeBoundary === "end" && "border-primary ring-1 ring-primary",
+						)}
 						onClick={() => setActiveBoundary("end")}
 						type="button"
 						variant="outline"
