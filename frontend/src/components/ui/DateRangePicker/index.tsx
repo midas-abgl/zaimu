@@ -14,7 +14,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
 import { CalendarMonth } from "./CalendarMonth";
-import { getNextActiveBoundary, selectDateRangeBoundary } from "./range-selection";
+import { type DateRangeBoundary, selectDateRangeBoundary, selectDateRangePair } from "./range-selection";
 import type { DateRangeValue } from "./types";
 
 interface DateRangePickerProps {
@@ -25,8 +25,9 @@ interface DateRangePickerProps {
 export function DateRangePicker({ onChange, value }: DateRangePickerProps) {
 	const [open, setOpen] = useState(false);
 	const [draftRange, setDraftRange] = useState(value);
-	const [activeBoundary, setActiveBoundary] = useState<"end" | "start">("start");
+	const [activeBoundary, setActiveBoundary] = useState<DateRangeBoundary>();
 	const [hoveredDate, setHoveredDate] = useState<Date>();
+	const [rangeStart, setRangeStart] = useState<string>();
 	const [visibleMonth, setVisibleMonth] = useState(() => getVisibleMonth(value));
 	const startDate = draftRange.startDate ? parseISO(draftRange.startDate) : undefined;
 	const endDate = draftRange.endDate ? parseISO(draftRange.endDate) : undefined;
@@ -34,16 +35,30 @@ export function DateRangePicker({ onChange, value }: DateRangePickerProps) {
 	const handleOpenChange = (nextOpen: boolean) => {
 		if (nextOpen) {
 			setDraftRange(value);
-			setActiveBoundary(value.startDate ? "end" : "start");
-			setHoveredDate(undefined);
 			setVisibleMonth(getVisibleMonth(value));
 		}
+		setActiveBoundary(undefined);
+		setHoveredDate(undefined);
+		setRangeStart(undefined);
 		setOpen(nextOpen);
 	};
 	const handleDateSelect = (date: Date) => {
 		const selectedDate = format(date, "yyyy-MM-dd");
-		setDraftRange(currentRange => selectDateRangeBoundary(currentRange, activeBoundary, selectedDate));
-		setActiveBoundary(getNextActiveBoundary(draftRange, activeBoundary));
+
+		if (activeBoundary) {
+			setDraftRange(currentRange => selectDateRangeBoundary(currentRange, activeBoundary, selectedDate));
+			setActiveBoundary(undefined);
+			return;
+		}
+
+		if (rangeStart) {
+			setDraftRange(selectDateRangePair(rangeStart, selectedDate));
+			setRangeStart(undefined);
+			return;
+		}
+
+		setDraftRange({ startDate: selectedDate });
+		setRangeStart(selectedDate);
 	};
 	const handleApply = () => {
 		onChange(draftRange);
@@ -56,6 +71,8 @@ export function DateRangePicker({ onChange, value }: DateRangePickerProps) {
 			startDate: format(startOfMonth(now), "yyyy-MM-dd"),
 		};
 		setDraftRange(currentMonth);
+		setActiveBoundary(undefined);
+		setRangeStart(undefined);
 		setVisibleMonth(startOfMonth(now));
 	};
 
@@ -79,7 +96,10 @@ export function DateRangePicker({ onChange, value }: DateRangePickerProps) {
 							"h-auto cursor-pointer flex-col items-start gap-0 rounded-xl px-3 py-2 text-left",
 							activeBoundary === "start" && "border-primary ring-1 ring-primary",
 						)}
-						onClick={() => setActiveBoundary("start")}
+						onClick={() => {
+							setActiveBoundary("start");
+							setRangeStart(undefined);
+						}}
 						type="button"
 						variant="outline"
 					>
@@ -92,7 +112,10 @@ export function DateRangePicker({ onChange, value }: DateRangePickerProps) {
 							"h-auto cursor-pointer flex-col items-start gap-0 rounded-xl px-3 py-2 text-left",
 							activeBoundary === "end" && "border-primary ring-1 ring-primary",
 						)}
-						onClick={() => setActiveBoundary("end")}
+						onClick={() => {
+							setActiveBoundary("end");
+							setRangeStart(undefined);
+						}}
 						type="button"
 						variant="outline"
 					>
@@ -143,7 +166,7 @@ export function DateRangePicker({ onChange, value }: DateRangePickerProps) {
 				</div>
 				<div onMouseLeave={() => setHoveredDate(undefined)}>
 					<CalendarMonth
-						activeBoundary={activeBoundary}
+						activeBoundary={activeBoundary ?? "end"}
 						endDate={endDate}
 						hoveredDate={hoveredDate}
 						month={visibleMonth}
@@ -155,7 +178,11 @@ export function DateRangePicker({ onChange, value }: DateRangePickerProps) {
 				<div className="flex items-center justify-between gap-3 border-t pt-4">
 					<Button
 						className="cursor-pointer"
-						onClick={() => setDraftRange({})}
+						onClick={() => {
+							setActiveBoundary(undefined);
+							setDraftRange({});
+							setRangeStart(undefined);
+						}}
 						size="sm"
 						type="button"
 						variant="outline"

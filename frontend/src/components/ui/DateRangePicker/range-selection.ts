@@ -21,11 +21,8 @@ export function selectDateRangeBoundary(
 	};
 }
 
-export function getNextActiveBoundary(
-	currentRange: DateRangeValue,
-	boundary: DateRangeBoundary,
-): DateRangeBoundary {
-	if (boundary === "start" && !currentRange.endDate) return "end";
-	if (boundary === "end" && !currentRange.startDate) return "start";
-	return boundary;
+export function selectDateRangePair(firstDate: string, secondDate: string): DateRangeValue {
+	return firstDate <= secondDate
+		? { endDate: secondDate, startDate: firstDate }
+		: { endDate: firstDate, startDate: secondDate };
 }

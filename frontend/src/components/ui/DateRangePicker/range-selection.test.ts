@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { getNextActiveBoundary, selectDateRangeBoundary } from "./range-selection";
+import { selectDateRangeBoundary, selectDateRangePair } from "./range-selection";
 
 describe("date range boundary selection", () => {
 	test("preserves the end while changing a valid start", () => {
@@ -14,10 +14,14 @@ describe("date range boundary selection", () => {
 		).toEqual({ endDate: "2026-09-25", startDate: "2026-09-01" });
 	});
 
-	test("only switches boundary while completing a one-sided range", () => {
-		expect(getNextActiveBoundary({ startDate: "2026-09-01" }, "start")).toBe("end");
-		expect(getNextActiveBoundary({ endDate: "2026-09-30" }, "end")).toBe("start");
-		expect(getNextActiveBoundary({ endDate: "2026-09-30", startDate: "2026-09-01" }, "start")).toBe("start");
-		expect(getNextActiveBoundary({ endDate: "2026-09-30", startDate: "2026-09-01" }, "end")).toBe("end");
+	test("builds a range from two clicks regardless of their order", () => {
+		expect(selectDateRangePair("2026-09-01", "2026-09-30")).toEqual({
+			endDate: "2026-09-30",
+			startDate: "2026-09-01",
+		});
+		expect(selectDateRangePair("2026-09-30", "2026-09-01")).toEqual({
+			endDate: "2026-09-30",
+			startDate: "2026-09-01",
+		});
 	});
 });
