@@ -8,23 +8,35 @@ import { db, queryRows } from "~/shared/infra/sql";
 export function calculateCashbackValue(
 	amount: number,
 	awardedAt: Date,
-	yieldRate?: null | number,
+	yieldReferenceRate?: null | number,
+	yieldReferencePercentage?: null | number,
 	yieldPeriod?: null | string,
 	today = new Date(),
 ) {
-	if (!yieldRate || !yieldPeriod) return amount;
+	if (!yieldReferenceRate || !yieldReferencePercentage || !yieldPeriod) return amount;
 	const periods = Math.max(
 		0,
 		yieldPeriod === "MONTHLY" ? differenceInMonths(today, awardedAt) : differenceInYears(today, awardedAt),
 	);
-	return amount * (1 + yieldRate / 100) ** periods;
+	const rate = (yieldReferenceRate * yieldReferencePercentage) / 100;
+	return amount * (1 + rate / 100) ** periods;
 }
 
 export async function getFinancialAccountBalances(accountIds: string[]) {
 	const balances = new Map(accountIds.map(accountId => [accountId, 0]));
 	if (accountIds.length === 0) return balances;
 	const accounts = await queryRows(
-		db.sql.public.FinancialAccount.select("id", "userId", "type", "createdAt", "yieldRate", "yieldPeriod")
+		db.sql.public.FinancialAccount.select(
+			"id",
+			"userId",
+			"type",
+			"createdAt",
+			"yieldFixedRate",
+			"yieldReferenceRate",
+			"yieldReferencePercentage",
+			"yieldPeriod",
+			"yieldTaxRate",
+		)
 			.where((fields, functions) => functions.in(fields.id, accountIds))
 			.build(),
 	);
@@ -52,8 +64,11 @@ export async function getFinancialAccountBalances(accountIds: string[]) {
 		db.sql.public.FinancialAccountYieldRateHistory.select(
 			"financialAccountId",
 			"effectiveDate",
-			"yieldRate",
+			"yieldFixedRate",
+			"yieldReferenceRate",
+			"yieldReferencePercentage",
 			"yieldPeriod",
+			"yieldTaxRate",
 		)
 			.where((fields, functions) => functions.in(fields.financialAccountId, accountIds))
 			.build(),
@@ -76,7 +91,8 @@ export async function getFinancialAccountBalances(accountIds: string[]) {
 					"cashbackAccountId",
 					"cashbackAmount",
 					"cashbackYieldPeriod",
-					"cashbackYieldRate",
+					"cashbackYieldReferenceRate",
+					"cashbackYieldReferencePercentage",
 					"purchaseDate",
 				)
 					.where((fields, functions) => functions.in(fields.cashbackAccountId, rewardsAccountIds))
@@ -105,7 +121,8 @@ export async function getFinancialAccountBalances(accountIds: string[]) {
 			...purchase,
 			cashbackAmount: Number(purchase.cashbackAmount ?? 0),
 			cashbackYieldPeriod: purchase.cashbackYieldPeriod as null | YieldPeriod,
-			cashbackYieldRate: purchase.cashbackYieldRate,
+			cashbackYieldReferencePercentage: purchase.cashbackYieldReferencePercentage,
+			cashbackYieldReferenceRate: purchase.cashbackYieldReferenceRate,
 		})),
 		holidays: holidays.map(holiday => holiday.date),
 		initialRewardsBalances: new Map(

@@ -59,8 +59,8 @@ export function CreditCardAccountSummary({ card }: { card?: CreditCard }) {
 					<p className="text-muted-foreground text-xs">Cashback</p>
 					<p className="mt-1 font-semibold text-sm">
 						{new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 4 }).format(card.cashbackRate)}%
-						{card.cashbackYieldRate
-							? ` · rende ${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 4 }).format(card.cashbackYieldRate)}% ${card.cashbackYieldPeriod === "YEARLY" ? "ao ano" : "ao mês"}`
+						{card.cashbackYieldReferenceRate
+							? ` · rende ${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 4 }).format(card.cashbackYieldReferencePercentage ?? 100)}% de ${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 4 }).format(card.cashbackYieldReferenceRate)}% ${card.cashbackYieldPeriod === "YEARLY" ? "ao ano" : "ao mês"}`
 							: ""}
 					</p>
 				</div>

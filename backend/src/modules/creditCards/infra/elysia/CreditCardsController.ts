@@ -41,7 +41,8 @@ const purchaseColumns = [
 	"cashbackAccountId",
 	"cashbackAmount",
 	"cashbackYieldPeriod",
-	"cashbackYieldRate",
+	"cashbackYieldReferencePercentage",
+	"cashbackYieldReferenceRate",
 	"description",
 	"storeName",
 	"feeDescription",
@@ -153,7 +154,8 @@ interface CreditPurchaseRow {
 	cashbackAccountId?: string | null;
 	cashbackAmount?: number | null;
 	cashbackYieldPeriod?: string | null;
-	cashbackYieldRate?: number | null;
+	cashbackYieldReferencePercentage?: number | null;
+	cashbackYieldReferenceRate?: number | null;
 	description: string;
 	storeName: string | null;
 	feeDescription: string | null;
@@ -182,14 +184,16 @@ interface CashbackCard {
 	cashbackAccountId: string | null;
 	cashbackRate: number | null;
 	cashbackYieldPeriod: string | null;
-	cashbackYieldRate: number | null;
+	cashbackYieldReferencePercentage: number | null;
+	cashbackYieldReferenceRate: number | null;
 }
 
 interface CashbackSnapshot {
 	cashbackAccountId?: string;
 	cashbackAmount?: string;
 	cashbackYieldPeriod?: "MONTHLY" | "YEARLY";
-	cashbackYieldRate?: string;
+	cashbackYieldReferencePercentage?: string;
+	cashbackYieldReferenceRate?: string;
 }
 
 function cashbackSnapshot(card: CashbackCard, totalAmount: number): CashbackSnapshot {
@@ -202,7 +206,12 @@ function cashbackSnapshot(card: CashbackCard, totalAmount: number): CashbackSnap
 		cashbackAccountId: card.cashbackAccountId,
 		cashbackAmount: String(Number(((totalAmount * card.cashbackRate) / 100).toFixed(4))),
 		cashbackYieldPeriod,
-		...(card.cashbackYieldRate !== null && { cashbackYieldRate: String(card.cashbackYieldRate) }),
+		...(card.cashbackYieldReferencePercentage !== null && {
+			cashbackYieldReferencePercentage: String(card.cashbackYieldReferencePercentage),
+		}),
+		...(card.cashbackYieldReferenceRate !== null && {
+			cashbackYieldReferenceRate: String(card.cashbackYieldReferenceRate),
+		}),
 	};
 }
 
@@ -422,7 +431,8 @@ async function materializeDueSubscriptionPurchases(
 						"cashbackAccountId",
 						"cashbackAmount",
 						"cashbackYieldPeriod",
-						"cashbackYieldRate",
+	"cashbackYieldReferencePercentage",
+						"cashbackYieldReferenceRate",
 						"currentInstallment",
 						"description",
 						"installmentAmount",
@@ -439,7 +449,8 @@ async function materializeDueSubscriptionPurchases(
 						${param(card.cashbackAccountId, { codecId: "sql/varchar@1" })},
 						${param(card.cashbackAccountId && card.cashbackRate ? numeric<18, 4>((Number(subscription.amount) * card.cashbackRate) / 100) : null, { codecId: "pg/numeric@1" })},
 						${param(card.cashbackYieldPeriod, { codecId: "sql/varchar@1" })}::"CashbackYieldPeriod",
-						${param(card.cashbackYieldRate === null ? null : numeric<7, 4>(card.cashbackYieldRate), { codecId: "pg/numeric@1" })},
+						${param(card.cashbackYieldReferencePercentage === null ? null : numeric<7, 4>(card.cashbackYieldReferencePercentage), { codecId: "pg/numeric@1" })},
+						${param(card.cashbackYieldReferenceRate === null ? null : numeric<7, 4>(card.cashbackYieldReferenceRate), { codecId: "pg/numeric@1" })},
 						1,
 						${param(subscription.name, { codecId: "sql/varchar@1" })},
 						${param(numeric<12, 2>(subscription.amount), { codecId: "pg/numeric@1" })},
@@ -593,7 +604,8 @@ const findPurchaseForCard = (creditCardId: string, purchaseId: string) =>
 				cashbackAccountId: fields.CreditPurchase.cashbackAccountId,
 				cashbackAmount: fields.CreditPurchase.cashbackAmount,
 				cashbackYieldPeriod: fields.CreditPurchase.cashbackYieldPeriod,
-				cashbackYieldRate: fields.CreditPurchase.cashbackYieldRate,
+				cashbackYieldReferencePercentage: fields.CreditPurchase.cashbackYieldReferencePercentage,
+				cashbackYieldReferenceRate: fields.CreditPurchase.cashbackYieldReferenceRate,
 				categoryId: fields.CreditPurchase.categoryId,
 				creditCardId: fields.CreditCardStatement.creditCardId,
 				currentInstallment: fields.CreditPurchase.currentInstallment,
@@ -643,7 +655,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						cashbackAccountId: fields.CreditCard.cashbackAccountId,
 						cashbackRate: fields.CreditCard.cashbackRate,
 						cashbackYieldPeriod: fields.CreditCard.cashbackYieldPeriod,
-						cashbackYieldRate: fields.CreditCard.cashbackYieldRate,
+						cashbackYieldReferencePercentage: fields.CreditCard.cashbackYieldReferencePercentage,
+						cashbackYieldReferenceRate: fields.CreditCard.cashbackYieldReferenceRate,
 						createdAt: fields.CreditCard.createdAt,
 						creditLimit: fields.CreditCard.creditLimit,
 						dueDay: fields.CreditCard.dueDay,
@@ -684,7 +697,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						cashbackAccountId: fields.CreditCard.cashbackAccountId,
 						cashbackRate: fields.CreditCard.cashbackRate,
 						cashbackYieldPeriod: fields.CreditCard.cashbackYieldPeriod,
-						cashbackYieldRate: fields.CreditCard.cashbackYieldRate,
+						cashbackYieldReferencePercentage: fields.CreditCard.cashbackYieldReferencePercentage,
+						cashbackYieldReferenceRate: fields.CreditCard.cashbackYieldReferenceRate,
 						createdAt: fields.CreditCard.createdAt,
 						creditLimit: fields.CreditCard.creditLimit,
 						dueDay: fields.CreditCard.dueDay,
@@ -723,7 +737,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					"cashbackAccountId",
 					"cashbackRate",
 					"cashbackYieldPeriod",
-					"cashbackYieldRate",
+					"cashbackYieldReferencePercentage",
+					"cashbackYieldReferenceRate",
 					"createdAt",
 					"dueDay",
 					"financialAccountId",
@@ -816,7 +831,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						"cashbackAccountId",
 						"cashbackRate",
 						"cashbackYieldPeriod",
-						"cashbackYieldRate",
+						"cashbackYieldReferencePercentage",
+						"cashbackYieldReferenceRate",
 						"createdAt",
 						"dueDay",
 						"financialAccountId",
@@ -979,7 +995,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 					"cashbackAccountId",
 					"cashbackRate",
 					"cashbackYieldPeriod",
-					"cashbackYieldRate",
+					"cashbackYieldReferencePercentage",
+					"cashbackYieldReferenceRate",
 					"id",
 					"statementDay",
 					"dueDay",
@@ -1112,7 +1129,7 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 				const inserted = await queryFirst(
 					db.raw.sql`
 					INSERT INTO "CreditPurchase" (
-						"cashbackAccountId", "cashbackAmount", "cashbackYieldPeriod", "cashbackYieldRate",
+						"cashbackAccountId", "cashbackAmount", "cashbackYieldPeriod", "cashbackYieldReferencePercentage", "cashbackYieldReferenceRate",
 						"categoryId", "currentInstallment", "description", "installmentAmount", "installments",
 							"purchaseDate", "statementId", "storeName", "subscriptionId",
 							"subscriptionOccurrenceDate", "time", "totalAmount"
@@ -1121,7 +1138,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						${param(card.cashbackAccountId, { codecId: "sql/varchar@1" })},
 						${param(card.cashbackAccountId && card.cashbackRate ? numeric<18, 4>((body.totalAmount * card.cashbackRate) / 100) : null, { codecId: "pg/numeric@1" })},
 						${param(card.cashbackAccountId ? card.cashbackYieldPeriod : null, { codecId: "sql/varchar@1" })}::"CashbackYieldPeriod",
-						${param(card.cashbackAccountId && card.cashbackYieldRate !== null ? numeric<7, 4>(card.cashbackYieldRate) : null, { codecId: "pg/numeric@1" })},
+						${param(card.cashbackAccountId && card.cashbackYieldReferencePercentage !== null ? numeric<7, 4>(card.cashbackYieldReferencePercentage) : null, { codecId: "pg/numeric@1" })},
+						${param(card.cashbackAccountId && card.cashbackYieldReferenceRate !== null ? numeric<7, 4>(card.cashbackYieldReferenceRate) : null, { codecId: "pg/numeric@1" })},
 						${param(tagIds[0] ?? null, { codecId: "sql/varchar@1" })}, 1,
 							${param(body.description ?? "", { codecId: "sql/varchar@1" })},
 							${param(numeric<12, 2>(installmentAmount), { codecId: "pg/numeric@1" })}, 1,
@@ -1603,10 +1621,15 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 								).toFixed(4),
 							),
 				cashbackYieldPeriod: purchase.cashbackYieldPeriod,
-				cashbackYieldRate:
-					purchase.cashbackYieldRate === null || purchase.cashbackYieldRate === undefined
+				cashbackYieldReferencePercentage:
+					purchase.cashbackYieldReferencePercentage === null ||
+					purchase.cashbackYieldReferencePercentage === undefined
 						? null
-						: String(purchase.cashbackYieldRate),
+						: String(purchase.cashbackYieldReferencePercentage),
+				cashbackYieldReferenceRate:
+					purchase.cashbackYieldReferenceRate === null || purchase.cashbackYieldReferenceRate === undefined
+						? null
+						: String(purchase.cashbackYieldReferenceRate),
 			};
 			if (body.creditCardId && body.creditCardId !== params.id) {
 				const card = await queryFirst(
@@ -1614,7 +1637,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						"cashbackAccountId",
 						"cashbackRate",
 						"cashbackYieldPeriod",
-						"cashbackYieldRate",
+						"cashbackYieldReferencePercentage",
+						"cashbackYieldReferenceRate",
 						"dueDay",
 						"statementDay",
 					)
@@ -1653,7 +1677,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 						cashbackAccountId: snapshot.cashbackAccountId ?? null,
 						cashbackAmount: snapshot.cashbackAmount ?? null,
 						cashbackYieldPeriod: snapshot.cashbackYieldPeriod ?? null,
-						cashbackYieldRate: snapshot.cashbackYieldRate ?? null,
+						cashbackYieldReferencePercentage: snapshot.cashbackYieldReferencePercentage ?? null,
+						cashbackYieldReferenceRate: snapshot.cashbackYieldReferenceRate ?? null,
 					};
 				}
 			}
@@ -1664,7 +1689,8 @@ export const CreditCardsController = new Elysia({ prefix: "/credit-cards" })
 							cashbackAccountId: nextCashback.cashbackAccountId,
 							cashbackAmount: nextCashback.cashbackAmount,
 							cashbackYieldPeriod: nextCashback.cashbackYieldPeriod,
-							cashbackYieldRate: nextCashback.cashbackYieldRate,
+							cashbackYieldReferencePercentage: nextCashback.cashbackYieldReferencePercentage,
+							cashbackYieldReferenceRate: nextCashback.cashbackYieldReferenceRate,
 						}),
 					...(body.description !== undefined && { description: body.description }),
 					...(fee && fee),

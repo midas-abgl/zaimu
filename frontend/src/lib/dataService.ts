@@ -22,6 +22,7 @@ import type {
 	FinancialAccount,
 	FinancialAccountYield,
 	FinancialAccountYieldHoliday,
+	FinancialAccountYieldRateHistory,
 	FinancialInstitution,
 	Loan,
 	RecurringPayment,
@@ -31,7 +32,7 @@ import type {
 	Transaction,
 } from "./api";
 import { applyStatementCredits } from "./credit-card";
-import { getCurrentLocalTime } from "./date";
+import { getCurrentLocalTime, getLocalDateKey } from "./date";
 import { calculateDebtSplit } from "./debt-split";
 import { calculateFinancialAccountBalances } from "./financial-account";
 import { normalizeInstitutionName } from "./financial-institution";
@@ -104,7 +105,8 @@ export type FinancialAccountDraft = Omit<
 		| "cashbackAccountId"
 		| "cashbackRate"
 		| "cashbackYieldPeriod"
-		| "cashbackYieldRate"
+		| "cashbackYieldReferencePercentage"
+		| "cashbackYieldReferenceRate"
 		| "creditLimit"
 		| "dueDay"
 		| "excludeFromTotals"
@@ -129,9 +131,13 @@ export interface FinancialAccountUpdateDraft {
 	creditCard?: FinancialAccountDraft["creditCard"];
 	institutionName?: string;
 	name?: string | null;
+	recalculateCurrentDay?: boolean;
 	rewardsAccount?: FinancialAccountDraft["rewardsAccount"];
 	yieldPeriod?: FinancialAccount["yieldPeriod"];
-	yieldRate?: FinancialAccount["yieldRate"];
+	yieldFixedRate?: FinancialAccount["yieldFixedRate"];
+	yieldReferencePercentage?: FinancialAccount["yieldReferencePercentage"];
+	yieldReferenceRate?: FinancialAccount["yieldReferenceRate"];
+	yieldTaxRate?: FinancialAccount["yieldTaxRate"];
 }
 
 // Check if we're in guest mode or authenticated
@@ -143,6 +149,47 @@ function isGuestMode(): boolean {
 function getUserId(): string {
 	const state = useAuthStore.getState();
 	return state.user?.id || state.guestId;
+}
+
+type LegacyFinancialAccount = FinancialAccount & {
+	yieldRate?: number | null;
+	yieldRateHistories?: Array<FinancialAccountYieldRateHistory & { yieldRate?: number | null }>;
+};
+type LegacyCreditCard = CreditCard & { cashbackYieldRate?: number | null };
+type LegacyCreditPurchase = CreditPurchase & { cashbackYieldRate?: number | null };
+
+function normalizeLegacyCreditCard(card: LegacyCreditCard): CreditCard {
+	const referenceRate = card.cashbackYieldReferenceRate ?? card.cashbackYieldRate;
+	return {
+		...card,
+		cashbackYieldReferencePercentage: card.cashbackYieldReferencePercentage ?? (referenceRate ? 100 : null),
+		cashbackYieldReferenceRate: referenceRate,
+	};
+}
+
+function normalizeLegacyCreditPurchase(purchase: LegacyCreditPurchase): CreditPurchase {
+	const referenceRate = purchase.cashbackYieldReferenceRate ?? purchase.cashbackYieldRate;
+	return {
+		...purchase,
+		cashbackYieldReferencePercentage:
+			purchase.cashbackYieldReferencePercentage ?? (referenceRate ? 100 : null),
+		cashbackYieldReferenceRate: referenceRate,
+	};
+}
+
+function normalizeLegacyFinancialAccount(account: LegacyFinancialAccount): FinancialAccount {
+	return {
+		...account,
+		...(account.creditCard && { creditCard: normalizeLegacyCreditCard(account.creditCard) }),
+		yieldFixedRate: account.yieldFixedRate ?? account.yieldRate,
+		yieldRateHistories: account.yieldRateHistories?.map(history => {
+			const legacyHistory = history as FinancialAccountYieldRateHistory & { yieldRate?: number | null };
+			return {
+				...history,
+				yieldFixedRate: history.yieldFixedRate ?? legacyHistory.yieldRate,
+			};
+		}),
+	};
 }
 
 // Generic authenticated fetch
@@ -201,16 +248,18 @@ export const dataService = {
 					institutionId: institution?.id ?? null,
 					updatedAt: now.toISOString(),
 					userId,
-					...(data.yieldRate &&
-						data.yieldPeriod && {
-							yieldRateHistories: [
-								{
-									effectiveDate: now.toISOString().slice(0, 10),
-									yieldPeriod: data.yieldPeriod,
-									yieldRate: data.yieldRate,
-								},
-							],
-						}),
+					...(data.yieldPeriod && {
+						yieldRateHistories: [
+							{
+								effectiveDate: getLocalDateKey(now),
+								yieldFixedRate: data.yieldFixedRate,
+								yieldPeriod: data.yieldPeriod,
+								yieldReferencePercentage: data.yieldReferencePercentage,
+								yieldReferenceRate: data.yieldReferenceRate,
+								yieldTaxRate: data.yieldTaxRate,
+							},
+						],
+					}),
 				};
 				if (data.type === "REWARDS" && rewardsAccount) {
 					newAccount = {
@@ -293,9 +342,9 @@ export const dataService = {
 					localMeta.get("financial-account-yields"),
 				]);
 				return calculateFinancialAccountBalances(
-					local.map(item => item.data),
+					local.map(item => normalizeLegacyFinancialAccount(item.data)),
 					transactions.map(item => item.data),
-					cashbackPurchases.map(item => item.data),
+					cashbackPurchases.map(item => normalizeLegacyCreditPurchase(item.data)),
 					(holidays as FinancialAccountYieldHoliday[] | null)?.map(holiday => holiday.date) ?? [],
 					undefined,
 					(yields as FinancialAccountYield[] | null) ?? [],
@@ -324,7 +373,8 @@ export const dataService = {
 			if (isGuestMode()) {
 				const existing = await localAccounts.getById(id);
 				if (!existing) throw new Error("FinancialAccount not found");
-				const { institutionName, ...accountData } = data;
+				existing.data = normalizeLegacyFinancialAccount(existing.data);
+				const { institutionName, recalculateCurrentDay, ...accountData } = data;
 				let institution = existing.data.institution ?? null;
 				if (institutionName !== undefined) {
 					const normalizedName = normalizeInstitutionName(institutionName);
@@ -337,18 +387,35 @@ export const dataService = {
 							})
 						: null;
 				}
-				const yieldChanged = data.yieldPeriod !== undefined || data.yieldRate !== undefined;
+				const yieldChanged =
+					data.yieldPeriod !== undefined ||
+					data.yieldFixedRate !== undefined ||
+					data.yieldReferencePercentage !== undefined ||
+					data.yieldReferenceRate !== undefined ||
+					data.yieldTaxRate !== undefined;
 				const effectiveDate = new Date();
-				effectiveDate.setDate(effectiveDate.getDate() + 1);
+				if (!recalculateCurrentDay) effectiveDate.setDate(effectiveDate.getDate() + 1);
+				const effectiveDateKey = getLocalDateKey(effectiveDate);
 				const nextYieldHistory = yieldChanged
 					? [
 							...(existing.data.yieldRateHistories ?? []).filter(
-								history => history.effectiveDate.slice(0, 10) !== effectiveDate.toISOString().slice(0, 10),
+								history => history.effectiveDate.slice(0, 10) < effectiveDateKey,
 							),
 							{
-								effectiveDate: effectiveDate.toISOString().slice(0, 10),
+								effectiveDate: effectiveDateKey,
+								yieldFixedRate:
+									data.yieldFixedRate === undefined ? existing.data.yieldFixedRate : data.yieldFixedRate,
 								yieldPeriod: data.yieldPeriod === undefined ? existing.data.yieldPeriod : data.yieldPeriod,
-								yieldRate: data.yieldRate === undefined ? existing.data.yieldRate : data.yieldRate,
+								yieldReferencePercentage:
+									data.yieldReferencePercentage === undefined
+										? existing.data.yieldReferencePercentage
+										: data.yieldReferencePercentage,
+								yieldReferenceRate:
+									data.yieldReferenceRate === undefined
+										? existing.data.yieldReferenceRate
+										: data.yieldReferenceRate,
+								yieldTaxRate:
+									data.yieldTaxRate === undefined ? existing.data.yieldTaxRate : data.yieldTaxRate,
 							},
 						]
 					: existing.data.yieldRateHistories;
@@ -369,6 +436,19 @@ export const dataService = {
 					yieldRateHistories: nextYieldHistory,
 				};
 				await localAccounts.put(updated, id);
+				if (yieldChanged && recalculateCurrentDay) {
+					const yields =
+						((await localMeta.get("financial-account-yields")) as FinancialAccountYield[] | null) ?? [];
+					await localMeta.set(
+						"financial-account-yields",
+						yields.filter(
+							yieldEntry =>
+								yieldEntry.financialAccountId !== id ||
+								yieldEntry.kind !== "AUTOMATIC" ||
+								yieldEntry.date.slice(0, 10) !== effectiveDateKey,
+						),
+					);
+				}
 				return updated;
 			}
 			const account = await fetchWithAuth<FinancialAccount>(`/financial-accounts/${id}`, {
@@ -673,7 +753,10 @@ export const dataService = {
 						cashbackAccountId: cashbackAmount ? card.cashbackAccountId : undefined,
 						cashbackAmount,
 						cashbackYieldPeriod: cashbackAmount ? card.cashbackYieldPeriod : undefined,
-						cashbackYieldRate: cashbackAmount ? card.cashbackYieldRate : undefined,
+						cashbackYieldReferencePercentage: cashbackAmount
+							? card.cashbackYieldReferencePercentage
+							: undefined,
+						cashbackYieldReferenceRate: cashbackAmount ? card.cashbackYieldReferenceRate : undefined,
 						debtSplit,
 					}),
 					categoryId: data.tagIds?.[0] ?? data.categoryId,
@@ -710,7 +793,8 @@ export const dataService = {
 				cashbackAccountId: details.cashbackAccountId ?? null,
 				cashbackRate: details.cashbackRate ?? null,
 				cashbackYieldPeriod: details.cashbackYieldPeriod ?? null,
-				cashbackYieldRate: details.cashbackYieldRate ?? null,
+				cashbackYieldReferencePercentage: details.cashbackYieldReferencePercentage ?? null,
+				cashbackYieldReferenceRate: details.cashbackYieldReferenceRate ?? null,
 				creditLimit: details.creditLimit,
 				dueDay: details.dueDay,
 				excludeFromTotals: details.excludeFromTotals ?? false,
@@ -1033,13 +1117,15 @@ export const dataService = {
 								cashbackAccountId: targetCard.cashbackAccountId,
 								cashbackAmount: Number(((data.totalAmount * targetCard.cashbackRate) / 100).toFixed(4)),
 								cashbackYieldPeriod: targetCard.cashbackYieldPeriod,
-								cashbackYieldRate: targetCard.cashbackYieldRate,
+								cashbackYieldReferencePercentage: targetCard.cashbackYieldReferencePercentage,
+								cashbackYieldReferenceRate: targetCard.cashbackYieldReferenceRate,
 							}
 						: {
 								cashbackAccountId: null,
 								cashbackAmount: null,
 								cashbackYieldPeriod: null,
-								cashbackYieldRate: null,
+								cashbackYieldReferencePercentage: null,
+								cashbackYieldReferenceRate: null,
 							}
 					: {
 							cashbackAmount: storedPurchase.data.cashbackAmount

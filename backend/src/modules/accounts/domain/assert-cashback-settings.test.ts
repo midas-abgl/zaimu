@@ -8,7 +8,8 @@ describe("assertCashbackSettings", () => {
 				cashbackAccountId: "rewards",
 				cashbackRate: 1.5,
 				cashbackYieldPeriod: "MONTHLY",
-				cashbackYieldRate: 0.5,
+				cashbackYieldReferencePercentage: 100,
+				cashbackYieldReferenceRate: 0.5,
 			}),
 		).not.toThrow();
 	});
@@ -25,7 +26,11 @@ describe("assertCashbackSettings", () => {
 
 	test("requires yield rate and period together", () => {
 		expect(() =>
-			assertCashbackSettings({ cashbackAccountId: "rewards", cashbackRate: 1, cashbackYieldRate: 0.5 }),
-		).toThrow("Informe a taxa e o período do rendimento juntos");
+			assertCashbackSettings({
+				cashbackAccountId: "rewards",
+				cashbackRate: 1,
+				cashbackYieldReferenceRate: 0.5,
+			}),
+		).toThrow("Informe a referência, o percentual e o período do rendimento juntos");
 	});
 });

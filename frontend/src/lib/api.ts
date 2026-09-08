@@ -60,7 +60,10 @@ export interface FinancialAccount {
 	createdAt: string;
 	updatedAt: string;
 	yieldPeriod?: "MONTHLY" | "YEARLY" | null;
-	yieldRate?: number | null;
+	yieldFixedRate?: number | null;
+	yieldReferencePercentage?: number | null;
+	yieldReferenceRate?: number | null;
+	yieldTaxRate?: number | null;
 	yieldRateHistories?: FinancialAccountYieldRateHistory[];
 	creditCard?: CreditCard;
 	rewardsAccount?: RewardsAccount;
@@ -69,7 +72,10 @@ export interface FinancialAccount {
 export interface FinancialAccountYieldRateHistory {
 	effectiveDate: string;
 	yieldPeriod?: "MONTHLY" | "YEARLY" | null;
-	yieldRate?: number | null;
+	yieldFixedRate?: number | null;
+	yieldReferencePercentage?: number | null;
+	yieldReferenceRate?: number | null;
+	yieldTaxRate?: number | null;
 }
 
 export interface FinancialAccountYieldHoliday {
@@ -165,7 +171,8 @@ export interface CreditCard {
 	cashbackAccountId?: string | null;
 	cashbackRate?: number | null;
 	cashbackYieldPeriod?: "MONTHLY" | "YEARLY" | null;
-	cashbackYieldRate?: number | null;
+	cashbackYieldReferencePercentage?: number | null;
+	cashbackYieldReferenceRate?: number | null;
 	accountName?: string | null;
 }
 
@@ -419,7 +426,8 @@ export interface CreditPurchase {
 	cashbackAccountId?: string | null;
 	cashbackAmount?: number | null;
 	cashbackYieldPeriod?: "MONTHLY" | "YEARLY" | null;
-	cashbackYieldRate?: number | null;
+	cashbackYieldReferencePercentage?: number | null;
+	cashbackYieldReferenceRate?: number | null;
 	isSettled?: boolean;
 	settledByPurchaseId?: string | null;
 	refinancingFeeAmount?: number | null;

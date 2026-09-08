@@ -8,6 +8,7 @@ describe("calculateCashbackValue", () => {
 				100,
 				new Date("2026-01-15T12:00:00Z"),
 				10,
+				100,
 				"MONTHLY",
 				new Date("2026-03-15T12:00:00Z"),
 			),
@@ -20,6 +21,7 @@ describe("calculateCashbackValue", () => {
 				100,
 				new Date("2024-01-15T12:00:00Z"),
 				10,
+				100,
 				"YEARLY",
 				new Date("2026-01-15T12:00:00Z"),
 			),
@@ -27,6 +29,6 @@ describe("calculateCashbackValue", () => {
 	});
 
 	test("returns base amount without yield", () => {
-		expect(calculateCashbackValue(25, new Date(), null, null)).toBe(25);
+		expect(calculateCashbackValue(25, new Date(), null, null, null)).toBe(25);
 	});
 });

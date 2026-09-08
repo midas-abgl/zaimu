@@ -8,7 +8,12 @@ type AccountTransaction = Pick<
 > & { date?: Date | string };
 type CashbackPurchase = Pick<
 	import("./api").CreditPurchase,
-	"cashbackAccountId" | "cashbackAmount" | "cashbackYieldPeriod" | "cashbackYieldRate" | "purchaseDate"
+	| "cashbackAccountId"
+	| "cashbackAmount"
+	| "cashbackYieldPeriod"
+	| "cashbackYieldReferencePercentage"
+	| "cashbackYieldReferenceRate"
+	| "purchaseDate"
 >;
 
 export interface FinancialAccountYieldEntry {
@@ -22,16 +27,18 @@ export interface FinancialAccountYieldEntry {
 export function calculateCashbackValue(
 	amount: number,
 	awardedAt: Date,
-	yieldRate?: null | number,
+	yieldReferenceRate?: null | number,
+	yieldReferencePercentage?: null | number,
 	yieldPeriod?: "MONTHLY" | "YEARLY" | null,
 	today = new Date(),
 ) {
-	if (!yieldRate || !yieldPeriod) return amount;
+	if (!yieldReferenceRate || !yieldReferencePercentage || !yieldPeriod) return amount;
 	const periods = Math.max(
 		0,
 		yieldPeriod === "MONTHLY" ? differenceInMonths(today, awardedAt) : differenceInYears(today, awardedAt),
 	);
-	return amount * (1 + yieldRate / 100) ** periods;
+	const rate = (yieldReferenceRate * yieldReferencePercentage) / 100;
+	return amount * (1 + rate / 100) ** periods;
 }
 
 export function calculateFinancialAccountBalances(
@@ -52,7 +59,12 @@ export function calculateFinancialAccountBalances(
 		string,
 		Map<
 			string,
-			Array<{ amount: number; yieldPeriod?: "MONTHLY" | "YEARLY" | null; yieldRate?: null | number }>
+			Array<{
+				amount: number;
+				yieldPeriod?: "MONTHLY" | "YEARLY" | null;
+				yieldReferencePercentage?: null | number;
+				yieldReferenceRate?: null | number;
+			}>
 		>
 	>();
 	const yieldsByAccountId = new Map<string, FinancialAccountYield[]>();
@@ -90,7 +102,8 @@ export function calculateFinancialAccountBalances(
 		entries.push({
 			amount: purchase.cashbackAmount,
 			yieldPeriod: purchase.cashbackYieldPeriod,
-			yieldRate: purchase.cashbackYieldRate,
+			yieldReferencePercentage: purchase.cashbackYieldReferencePercentage,
+			yieldReferenceRate: purchase.cashbackYieldReferenceRate,
 		});
 		accountEvents.set(day, entries);
 		cashbackEvents.set(purchase.cashbackAccountId, accountEvents);
@@ -166,7 +179,8 @@ export function calculateFinancialAccountYieldEntries(
 		);
 		if (balance > 0 && !automaticYield?.isExcluded) {
 			const settings = getYieldSettings(account, key);
-			const calculatedAmount = balance * getDailyYieldRate(settings.yieldRate, settings.yieldPeriod);
+			const grossAmount = balance * getDailyYieldRate(settings, settings.yieldPeriod);
+			const calculatedAmount = grossAmount * (1 - (settings.yieldTaxRate ?? 0) / 100);
 			const amount = automaticYield?.amount ?? calculatedAmount;
 			if (amount > 0) {
 				entries.push({
@@ -193,7 +207,23 @@ function dateKey(value: Date | string) {
 	return format(value, "yyyy-MM-dd");
 }
 
-function getDailyYieldRate(rate?: null | number, period?: "MONTHLY" | "YEARLY" | null) {
+export function getEffectiveYieldRate(settings: {
+	yieldFixedRate?: null | number;
+	yieldReferencePercentage?: null | number;
+	yieldReferenceRate?: null | number;
+	yieldTaxRate?: null | number;
+}) {
+	return (
+		(settings.yieldFixedRate ?? 0) +
+		((settings.yieldReferenceRate ?? 0) * (settings.yieldReferencePercentage ?? 0)) / 100
+	);
+}
+
+function getDailyYieldRate(
+	settings: Parameters<typeof getEffectiveYieldRate>[0],
+	period?: "MONTHLY" | "YEARLY" | null,
+) {
+	const rate = getEffectiveYieldRate(settings);
 	if (!rate || !period) return 0;
 	return (1 + rate / 100) ** (1 / (period === "MONTHLY" ? 21 : 252)) - 1;
 }
@@ -204,7 +234,12 @@ function calculateYieldedBalance(
 	cashbackEvents:
 		| Map<
 				string,
-				Array<{ amount: number; yieldPeriod?: "MONTHLY" | "YEARLY" | null; yieldRate?: null | number }>
+				Array<{
+					amount: number;
+					yieldPeriod?: "MONTHLY" | "YEARLY" | null;
+					yieldReferencePercentage?: null | number;
+					yieldReferenceRate?: null | number;
+				}>
 		  >
 		| undefined,
 	holidays: Set<string>,
@@ -227,7 +262,13 @@ function calculateYieldedBalance(
 		const key = format(day, "yyyy-MM-dd");
 		balance += events?.get(key) ?? 0;
 		for (const cashback of cashbackEvents?.get(key) ?? []) {
-			const dailyRate = getDailyYieldRate(cashback.yieldRate, cashback.yieldPeriod);
+			const dailyRate = getDailyYieldRate(
+				{
+					yieldReferencePercentage: cashback.yieldReferencePercentage,
+					yieldReferenceRate: cashback.yieldReferenceRate,
+				},
+				cashback.yieldPeriod,
+			);
 			if (dailyRate)
 				cashbackBalances.set(dailyRate, (cashbackBalances.get(dailyRate) ?? 0) + cashback.amount);
 			else balance += cashback.amount;
@@ -245,8 +286,8 @@ function calculateYieldedBalance(
 			yieldEntry => yieldEntry.kind === "AUTOMATIC" && yieldEntry.date.slice(0, 10) === key,
 		);
 		if (balance > 0 && !automaticYield?.isExcluded) {
-			const calculatedAmount =
-				balance * getDailyYieldRate(yieldSettings.yieldRate, yieldSettings.yieldPeriod);
+			const grossAmount = balance * getDailyYieldRate(yieldSettings, yieldSettings.yieldPeriod);
+			const calculatedAmount = grossAmount * (1 - (yieldSettings.yieldTaxRate ?? 0) / 100);
 			balance += automaticYield?.amount ?? calculatedAmount;
 		}
 		for (const [dailyRate, cashbackBalance] of cashbackBalances) {
@@ -262,7 +303,15 @@ function getYieldSettings(account: FinancialAccount, day: string) {
 		?.filter(item => item.effectiveDate.slice(0, 10) <= day)
 		.toSorted((left, right) => left.effectiveDate.localeCompare(right.effectiveDate))
 		.at(-1);
-	return history ?? { yieldPeriod: account.yieldPeriod, yieldRate: account.yieldRate };
+	return (
+		history ?? {
+			yieldFixedRate: account.yieldFixedRate,
+			yieldPeriod: account.yieldPeriod,
+			yieldReferencePercentage: account.yieldReferencePercentage,
+			yieldReferenceRate: account.yieldReferenceRate,
+			yieldTaxRate: account.yieldTaxRate,
+		}
+	);
 }
 
 const financialAccountTypeLabels = {

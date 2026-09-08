@@ -85,9 +85,27 @@ export function CreateFinancialAccountDialog({
 	const [dueDay, setDueDay] = useState(String(account?.creditCard?.dueDay ?? 17));
 	const [workingDueDate, setWorkingDueDate] = useState(account?.creditCard?.workingDueDate ?? false);
 	const [excludeFromTotals, setExcludeFromTotals] = useState(account?.creditCard?.excludeFromTotals ?? false);
-	const [yieldEnabled, setYieldEnabled] = useState(Boolean(account?.yieldRate));
-	const [yieldRate, setYieldRate] = useDebouncedInput(String(account?.yieldRate ?? ""), () => undefined);
+	const [yieldEnabled, setYieldEnabled] = useState(
+		Boolean(account?.yieldFixedRate || account?.yieldReferenceRate),
+	);
+	const [yieldFixedRate, setYieldFixedRate] = useDebouncedInput(
+		String(account?.yieldFixedRate ?? ""),
+		() => undefined,
+	);
+	const [yieldReferenceRate, setYieldReferenceRate] = useDebouncedInput(
+		String(account?.yieldReferenceRate ?? ""),
+		() => undefined,
+	);
+	const [yieldReferencePercentage, setYieldReferencePercentage] = useDebouncedInput(
+		String(account?.yieldReferencePercentage ?? 100),
+		() => undefined,
+	);
+	const [yieldTaxRate, setYieldTaxRate] = useDebouncedInput(
+		String(account?.yieldTaxRate ?? ""),
+		() => undefined,
+	);
 	const [yieldPeriod, setYieldPeriod] = useState<"MONTHLY" | "YEARLY">(account?.yieldPeriod ?? "MONTHLY");
+	const [recalculateCurrentDay, setRecalculateCurrentDay] = useState(false);
 	const [rewardsKind, setRewardsKind] = useState(account?.rewardsAccount?.kind ?? "POINTS");
 	const [initialRewardsBalance, setInitialRewardsBalance] = useDebouncedInput(
 		String(account?.rewardsAccount?.initialBalance ?? ""),
@@ -120,10 +138,14 @@ export function CreateFinancialAccountDialog({
 	const [cashbackConversionPoints, setCashbackConversionPoints] = useDebouncedInput("", () => undefined);
 	const [cashbackConversionAmount, setCashbackConversionAmount] = useDebouncedInput("", () => undefined);
 	const [cashbackYieldEnabled, setCashbackYieldEnabled] = useState(
-		Boolean(account?.creditCard?.cashbackYieldRate),
+		Boolean(account?.creditCard?.cashbackYieldReferenceRate),
 	);
-	const [cashbackYieldRate, setCashbackYieldRate] = useDebouncedInput(
-		String(account?.creditCard?.cashbackYieldRate ?? ""),
+	const [cashbackYieldReferenceRate, setCashbackYieldRate] = useDebouncedInput(
+		String(account?.creditCard?.cashbackYieldReferenceRate ?? ""),
+		() => undefined,
+	);
+	const [cashbackYieldReferencePercentage, setCashbackYieldReferencePercentage] = useDebouncedInput(
+		String(account?.creditCard?.cashbackYieldReferencePercentage ?? 100),
 		() => undefined,
 	);
 	const [cashbackYieldPeriod, setCashbackYieldPeriod] = useState<"MONTHLY" | "YEARLY">(
@@ -142,9 +164,13 @@ export function CreateFinancialAccountDialog({
 		setDueDay(String(account?.creditCard?.dueDay ?? 17));
 		setWorkingDueDate(account?.creditCard?.workingDueDate ?? false);
 		setExcludeFromTotals(account?.creditCard?.excludeFromTotals ?? false);
-		setYieldEnabled(Boolean(account?.yieldRate));
-		setYieldRate(String(account?.yieldRate ?? ""));
+		setYieldEnabled(Boolean(account?.yieldFixedRate || account?.yieldReferenceRate));
+		setYieldFixedRate(String(account?.yieldFixedRate ?? ""));
+		setYieldReferenceRate(String(account?.yieldReferenceRate ?? ""));
+		setYieldReferencePercentage(String(account?.yieldReferencePercentage ?? 100));
+		setYieldTaxRate(String(account?.yieldTaxRate ?? ""));
 		setYieldPeriod(account?.yieldPeriod ?? "MONTHLY");
+		setRecalculateCurrentDay(false);
 		setRewardsKind(account?.rewardsAccount?.kind ?? "POINTS");
 		setInitialRewardsBalance(String(account?.rewardsAccount?.initialBalance ?? ""));
 		setConversionEnabled(
@@ -162,8 +188,9 @@ export function CreateFinancialAccountDialog({
 		setCashbackConversionEnabled(false);
 		setCashbackConversionPoints("");
 		setCashbackConversionAmount("");
-		setCashbackYieldEnabled(Boolean(account?.creditCard?.cashbackYieldRate));
-		setCashbackYieldRate(String(account?.creditCard?.cashbackYieldRate ?? ""));
+		setCashbackYieldEnabled(Boolean(account?.creditCard?.cashbackYieldReferenceRate));
+		setCashbackYieldRate(String(account?.creditCard?.cashbackYieldReferenceRate ?? ""));
+		setCashbackYieldReferencePercentage(String(account?.creditCard?.cashbackYieldReferencePercentage ?? 100));
 		setCashbackYieldPeriod(account?.creditCard?.cashbackYieldPeriod ?? "MONTHLY");
 	};
 	const handleOpenChange = (nextOpen: boolean) => {
@@ -202,7 +229,12 @@ export function CreateFinancialAccountDialog({
 												kind: cashbackKind,
 											},
 											cashbackYieldPeriod: cashbackYieldEnabled ? cashbackYieldPeriod : null,
-											cashbackYieldRate: cashbackYieldEnabled ? Number(cashbackYieldRate) : null,
+											cashbackYieldReferencePercentage: cashbackYieldEnabled
+												? Number(cashbackYieldReferencePercentage)
+												: null,
+											cashbackYieldReferenceRate: cashbackYieldEnabled
+												? Number(cashbackYieldReferenceRate)
+												: null,
 										}
 									: account
 										? {
@@ -210,7 +242,8 @@ export function CreateFinancialAccountDialog({
 												cashbackRate: null,
 												cashbackRewards: undefined,
 												cashbackYieldPeriod: null,
-												cashbackYieldRate: null,
+												cashbackYieldReferencePercentage: null,
+												cashbackYieldReferenceRate: null,
 											}
 										: {}),
 								creditLimit: Number(creditLimit),
@@ -243,8 +276,32 @@ export function CreateFinancialAccountDialog({
 							}
 						: undefined,
 				type,
+				...(account && { recalculateCurrentDay }),
+				yieldFixedRate:
+					type !== "CREDIT_CARD" && yieldEnabled && yieldFixedRate
+						? Number(yieldFixedRate)
+						: account
+							? null
+							: undefined,
 				yieldPeriod: type !== "CREDIT_CARD" && yieldEnabled ? yieldPeriod : account ? null : undefined,
-				yieldRate: type !== "CREDIT_CARD" && yieldEnabled ? Number(yieldRate) : account ? null : undefined,
+				yieldReferencePercentage:
+					type !== "CREDIT_CARD" && yieldEnabled && yieldReferenceRate
+						? Number(yieldReferencePercentage)
+						: account
+							? null
+							: undefined,
+				yieldReferenceRate:
+					type !== "CREDIT_CARD" && yieldEnabled && yieldReferenceRate
+						? Number(yieldReferenceRate)
+						: account
+							? null
+							: undefined,
+				yieldTaxRate:
+					type !== "CREDIT_CARD" && yieldEnabled && yieldTaxRate !== ""
+						? Number(yieldTaxRate)
+						: account
+							? null
+							: undefined,
 			};
 			if (account && onUpdate) {
 				const { type: _, ...updateData } = data;
@@ -343,11 +400,20 @@ export function CreateFinancialAccountDialog({
 							{type !== "CREDIT_CARD" && (
 								<AccountYieldFields
 									enabled={yieldEnabled}
+									fixedRate={yieldFixedRate}
 									onEnabledChange={setYieldEnabled}
+									onFixedRateChange={setYieldFixedRate}
 									onPeriodChange={setYieldPeriod}
-									onRateChange={setYieldRate}
+									onRecalculateCurrentDayChange={setRecalculateCurrentDay}
+									onReferencePercentageChange={setYieldReferencePercentage}
+									onReferenceRateChange={setYieldReferenceRate}
+									onTaxRateChange={setYieldTaxRate}
 									period={yieldPeriod}
-									rate={yieldRate}
+									recalculateCurrentDay={recalculateCurrentDay}
+									referencePercentage={yieldReferencePercentage}
+									referenceRate={yieldReferenceRate}
+									showRecalculateOption={Boolean(account)}
+									taxRate={yieldTaxRate}
 								/>
 							)}
 							{type === "REWARDS" && (
@@ -632,7 +698,7 @@ export function CreateFinancialAccountDialog({
 														placeholder="Ex: 0,5%"
 														required
 														suffix="%"
-														value={cashbackYieldRate}
+														value={cashbackYieldReferenceRate}
 													/>
 													<CustomSelect
 														label="Período"
@@ -707,7 +773,13 @@ export function CreateFinancialAccountDialog({
 											cashbackEnabled &&
 											cashbackKind === "POINTS" &&
 											(!cashbackPoints || !cashbackSpendAmount)) ||
-										(type === "CREDIT_CARD" && cashbackYieldEnabled && !cashbackYieldRate) ||
+										(type === "CREDIT_CARD" && cashbackYieldEnabled && !cashbackYieldReferenceRate) ||
+										(type === "CREDIT_CARD" && cashbackYieldEnabled && !cashbackYieldReferencePercentage) ||
+										(type !== "CREDIT_CARD" && yieldEnabled && !yieldFixedRate && !yieldReferenceRate) ||
+										(type !== "CREDIT_CARD" &&
+											yieldEnabled &&
+											yieldReferenceRate &&
+											!yieldReferencePercentage) ||
 										(type === "CREDIT_CARD" &&
 											cashbackEnabled &&
 											cashbackKind === "POINTS" &&
@@ -736,7 +808,8 @@ export function CreateFinancialAccountDialog({
 				cashbackSpendAmount={cashbackSpendAmount}
 				cashbackYieldEnabled={cashbackYieldEnabled}
 				cashbackYieldPeriod={cashbackYieldPeriod}
-				cashbackYieldRate={cashbackYieldRate}
+				cashbackYieldReferencePercentage={cashbackYieldReferencePercentage}
+				cashbackYieldReferenceRate={cashbackYieldReferenceRate}
 				onOpenChange={setCashbackConfigOpen}
 				open={cashbackConfigOpen}
 				rewardAccounts={rewardAccounts}
@@ -751,6 +824,7 @@ export function CreateFinancialAccountDialog({
 				setCashbackYieldEnabled={setCashbackYieldEnabled}
 				setCashbackYieldPeriod={setCashbackYieldPeriod}
 				setCashbackYieldRate={setCashbackYieldRate}
+				setCashbackYieldReferencePercentage={setCashbackYieldReferencePercentage}
 			/>
 		</Dialog>
 	);

@@ -3,6 +3,7 @@ import {
 	formatLocalDate,
 	formatLocalMonthYear,
 	formatLocalTime,
+	getLocalDateKey,
 	getLocalMonthKey,
 	parseLocalDate,
 } from "./date";
@@ -25,6 +26,10 @@ describe("local date formatting", () => {
 	test("identifies the reference month without UTC shifts", () => {
 		expect(getLocalMonthKey("2026-08-01T00:00:00.000Z")).toBe("2026-08");
 		expect(getLocalMonthKey(new Date(2026, 7, 25))).toBe("2026-08");
+	});
+
+	test("builds a date key from local calendar fields", () => {
+		expect(getLocalDateKey(new Date(2026, 8, 7, 23, 30))).toBe("2026-09-07");
 	});
 
 	test("formats stored times to hours and minutes", () => {

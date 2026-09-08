@@ -30,7 +30,8 @@ export function CashbackSettingsDialog({
 	cashbackSpendAmount,
 	cashbackYieldEnabled,
 	cashbackYieldPeriod,
-	cashbackYieldRate,
+	cashbackYieldReferencePercentage,
+	cashbackYieldReferenceRate,
 	onOpenChange,
 	open,
 	rewardAccounts,
@@ -44,6 +45,7 @@ export function CashbackSettingsDialog({
 	setCashbackSpendAmount,
 	setCashbackYieldEnabled,
 	setCashbackYieldPeriod,
+	setCashbackYieldReferencePercentage,
 	setCashbackYieldRate,
 }: {
 	automaticAccountValue: string;
@@ -57,7 +59,8 @@ export function CashbackSettingsDialog({
 	cashbackSpendAmount: string;
 	cashbackYieldEnabled: boolean;
 	cashbackYieldPeriod: "MONTHLY" | "YEARLY";
-	cashbackYieldRate: string;
+	cashbackYieldReferencePercentage: string;
+	cashbackYieldReferenceRate: string;
 	onOpenChange: (open: boolean) => void;
 	open: boolean;
 	rewardAccounts: FinancialAccount[];
@@ -71,6 +74,7 @@ export function CashbackSettingsDialog({
 	setCashbackSpendAmount: SetString;
 	setCashbackYieldEnabled: Dispatch<SetStateAction<boolean>>;
 	setCashbackYieldPeriod: Dispatch<SetStateAction<"MONTHLY" | "YEARLY">>;
+	setCashbackYieldReferencePercentage: SetString;
 	setCashbackYieldRate: SetString;
 }) {
 	return (
@@ -201,16 +205,26 @@ export function CashbackSettingsDialog({
 								</span>
 							</label>
 							{cashbackYieldEnabled && (
-								<div className="grid gap-4 sm:grid-cols-2">
+								<div className="grid gap-4 sm:grid-cols-3">
 									<NumericField
 										decimalScale={4}
 										id="cashback-yield-rate"
-										label="Rendimento"
+										label="Taxa de referência"
 										onValueChange={setCashbackYieldRate}
-										placeholder="Ex: 0,5%"
+										placeholder="Ex: 13,9%"
 										required
 										suffix="%"
-										value={cashbackYieldRate}
+										value={cashbackYieldReferenceRate}
+									/>
+									<NumericField
+										decimalScale={4}
+										id="cashback-yield-reference-percentage"
+										label="Percentual da referência"
+										onValueChange={setCashbackYieldReferencePercentage}
+										placeholder="Ex: 100%"
+										required
+										suffix="%"
+										value={cashbackYieldReferencePercentage}
 									/>
 									<CustomSelect
 										label="Período"

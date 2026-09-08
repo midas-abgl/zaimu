@@ -16,7 +16,9 @@ Quando um seletor de contas em uma transação apresentar mais de um tipo de con
 
 ## Rendimento de contas
 
-Toda conta exceto cartão de crédito pode ter rendimento composto opcional, com taxa positiva mensal ou anual. A taxa mensal equivale a 21 dias úteis e a anual a 252 dias úteis; o rendimento é aplicado ao fim de cada segunda a sexta-feira sobre saldo positivo. Saldo, lançamentos e feriados sempre são recalculados sob demanda. Alterar ou remover uma taxa cria uma regra válida a partir do dia seguinte; rendimentos de dias anteriores preservam a taxa histórica. Cada rendimento automático pode ter valor ajustado ou ser excluído no extrato; também podem ser lançados rendimentos manuais por conta e data.
+Toda conta exceto cartão de crédito pode ter rendimento composto opcional prefixado, pós-fixado ou misto. A taxa nominal é a soma de uma taxa fixa opcional com uma taxa de referência manual multiplicada pelo percentual contratado; referência e percentual sempre existem juntos. Uma única periodicidade mensal ou anual vale para as duas parcelas. A taxa mensal equivale a 21 dias úteis e a anual a 252 dias úteis; o rendimento é aplicado ao fim de cada segunda a sexta-feira sobre saldo positivo. A conta pode declarar uma alíquota total de imposto opcional entre 0% e 100%, descontada de cada rendimento automático diário; ajustes automáticos editados e rendimentos manuais não sofrem novo desconto. Saldo, lançamentos e feriados sempre são recalculados sob demanda.
+
+Alterar ou remover a regra cria, por padrão, uma configuração válida a partir do dia seguinte. O usuário pode optar por recalcular o dia atual; nesse caso, eventual ajuste ou exclusão do rendimento automático do dia é removido antes do recálculo. Rendimentos de dias anteriores preservam a regra histórica, inclusive a alíquota de imposto. Cada rendimento automático pode ter valor ajustado ou ser excluído no extrato; também podem ser lançados rendimentos manuais por conta e data.
 
 Feriados são individuais por usuário e data. Um feriado exclui rendimento de todas as contas daquele usuário no dia marcado; finais de semana já não rendem e podem ser marcados sem efeito adicional.
 
@@ -36,4 +38,4 @@ Cartão pode recompensar por percentual de cashback em dinheiro ou por pontos ga
 
 Conta de recompensas guarda saldo na unidade escolhida: pontos ou reais de cashback. Conta de pontos pode declarar opcionalmente uma conversão completa no formato `X pontos = Y reais`; os dois valores devem existir juntos e ser positivos. A conversão serve apenas para exibir equivalente monetário: saldo continua armazenado em pontos. Sem conversão, pontos nunca entram em totais monetários. Cashback em reais entra nesses totais pelo valor nominal.
 
-Rendimento de cashback é opcional e exige taxa positiva mais periodicidade mensal ou anual. Cada recompensa rende de forma composta após períodos completos desde a data da compra, usando o snapshot da regra vigente quando foi criada.
+Rendimento de cashback é opcional e pós-fixado: exige taxa de referência manual positiva, percentual positivo sobre essa taxa e periodicidade mensal ou anual, sem parcela fixa. Cada recompensa rende de forma composta após períodos completos desde a data da compra, usando o snapshot da regra vigente quando foi criada.

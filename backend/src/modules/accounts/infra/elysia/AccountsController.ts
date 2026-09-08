@@ -1,3 +1,4 @@
+import { startOfDay } from "date-fns";
 import Elysia, { t } from "elysia";
 import { getFinancialAccountBalances } from "~/modules/accounts/application/get-financial-account-balances";
 import { resolveFinancialInstitution } from "~/modules/accounts/application/resolve-financial-institution";
@@ -44,7 +45,8 @@ const CreditCardCreate = t.Object({
 		}),
 	),
 	cashbackYieldPeriod: t.Optional(t.Nullable(CashbackYieldPeriod)),
-	cashbackYieldRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
+	cashbackYieldReferencePercentage: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
+	cashbackYieldReferenceRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
 	creditLimit: t.Number({ minimum: 0 }),
 	dueDay: t.Number({ maximum: 31, minimum: 1 }),
 	excludeFromTotals: t.Optional(t.Boolean()),
@@ -81,8 +83,11 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					"name",
 					"type",
 					"institutionId",
-					"yieldRate",
+					"yieldFixedRate",
 					"yieldPeriod",
+					"yieldReferencePercentage",
+					"yieldReferenceRate",
+					"yieldTaxRate",
 					"createdAt",
 					"updatedAt",
 				)
@@ -101,7 +106,8 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 							"cashbackAccountId",
 							"cashbackRate",
 							"cashbackYieldPeriod",
-							"cashbackYieldRate",
+							"cashbackYieldReferencePercentage",
+							"cashbackYieldReferenceRate",
 							"id",
 							"financialAccountId",
 							"creditLimit",
@@ -148,8 +154,11 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						db.sql.public.FinancialAccountYieldRateHistory.select(
 							"financialAccountId",
 							"effectiveDate",
-							"yieldRate",
+							"yieldFixedRate",
 							"yieldPeriod",
+							"yieldReferencePercentage",
+							"yieldReferenceRate",
+							"yieldTaxRate",
 						)
 							.where((fields, functions) =>
 								functions.in(
@@ -202,8 +211,11 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					"name",
 					"type",
 					"institutionId",
-					"yieldRate",
+					"yieldFixedRate",
 					"yieldPeriod",
+					"yieldReferencePercentage",
+					"yieldReferenceRate",
+					"yieldTaxRate",
 					"createdAt",
 					"updatedAt",
 				)
@@ -238,7 +250,14 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					? null
 					: (await getFinancialAccountBalances([account.id])).get(account.id);
 			const yieldRateHistories = await queryRows(
-				db.sql.public.FinancialAccountYieldRateHistory.select("effectiveDate", "yieldRate", "yieldPeriod")
+				db.sql.public.FinancialAccountYieldRateHistory.select(
+					"effectiveDate",
+					"yieldFixedRate",
+					"yieldPeriod",
+					"yieldReferencePercentage",
+					"yieldReferenceRate",
+					"yieldTaxRate",
+				)
 					.where((fields, functions) => functions.eq(fields.financialAccountId, account.id))
 					.orderBy("effectiveDate", { direction: "asc" })
 					.build(),
@@ -249,7 +268,8 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						"cashbackAccountId",
 						"cashbackRate",
 						"cashbackYieldPeriod",
-						"cashbackYieldRate",
+						"cashbackYieldReferencePercentage",
+						"cashbackYieldReferenceRate",
 						"id",
 						"financialAccountId",
 						"creditLimit",
@@ -310,7 +330,14 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				throw new HttpException("Informe os dados da conta de pontos ou cashback", 400);
 			if (type !== "REWARDS" && body.rewardsAccount)
 				throw new HttpException("Dados de recompensas exigem uma conta do tipo pontos/cashback", 400);
-			assertFinancialAccountYieldSettings({ type, yieldPeriod: body.yieldPeriod, yieldRate: body.yieldRate });
+			assertFinancialAccountYieldSettings({
+				type,
+				yieldFixedRate: body.yieldFixedRate,
+				yieldPeriod: body.yieldPeriod,
+				yieldReferencePercentage: body.yieldReferencePercentage,
+				yieldReferenceRate: body.yieldReferenceRate,
+				yieldTaxRate: body.yieldTaxRate,
+			});
 			if (body.creditCard) {
 				assertCreditCardBillingDays(body.creditCard.statementDay, body.creditCard.dueDay);
 				assertCashbackSettings(body.creditCard);
@@ -400,8 +427,18 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						type,
 						userId,
 						yieldPeriod: body.yieldPeriod ?? undefined,
-						...(body.yieldRate !== undefined &&
-							body.yieldRate !== null && { yieldRate: String(body.yieldRate) }),
+						...(body.yieldFixedRate !== undefined &&
+							body.yieldFixedRate !== null && { yieldFixedRate: String(body.yieldFixedRate) }),
+						...(body.yieldReferencePercentage !== undefined &&
+							body.yieldReferencePercentage !== null && {
+								yieldReferencePercentage: String(body.yieldReferencePercentage),
+							}),
+						...(body.yieldReferenceRate !== undefined &&
+							body.yieldReferenceRate !== null && {
+								yieldReferenceRate: String(body.yieldReferenceRate),
+							}),
+						...(body.yieldTaxRate !== undefined &&
+							body.yieldTaxRate !== null && { yieldTaxRate: String(body.yieldTaxRate) }),
 					},
 				])
 					.returning(
@@ -410,20 +447,26 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						"name",
 						"type",
 						"institutionId",
-						"yieldRate",
+						"yieldFixedRate",
 						"yieldPeriod",
+						"yieldReferencePercentage",
+						"yieldReferenceRate",
+						"yieldTaxRate",
 						"createdAt",
 						"updatedAt",
 					)
 					.build(),
 			);
 			if (!account) throw new HttpException("FinancialAccount not created", 500);
-			if (type !== "CREDIT_CARD" && body.yieldRate && body.yieldPeriod) {
+			if (type !== "CREDIT_CARD" && body.yieldPeriod) {
 				await scheduleFinancialAccountYieldRate({
 					effectiveDate: new Date(),
 					financialAccountId: account.id,
+					yieldFixedRate: body.yieldFixedRate,
 					yieldPeriod: body.yieldPeriod,
-					yieldRate: body.yieldRate,
+					yieldReferencePercentage: body.yieldReferencePercentage,
+					yieldReferenceRate: body.yieldReferenceRate,
+					yieldTaxRate: body.yieldTaxRate,
 				});
 			}
 
@@ -437,9 +480,13 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 								cashbackRate: String(body.creditCard.cashbackRate),
 							}),
 							cashbackYieldPeriod: body.creditCard.cashbackYieldPeriod ?? undefined,
-							...(body.creditCard.cashbackYieldRate !== undefined &&
-								body.creditCard.cashbackYieldRate !== null && {
-									cashbackYieldRate: String(body.creditCard.cashbackYieldRate),
+							...(body.creditCard.cashbackYieldReferencePercentage !== undefined &&
+								body.creditCard.cashbackYieldReferencePercentage !== null && {
+									cashbackYieldReferencePercentage: String(body.creditCard.cashbackYieldReferencePercentage),
+								}),
+							...(body.creditCard.cashbackYieldReferenceRate !== undefined &&
+								body.creditCard.cashbackYieldReferenceRate !== null && {
+									cashbackYieldReferenceRate: String(body.creditCard.cashbackYieldReferenceRate),
 								}),
 							creditLimit: String(body.creditCard.creditLimit),
 							dueDay: body.creditCard.dueDay,
@@ -456,7 +503,8 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 							"cashbackAccountId",
 							"cashbackRate",
 							"cashbackYieldPeriod",
-							"cashbackYieldRate",
+							"cashbackYieldReferencePercentage",
+							"cashbackYieldReferenceRate",
 							"id",
 							"financialAccountId",
 							"creditLimit",
@@ -514,8 +562,11 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				name: t.Optional(t.Union([t.String({ maxLength: 70 }), t.Null()])),
 				rewardsAccount: t.Optional(RewardsAccountCreate),
 				type: t.Optional(FinancialAccountType),
+				yieldFixedRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
 				yieldPeriod: t.Optional(t.Nullable(FinancialAccountYieldPeriod)),
-				yieldRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
+				yieldReferencePercentage: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
+				yieldReferenceRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
+				yieldTaxRate: t.Optional(t.Nullable(t.Number({ maximum: 100, minimum: 0 }))),
 			}),
 			detail: { tags: ["Accounts"] },
 		},
@@ -532,8 +583,11 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					"name",
 					"type",
 					"userId",
-					"yieldRate",
+					"yieldFixedRate",
 					"yieldPeriod",
+					"yieldReferencePercentage",
+					"yieldReferenceRate",
+					"yieldTaxRate",
 				)
 					.where((fields, functions) => functions.eq(fields.id, params.id))
 					.limit(1)
@@ -549,8 +603,15 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				throw new HttpException("Dados de recompensas exigem uma conta do tipo pontos/cashback", 400);
 			assertFinancialAccountYieldSettings({
 				type: existing.type,
+				yieldFixedRate: body.yieldFixedRate === undefined ? existing.yieldFixedRate : body.yieldFixedRate,
 				yieldPeriod: body.yieldPeriod === undefined ? existing.yieldPeriod : body.yieldPeriod,
-				yieldRate: body.yieldRate === undefined ? existing.yieldRate : body.yieldRate,
+				yieldReferencePercentage:
+					body.yieldReferencePercentage === undefined
+						? existing.yieldReferencePercentage
+						: body.yieldReferencePercentage,
+				yieldReferenceRate:
+					body.yieldReferenceRate === undefined ? existing.yieldReferenceRate : body.yieldReferenceRate,
+				yieldTaxRate: body.yieldTaxRate === undefined ? existing.yieldTaxRate : body.yieldTaxRate,
 			});
 			const institution =
 				body.institutionName === undefined
@@ -599,7 +660,18 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 					// Prisma 8 currently omits null from nullable varchar write types.
 					...(body.name !== undefined && { name: name as never }),
 					...(body.yieldPeriod !== undefined && { yieldPeriod: body.yieldPeriod }),
-					...(body.yieldRate !== undefined && { yieldRate: nullableNumeric<7, 4>(body.yieldRate) }),
+					...(body.yieldFixedRate !== undefined && {
+						yieldFixedRate: nullableNumeric<7, 4>(body.yieldFixedRate),
+					}),
+					...(body.yieldReferencePercentage !== undefined && {
+						yieldReferencePercentage: nullableNumeric<7, 4>(body.yieldReferencePercentage),
+					}),
+					...(body.yieldReferenceRate !== undefined && {
+						yieldReferenceRate: nullableNumeric<7, 4>(body.yieldReferenceRate),
+					}),
+					...(body.yieldTaxRate !== undefined && {
+						yieldTaxRate: nullableNumeric<5, 2>(body.yieldTaxRate),
+					}),
 					updatedAt: new Date(),
 				})
 					.where((fields, functions) => functions.eq(fields.id, params.id))
@@ -609,23 +681,51 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						"name",
 						"type",
 						"institutionId",
-						"yieldRate",
+						"yieldFixedRate",
 						"yieldPeriod",
+						"yieldReferencePercentage",
+						"yieldReferenceRate",
+						"yieldTaxRate",
 						"createdAt",
 						"updatedAt",
 					)
 					.build(),
 			);
 			if (!account) throw new HttpException("FinancialAccount not found", 404);
-			if (body.yieldPeriod !== undefined || body.yieldRate !== undefined) {
+			const yieldChanged =
+				body.yieldPeriod !== undefined ||
+				body.yieldFixedRate !== undefined ||
+				body.yieldReferencePercentage !== undefined ||
+				body.yieldReferenceRate !== undefined ||
+				body.yieldTaxRate !== undefined;
+			if (yieldChanged) {
 				await scheduleFinancialAccountYieldRate({
-					effectiveDate: tomorrow(),
+					effectiveDate: body.recalculateCurrentDay ? new Date() : tomorrow(),
 					financialAccountId: account.id,
+					yieldFixedRate: body.yieldFixedRate === undefined ? existing.yieldFixedRate : body.yieldFixedRate,
 					yieldPeriod: (body.yieldPeriod === undefined
 						? existing.yieldPeriod
 						: body.yieldPeriod) as null | YieldPeriod,
-					yieldRate: body.yieldRate === undefined ? existing.yieldRate : body.yieldRate,
+					yieldReferencePercentage:
+						body.yieldReferencePercentage === undefined
+							? existing.yieldReferencePercentage
+							: body.yieldReferencePercentage,
+					yieldReferenceRate:
+						body.yieldReferenceRate === undefined ? existing.yieldReferenceRate : body.yieldReferenceRate,
+					yieldTaxRate: body.yieldTaxRate === undefined ? existing.yieldTaxRate : body.yieldTaxRate,
 				});
+				if (body.recalculateCurrentDay)
+					await executeStatement(
+						db.sql.public.FinancialAccountYield.delete()
+							.where((fields, functions) =>
+								functions.and(
+									functions.eq(fields.financialAccountId, account.id),
+									functions.eq(fields.date, startOfDay(new Date())),
+									functions.eq(fields.kind, "AUTOMATIC"),
+								),
+							)
+							.build(),
+					);
 			}
 
 			// Update credit card if provided
@@ -635,7 +735,8 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						"cashbackAccountId",
 						"cashbackRate",
 						"cashbackYieldPeriod",
-						"cashbackYieldRate",
+						"cashbackYieldReferencePercentage",
+						"cashbackYieldReferenceRate",
 						"statementDay",
 						"dueDay",
 					)
@@ -661,10 +762,14 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						body.creditCard.cashbackYieldPeriod === undefined
 							? existingCreditCard.cashbackYieldPeriod
 							: body.creditCard.cashbackYieldPeriod,
-					cashbackYieldRate:
-						body.creditCard.cashbackYieldRate === undefined
-							? existingCreditCard.cashbackYieldRate
-							: body.creditCard.cashbackYieldRate,
+					cashbackYieldReferencePercentage:
+						body.creditCard.cashbackYieldReferencePercentage === undefined
+							? existingCreditCard.cashbackYieldReferencePercentage
+							: body.creditCard.cashbackYieldReferencePercentage,
+					cashbackYieldReferenceRate:
+						body.creditCard.cashbackYieldReferenceRate === undefined
+							? existingCreditCard.cashbackYieldReferenceRate
+							: body.creditCard.cashbackYieldReferenceRate,
 				};
 				assertCashbackSettings(nextCashback);
 				if (nextCashback.cashbackAccountId)
@@ -680,8 +785,13 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						...(body.creditCard.cashbackYieldPeriod !== undefined && {
 							cashbackYieldPeriod: body.creditCard.cashbackYieldPeriod,
 						}),
-						...(body.creditCard.cashbackYieldRate !== undefined && {
-							cashbackYieldRate: nullableNumeric<7, 4>(body.creditCard.cashbackYieldRate),
+						...(body.creditCard.cashbackYieldReferenceRate !== undefined && {
+							cashbackYieldReferenceRate: nullableNumeric<7, 4>(body.creditCard.cashbackYieldReferenceRate),
+						}),
+						...(body.creditCard.cashbackYieldReferencePercentage !== undefined && {
+							cashbackYieldReferencePercentage: nullableNumeric<7, 4>(
+								body.creditCard.cashbackYieldReferencePercentage,
+							),
 						}),
 						...(body.creditCard.creditLimit !== undefined && {
 							creditLimit: String(body.creditCard.creditLimit),
@@ -708,7 +818,8 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 							"cashbackAccountId",
 							"cashbackRate",
 							"cashbackYieldPeriod",
-							"cashbackYieldRate",
+							"cashbackYieldReferencePercentage",
+							"cashbackYieldReferenceRate",
 							"id",
 							"financialAccountId",
 							"creditLimit",
@@ -801,7 +912,8 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						cashbackAccountId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 						cashbackRate: t.Optional(t.Nullable(t.Number({ minimum: 0 }))),
 						cashbackYieldPeriod: t.Optional(t.Nullable(CashbackYieldPeriod)),
-						cashbackYieldRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
+						cashbackYieldReferencePercentage: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
+						cashbackYieldReferenceRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
 						creditLimit: t.Optional(t.Number({ minimum: 0 })),
 						dueDay: t.Optional(t.Number({ maximum: 31, minimum: 1 })),
 						excludeFromTotals: t.Optional(t.Boolean()),
@@ -812,6 +924,7 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 				),
 				institutionName: t.Optional(t.String({ maxLength: 100 })),
 				name: t.Optional(t.Union([t.String({ maxLength: 70 }), t.Null()])),
+				recalculateCurrentDay: t.Optional(t.Boolean()),
 				rewardsAccount: t.Optional(
 					t.Object({
 						conversionAmount: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
@@ -820,8 +933,11 @@ export const AccountsController = new Elysia({ prefix: "/financial-accounts" })
 						kind: t.Optional(RewardsAccountKind),
 					}),
 				),
+				yieldFixedRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
 				yieldPeriod: t.Optional(t.Nullable(FinancialAccountYieldPeriod)),
-				yieldRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
+				yieldReferencePercentage: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
+				yieldReferenceRate: t.Optional(t.Nullable(t.Number({ exclusiveMinimum: 0 }))),
+				yieldTaxRate: t.Optional(t.Nullable(t.Number({ maximum: 100, minimum: 0 }))),
 			}),
 			detail: { tags: ["Accounts"] },
 			params: t.Object({

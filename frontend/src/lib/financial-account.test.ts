@@ -5,10 +5,23 @@ import {
 	compareFinancialAccountsByDisplayName,
 	compareFinancialAccountsByOptionLabel,
 	compareFinancialAccountsByTitle,
+	getEffectiveYieldRate,
 	getFinancialAccountDisplayName,
 	getFinancialAccountOptionLabel,
 	getFinancialAccountTitle,
 } from "./financial-account";
+
+describe("getEffectiveYieldRate", () => {
+	test("adds referenced and fixed portions", () => {
+		expect(
+			getEffectiveYieldRate({
+				yieldFixedRate: 0.5,
+				yieldReferencePercentage: 105,
+				yieldReferenceRate: 10,
+			}),
+		).toBe(11);
+	});
+});
 
 describe("getFinancialAccountDisplayName", () => {
 	test("uses the account title when present", () => {
@@ -128,8 +141,8 @@ describe("calculateFinancialAccountBalances", () => {
 			createdAt: "2026-01-05T12:00:00",
 			id: "checking",
 			type: "CHECKING" as const,
+			yieldFixedRate: 10,
 			yieldPeriod: "MONTHLY" as const,
-			yieldRate: 10,
 		};
 		const today = new Date("2026-01-06T12:00:00");
 		const transactions = [{ amount: 100, date: "2026-01-05", destinationFinancialAccountId: "checking" }];
@@ -142,6 +155,29 @@ describe("calculateFinancialAccountBalances", () => {
 			calculateFinancialAccountBalances([account] as never, transactions, [], ["2026-01-06"], today)[0]
 				?.balance,
 		).toBeCloseTo(100 * (1 + dailyRate), 4);
+	});
+
+	test("reduces automatic yields by the configured tax rate", () => {
+		const account = {
+			balance: 0,
+			createdAt: "2026-01-05T12:00:00",
+			id: "checking",
+			type: "CHECKING" as const,
+			yieldFixedRate: 10,
+			yieldPeriod: "MONTHLY" as const,
+			yieldTaxRate: 15,
+		};
+		const dailyRate = 1.1 ** (1 / 21) - 1;
+
+		expect(
+			calculateFinancialAccountBalances(
+				[account] as never,
+				[{ amount: 100, date: "2026-01-05", destinationFinancialAccountId: "checking" }],
+				[],
+				[],
+				new Date("2026-01-05T12:00:00"),
+			)[0]?.balance,
+		).toBeCloseTo(100 * (1 + dailyRate * 0.85), 4);
 	});
 
 	test("derives balances from account transactions", () => {
@@ -166,11 +202,11 @@ describe("calculateFinancialAccountBalances", () => {
 			balance: 0,
 			id: "checking",
 			type: "CHECKING" as const,
+			yieldFixedRate: 20,
 			yieldPeriod: "MONTHLY" as const,
-			yieldRate: 20,
 			yieldRateHistories: [
-				{ effectiveDate: "2026-01-05", yieldPeriod: "MONTHLY" as const, yieldRate: 10 },
-				{ effectiveDate: "2026-01-06", yieldPeriod: "MONTHLY" as const, yieldRate: 20 },
+				{ effectiveDate: "2026-01-05", yieldFixedRate: 10, yieldPeriod: "MONTHLY" as const },
+				{ effectiveDate: "2026-01-06", yieldFixedRate: 20, yieldPeriod: "MONTHLY" as const },
 			],
 		};
 		const transactions = [{ amount: 100, date: "2026-01-05", destinationFinancialAccountId: "checking" }];
@@ -197,8 +233,8 @@ describe("calculateFinancialAccountBalances", () => {
 			balance: 0,
 			id: "checking",
 			type: "CHECKING" as const,
+			yieldFixedRate: 10,
 			yieldPeriod: "MONTHLY" as const,
-			yieldRate: 10,
 		};
 		const entries = calculateFinancialAccountYieldEntries(
 			account as never,
@@ -233,6 +269,7 @@ describe("calculateFinancialAccountBalances", () => {
 	});
 
 	test("keeps rewards in native units and compounds cashback", () => {
+		const today = new Date("2026-01-05T12:00:00");
 		const accounts = calculateFinancialAccountBalances(
 			[
 				{
@@ -247,11 +284,17 @@ describe("calculateFinancialAccountBalances", () => {
 				{
 					cashbackAccountId: "rewards",
 					cashbackAmount: 10,
-					purchaseDate: new Date().toISOString(),
+					cashbackYieldPeriod: "MONTHLY",
+					cashbackYieldReferencePercentage: 50,
+					cashbackYieldReferenceRate: 10,
+					purchaseDate: "2026-01-05",
 				},
 			],
+			[],
+			today,
 		);
 
-		expect(accounts[0]?.balance).toBe(110);
+		const dailyRate = 1.05 ** (1 / 21) - 1;
+		expect(accounts[0]?.balance).toBeCloseTo(100 + 10 * (1 + dailyRate), 4);
 	});
 });

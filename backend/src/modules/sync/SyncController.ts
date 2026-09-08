@@ -44,8 +44,11 @@ const accountColumns = [
 	"name",
 	"type",
 	"institutionId",
-	"yieldRate",
+	"yieldFixedRate",
 	"yieldPeriod",
+	"yieldReferencePercentage",
+	"yieldReferenceRate",
+	"yieldTaxRate",
 	"createdAt",
 	"updatedAt",
 ] as const;
@@ -65,7 +68,8 @@ const cardColumns = [
 	"cashbackAccountId",
 	"cashbackRate",
 	"cashbackYieldPeriod",
-	"cashbackYieldRate",
+	"cashbackYieldReferencePercentage",
+	"cashbackYieldReferenceRate",
 	"creditLimit",
 	"securityDeposit",
 	"excludeFromTotals",
@@ -92,7 +96,8 @@ const purchaseColumns = [
 	"cashbackAccountId",
 	"cashbackAmount",
 	"cashbackYieldPeriod",
-	"cashbackYieldRate",
+	"cashbackYieldReferencePercentage",
+	"cashbackYieldReferenceRate",
 	"description",
 	"storeName",
 	"totalAmount",
@@ -182,8 +187,19 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				name: value<string>(entity, "name"),
 				type,
 				updatedAt: new Date(),
+				yieldFixedRate: nullableNumeric<7, 4>(
+					value<number | null | undefined>(entity, "yieldFixedRate") ??
+						value<number | null | undefined>(entity, "yieldRate") ??
+						null,
+				),
 				yieldPeriod: value<"MONTHLY" | "YEARLY" | null | undefined>(entity, "yieldPeriod") as never,
-				yieldRate: nullableNumeric<7, 4>(value<number | null | undefined>(entity, "yieldRate") ?? null),
+				yieldReferencePercentage: nullableNumeric<7, 4>(
+					value<number | null | undefined>(entity, "yieldReferencePercentage") ?? null,
+				),
+				yieldReferenceRate: nullableNumeric<7, 4>(
+					value<number | null | undefined>(entity, "yieldReferenceRate") ?? null,
+				),
+				yieldTaxRate: nullableNumeric<5, 2>(value<number | null | undefined>(entity, "yieldTaxRate") ?? null),
 			};
 			if (existing)
 				await executeStatement(
@@ -196,7 +212,11 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				Array<{
 					effectiveDate?: string;
 					yieldPeriod?: "MONTHLY" | "YEARLY" | null;
+					yieldFixedRate?: number | null;
 					yieldRate?: number | null;
+					yieldReferencePercentage?: number | null;
+					yieldReferenceRate?: number | null;
+					yieldTaxRate?: number | null;
 				}>
 			>(entity, "yieldRateHistories");
 			for (const history of yieldRateHistories ?? []) {
@@ -217,8 +237,11 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				const historyValues = {
 					effectiveDate,
 					updatedAt: new Date(),
+					yieldFixedRate: nullableNumeric<7, 4>(history.yieldFixedRate ?? history.yieldRate ?? null),
 					yieldPeriod: history.yieldPeriod as never,
-					yieldRate: nullableNumeric<7, 4>(history.yieldRate ?? null),
+					yieldReferencePercentage: nullableNumeric<7, 4>(history.yieldReferencePercentage ?? null),
+					yieldReferenceRate: nullableNumeric<7, 4>(history.yieldReferenceRate ?? null),
+					yieldTaxRate: nullableNumeric<5, 2>(history.yieldTaxRate ?? null),
 				};
 				if (existingHistory)
 					await executeStatement(
@@ -479,7 +502,13 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				cashbackRate: value<null | number | undefined>(entity, "cashbackRate") ?? null,
 				cashbackYieldPeriod:
 					value<"MONTHLY" | "YEARLY" | null | undefined>(entity, "cashbackYieldPeriod") ?? null,
-				cashbackYieldRate: value<null | number | undefined>(entity, "cashbackYieldRate") ?? null,
+				cashbackYieldReferencePercentage:
+					value<null | number | undefined>(entity, "cashbackYieldReferencePercentage") ??
+					(value<null | number | undefined>(entity, "cashbackYieldRate") ? 100 : null),
+				cashbackYieldReferenceRate:
+					value<null | number | undefined>(entity, "cashbackYieldReferenceRate") ??
+					value<null | number | undefined>(entity, "cashbackYieldRate") ??
+					null,
 			};
 			assertCashbackSettings(cashbackSettings);
 			if (cashbackAccountId && !accountIds.has(cashbackAccountId))
@@ -488,7 +517,10 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 				cashbackAccountId,
 				cashbackRate: nullableNumeric<5, 2>(cashbackSettings.cashbackRate),
 				cashbackYieldPeriod: cashbackSettings.cashbackYieldPeriod,
-				cashbackYieldRate: nullableNumeric<7, 4>(cashbackSettings.cashbackYieldRate),
+				cashbackYieldReferencePercentage: nullableNumeric<7, 4>(
+					cashbackSettings.cashbackYieldReferencePercentage,
+				),
+				cashbackYieldReferenceRate: nullableNumeric<7, 4>(cashbackSettings.cashbackYieldReferenceRate),
 				creditLimit: String(value<number>(entity, "creditLimit")),
 				dueDay: Number(value<number>(entity, "dueDay")),
 				excludeFromTotals: value<boolean>(entity, "excludeFromTotals") ?? false,
@@ -556,8 +588,14 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 					value<number | null | undefined>(entity, "cashbackAmount") ?? null,
 				),
 				cashbackYieldPeriod: value<"MONTHLY" | "YEARLY" | undefined>(entity, "cashbackYieldPeriod"),
-				cashbackYieldRate: nullableNumeric<7, 4>(
-					value<number | null | undefined>(entity, "cashbackYieldRate") ?? null,
+				cashbackYieldReferencePercentage: nullableNumeric<7, 4>(
+					value<number | null | undefined>(entity, "cashbackYieldReferencePercentage") ??
+						(value<number | null | undefined>(entity, "cashbackYieldRate") ? 100 : null),
+				),
+				cashbackYieldReferenceRate: nullableNumeric<7, 4>(
+					value<number | null | undefined>(entity, "cashbackYieldReferenceRate") ??
+						value<number | null | undefined>(entity, "cashbackYieldRate") ??
+						null,
 				),
 				categoryId: tagIds[0],
 				currentInstallment: Number(value<number>(entity, "currentInstallment") ?? 1),
@@ -940,7 +978,10 @@ export const SyncController = new Elysia({ prefix: "/sync" }).post(
 						"effectiveDate",
 						"financialAccountId",
 						"yieldPeriod",
-						"yieldRate",
+						"yieldFixedRate",
+						"yieldReferencePercentage",
+						"yieldReferenceRate",
+						"yieldTaxRate",
 					)
 						.where((fields, functions) =>
 							functions.in(

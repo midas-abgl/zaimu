@@ -29,6 +29,10 @@ export function getCurrentLocalTime(): string {
 	return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
 
+export function getLocalDateKey(value = new Date()): string {
+	return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+}
+
 export function formatLocalTime(value: string | null | undefined): string | undefined {
 	const time = value?.match(timePattern)?.[1];
 	return time;

@@ -4,19 +4,39 @@ import { NumericField } from "@/components/ui/NumericField";
 
 export function AccountYieldFields({
 	enabled,
+	fixedRate,
 	period,
-	rate,
+	recalculateCurrentDay,
+	referencePercentage,
+	referenceRate,
+	taxRate,
+	showRecalculateOption = false,
 	onEnabledChange,
+	onFixedRateChange,
 	onPeriodChange,
-	onRateChange,
+	onRecalculateCurrentDayChange,
+	onReferencePercentageChange,
+	onReferenceRateChange,
+	onTaxRateChange,
 }: {
 	enabled: boolean;
+	fixedRate: string;
 	period: "MONTHLY" | "YEARLY";
-	rate: string;
+	recalculateCurrentDay: boolean;
+	referencePercentage: string;
+	referenceRate: string;
+	taxRate: string;
+	showRecalculateOption?: boolean;
 	onEnabledChange: (enabled: boolean) => void;
+	onFixedRateChange: (rate: string) => void;
 	onPeriodChange: (period: "MONTHLY" | "YEARLY") => void;
-	onRateChange: (rate: string) => void;
+	onRecalculateCurrentDayChange: (recalculate: boolean) => void;
+	onReferencePercentageChange: (percentage: string) => void;
+	onReferenceRateChange: (rate: string) => void;
+	onTaxRateChange: (rate: string) => void;
 }) {
+	const hasReference = Boolean(referenceRate);
+	const hasAnyRate = hasReference || Boolean(fixedRate);
 	return (
 		<div className="grid gap-4 rounded-2xl border bg-muted/35 p-4">
 			<label className="flex cursor-pointer items-start gap-3 text-sm" htmlFor="account-yield-enabled">
@@ -34,28 +54,81 @@ export function AccountYieldFields({
 				</span>
 			</label>
 			{enabled && (
-				<div className="grid gap-4 sm:grid-cols-2">
-					<NumericField
-						decimalScale={4}
-						id="account-yield-rate"
-						label="Taxa"
-						onValueChange={onRateChange}
-						placeholder="Ex: 0,95%"
-						required
-						suffix="%"
-						value={rate}
-					/>
-					<CustomSelect
-						label="Período"
-						onValueChange={value => onPeriodChange(value as "MONTHLY" | "YEARLY")}
-						options={[
-							{ label: "Ao mês (21 dias úteis)", value: "MONTHLY" },
-							{ label: "Ao ano (252 dias úteis)", value: "YEARLY" },
-						]}
-						placeholder="Selecione o período"
-						required
-						value={period}
-					/>
+				<div className="grid gap-4">
+					<p className="text-muted-foreground text-xs">
+						Preencha a taxa de referência, a taxa fixa ou ambas.
+					</p>
+					<div className="grid gap-4 sm:grid-cols-2">
+						<NumericField
+							decimalScale={4}
+							id="account-yield-reference-rate"
+							label="Taxa de referência"
+							onValueChange={onReferenceRateChange}
+							placeholder="Ex: 13,9%"
+							suffix="%"
+							value={referenceRate}
+						/>
+						<NumericField
+							decimalScale={4}
+							id="account-yield-reference-percentage"
+							label="Percentual da referência"
+							onValueChange={onReferencePercentageChange}
+							placeholder="Ex: 105%"
+							required={hasReference}
+							suffix="%"
+							value={referencePercentage}
+						/>
+						<NumericField
+							decimalScale={4}
+							id="account-yield-fixed-rate"
+							label="Taxa fixa"
+							onValueChange={onFixedRateChange}
+							placeholder="Ex: 0,5%"
+							suffix="%"
+							value={fixedRate}
+						/>
+						<NumericField
+							decimalScale={2}
+							description="Descontada de cada rendimento automático."
+							id="account-yield-tax-rate"
+							label="Alíquota de imposto total"
+							onValueChange={onTaxRateChange}
+							placeholder="Ex: 15%"
+							suffix="%"
+							value={taxRate}
+						/>
+						<CustomSelect
+							label="Período"
+							onValueChange={value => onPeriodChange(value as "MONTHLY" | "YEARLY")}
+							options={[
+								{ label: "Ao mês (21 dias úteis)", value: "MONTHLY" },
+								{ label: "Ao ano (252 dias úteis)", value: "YEARLY" },
+							]}
+							placeholder="Selecione o período"
+							required={hasAnyRate}
+							value={period}
+						/>
+					</div>
+					{showRecalculateOption && (
+						<div className="grid gap-2">
+							<CustomSelect
+								label="Recalcular o rendimento de hoje?"
+								onValueChange={value => onRecalculateCurrentDayChange(value === "YES")}
+								options={[
+									{ label: "Não", value: "NO" },
+									{ label: "Sim", value: "YES" },
+								]}
+								placeholder="Selecione"
+								sortOptions={false}
+								value={recalculateCurrentDay ? "YES" : "NO"}
+							/>
+							{recalculateCurrentDay && (
+								<p className="text-destructive text-xs">
+									Ajustes ou exclusões do rendimento automático de hoje serão removidos.
+								</p>
+							)}
+						</div>
+					)}
 				</div>
 			)}
 		</div>
