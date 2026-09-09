@@ -135,6 +135,7 @@ export function TransactionImportReviewDialog({
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async () => {
 			await invalidate();
+			setDiscardConfirmationOpen(false);
 			onOpenChange(false);
 			showToast("Importação descartada.", "info");
 		},
