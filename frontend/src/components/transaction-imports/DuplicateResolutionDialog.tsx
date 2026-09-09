@@ -112,6 +112,10 @@ export function DuplicateResolutionDialog({
 			setIsSaving(false);
 		}
 	};
+	const selectAllFrom = (source: Source) => {
+		setSources(Object.fromEntries(fields.map(field => [field.key, source])) as Record<Field, Source>);
+	};
+	const isSourceSelected = (source: Source) => fields.every(field => sources[field.key] === source);
 	return (
 		<Dialog onOpenChange={onOpenChange} open={open}>
 			<DialogContent className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-3xl">
@@ -126,8 +130,24 @@ export function DuplicateResolutionDialog({
 						<div className="overflow-hidden rounded-2xl border">
 							<div className="grid grid-cols-[7rem_minmax(0,1fr)_minmax(0,1fr)] border-b text-center font-medium text-xs">
 								<span />
-								<span className="p-3">Nova</span>
-								<span className="border-l p-3">Existente</span>
+								<Button
+									aria-pressed={isSourceSelected("imported")}
+									className="h-auto min-h-10 w-full rounded-none border-border px-3 py-3 text-xs"
+									onClick={() => selectAllFrom("imported")}
+									type="button"
+									variant={isSourceSelected("imported") ? "default" : "outline"}
+								>
+									Nova
+								</Button>
+								<Button
+									aria-pressed={isSourceSelected("duplicate")}
+									className="h-auto min-h-10 w-full rounded-none border-border border-l px-3 py-3 text-xs"
+									onClick={() => selectAllFrom("duplicate")}
+									type="button"
+									variant={isSourceSelected("duplicate") ? "default" : "outline"}
+								>
+									Existente
+								</Button>
 							</div>
 							{fields.map(field => (
 								<div
