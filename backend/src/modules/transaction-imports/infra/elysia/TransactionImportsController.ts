@@ -11,9 +11,20 @@ import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows, withTransaction } from "~/shared/infra/sql";
 import { matchesTransferCounterpart } from "../../domain/import-reconciliation";
 import { parseMercadoPagoStatement } from "../../domain/mercado-pago";
-import { TransactionImportItemUpdateDTO } from "./TransactionImportsDTO";
+import { TransactionImportItemReconcileDTO, TransactionImportItemUpdateDTO } from "./TransactionImportsDTO";
 
 const importItemTagEntityType = "TRANSACTION_IMPORT_ITEM";
+const reconciliationFields = [
+	"amount",
+	"date",
+	"description",
+	"destinationFinancialAccountId",
+	"originFinancialAccountId",
+	"storeName",
+	"tagIds",
+	"time",
+	"type",
+] as const;
 const transactionTypes = ["INCOME", "EXPENSE", "TRANSFER"] as const;
 const importItemTypes = [...transactionTypes, "YIELD"] as const;
 type TransactionType = (typeof transactionTypes)[number];
@@ -419,6 +430,118 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			return getImportReturn(userId, transactionImport.id);
 		},
 		{ body: TransactionImportItemUpdateDTO, params: t.Object({ id: t.String(), itemId: t.String() }) },
+	)
+	.post(
+		"/:id/items/:itemId/reconcile",
+		async ({ body, params, request }) => {
+			const userId = await requireUserId(request);
+			const transactionImport = await getImport(userId, params.id);
+			if (transactionImport.status !== "PENDING")
+				throw new HttpException("Esta importação já foi aprovada", 400);
+			const [item] = await queryRows(
+				db.sql.public.TransactionImportItem.select(
+					"id",
+					"amount",
+					"date",
+					"description",
+					"destinationFinancialAccountId",
+					"externalId",
+					"isHidden",
+					"originFinancialAccountId",
+					"storeName",
+					"time",
+					"type",
+				)
+					.where((fields, functions) =>
+						functions.and(
+							functions.eq(fields.id, params.itemId),
+							functions.eq(fields.transactionImportId, transactionImport.id),
+						),
+					)
+					.limit(1)
+					.build(),
+			);
+			if (!item) throw new HttpException("Item da importação não encontrado", 404);
+			const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, [
+				{ ...item, type: item.type as ImportItemType },
+			]);
+			const duplicate = duplicates.get(item.id)?.candidate;
+			if (!duplicate || duplicate.id !== body.duplicateId || duplicate.source !== body.duplicateSource)
+				throw new HttpException("Duplicata não encontrada", 404);
+			const itemTags = await getTagsByEntity(importItemTagEntityType, [item.id]);
+			const source = <T>(field: (typeof reconciliationFields)[number], imported: T, existing: T) =>
+				body.sources[field] === "duplicate" ? existing : imported;
+			const type = source("type", item.type as ImportItemType, duplicate.type);
+			const values = {
+				amount: source("amount", item.amount, String(duplicate.amount)),
+				date: source("date", item.date, duplicate.date),
+				description: source("description", item.description, duplicate.description),
+				destinationFinancialAccountId: source(
+					"destinationFinancialAccountId",
+					item.destinationFinancialAccountId,
+					duplicate.destinationFinancialAccountId,
+				),
+				isHidden: duplicate.isHidden,
+				originFinancialAccountId: source(
+					"originFinancialAccountId",
+					item.originFinancialAccountId,
+					duplicate.originFinancialAccountId,
+				),
+				storeName: source("storeName", item.storeName, duplicate.storeName),
+				time: source("time", item.time, duplicate.time),
+				type,
+			};
+			await validateItemAccounts(values, userId);
+			if (values.storeName && values.type !== "EXPENSE")
+				throw new HttpException("Loja só pode ser informada em saídas", 400);
+			if (values.storeName) await resolveStore(userId, values.storeName);
+			const tagIds = await assertTagOwnership(
+				source(
+					"tagIds",
+					(itemTags.get(item.id) ?? []).map(tag => tag.id),
+					duplicate.tagIds,
+				),
+				userId,
+			);
+			if (duplicate.source === "TRANSACTION") {
+				await executeStatement(
+					db.sql.public.Transaction.update({
+						...values,
+						amount: String(values.amount),
+						date: new Date(values.date),
+						externalId: item.externalId,
+						type: values.type === "YIELD" ? (duplicate.type as TransactionType) : values.type,
+						updatedAt: new Date(),
+					})
+						.where((fields, functions) => functions.eq(fields.id, duplicate.id))
+						.build(),
+				);
+				await replaceEntityTags({ entityIds: [duplicate.id], entityType: "TRANSACTION", tagIds });
+			} else {
+				await executeStatement(
+					db.sql.public.TransactionImportItem.update({
+						...values,
+						amount: String(values.amount),
+						date: new Date(values.date),
+						externalId: item.externalId,
+						updatedAt: new Date(),
+					})
+						.where((fields, functions) => functions.eq(fields.id, duplicate.id))
+						.build(),
+				);
+				await replaceEntityTags({ entityIds: [duplicate.id], entityType: importItemTagEntityType, tagIds });
+			}
+			await executeStatement(
+				db.sql.public.TransactionImportItem.update({ isSelected: false, updatedAt: new Date() })
+					.where((fields, functions) => functions.eq(fields.id, item.id))
+					.build(),
+			);
+			return getImportReturn(userId, transactionImport.id);
+		},
+		{
+			body: TransactionImportItemReconcileDTO,
+			params: t.Object({ id: t.String(), itemId: t.String() }),
+		},
 	)
 	.post(
 		"/:id/approve",

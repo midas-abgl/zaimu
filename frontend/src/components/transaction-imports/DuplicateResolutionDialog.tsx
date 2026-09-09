@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import {
 	Dialog,
 	DialogContent,
@@ -71,23 +70,20 @@ export function DuplicateResolutionDialog({
 		item: TransactionImportItem,
 		duplicate: TransactionImportDuplicate,
 		data: DuplicateResolutionSources,
-		keep: Source,
 	) => Promise<void>;
 	open: boolean;
 }) {
 	const duplicate = item?.duplicate ?? null;
 	const fields = getFields(duplicate?.type);
-	const [keep, setKeep] = useState<Source>("imported");
 	const [sources, setSources] = useState<DuplicateResolutionSources>(
 		() => Object.fromEntries(fields.map(field => [field.key, "imported"])) as Record<Field, Source>,
 	);
+	const [isSaving, setIsSaving] = useState(false);
 	useEffect(() => {
 		if (open) {
-			setKeep("imported");
 			setSources(Object.fromEntries(getFields(item?.duplicate?.type).map(field => [field.key, "imported"])));
 		}
 	}, [open, item?.id]);
-	const pending = useMemo(() => false, []);
 	if (!item || !duplicate) return null;
 	const value = (source: Source, field: Field) => {
 		const record = source === "imported" ? item : duplicate;
@@ -106,14 +102,21 @@ export function DuplicateResolutionDialog({
 			return transactionTypeLabels[selected as keyof typeof transactionTypeLabels] ?? "Não informado";
 		return selected ? String(selected) : "Não informado";
 	};
-	const save = () => onResolve(item, duplicate, sources, keep);
+	const save = async () => {
+		setIsSaving(true);
+		try {
+			await onResolve(item, duplicate, sources);
+		} finally {
+			setIsSaving(false);
+		}
+	};
 	return (
 		<Dialog onOpenChange={onOpenChange} open={open}>
 			<DialogContent className="max-h-[92dvh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-3xl">
 				<DialogHeader>
 					<DialogTitle>Resolver duplicata</DialogTitle>
 					<DialogDescription>
-						Compare, escolha o registro que fica e selecione a origem de cada dado.
+						Selecione a origem de cada dado. O resultado atualizará a transação existente.
 					</DialogDescription>
 				</DialogHeader>
 				<ScrollArea className="min-h-0 pr-1">
@@ -149,40 +152,15 @@ export function DuplicateResolutionDialog({
 								</div>
 							))}
 						</div>
-						<div className="flex flex-wrap gap-2">
-							<Button
-								className="cursor-pointer"
-								onClick={() => setKeep("imported")}
-								variant={keep === "imported" ? "default" : "outline"}
-							>
-								Manter nova
-							</Button>
-							<Button
-								className="cursor-pointer"
-								onClick={() => setKeep("duplicate")}
-								variant={keep === "duplicate" ? "default" : "outline"}
-							>
-								Manter existente
-							</Button>
-						</div>
 					</div>
 				</ScrollArea>
 				<DialogFooter>
 					<Button className="cursor-pointer" onClick={() => onOpenChange(false)} variant="outline">
 						Cancelar
 					</Button>
-					<ConfirmActionButton
-						className="cursor-pointer"
-						confirmation={
-							keep === "imported" && duplicate.source === "TRANSACTION"
-								? "A transação existente será excluída permanentemente. Continuar?"
-								: "Aplicar esta resolução?"
-						}
-						disabled={pending}
-						onConfirm={save}
-					>
-						{keep === "imported" ? "Salvar e manter nova" : "Salvar e manter existente"}
-					</ConfirmActionButton>
+					<Button className="cursor-pointer" disabled={isSaving} onClick={save}>
+						Salvar
+					</Button>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>

@@ -16,3 +16,21 @@ export const TransactionImportItemUpdateDTO = t.Object({
 		t.Union([t.Literal("INCOME"), t.Literal("EXPENSE"), t.Literal("TRANSFER"), t.Literal("YIELD")]),
 	),
 });
+
+export const TransactionImportItemReconcileDTO = t.Object({
+	duplicateId: t.String({ maxLength: 36, minLength: 1 }),
+	duplicateSource: t.Union([t.Literal("IMPORT_ITEM"), t.Literal("TRANSACTION")]),
+	sources: t.Partial(
+		t.Object({
+			amount: t.Union([t.Literal("duplicate"), t.Literal("imported")]),
+			date: t.Union([t.Literal("duplicate"), t.Literal("imported")]),
+			description: t.Union([t.Literal("duplicate"), t.Literal("imported")]),
+			destinationFinancialAccountId: t.Union([t.Literal("duplicate"), t.Literal("imported")]),
+			originFinancialAccountId: t.Union([t.Literal("duplicate"), t.Literal("imported")]),
+			storeName: t.Union([t.Literal("duplicate"), t.Literal("imported")]),
+			tagIds: t.Union([t.Literal("duplicate"), t.Literal("imported")]),
+			time: t.Union([t.Literal("duplicate"), t.Literal("imported")]),
+			type: t.Union([t.Literal("duplicate"), t.Literal("imported")]),
+		}),
+	),
+});

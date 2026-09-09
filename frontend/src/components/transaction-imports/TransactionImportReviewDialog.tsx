@@ -17,12 +17,7 @@ import type { Transaction, TransactionImportItem } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
 import { showToast } from "@/stores";
-import {
-	type DuplicateField,
-	DuplicateResolutionDialog,
-	type DuplicateResolutionSources,
-	type DuplicateSource,
-} from "./DuplicateResolutionDialog";
+import { DuplicateResolutionDialog, type DuplicateResolutionSources } from "./DuplicateResolutionDialog";
 import { EditImportedTransactionDialog } from "./EditImportedTransactionDialog";
 import { ImportReviewDateSection } from "./ImportReviewDateSection";
 import { ImportReviewTransactionItem } from "./ImportReviewTransactionItem";
@@ -186,35 +181,15 @@ export function TransactionImportReviewDialog({
 		item: TransactionImportItem,
 		duplicate: NonNullable<TransactionImportItem["duplicate"]>,
 		sources: DuplicateResolutionSources,
-		keep: DuplicateSource,
 	) => {
-		const merged = Object.fromEntries(
-			Object.entries(sources).map(([field, source]) => [
-				field,
-				source === "imported" ? item[field as DuplicateField] : duplicate[field as DuplicateField],
-			]),
-		) as Partial<Pick<TransactionImportItem, DuplicateField>>;
-		if (keep === "imported") {
-			await updateItem.mutateAsync({ data: { ...merged, isSelected: true }, item });
-			if (duplicate.source === "TRANSACTION") await dataService.transactions.delete(duplicate.id);
-			else if (duplicate.sourceImportId)
-				await dataService.transactionImports.updateItem(duplicate.sourceImportId, duplicate.id, {
-					isSelected: false,
-				});
-		} else {
-			if (duplicate.source === "TRANSACTION") {
-				const transactionData: Partial<Transaction> = {
-					...merged,
-					type: merged.type === "YIELD" ? undefined : merged.type,
-				};
-				await dataService.transactions.update(duplicate.id, transactionData);
-			} else if (duplicate.sourceImportId)
-				await dataService.transactionImports.updateItem(duplicate.sourceImportId, duplicate.id, merged);
-			await updateItem.mutateAsync({ data: { isSelected: false }, item });
-		}
+		await dataService.transactionImports.reconcileItem(importId!, item.id, {
+			duplicateId: duplicate.id,
+			duplicateSource: duplicate.source,
+			sources,
+		});
 		setResolvingItem(null);
 		await invalidate();
-		markItemReviewed(item, keep === "imported");
+		markItemReviewed(item, false);
 		showToast("Duplicata resolvida.", "positive");
 	};
 

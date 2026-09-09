@@ -2395,6 +2395,21 @@ export const dataService = {
 			if (isGuestMode()) return [];
 			return fetchWithAuth<TransactionImport[]>("/transaction-imports");
 		},
+		async reconcileItem(
+			importId: string,
+			itemId: string,
+			data: {
+				duplicateId: string;
+				duplicateSource: "IMPORT_ITEM" | "TRANSACTION";
+				sources: Record<string, "duplicate" | "imported">;
+			},
+		): Promise<TransactionImport> {
+			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
+			return fetchWithAuth<TransactionImport>(`/transaction-imports/${importId}/items/${itemId}/reconcile`, {
+				body: JSON.stringify(data),
+				method: "POST",
+			});
+		},
 		async updateItem(
 			importId: string,
 			itemId: string,
