@@ -332,7 +332,7 @@ export function TransactionImportReviewDialog({
 				</DialogContent>
 			</Dialog>
 			<Dialog onOpenChange={setDiscardConfirmationOpen} open={discardConfirmationOpen}>
-				<DialogContent showCloseButton={!discard.isPending}>
+				<DialogContent showCloseButton={false}>
 					<DialogHeader>
 						<DialogTitle>Excluir importação?</DialogTitle>
 						<DialogDescription>
@@ -345,14 +345,14 @@ export function TransactionImportReviewDialog({
 							onClick={() => setDiscardConfirmationOpen(false)}
 							variant="outline"
 						>
-							Voltar
+							Fechar modal
 						</Button>
 						<Button
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/80"
 							disabled={discard.isPending}
 							onClick={() => discard.mutate()}
 						>
-							<LuTrash2 /> {discard.isPending ? "Excluindo…" : "Excluir importação"}
+							<LuTrash2 /> {discard.isPending ? "Excluindo…" : "Excluir lote"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

@@ -4,6 +4,7 @@ import {
 	assertTagOwnership,
 	getTagsByEntity,
 	replaceEntityTags,
+	type TagSummary,
 } from "~/modules/categories/application/tag-assignments";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { HttpException } from "~/shared/errors";
@@ -35,6 +36,8 @@ interface DuplicateCandidate {
 	sourceImportId: string | null;
 	storeName: string | null;
 	time: string | null;
+	tagIds: string[];
+	tags: TagSummary[];
 	type: ImportItemType;
 }
 
@@ -126,19 +129,39 @@ async function getPotentialDuplicates(
 		),
 	]);
 
+	const [transactionTags, importItemTags] = await Promise.all([
+		getTagsByEntity(
+			"TRANSACTION",
+			transactions.map(transaction => transaction.id),
+		),
+		getTagsByEntity(
+			importItemTagEntityType,
+			pendingItems.map(item => item.id),
+		),
+	]);
 	const candidates: DuplicateCandidate[] = [
-		...transactions.map(transaction => ({
-			...transaction,
-			source: "TRANSACTION" as const,
-			sourceImportId: null,
-			type: transaction.type as TransactionType,
-		})),
-		...pendingItems.map(item => ({
-			...item,
-			source: "IMPORT_ITEM" as const,
-			sourceImportId: item.transactionImportId,
-			type: item.type as ImportItemType,
-		})),
+		...transactions.map(transaction => {
+			const tags = transactionTags.get(transaction.id) ?? [];
+			return {
+				...transaction,
+				source: "TRANSACTION" as const,
+				sourceImportId: null,
+				tagIds: tags.map(tag => tag.id),
+				tags,
+				type: transaction.type as TransactionType,
+			};
+		}),
+		...pendingItems.map(item => {
+			const tags = importItemTags.get(item.id) ?? [];
+			return {
+				...item,
+				source: "IMPORT_ITEM" as const,
+				sourceImportId: item.transactionImportId,
+				tagIds: tags.map(tag => tag.id),
+				tags,
+				type: item.type as ImportItemType,
+			};
+		}),
 	];
 	return new Map(
 		items.map(item => {

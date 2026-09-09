@@ -97,8 +97,10 @@ export function DuplicateResolutionDialog({
 		if (field === "date") return formatDate(selected);
 		if (field === "originFinancialAccountId" || field === "destinationFinancialAccountId")
 			return selected ? (accountNames.get(String(selected)) ?? "Conta removida") : "Não informado";
-		if (field === "tagIds")
-			return Array.isArray(selected) && selected.length ? selected.join(", ") : "Sem tags";
+		if (field === "tagIds") {
+			const tags = record.tags ?? [];
+			return tags.length ? tags.map(tag => tag.name).join(", ") : "Sem tags";
+		}
 		if (field === "isHidden") return selected ? "Oculta" : "Visível";
 		if (field === "type")
 			return transactionTypeLabels[selected as keyof typeof transactionTypeLabels] ?? "Não informado";

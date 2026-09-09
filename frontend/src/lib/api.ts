@@ -236,6 +236,7 @@ export interface TransactionImportDuplicate {
 	sourceImportId: string | null;
 	storeName?: string | null;
 	tagIds?: string[];
+	tags: Tag[];
 	time?: string | null;
 	type: Transaction["type"] | "YIELD";
 }
