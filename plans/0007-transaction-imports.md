@@ -10,9 +10,9 @@
 
 - [x] Registrar plano, regra de negócio e catálogo Premium.
 - [x] Criar dados, migration, parser e API autenticada.
-- [ ] Implementar fluxo de importação, revisão e avisos pendentes.
+- [x] Implementar fluxo de importação, revisão e avisos pendentes.
 - [ ] Cobrir testes, validar pacotes afetados e criar commits locais.
 
 ## Próximo passo
 
-Implementar fluxo de importação, revisão e avisos pendentes.
+Cobrir cenários e validar pacotes afetados.

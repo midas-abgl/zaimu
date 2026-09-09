@@ -182,6 +182,7 @@ export interface Transaction {
 	date: string;
 	time?: string | null;
 	description?: string;
+	externalId?: string | null;
 	isHidden?: boolean;
 	debtSplit?: DebtSplit | null;
 	storeName?: string | null;
@@ -219,6 +220,43 @@ export interface Transaction {
 	installments?: number;
 	source?: "CREDIT_CARD" | "FINANCIAL_ACCOUNT";
 	sourceName?: string;
+}
+
+export type TransactionImportDuplicateReason = "DATE_AMOUNT" | "EXTERNAL_ID";
+
+export interface TransactionImportItem {
+	id: string;
+	amount: number;
+	balanceAfter?: number | null;
+	categoryId?: string | null;
+	createdAt: string;
+	date: string;
+	description?: string | null;
+	destinationFinancialAccountId?: string | null;
+	duplicateReason: TransactionImportDuplicateReason | null;
+	externalId?: string | null;
+	isHidden: boolean;
+	isSelected: boolean;
+	originFinancialAccountId?: string | null;
+	storeName?: string | null;
+	tagIds: string[];
+	tags: Tag[];
+	time?: string | null;
+	type: Transaction["type"];
+	updatedAt: string;
+}
+
+export interface TransactionImport {
+	id: string;
+	financialAccountId: string;
+	fileName: string;
+	items: TransactionImportItem[];
+	periodEnd?: string | null;
+	periodStart?: string | null;
+	provider: "MERCADO_PAGO";
+	status: "PENDING" | "APPROVED";
+	createdAt: string;
+	updatedAt: string;
 }
 
 export interface Tag {

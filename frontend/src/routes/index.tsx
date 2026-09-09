@@ -3,6 +3,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { endOfMonth, format, startOfMonth } from "date-fns";
 import { useState } from "react";
 import { LuArrowDownLeft, LuArrowUpRight, LuTrendingUp } from "react-icons/lu";
+import {
+	PendingTransactionImportsNotice,
+	TransactionImportReviewDialog,
+} from "@/components/transaction-imports";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import type { DateRangeValue } from "@/components/ui/DateRangePicker/types";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -26,6 +30,7 @@ const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "curre
 function DashboardPage() {
 	const user = useAuthStore((state: AuthState) => state.user);
 	const [dateRange, setDateRange] = useState<DateRangeValue>(() => getCurrentMonthRange());
+	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
 	const dashboardQuery = useQuery({
 		queryFn: () => dataService.dashboard.get(dateRange),
 		queryKey: ["dashboard", user?.id ?? "guest", dateRange],
@@ -56,6 +61,7 @@ function DashboardPage() {
 				eyebrow={`Olá, ${user?.name?.split(" ")[0] || "visitante"}`}
 				title="Visão geral"
 			/>
+			<PendingTransactionImportsNotice onReview={setReviewingImportId} />
 			<section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
 				<Card className="border-0 bg-primary text-primary-foreground shadow-primary/15 shadow-xl sm:col-span-2 xl:col-span-1">
 					<CardHeader>
@@ -106,6 +112,11 @@ function DashboardPage() {
 				<DashboardForecasts forecasts={dashboard.forecasts} />
 				<DashboardDebts debts={dashboard.debts} />
 			</section>
+			<TransactionImportReviewDialog
+				importId={reviewingImportId}
+				onOpenChange={nextOpen => !nextOpen && setReviewingImportId(null)}
+				open={reviewingImportId !== null}
+			/>
 		</PageContainer>
 	);
 }

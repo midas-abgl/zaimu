@@ -2,6 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { HiArrowDown, HiArrowsRightLeft, HiArrowUp, HiPlus } from "react-icons/hi2";
+import { LuFileUp } from "react-icons/lu";
+import {
+	ImportTransactionsDialog,
+	PendingTransactionImportsNotice,
+	TransactionImportReviewDialog,
+} from "@/components/transaction-imports";
 import {
 	CreateTransactionDialog,
 	EditStatementPaymentDialog,
@@ -33,6 +39,8 @@ const typeOptions = [
 
 function TransactionsPage() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [isImportOpen, setIsImportOpen] = useState(false);
+	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
 	const [editingStatementPayment, setEditingStatementPayment] = useState<Transaction | null>(null);
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 	const [editingPurchase, setEditingPurchase] = useState<Transaction | null>(null);
@@ -201,14 +209,19 @@ function TransactionsPage() {
 		<PageContainer className="space-y-6">
 			<PageHeader
 				actions={
-					<Button className="cursor-pointer" onClick={() => setIsModalOpen(true)}>
-						<HiPlus />
-						Adicionar
-					</Button>
+					<div className="flex flex-wrap gap-2">
+						<Button className="cursor-pointer" onClick={() => setIsImportOpen(true)} variant="outline">
+							<LuFileUp /> Importar
+						</Button>
+						<Button className="cursor-pointer" onClick={() => setIsModalOpen(true)}>
+							<HiPlus /> Adicionar
+						</Button>
+					</div>
 				}
 				description="Acompanhe entradas, saídas e transferências."
 				title="Transações"
 			/>
+			<PendingTransactionImportsNotice onReview={setReviewingImportId} />
 
 			<div className="grid gap-2 rounded-2xl border bg-card p-2 sm:grid-cols-4 min-[440px]:grid-cols-2">
 				{typeOptions.map(option => (
@@ -306,6 +319,16 @@ function TransactionsPage() {
 			)}
 
 			<CreateTransactionDialog onOpenChange={setIsModalOpen} open={isModalOpen} />
+			<ImportTransactionsDialog
+				onImported={setReviewingImportId}
+				onOpenChange={setIsImportOpen}
+				open={isImportOpen}
+			/>
+			<TransactionImportReviewDialog
+				importId={reviewingImportId}
+				onOpenChange={nextOpen => !nextOpen && setReviewingImportId(null)}
+				open={reviewingImportId !== null}
+			/>
 			<EditTransactionDialog
 				onOpenChange={open => !open && setEditingTransaction(null)}
 				open={editingTransaction !== null}

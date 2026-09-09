@@ -30,6 +30,8 @@ import type {
 	Store,
 	Subscription,
 	Transaction,
+	TransactionImport,
+	TransactionImportItem,
 } from "./api";
 import { applyStatementCredits } from "./credit-card";
 import { getCurrentLocalTime, getLocalDateKey } from "./date";
@@ -199,7 +201,7 @@ async function fetchWithAuth<T>(endpoint: string, options: RequestInit = {}): Pr
 		...options,
 		credentials: "include",
 		headers: {
-			"Content-Type": "application/json",
+			...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
 			...options.headers,
 		},
 	});
@@ -2360,10 +2362,70 @@ export const dataService = {
 		},
 	},
 
+	transactionImports: {
+		async approve(id: string): Promise<{ created: number }> {
+			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
+			return fetchWithAuth<{ created: number }>(`/transaction-imports/${id}/approve`, { method: "POST" });
+		},
+		async create({
+			file,
+			financialAccountId,
+		}: {
+			file: File;
+			financialAccountId: string;
+		}): Promise<TransactionImport> {
+			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
+			const form = new FormData();
+			form.set("file", file);
+			form.set("financialAccountId", financialAccountId);
+			form.set("provider", "MERCADO_PAGO");
+			return fetchWithAuth<TransactionImport>("/transaction-imports", { body: form, method: "POST" });
+		},
+		async delete(id: string): Promise<void> {
+			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
+			await fetchWithAuth(`/transaction-imports/${id}`, { method: "DELETE" });
+		},
+		async get(id: string): Promise<TransactionImport> {
+			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
+			return fetchWithAuth<TransactionImport>(`/transaction-imports/${id}`);
+		},
+		async getPending(): Promise<TransactionImport[]> {
+			if (isGuestMode()) return [];
+			return fetchWithAuth<TransactionImport[]>("/transaction-imports");
+		},
+		async updateItem(
+			importId: string,
+			itemId: string,
+			data: Partial<
+				Pick<
+					TransactionImportItem,
+					| "amount"
+					| "date"
+					| "description"
+					| "destinationFinancialAccountId"
+					| "externalId"
+					| "isHidden"
+					| "isSelected"
+					| "originFinancialAccountId"
+					| "storeName"
+					| "tagIds"
+					| "time"
+					| "type"
+				> & { categoryId?: string | null }
+			>,
+		): Promise<TransactionImport> {
+			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
+			return fetchWithAuth<TransactionImport>(`/transaction-imports/${importId}/items/${itemId}`, {
+				body: JSON.stringify(data),
+				method: "PATCH",
+			});
+		},
+	},
+
 	// ============== TRANSACTIONS ==============
 	transactions: {
 		async create(
-			data: Omit<Transaction, "createdAt" | "debtSplit" | "id"> & {
+			data: Omit<Transaction, "createdAt" | "debtSplit" | "externalId" | "id"> & {
 				debtSplit?: DebtSplitInput;
 				matchDebtEventId?: string;
 			},
@@ -2616,7 +2678,7 @@ export const dataService = {
 
 		async update(
 			id: string,
-			data: Omit<Partial<Transaction>, "debtSplit"> & { debtSplit?: DebtSplitInput | null },
+			data: Omit<Partial<Transaction>, "debtSplit" | "externalId"> & { debtSplit?: DebtSplitInput | null },
 		): Promise<Transaction> {
 			if (isGuestMode()) {
 				const { debtSplit: debtSplitInput, ...transactionChanges } = data;

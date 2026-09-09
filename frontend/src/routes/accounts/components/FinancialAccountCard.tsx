@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
 	LuBanknote,
 	LuCreditCard,
+	LuFileUp,
 	LuLandmark,
 	LuPiggyBank,
 	LuReceiptText,
@@ -9,6 +10,7 @@ import {
 	LuTrash2,
 	LuWallet,
 } from "react-icons/lu";
+import { ImportTransactionsDialog, TransactionImportReviewDialog } from "@/components/transaction-imports";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
@@ -49,6 +51,8 @@ export function FinancialAccountCard({
 	rewardAccounts: FinancialAccount[];
 }) {
 	const [statementOpen, setStatementOpen] = useState(false);
+	const [importOpen, setImportOpen] = useState(false);
+	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
 	const config = accountType[account.type];
 	const Icon = config.icon;
 	const displayName = getFinancialAccountDisplayName(account);
@@ -137,10 +141,29 @@ export function FinancialAccountCard({
 					>
 						<LuReceiptText /> Extrato
 					</Button>
+					<Button
+						className="mt-2 w-full cursor-pointer"
+						onClick={() => setImportOpen(true)}
+						size="sm"
+						variant="outline"
+					>
+						<LuFileUp /> Importar extrato
+					</Button>
 					<FinancialAccountStatementDialog
 						account={account}
 						onOpenChange={setStatementOpen}
 						open={statementOpen}
+					/>
+					<ImportTransactionsDialog
+						defaultFinancialAccountId={account.id}
+						onImported={setReviewingImportId}
+						onOpenChange={setImportOpen}
+						open={importOpen}
+					/>
+					<TransactionImportReviewDialog
+						importId={reviewingImportId}
+						onOpenChange={nextOpen => !nextOpen && setReviewingImportId(null)}
+						open={reviewingImportId !== null}
 					/>
 				</>
 			) : null}
