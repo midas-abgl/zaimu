@@ -70,14 +70,29 @@ const normalizeNumericColumns = <Row>(plan: QueryPlan, rows: Row[]) => {
 	});
 };
 
-export const queryRows = async <Plan extends QueryPlan>(plan: Plan) => {
-	const rows = await db.runtime().query<ResultType<Plan>>(plan as unknown as SqlOrmPlan<ResultType<Plan>>);
-	return normalizeNumericColumns(plan, rows) as NormalizeDatabaseValue<ResultType<Plan>>[];
+const createExecutor = (client: typeof db) => {
+	const queryRows = async <Plan extends QueryPlan>(plan: Plan) => {
+		const rows = await client
+			.runtime()
+			.query<ResultType<Plan>>(plan as unknown as SqlOrmPlan<ResultType<Plan>>);
+		return normalizeNumericColumns(plan, rows) as NormalizeDatabaseValue<ResultType<Plan>>[];
+	};
+	return {
+		db: client,
+		executeStatement: (plan: StatementPlan) => client.runtime().execute(plan),
+		queryFirst: async <Plan extends QueryPlan>(plan: Plan) => (await queryRows(plan))[0],
+		queryRows,
+	};
 };
 
-export const queryFirst = async <Plan extends QueryPlan>(plan: Plan) => (await queryRows(plan))[0];
+const executor = createExecutor(db);
+export const { executeStatement, queryFirst, queryRows } = executor;
+export type SqlExecutor = ReturnType<typeof createExecutor>;
 
-export const executeStatement = (plan: StatementPlan) => db.runtime().execute(plan);
+export const withTransaction = async <Result>(operation: (transaction: SqlExecutor) => Promise<Result>) =>
+	db.transaction(transaction =>
+		operation(createExecutor(transaction as unknown as typeof db)),
+	) as Promise<Result>;
 
 export const numeric = <Precision extends number, Scale extends number | undefined>(value: number | string) =>
 	String(value) as Numeric<Precision, Scale>;

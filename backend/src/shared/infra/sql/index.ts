@@ -10,4 +10,5 @@ export {
 	param,
 	queryFirst,
 	queryRows,
+	withTransaction,
 } from "sql";

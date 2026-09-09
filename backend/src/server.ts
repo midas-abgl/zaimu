@@ -14,6 +14,7 @@ import { SalariesController } from "./modules/salaries/infra";
 import { StoresController } from "./modules/stores/infra";
 import { SubscriptionsController } from "./modules/subscriptions/infra";
 import { SyncController } from "./modules/sync";
+import { TransactionImportsController } from "./modules/transaction-imports/infra";
 import { TransactionsController } from "./modules/transactions/infra";
 import { app } from "./shared/infra/elysia";
 
@@ -23,6 +24,7 @@ export const server = app.use([
 	FinancialAccountYieldHolidaysController,
 	FinancialAccountYieldsController,
 	TransactionsController,
+	TransactionImportsController,
 	CreditCardsController,
 	LoansController,
 	DebtsController,

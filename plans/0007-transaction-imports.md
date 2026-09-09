@@ -9,10 +9,10 @@
 ## Progresso
 
 - [x] Registrar plano, regra de negócio e catálogo Premium.
-- [ ] Criar dados, migration, parser e API autenticada.
+- [x] Criar dados, migration, parser e API autenticada.
 - [ ] Implementar fluxo de importação, revisão e avisos pendentes.
 - [ ] Cobrir testes, validar pacotes afetados e criar commits locais.
 
 ## Próximo passo
 
-Criar modelo persistente e parser Mercado Pago.
+Implementar fluxo de importação, revisão e avisos pendentes.

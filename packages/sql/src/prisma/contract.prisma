@@ -27,6 +27,7 @@ namespace public {
     loans             Loan[]
     salaries          Salary[]
     subscriptions     Subscription[]
+    transactionImports TransactionImport[]
     authAccounts      AuthAccount[]
     sessions          Session[]
 
@@ -83,6 +84,7 @@ namespace public {
     creditPurchases   CreditPurchase[]
     recurringPayments RecurringPayment[]
     transactions      Transaction[]
+    transactionImportItems TransactionImportItem[]
     tagAssignments    TagAssignment[]
     parent            Category?          @relation(name: "Category_parentId_fkey", fields: [parentId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Category_parentId_fkey", index: false)
     categories        Category[]         @relation(name: "Category_parentId_fkey")
@@ -149,6 +151,9 @@ namespace public {
     institution             FinancialInstitution?          @relation(fields: [institutionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "FinancialAccount_institutionId_fkey", index: false)
     transactions            Transaction[]                 @relation(name: "Transaction_destinationId_fkey")
     transactionsTransaction Transaction[]                 @relation(name: "Transaction_originId_fkey")
+    transactionImports     TransactionImport[]
+    importedTransactionItemsAsOrigin TransactionImportItem[] @relation(name: "TransactionImportItem_originId_fkey")
+    importedTransactionItemsAsDestination TransactionImportItem[] @relation(name: "TransactionImportItem_destinationId_fkey")
 
     @@index([institutionId], map: "FinancialAccount_institutionId_idx")
     @@index([userId, institutionId, name, type], map: "FinancialAccount_userId_institutionId_name_type_key", unique: true)
@@ -710,6 +715,7 @@ namespace public {
     date                          Date
     time                          Time(3)?
     description                   VarChar(1000)?
+    externalId                    VarChar(200)?
     storeName                     VarChar(200)?
     isHidden                      Boolean                  @default(false)
     type                          pg.enum(TransactionType) @default("EXPENSE")
@@ -740,7 +746,58 @@ namespace public {
     @@index([salaryId, salaryOccurrenceDate], map: "Transaction_salaryId_occurrenceDate_key", unique: true)
     @@index([subscriptionId, subscriptionOccurrenceDate], map: "Transaction_subscriptionId_occurrenceDate_key", unique: true)
     @@index([creditCardStatementId], map: "Transaction_creditCardStatementId_idx")
+    @@index([externalId], map: "Transaction_externalId_idx")
     @@map("Transaction")
+  }
+
+  model TransactionImport {
+    id                 VarChar(36)                         @id(map: "TransactionImport_pkey") @default(dbgenerated("cuid2()"))
+    userId             VarChar(36)
+    financialAccountId VarChar(36)
+    provider           pg.enum(TransactionImportProvider)
+    status             pg.enum(TransactionImportStatus)     @default("PENDING")
+    fileName           VarChar(255)
+    periodStart        Date?
+    periodEnd          Date?
+    createdAt          Timestamp(3)                         @default(now())
+    updatedAt          Timestamp(3)                         @default(now())
+    user               User                                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionImport_userId_fkey", index: false)
+    financialAccount   FinancialAccount                     @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionImport_financialAccountId_fkey", index: false)
+    items              TransactionImportItem[]
+
+    @@index([userId, status, createdAt], map: "TransactionImport_userId_status_createdAt_idx")
+    @@index([financialAccountId], map: "TransactionImport_financialAccountId_idx")
+    @@map("TransactionImport")
+  }
+
+  model TransactionImportItem {
+    id                  VarChar(36)              @id(map: "TransactionImportItem_pkey") @default(dbgenerated("cuid2()"))
+    transactionImportId VarChar(36)
+    externalId          VarChar(200)?
+    amount              Numeric(12, 2)
+    date                Date
+    time                Time(3)?
+    description         VarChar(1000)?
+    storeName           VarChar(200)?
+    type                pg.enum(TransactionType)
+    categoryId          VarChar(36)?
+    originFinancialAccountId      VarChar(36)?
+    destinationFinancialAccountId VarChar(36)?
+    isHidden            Boolean                  @default(false)
+    isSelected          Boolean                  @default(true)
+    balanceAfter        Numeric(12, 2)?
+    createdAt           Timestamp(3)             @default(now())
+    updatedAt           Timestamp(3)             @default(now())
+    transactionImport   TransactionImport         @relation(fields: [transactionImportId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionImportItem_importId_fkey", index: false)
+    category            Category?                 @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "TransactionImportItem_categoryId_fkey", index: false)
+    originFinancialAccount FinancialAccount?      @relation(name: "TransactionImportItem_originId_fkey", fields: [originFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "TransactionImportItem_originId_fkey", index: false)
+    destinationFinancialAccount FinancialAccount? @relation(name: "TransactionImportItem_destinationId_fkey", fields: [destinationFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "TransactionImportItem_destinationId_fkey", index: false)
+
+    @@index([transactionImportId, date], map: "TransactionImportItem_importId_date_idx")
+    @@index([externalId], map: "TransactionImportItem_externalId_idx")
+    @@index([originFinancialAccountId], map: "TransactionImportItem_originId_idx")
+    @@index([destinationFinancialAccountId], map: "TransactionImportItem_destinationId_idx")
+    @@map("TransactionImportItem")
   }
 
   model TransactionHistory {
@@ -847,5 +904,14 @@ namespace public {
     INCOME = "INCOME"
     EXPENSE = "EXPENSE"
     TRANSFER = "TRANSFER"
+  }
+
+  native_enum TransactionImportProvider {
+    MERCADO_PAGO = "MERCADO_PAGO"
+  }
+
+  native_enum TransactionImportStatus {
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
   }
 }
