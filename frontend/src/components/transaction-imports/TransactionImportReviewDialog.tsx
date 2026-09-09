@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Fragment, useState } from "react";
-import { LuCircleAlert, LuFileCheck2, LuPencil, LuToggleLeft, LuToggleRight } from "react-icons/lu";
-import { TransactionListItem } from "@/components/transactions";
+import { useEffect, useRef, useState } from "react";
+import { LuCircleAlert, LuFileCheck2, LuLoaderCircle, LuTrash2 } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import {
@@ -15,9 +14,10 @@ import {
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { Transaction, TransactionImportItem } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
-import { formatLocalDate, formatLocalTime } from "@/lib/date";
+import { formatLocalDate } from "@/lib/date";
 import { showToast } from "@/stores";
 import {
 	type DuplicateField,
@@ -25,6 +25,8 @@ import {
 	type DuplicateSource,
 } from "./DuplicateResolutionDialog";
 import { EditImportedTransactionDialog } from "./EditImportedTransactionDialog";
+import { ImportReviewDateSection } from "./ImportReviewDateSection";
+import { ImportReviewTransactionItem } from "./ImportReviewTransactionItem";
 
 function toTransaction(item: TransactionImportItem, accountNames: Map<string, string>): Transaction {
 	const originName = item.originFinancialAccountId
@@ -65,14 +67,25 @@ export function TransactionImportReviewDialog({
 	open: boolean;
 }) {
 	const queryClient = useQueryClient();
+	const [collapsedDateKeys, setCollapsedDateKeys] = useState<Set<string>>(new Set());
+	const [collapsedItemIds, setCollapsedItemIds] = useState<Set<string>>(new Set());
+	const [decisionsByItemId, setDecisionsByItemId] = useState<Record<string, boolean>>({});
 	const [editingItem, setEditingItem] = useState<TransactionImportItem | null>(null);
 	const [resolvingItem, setResolvingItem] = useState<TransactionImportItem | null>(null);
+	const decisionsByItemIdRef = useRef<Record<string, boolean>>({});
 	const transactionImport = useQuery({
 		enabled: open && Boolean(importId),
 		queryFn: () => dataService.transactionImports.get(importId!),
 		queryKey: ["transaction-import", importId],
 	});
 	const accounts = useQuery({ enabled: open, queryFn: dataService.accounts.getAll, queryKey: ["accounts"] });
+	useEffect(() => {
+		if (!open) return;
+		decisionsByItemIdRef.current = {};
+		setCollapsedDateKeys(new Set());
+		setCollapsedItemIds(new Set());
+		setDecisionsByItemId({});
+	}, [importId, open]);
 	const invalidate = async () => {
 		await Promise.all([
 			queryClient.invalidateQueries({ queryKey: ["pending-transaction-imports"] }),
@@ -124,6 +137,37 @@ export function TransactionImportReviewDialog({
 		]),
 	);
 	const selectedCount = transactionImport.data?.items.filter(item => item.isSelected).length ?? 0;
+	const setDateCollapsed = (date: string, collapsed: boolean) => {
+		setCollapsedDateKeys(current => {
+			const next = new Set(current);
+			if (collapsed) next.add(date);
+			else next.delete(date);
+			return next;
+		});
+	};
+	const setItemCollapsed = (itemId: string, collapsed: boolean) => {
+		setCollapsedItemIds(current => {
+			const next = new Set(current);
+			if (collapsed) next.add(itemId);
+			else next.delete(itemId);
+			return next;
+		});
+	};
+	const markItemReviewed = (item: TransactionImportItem, isSelected: boolean) => {
+		const nextDecisions = { ...decisionsByItemIdRef.current, [item.id]: isSelected };
+		decisionsByItemIdRef.current = nextDecisions;
+		setDecisionsByItemId(nextDecisions);
+		setItemCollapsed(item.id, true);
+
+		const date = item.date.slice(0, 10);
+		const itemsForDate =
+			transactionImport.data?.items.filter(candidate => candidate.date.slice(0, 10) === date) ?? [];
+		if (itemsForDate.every(candidate => candidate.id in nextDecisions)) setDateCollapsed(date, true);
+	};
+	const decideItem = async (item: TransactionImportItem, isSelected: boolean) => {
+		await updateItem.mutateAsync({ data: { isSelected }, item });
+		markItemReviewed(item, isSelected);
+	};
 	const resolveDuplicate = async (
 		item: TransactionImportItem,
 		duplicate: NonNullable<TransactionImportItem["duplicate"]>,
@@ -151,6 +195,7 @@ export function TransactionImportReviewDialog({
 		}
 		setResolvingItem(null);
 		await invalidate();
+		markItemReviewed(item, keep === "imported");
 		showToast("Duplicata resolvida.", "positive");
 	};
 
@@ -193,72 +238,67 @@ export function TransactionImportReviewDialog({
 										{},
 									),
 								).map(([date, items]) => (
-									<section className="space-y-2" key={date}>
-										<h3 className="font-medium text-muted-foreground text-sm">{formatLocalDate(date)}</h3>
-										<div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
-											{items.map(item => (
-												<Fragment key={item.id}>
-													<TransactionListItem
-														actionItems={[
-															{ icon: <LuPencil />, onClick: () => setEditingItem(item), text: "Editar" },
-															{
-																icon: item.isSelected ? <LuToggleRight /> : <LuToggleLeft />,
-																onClick: () =>
-																	updateItem.mutate({ data: { isSelected: !item.isSelected }, item }),
-																text: item.isSelected ? "Ignorar" : "Importar",
-															},
-															...(item.duplicate
-																? [
-																		{
-																			icon: <LuCircleAlert />,
-																			onClick: () => setResolvingItem(item),
-																			text: "Resolver duplicata",
-																		},
-																	]
-																: []),
-														]}
-														className={item.isSelected ? undefined : "opacity-55"}
-														metadataPrefix={
-															<div className="flex flex-wrap items-center gap-1.5">
-																{formatLocalTime(item.time) ? (
-																	<span className="text-muted-foreground text-xs">
-																		{formatLocalTime(item.time)}
-																	</span>
-																) : null}
-																{item.duplicateReason ? (
-																	<span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-amber-700 text-xs">
-																		<LuCircleAlert /> Possível duplicata
-																	</span>
-																) : null}
-															</div>
-														}
-														transaction={toTransaction(item, accountNames)}
-													/>
-												</Fragment>
-											))}
-										</div>
-									</section>
+									<ImportReviewDateSection
+										collapsed={collapsedDateKeys.has(date)}
+										dateLabel={formatLocalDate(date)}
+										itemCount={items.length}
+										key={date}
+										onCollapsedChange={collapsed => setDateCollapsed(date, collapsed)}
+									>
+										{items.map(item => (
+											<ImportReviewTransactionItem
+												collapsed={collapsedItemIds.has(item.id)}
+												decision={decisionsByItemId[item.id]}
+												disabled={updateItem.isPending}
+												item={item}
+												key={item.id}
+												onCollapsedChange={collapsed => setItemCollapsed(item.id, collapsed)}
+												onDecision={isSelected => void decideItem(item, isSelected)}
+												onEdit={() => setEditingItem(item)}
+												onResolveDuplicate={() => setResolvingItem(item)}
+												transaction={toTransaction(item, accountNames)}
+											/>
+										))}
+									</ImportReviewDateSection>
 								))}
 							</div>
 						</ScrollArea>
 					) : null}
-					<DialogFooter className="flex-row">
-						<ConfirmActionButton
-							className="flex-1 cursor-pointer"
-							confirmation="Descartar todo o lote pendente?"
-							disabled={discard.isPending}
-							onConfirm={() => discard.mutate()}
-							variant="outline"
-						>
-							Descartar lote
-						</ConfirmActionButton>
-						<Button
-							className="flex-1 cursor-pointer disabled:cursor-not-allowed"
-							disabled={!selectedCount || approve.isPending}
-							onClick={() => approve.mutate()}
-						>
-							<LuFileCheck2 /> {approve.isPending ? "Salvando…" : "Salvar importação"}
-						</Button>
+					<DialogFooter className="flex-row justify-end">
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<span>
+									<ConfirmActionButton
+										aria-label="Descartar lote"
+										className="cursor-pointer disabled:cursor-not-allowed"
+										confirmation="Descartar todo o lote pendente?"
+										disabled={discard.isPending}
+										onConfirm={() => discard.mutate()}
+										size="icon"
+										variant="outline"
+									>
+										<LuTrash2 />
+									</ConfirmActionButton>
+								</span>
+							</TooltipTrigger>
+							<TooltipContent>Descartar lote</TooltipContent>
+						</Tooltip>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									aria-label={approve.isPending ? "Salvando importação" : "Salvar importação"}
+									className="cursor-pointer disabled:cursor-not-allowed"
+									disabled={!selectedCount || approve.isPending}
+									onClick={() => approve.mutate()}
+									size="icon"
+								>
+									{approve.isPending ? <LuLoaderCircle className="animate-spin" /> : <LuFileCheck2 />}
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>
+								{approve.isPending ? "Salvando importação" : "Salvar importação"}
+							</TooltipContent>
+						</Tooltip>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>

@@ -15,6 +15,7 @@ export function TransactionListItem({
 	actionItems,
 	amount,
 	className,
+	forceCompactActions = false,
 	deleting = false,
 	icon,
 	metadataPrefix,
@@ -27,6 +28,7 @@ export function TransactionListItem({
 	amount?: ReactNode;
 	className?: string;
 	deleting?: boolean;
+	forceCompactActions?: boolean;
 	icon?: ReactNode;
 	metadataPrefix?: ReactNode;
 	onDelete?: () => void;
@@ -110,7 +112,7 @@ export function TransactionListItem({
 		<ListItemLayout
 			actions={
 				actionItems || defaultActionItems.length ? (
-					<ItemActions actions={actionItems ?? defaultActionItems} />
+					<ItemActions actions={actionItems ?? defaultActionItems} forceCompact={forceCompactActions} />
 				) : undefined
 			}
 			amount={

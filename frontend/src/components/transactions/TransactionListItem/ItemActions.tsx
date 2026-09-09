@@ -15,8 +15,14 @@ export interface ItemAction {
 	text: string;
 }
 
-export function ItemActions({ actions }: { actions: ItemAction[] }) {
-	const compact = actions.length >= 3;
+export function ItemActions({
+	actions,
+	forceCompact = false,
+}: {
+	actions: ItemAction[];
+	forceCompact?: boolean;
+}) {
+	const compact = forceCompact || actions.length >= 3;
 
 	return (
 		<>
