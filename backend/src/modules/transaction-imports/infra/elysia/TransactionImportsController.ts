@@ -473,7 +473,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				body.sources[field] === "duplicate" ? existing : imported;
 			const type = source("type", item.type as ImportItemType, duplicate.type);
 			const values = {
-				amount: source("amount", item.amount, String(duplicate.amount)),
+				amount: source("amount", item.amount, duplicate.amount),
 				date: source("date", item.date, duplicate.date),
 				description: source("description", item.description, duplicate.description),
 				destinationFinancialAccountId: source(
