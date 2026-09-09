@@ -4,6 +4,10 @@
 
 A dashboard resume todos os domínios financeiros relevantes: contas monetárias, cartões, previsões, dívidas e comparativos por período. Ao criar um novo domínio que afete saldo, entradas, saídas, compromissos ou crédito disponível, sua integração na dashboard deve ser avaliada no mesmo trabalho. Investimentos e pontos permanecem fora do saldo monetário consolidado; cashback em reais permanece incluído.
 
+## Importação de transações
+
+Importações de extrato permanecem em lote pendente até aprovação explícita. Lotes pendentes, inclusive edições e itens ignorados, persistem para o usuário, mas não entram em saldo, dashboard ou listagem normal de transações. Aprovar materializa apenas os itens selecionados; descartar remove o lote inteiro. A conta de destino é sempre escolhida manualmente, sem inferência de dados do extrato. `externalId` pertence apenas a transações importadas e representa o identificador de operação do provider; transações manuais nunca o recebem. A conciliação alerta, sem excluir automaticamente, quando encontrar mesma conta e `externalId`, ou mesma conta, data, tipo e valor.
+
 ## Rateio de dívidas
 
 Transações, compras, assinaturas, pagamentos recorrentes e lançamentos manuais podem repartir seu valor entre várias pessoas por um único método: cotas, percentuais ou valores fixos. O titular pode participar; nas divisões por percentuais ou valores fixos, ele sempre absorve diferenças de arredondamento e qualquer restante não distribuído. Percentuais das pessoas não podem ultrapassar 100%, e valores fixos não podem ultrapassar o total. Cada participante externo recebe um evento independente e privado no próprio livro.
