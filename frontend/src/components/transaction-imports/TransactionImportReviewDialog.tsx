@@ -22,6 +22,7 @@ import { showToast } from "@/stores";
 import {
 	type DuplicateField,
 	DuplicateResolutionDialog,
+	type DuplicateResolutionSources,
 	type DuplicateSource,
 } from "./DuplicateResolutionDialog";
 import { EditImportedTransactionDialog } from "./EditImportedTransactionDialog";
@@ -171,7 +172,7 @@ export function TransactionImportReviewDialog({
 	const resolveDuplicate = async (
 		item: TransactionImportItem,
 		duplicate: NonNullable<TransactionImportItem["duplicate"]>,
-		sources: Record<DuplicateField, DuplicateSource>,
+		sources: DuplicateResolutionSources,
 		keep: DuplicateSource,
 	) => {
 		const merged = Object.fromEntries(
@@ -179,7 +180,7 @@ export function TransactionImportReviewDialog({
 				field,
 				source === "imported" ? item[field as DuplicateField] : duplicate[field as DuplicateField],
 			]),
-		) as Pick<TransactionImportItem, DuplicateField>;
+		) as Partial<Pick<TransactionImportItem, DuplicateField>>;
 		if (keep === "imported") {
 			await updateItem.mutateAsync({ data: { ...merged, isSelected: true }, item });
 			if (duplicate.source === "TRANSACTION") await dataService.transactions.delete(duplicate.id);
