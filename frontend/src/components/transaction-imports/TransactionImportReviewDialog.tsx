@@ -168,12 +168,7 @@ export function TransactionImportReviewDialog({
 		const nextDecisions = { ...decisionsByItemIdRef.current, [item.id]: isSelected };
 		decisionsByItemIdRef.current = nextDecisions;
 		setDecisionsByItemId(nextDecisions);
-		setItemCollapsed(item.id, true);
-
-		const date = item.date.slice(0, 10);
-		const itemsForDate =
-			transactionImport.data?.items.filter(candidate => candidate.date.slice(0, 10) === date) ?? [];
-		if (itemsForDate.every(candidate => candidate.id in nextDecisions)) setDateCollapsed(date, true);
+		if (!isSelected) setItemCollapsed(item.id, true);
 	};
 	const decideItem = async (item: TransactionImportItem, isSelected: boolean) => {
 		await updateItem.mutateAsync({ data: { isSelected }, item });

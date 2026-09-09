@@ -3,8 +3,8 @@ import {
 	LuChevronDown,
 	LuChevronUp,
 	LuCircleAlert,
-	LuEyeOff,
 	LuLandmark,
+	LuLock,
 	LuPencil,
 } from "react-icons/lu";
 import { TransactionListItem } from "@/components/transactions";
@@ -98,7 +98,7 @@ export function ImportReviewTransactionItem({
 				{ disabled, icon: <LuPencil />, onClick: onEdit, text: "Editar" },
 				{
 					disabled,
-					icon: item.isSelected ? <LuEyeOff /> : <LuCheck />,
+					icon: item.isSelected ? <LuLock /> : <LuCheck />,
 					onClick: () => onDecision(!item.isSelected),
 					text: toggleDecisionLabel,
 				},
