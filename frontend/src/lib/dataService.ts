@@ -2367,6 +2367,12 @@ export const dataService = {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
 			return fetchWithAuth<{ created: number }>(`/transaction-imports/${id}/approve`, { method: "POST" });
 		},
+		async approveItem(importId: string, itemId: string): Promise<{ created: number }> {
+			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
+			return fetchWithAuth<{ created: number }>(`/transaction-imports/${importId}/items/${itemId}/approve`, {
+				method: "POST",
+			});
+		},
 		async create({
 			file,
 			financialAccountId,

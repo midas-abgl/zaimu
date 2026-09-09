@@ -23,6 +23,7 @@ export function ImportReviewTransactionItem({
 	decision,
 	disabled,
 	item,
+	onApprove,
 	onCollapsedChange,
 	onDecision,
 	onEdit,
@@ -33,6 +34,7 @@ export function ImportReviewTransactionItem({
 	decision?: boolean;
 	disabled: boolean;
 	item: TransactionImportItem;
+	onApprove: () => void;
 	onCollapsedChange: (collapsed: boolean) => void;
 	onDecision: (isSelected: boolean) => void;
 	onEdit: () => void;
@@ -102,6 +104,17 @@ export function ImportReviewTransactionItem({
 					onClick: () => onDecision(!item.isSelected),
 					text: toggleDecisionLabel,
 				},
+				...(item.isSelected && !item.duplicateReason
+					? [
+							{
+								color: "default" as const,
+								disabled,
+								icon: <LuCheck />,
+								onClick: onApprove,
+								text: "Aprovar",
+							},
+						]
+					: []),
 				{
 					ariaLabel: collapseLabel,
 					disabled,

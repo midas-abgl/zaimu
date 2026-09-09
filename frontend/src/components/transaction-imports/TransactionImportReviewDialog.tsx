@@ -125,6 +125,19 @@ export function TransactionImportReviewDialog({
 			showToast(`${result.created} transações importadas.`, "positive");
 		},
 	});
+	const approveItem = useMutation({
+		mutationFn: (itemId: string) => dataService.transactionImports.approveItem(importId!, itemId),
+		onError: error => showToast(error.message, "negative"),
+		onSuccess: async () => {
+			await Promise.all([
+				invalidate(),
+				queryClient.invalidateQueries({ queryKey: ["accounts"] }),
+				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+			]);
+			showToast("Transação aprovada.", "positive");
+		},
+	});
 	const discard = useMutation({
 		mutationFn: () => dataService.transactionImports.delete(importId!),
 		onError: error => showToast(error.message, "negative"),
@@ -175,7 +188,7 @@ export function TransactionImportReviewDialog({
 			setDuplicateWarningOpen(true);
 			return;
 		}
-		approve.mutate();
+		approve.mutate([]);
 	};
 	const resolveDuplicate = async (
 		item: TransactionImportItem,
@@ -243,9 +256,10 @@ export function TransactionImportReviewDialog({
 											<ImportReviewTransactionItem
 												collapsed={collapsedItemIds.has(item.id)}
 												decision={decisionsByItemId[item.id]}
-												disabled={updateItem.isPending}
+												disabled={updateItem.isPending || approveItem.isPending}
 												item={item}
 												key={item.id}
+												onApprove={() => approveItem.mutate(item.id)}
 												onCollapsedChange={collapsed => setItemCollapsed(item.id, collapsed)}
 												onDecision={isSelected => void decideItem(item, isSelected)}
 												onEdit={() => setEditingItem(item)}
@@ -261,14 +275,14 @@ export function TransactionImportReviewDialog({
 					<DialogFooter className="flex-row justify-end">
 						<Button
 							className="cursor-pointer bg-destructive text-destructive-foreground hover:bg-destructive/80 disabled:cursor-not-allowed"
-							disabled={discard.isPending || approve.isPending}
+							disabled={discard.isPending || approve.isPending || approveItem.isPending}
 							onClick={() => setDiscardConfirmationOpen(true)}
 						>
 							<LuTrash2 /> Descartar lote
 						</Button>
 						<Button
 							className="cursor-pointer disabled:cursor-not-allowed"
-							disabled={approve.isPending || discard.isPending}
+							disabled={approve.isPending || approveItem.isPending || discard.isPending}
 							onClick={finishImport}
 						>
 							{approve.isPending ? <LuLoaderCircle className="animate-spin" /> : <LuFileCheck2 />}
@@ -290,14 +304,14 @@ export function TransactionImportReviewDialog({
 					</DialogHeader>
 					<DialogFooter>
 						<Button
-							disabled={approve.isPending}
+							disabled={approve.isPending || approveItem.isPending}
 							onClick={() => setDuplicateWarningOpen(false)}
 							variant="outline"
 						>
 							Voltar
 						</Button>
 						<Button
-							disabled={approve.isPending}
+							disabled={approve.isPending || approveItem.isPending}
 							onClick={() => approve.mutate(unresolvedDuplicateItems.map(item => item.id))}
 						>
 							{approve.isPending ? <LuLoaderCircle className="animate-spin" /> : <LuFileCheck2 />}

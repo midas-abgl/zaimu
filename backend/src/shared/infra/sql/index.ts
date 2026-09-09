@@ -10,5 +10,6 @@ export {
 	param,
 	queryFirst,
 	queryRows,
+	type SqlExecutor,
 	withTransaction,
 } from "sql";
