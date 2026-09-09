@@ -210,11 +210,11 @@ function TransactionsPage() {
 			<PageHeader
 				actions={
 					<div className="flex flex-wrap gap-2">
-						<Button className="cursor-pointer" onClick={() => setIsImportOpen(true)} variant="outline">
-							<LuFileUp /> Importar
-						</Button>
 						<Button className="cursor-pointer" onClick={() => setIsModalOpen(true)}>
 							<HiPlus /> Adicionar
+						</Button>
+						<Button className="cursor-pointer" onClick={() => setIsImportOpen(true)} variant="outline">
+							<LuFileUp /> Importar
 						</Button>
 					</div>
 				}

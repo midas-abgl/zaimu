@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { LuFileUp, LuLandmark } from "react-icons/lu";
+import { LuFileUp } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import {
@@ -11,13 +11,19 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
-import { FormField } from "@/components/ui/FormField";
 import { dataService } from "@/lib/dataService";
 import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
 } from "@/lib/financial-account";
 import { showToast } from "@/stores";
+import { StatementFilePicker } from "./StatementFilePicker";
+
+const providerOptions = [
+	{ label: "Mercado Pago", value: "MERCADO_PAGO" },
+	{ disabled: true, label: "Genérico · Em breve", value: "GENERIC" },
+] as const;
+type TransactionImportProvider = (typeof providerOptions)[number]["value"];
 
 export function ImportTransactionsDialog({
 	defaultFinancialAccountId,
@@ -32,20 +38,33 @@ export function ImportTransactionsDialog({
 }) {
 	const [file, setFile] = useState<File | null>(null);
 	const [financialAccountId, setFinancialAccountId] = useState(defaultFinancialAccountId ?? "");
+	const [provider, setProvider] = useState<TransactionImportProvider | "">("");
 	const accounts = useQuery({ enabled: open, queryFn: dataService.accounts.getAll, queryKey: ["accounts"] });
 	useEffect(() => {
-		if (open) setFinancialAccountId(defaultFinancialAccountId ?? "");
+		if (!open) return;
+		setFile(null);
+		setFinancialAccountId(defaultFinancialAccountId ?? "");
+		setProvider("");
 	}, [defaultFinancialAccountId, open]);
+	const handleOpenChange = (nextOpen: boolean) => {
+		if (!nextOpen) {
+			setFile(null);
+			setProvider("");
+		}
+		onOpenChange(nextOpen);
+	};
 	const createImport = useMutation({
 		mutationFn: () => {
 			if (!file) throw new Error("Selecione um PDF do Mercado Pago.");
 			if (!financialAccountId) throw new Error("Selecione a conta que receberá as transações.");
-			return dataService.transactionImports.create({ file, financialAccountId });
+			if (provider !== "MERCADO_PAGO") throw new Error("Selecione a instituição do extrato.");
+			return dataService.transactionImports.create({ file, financialAccountId, provider });
 		},
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: transactionImport => {
 			setFile(null);
-			onOpenChange(false);
+			setProvider("");
+			handleOpenChange(false);
 			onImported(transactionImport.id);
 			showToast("Extrato importado para revisão.", "positive");
 		},
@@ -56,22 +75,22 @@ export function ImportTransactionsDialog({
 			.toSorted(compareFinancialAccountsByOptionLabel) ?? [];
 
 	return (
-		<Dialog onOpenChange={onOpenChange} open={open}>
+		<Dialog onOpenChange={handleOpenChange} open={open}>
 			<DialogContent className="sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Importar transações</DialogTitle>
 					<DialogDescription>Selecione manualmente a conta e envie seu extrato.</DialogDescription>
 				</DialogHeader>
 				<div className="grid gap-4">
-					<div className="grid gap-2 rounded-2xl border p-3">
-						<p className="font-medium">Provider</p>
-						<Button className="cursor-default justify-start" disabled variant="outline">
-							<LuLandmark /> Mercado Pago
-						</Button>
-						<Button className="justify-start" disabled variant="outline">
-							<LuLandmark /> Genérico · Em breve
-						</Button>
-					</div>
+					<CustomSelect
+						label="Instituição"
+						onValueChange={value => setProvider(value as TransactionImportProvider)}
+						options={providerOptions.map(option => ({ ...option }))}
+						placeholder="Selecione a instituição"
+						required
+						sortOptions={false}
+						value={provider}
+					/>
 					<CustomSelect
 						label="Conta que receberá as transações"
 						onValueChange={setFinancialAccountId}
@@ -83,24 +102,15 @@ export function ImportTransactionsDialog({
 						required
 						value={financialAccountId}
 					/>
-					<FormField
-						accept="application/pdf,.pdf"
-						id="transaction-import-file"
-						label="Extrato Mercado Pago"
-						name="statement"
-						onChange={event => setFile(event.currentTarget.files?.[0] ?? null)}
-						placeholder="Extrato em PDF"
-						required
-						type="file"
-					/>
+					<StatementFilePicker file={file} onFileChange={setFile} />
 				</div>
 				<DialogFooter>
-					<Button className="cursor-pointer" onClick={() => onOpenChange(false)} variant="outline">
+					<Button className="cursor-pointer" onClick={() => handleOpenChange(false)} variant="outline">
 						Descartar
 					</Button>
 					<Button
 						className="cursor-pointer disabled:cursor-not-allowed"
-						disabled={!file || !financialAccountId || createImport.isPending}
+						disabled={!file || !financialAccountId || provider !== "MERCADO_PAGO" || createImport.isPending}
 						onClick={() => createImport.mutate()}
 					>
 						<LuFileUp /> {createImport.isPending ? "Importando…" : "Importar"}

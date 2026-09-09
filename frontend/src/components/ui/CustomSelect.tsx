@@ -1,6 +1,7 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./Select";
 
 interface Option {
+	disabled?: boolean;
 	label: string;
 	value: string;
 }
@@ -39,7 +40,12 @@ export function CustomSelect({
 				</SelectTrigger>
 				<SelectContent>
 					{displayedOptions.map(option => (
-						<SelectItem className="cursor-pointer" key={option.value} value={option.value}>
+						<SelectItem
+							className="cursor-pointer disabled:cursor-not-allowed"
+							disabled={option.disabled}
+							key={option.value}
+							value={option.value}
+						>
 							{option.label}
 						</SelectItem>
 					))}

@@ -2370,15 +2370,17 @@ export const dataService = {
 		async create({
 			file,
 			financialAccountId,
+			provider,
 		}: {
 			file: File;
 			financialAccountId: string;
+			provider: TransactionImport["provider"];
 		}): Promise<TransactionImport> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
 			const form = new FormData();
 			form.set("file", file);
 			form.set("financialAccountId", financialAccountId);
-			form.set("provider", "MERCADO_PAGO");
+			form.set("provider", provider);
 			return fetchWithAuth<TransactionImport>("/transaction-imports", { body: form, method: "POST" });
 		},
 		async delete(id: string): Promise<void> {
