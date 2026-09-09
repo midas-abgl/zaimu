@@ -44,7 +44,16 @@ export function DashboardComparisonChart({ comparison }: Pick<Dashboard, "compar
 						<Tooltip
 							content={
 								<ChartTooltipContent
-									formatter={value => currency.format(Number(value))}
+									formatter={(value, name) => (
+										<div className="flex w-full items-center justify-between gap-6">
+											<span className="text-muted-foreground">
+												{chartConfig[name as keyof typeof chartConfig]?.label ?? name}
+											</span>
+											<span className="font-medium font-mono text-foreground tabular-nums">
+												{currency.format(Number(value))}
+											</span>
+										</div>
+									)}
 									labelFormatter={(_, payload) => {
 										const item = payload[0]?.payload as (typeof data)[number] | undefined;
 										return item ? `${item.startDate} até ${item.endDate}` : "";
