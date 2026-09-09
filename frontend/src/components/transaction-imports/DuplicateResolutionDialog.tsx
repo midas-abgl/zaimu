@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/Dialog";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import type { TransactionImportDuplicate, TransactionImportItem } from "@/lib/api";
+import { formatLocalTime } from "@/lib/date";
 
 export type DuplicateField =
 	| "amount"
@@ -91,6 +92,7 @@ export function DuplicateResolutionDialog({
 		if (field === "amount")
 			return new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(Number(selected));
 		if (field === "date") return formatDate(selected);
+		if (field === "time") return formatLocalTime(selected ? String(selected) : undefined) ?? "Não informado";
 		if (field === "originFinancialAccountId" || field === "destinationFinancialAccountId")
 			return selected ? (accountNames.get(String(selected)) ?? "Conta removida") : "Não informado";
 		if (field === "tagIds") {
