@@ -34,14 +34,14 @@ export function StatementFilePicker({
 				type="file"
 			/>
 			<Label
-				className="h-10 cursor-pointer justify-center rounded-4xl border bg-input/30 px-3 text-sm transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 hover:bg-input/50"
+				className="h-10 cursor-pointer justify-center gap-2 rounded-4xl border bg-input/30 px-3 text-sm transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 hover:bg-input/50"
 				htmlFor={inputId}
 			>
-				<LuFileUp /> Selecionar arquivo
+				<LuFileUp className="shrink-0" />
+				<span aria-live="polite" className="truncate">
+					{file?.name ?? "Selecionar arquivo"}
+				</span>
 			</Label>
-			<p aria-live="polite" className="truncate text-muted-foreground text-sm">
-				{file?.name ?? "Nenhum arquivo selecionado"}
-			</p>
 			<p className="text-muted-foreground text-xs" id={`${inputId}-description`}>
 				Apenas arquivos PDF.
 			</p>
