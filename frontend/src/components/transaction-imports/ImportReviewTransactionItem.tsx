@@ -73,9 +73,6 @@ export function ImportReviewTransactionItem({
 	return (
 		<TransactionListItem
 			actionItems={[
-				{ disabled, icon: <LuPencil />, onClick: onEdit, text: "Editar" },
-				{ disabled, icon: <LuCheck />, onClick: () => onDecision(true), text: "Aprovar" },
-				{ disabled, icon: <LuEyeOff />, onClick: () => onDecision(false), text: "Ignorar" },
 				...(item.duplicate
 					? [
 							{
@@ -86,6 +83,9 @@ export function ImportReviewTransactionItem({
 							},
 						]
 					: []),
+				{ disabled, icon: <LuPencil />, onClick: onEdit, text: "Editar" },
+				{ disabled, icon: <LuCheck />, onClick: () => onDecision(true), text: "Aprovar" },
+				{ disabled, icon: <LuEyeOff />, onClick: () => onDecision(false), text: "Ignorar" },
 			]}
 			className={item.isSelected ? undefined : "opacity-55"}
 			forceCompactActions
