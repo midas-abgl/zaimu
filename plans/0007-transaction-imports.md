@@ -11,8 +11,8 @@
 - [x] Registrar plano, regra de negócio e catálogo Premium.
 - [x] Criar dados, migration, parser e API autenticada.
 - [x] Implementar fluxo de importação, revisão e avisos pendentes.
-- [ ] Cobrir testes, validar pacotes afetados e criar commits locais.
+- [x] Cobrir testes, validar pacotes afetados e criar commits locais.
 
 ## Próximo passo
 
-Cobrir cenários e validar pacotes afetados.
+Plano concluído.
