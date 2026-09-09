@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { LuCircleAlert, LuFileCheck2, LuPencil, LuToggleLeft, LuToggleRight } from "react-icons/lu";
 import { TransactionListItem } from "@/components/transactions";
 import { Button } from "@/components/ui/Button";
@@ -19,6 +19,11 @@ import type { Transaction, TransactionImportItem } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate, formatLocalTime } from "@/lib/date";
 import { showToast } from "@/stores";
+import {
+	type DuplicateField,
+	DuplicateResolutionDialog,
+	type DuplicateSource,
+} from "./DuplicateResolutionDialog";
 import { EditImportedTransactionDialog } from "./EditImportedTransactionDialog";
 
 function toTransaction(item: TransactionImportItem, accountNames: Map<string, string>): Transaction {
@@ -61,6 +66,7 @@ export function TransactionImportReviewDialog({
 }) {
 	const queryClient = useQueryClient();
 	const [editingItem, setEditingItem] = useState<TransactionImportItem | null>(null);
+	const [resolvingItem, setResolvingItem] = useState<TransactionImportItem | null>(null);
 	const transactionImport = useQuery({
 		enabled: open && Boolean(importId),
 		queryFn: () => dataService.transactionImports.get(importId!),
@@ -118,6 +124,35 @@ export function TransactionImportReviewDialog({
 		]),
 	);
 	const selectedCount = transactionImport.data?.items.filter(item => item.isSelected).length ?? 0;
+	const resolveDuplicate = async (
+		item: TransactionImportItem,
+		duplicate: NonNullable<TransactionImportItem["duplicate"]>,
+		sources: Record<DuplicateField, DuplicateSource>,
+		keep: DuplicateSource,
+	) => {
+		const merged = Object.fromEntries(
+			Object.entries(sources).map(([field, source]) => [
+				field,
+				source === "imported" ? item[field as DuplicateField] : duplicate[field as DuplicateField],
+			]),
+		) as Pick<TransactionImportItem, DuplicateField>;
+		if (keep === "imported") {
+			await updateItem.mutateAsync({ data: { ...merged, isSelected: true }, item });
+			if (duplicate.source === "TRANSACTION") await dataService.transactions.delete(duplicate.id);
+			else if (duplicate.sourceImportId)
+				await dataService.transactionImports.updateItem(duplicate.sourceImportId, duplicate.id, {
+					isSelected: false,
+				});
+		} else {
+			if (duplicate.source === "TRANSACTION") await dataService.transactions.update(duplicate.id, merged);
+			else if (duplicate.sourceImportId)
+				await dataService.transactionImports.updateItem(duplicate.sourceImportId, duplicate.id, merged);
+			await updateItem.mutateAsync({ data: { isSelected: false }, item });
+		}
+		setResolvingItem(null);
+		await invalidate();
+		showToast("Duplicata resolvida.", "positive");
+	};
 
 	return (
 		<>
@@ -162,34 +197,44 @@ export function TransactionImportReviewDialog({
 										<h3 className="font-medium text-muted-foreground text-sm">{formatLocalDate(date)}</h3>
 										<div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
 											{items.map(item => (
-												<TransactionListItem
-													actionItems={[
-														{ icon: <LuPencil />, onClick: () => setEditingItem(item), text: "Editar" },
-														{
-															icon: item.isSelected ? <LuToggleRight /> : <LuToggleLeft />,
-															onClick: () =>
-																updateItem.mutate({ data: { isSelected: !item.isSelected }, item }),
-															text: item.isSelected ? "Ignorar" : "Importar",
-														},
-													]}
-													className={item.isSelected ? undefined : "opacity-55"}
-													key={item.id}
-													metadataPrefix={
-														<div className="flex flex-wrap items-center gap-1.5">
-															{formatLocalTime(item.time) ? (
-																<span className="text-muted-foreground text-xs">
-																	{formatLocalTime(item.time)}
-																</span>
-															) : null}
-															{item.duplicateReason ? (
-																<span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-amber-700 text-xs">
-																	<LuCircleAlert /> Possível duplicata
-																</span>
-															) : null}
-														</div>
-													}
-													transaction={toTransaction(item, accountNames)}
-												/>
+												<Fragment key={item.id}>
+													<TransactionListItem
+														actionItems={[
+															{ icon: <LuPencil />, onClick: () => setEditingItem(item), text: "Editar" },
+															{
+																icon: item.isSelected ? <LuToggleRight /> : <LuToggleLeft />,
+																onClick: () =>
+																	updateItem.mutate({ data: { isSelected: !item.isSelected }, item }),
+																text: item.isSelected ? "Ignorar" : "Importar",
+															},
+															...(item.duplicate
+																? [
+																		{
+																			icon: <LuCircleAlert />,
+																			onClick: () => setResolvingItem(item),
+																			text: "Resolver duplicata",
+																		},
+																	]
+																: []),
+														]}
+														className={item.isSelected ? undefined : "opacity-55"}
+														metadataPrefix={
+															<div className="flex flex-wrap items-center gap-1.5">
+																{formatLocalTime(item.time) ? (
+																	<span className="text-muted-foreground text-xs">
+																		{formatLocalTime(item.time)}
+																	</span>
+																) : null}
+																{item.duplicateReason ? (
+																	<span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-amber-700 text-xs">
+																		<LuCircleAlert /> Possível duplicata
+																	</span>
+																) : null}
+															</div>
+														}
+														transaction={toTransaction(item, accountNames)}
+													/>
+												</Fragment>
 											))}
 										</div>
 									</section>
@@ -197,9 +242,9 @@ export function TransactionImportReviewDialog({
 							</div>
 						</ScrollArea>
 					) : null}
-					<DialogFooter>
+					<DialogFooter className="flex-row">
 						<ConfirmActionButton
-							className="cursor-pointer"
+							className="flex-1 cursor-pointer"
 							confirmation="Descartar todo o lote pendente?"
 							disabled={discard.isPending}
 							onConfirm={() => discard.mutate()}
@@ -208,7 +253,7 @@ export function TransactionImportReviewDialog({
 							Descartar lote
 						</ConfirmActionButton>
 						<Button
-							className="cursor-pointer disabled:cursor-not-allowed"
+							className="flex-1 cursor-pointer disabled:cursor-not-allowed"
 							disabled={!selectedCount || approve.isPending}
 							onClick={() => approve.mutate()}
 						>
@@ -227,6 +272,13 @@ export function TransactionImportReviewDialog({
 				}}
 				open={editingItem !== null}
 				pending={updateItem.isPending}
+			/>
+			<DuplicateResolutionDialog
+				accountNames={accountNames}
+				item={resolvingItem}
+				onOpenChange={nextOpen => !nextOpen && setResolvingItem(null)}
+				onResolve={resolveDuplicate}
+				open={resolvingItem !== null}
 			/>
 		</>
 	);

@@ -186,6 +186,7 @@ export interface Transaction {
 	isHidden?: boolean;
 	debtSplit?: DebtSplit | null;
 	storeName?: string | null;
+	tagIds?: string[];
 	feeDescription?: string | null;
 	feeAmount?: number | null;
 	refundOfPurchaseId?: string | null;
@@ -224,6 +225,23 @@ export interface Transaction {
 
 export type TransactionImportDuplicateReason = "DATE_AMOUNT" | "EXTERNAL_ID";
 
+export interface TransactionImportDuplicate {
+	id: string;
+	amount: number;
+	createdAt: string;
+	date: string;
+	description?: string | null;
+	destinationFinancialAccountId?: string | null;
+	externalId?: string | null;
+	isHidden: boolean;
+	originFinancialAccountId?: string | null;
+	source: "IMPORT_ITEM" | "TRANSACTION";
+	sourceImportId: string | null;
+	storeName?: string | null;
+	time?: string | null;
+	type: Transaction["type"];
+}
+
 export interface TransactionImportItem {
 	id: string;
 	amount: number;
@@ -233,6 +251,7 @@ export interface TransactionImportItem {
 	date: string;
 	description?: string | null;
 	destinationFinancialAccountId?: string | null;
+	duplicate: TransactionImportDuplicate | null;
 	duplicateReason: TransactionImportDuplicateReason | null;
 	externalId?: string | null;
 	isHidden: boolean;

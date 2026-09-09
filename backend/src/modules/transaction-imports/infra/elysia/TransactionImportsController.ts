@@ -8,6 +8,7 @@ import {
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { HttpException } from "~/shared/errors";
 import { db, executeStatement, queryFirst, queryRows, withTransaction } from "~/shared/infra/sql";
+import { matchesTransferCounterpart } from "../../domain/import-reconciliation";
 import { parseMercadoPagoStatement } from "../../domain/mercado-pago";
 import { TransactionImportItemUpdateDTO } from "./TransactionImportsDTO";
 
@@ -17,6 +18,23 @@ type TransactionType = (typeof transactionTypes)[number];
 
 const toDateKey = (value: Date | string) => new Date(value).toISOString().slice(0, 10);
 const normalizeText = (value: null | string | undefined) => value?.trim() || null;
+
+interface DuplicateCandidate {
+	amount: number;
+	createdAt: Date;
+	date: Date;
+	description: string | null;
+	destinationFinancialAccountId: string | null;
+	externalId: string | null;
+	id: string;
+	isHidden: boolean;
+	originFinancialAccountId: string | null;
+	source: "IMPORT_ITEM" | "TRANSACTION";
+	sourceImportId: string | null;
+	storeName: string | null;
+	time: string | null;
+	type: TransactionType;
+}
 
 async function getImport(userId: string, importId: string) {
 	const transactionImport = await queryFirst(
@@ -58,8 +76,13 @@ async function getPotentialDuplicates(
 			db.sql.public.Transaction.select(
 				"id",
 				"amount",
+				"createdAt",
 				"date",
+				"description",
 				"externalId",
+				"isHidden",
+				"storeName",
+				"time",
 				"type",
 				"originFinancialAccountId",
 				"destinationFinancialAccountId",
@@ -78,11 +101,17 @@ async function getPotentialDuplicates(
 			)
 				.select(fields => ({
 					amount: fields.TransactionImportItem.amount,
+					createdAt: fields.TransactionImportItem.createdAt,
 					date: fields.TransactionImportItem.date,
+					description: fields.TransactionImportItem.description,
 					destinationFinancialAccountId: fields.TransactionImportItem.destinationFinancialAccountId,
 					externalId: fields.TransactionImportItem.externalId,
 					id: fields.TransactionImportItem.id,
+					isHidden: fields.TransactionImportItem.isHidden,
 					originFinancialAccountId: fields.TransactionImportItem.originFinancialAccountId,
+					storeName: fields.TransactionImportItem.storeName,
+					time: fields.TransactionImportItem.time,
+					transactionImportId: fields.TransactionImportItem.transactionImportId,
 					type: fields.TransactionImportItem.type,
 				}))
 				.where((fields, functions) =>
@@ -95,6 +124,20 @@ async function getPotentialDuplicates(
 		),
 	]);
 
+	const candidates: DuplicateCandidate[] = [
+		...transactions.map(transaction => ({
+			...transaction,
+			source: "TRANSACTION" as const,
+			sourceImportId: null,
+			type: transaction.type as TransactionType,
+		})),
+		...pendingItems.map(item => ({
+			...item,
+			source: "IMPORT_ITEM" as const,
+			sourceImportId: item.transactionImportId,
+			type: item.type as TransactionType,
+		})),
+	];
 	return new Map(
 		items.map(item => {
 			const isSameAccount = (candidate: {
@@ -103,25 +146,29 @@ async function getPotentialDuplicates(
 			}) =>
 				candidate.originFinancialAccountId === financialAccountId ||
 				candidate.destinationFinancialAccountId === financialAccountId;
-			const externalMatch = item.externalId
-				? [...transactions, ...pendingItems].some(
+			const externalDuplicate = item.externalId
+				? candidates.find(
 						candidate =>
-							"id" in candidate &&
 							candidate.id !== item.id &&
 							isSameAccount(candidate) &&
 							candidate.externalId === item.externalId,
 					)
-				: false;
-			const fallbackMatch = [...transactions, ...pendingItems].some(
+				: undefined;
+			const dateAmountDuplicate = candidates.find(
 				candidate =>
-					"id" in candidate &&
 					candidate.id !== item.id &&
 					isSameAccount(candidate) &&
-					candidate.type === item.type &&
+					(candidate.type === item.type || matchesTransferCounterpart(item, candidate, financialAccountId)) &&
 					Number(candidate.amount) === Number(item.amount) &&
 					toDateKey(candidate.date) === toDateKey(item.date),
 			);
-			return [item.id, externalMatch ? "EXTERNAL_ID" : fallbackMatch ? "DATE_AMOUNT" : null] as const;
+			const duplicate = externalDuplicate ?? dateAmountDuplicate;
+			return [
+				item.id,
+				duplicate
+					? { candidate: duplicate, reason: externalDuplicate ? "EXTERNAL_ID" : "DATE_AMOUNT" }
+					: null,
+			] as const;
 		}),
 	);
 }
@@ -156,7 +203,10 @@ async function getImportReturn(userId: string, importId: string) {
 			importItemTagEntityType,
 			items.map(item => item.id),
 		),
-		getPotentialDuplicates(transactionImport.financialAccountId, items),
+		getPotentialDuplicates(
+			transactionImport.financialAccountId,
+			items.map(item => ({ ...item, type: item.type as TransactionType })),
+		),
 	]);
 	return {
 		...transactionImport,
@@ -164,7 +214,8 @@ async function getImportReturn(userId: string, importId: string) {
 			const tags = tagsByItem.get(item.id) ?? [];
 			return {
 				...item,
-				duplicateReason: duplicates.get(item.id) ?? null,
+				duplicate: duplicates.get(item.id)?.candidate ?? null,
+				duplicateReason: duplicates.get(item.id)?.reason ?? null,
 				tagIds: tags.map(tag => tag.id),
 				tags,
 			};
@@ -371,7 +422,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			);
 			const tagIdsByItem = new Map<string, string[]>();
 			for (const item of items) {
-				await validateItemAccounts(item, userId);
+				await validateItemAccounts({ ...item, type: item.type as TransactionType }, userId);
 				if (item.storeName && item.type !== "EXPENSE")
 					throw new HttpException("Loja só pode ser informada em saídas", 400);
 				if (item.storeName) await resolveStore(userId, item.storeName);
@@ -398,7 +449,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 								originFinancialAccountId: item.originFinancialAccountId,
 								storeName: item.storeName,
 								time: item.time,
-								type: item.type,
+								type: item.type as TransactionType,
 							},
 						])
 							.returning("id")

@@ -1,0 +1,17 @@
+export type ImportTransactionType = "EXPENSE" | "INCOME" | "TRANSFER";
+
+export function matchesTransferCounterpart(
+	item: { type: ImportTransactionType },
+	candidate: {
+		destinationFinancialAccountId: string | null;
+		originFinancialAccountId: string | null;
+		type: ImportTransactionType;
+	},
+	financialAccountId: string,
+) {
+	return (
+		candidate.type === "TRANSFER" &&
+		((item.type === "INCOME" && candidate.destinationFinancialAccountId === financialAccountId) ||
+			(item.type === "EXPENSE" && candidate.originFinancialAccountId === financialAccountId))
+	);
+}
