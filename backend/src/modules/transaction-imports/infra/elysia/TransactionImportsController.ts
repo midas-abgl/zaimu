@@ -14,7 +14,9 @@ import { TransactionImportItemUpdateDTO } from "./TransactionImportsDTO";
 
 const importItemTagEntityType = "TRANSACTION_IMPORT_ITEM";
 const transactionTypes = ["INCOME", "EXPENSE", "TRANSFER"] as const;
+const importItemTypes = [...transactionTypes, "YIELD"] as const;
 type TransactionType = (typeof transactionTypes)[number];
+type ImportItemType = (typeof importItemTypes)[number];
 
 const toDateKey = (value: Date | string) => new Date(value).toISOString().slice(0, 10);
 const normalizeText = (value: null | string | undefined) => value?.trim() || null;
@@ -33,7 +35,7 @@ interface DuplicateCandidate {
 	sourceImportId: string | null;
 	storeName: string | null;
 	time: string | null;
-	type: TransactionType;
+	type: ImportItemType;
 }
 
 async function getImport(userId: string, importId: string) {
@@ -68,7 +70,7 @@ async function getPotentialDuplicates(
 		externalId: string | null;
 		id: string;
 		originFinancialAccountId: string | null;
-		type: TransactionType;
+		type: ImportItemType;
 	}>,
 ) {
 	const [transactions, pendingItems] = await Promise.all([
@@ -135,7 +137,7 @@ async function getPotentialDuplicates(
 			...item,
 			source: "IMPORT_ITEM" as const,
 			sourceImportId: item.transactionImportId,
-			type: item.type as TransactionType,
+			type: item.type as ImportItemType,
 		})),
 	];
 	return new Map(
@@ -205,16 +207,19 @@ async function getImportReturn(userId: string, importId: string) {
 		),
 		getPotentialDuplicates(
 			transactionImport.financialAccountId,
-			items.map(item => ({ ...item, type: item.type as TransactionType })),
+			items.map(item => ({ ...item, type: item.type as ImportItemType })),
 		),
 	]);
 	return {
 		...transactionImport,
 		items: items.map(item => {
+			const { externalId: _, ...visibleItem } = item;
 			const tags = tagsByItem.get(item.id) ?? [];
+			const duplicate = duplicates.get(item.id)?.candidate;
+			const { externalId: __, ...visibleDuplicate } = duplicate ?? {};
 			return {
-				...item,
-				duplicate: duplicates.get(item.id)?.candidate ?? null,
+				...visibleItem,
+				duplicate: duplicate ? visibleDuplicate : null,
 				duplicateReason: duplicates.get(item.id)?.reason ?? null,
 				tagIds: tags.map(tag => tag.id),
 				tags,
@@ -227,11 +232,11 @@ async function validateItemAccounts(
 	item: {
 		destinationFinancialAccountId: string | null;
 		originFinancialAccountId: string | null;
-		type: TransactionType;
+		type: ImportItemType;
 	},
 	userId: string,
 ) {
-	if (item.type === "INCOME") {
+	if (item.type === "INCOME" || item.type === "YIELD") {
 		if (!item.destinationFinancialAccountId) throw new HttpException("Selecione a conta de destino", 400);
 		await assertBalanceAccountOwnership(item.destinationFinancialAccountId, userId);
 		return;
@@ -298,7 +303,9 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 						date: new Date(transaction.date),
 						description: transaction.description,
 						destinationFinancialAccountId:
-							transaction.type === "INCOME" ? body.financialAccountId : undefined,
+							transaction.type === "INCOME" || transaction.type === "YIELD"
+								? body.financialAccountId
+								: undefined,
 						externalId: transaction.externalId,
 						originFinancialAccountId: transaction.type === "EXPENSE" ? body.financialAccountId : undefined,
 						transactionImportId: transactionImport.id,
@@ -348,7 +355,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					.build(),
 			);
 			if (!current) throw new HttpException("Item da importação não encontrado", 404);
-			const type = (body.type ?? current.type) as TransactionType;
+			const type = (body.type ?? current.type) as ImportItemType;
 			const next = {
 				amount: body.amount ?? Number(current.amount),
 				date: body.date ?? toDateKey(current.date),
@@ -357,7 +364,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					body.destinationFinancialAccountId === undefined
 						? current.destinationFinancialAccountId
 						: body.destinationFinancialAccountId,
-				externalId: body.externalId === undefined ? current.externalId : normalizeText(body.externalId),
+				externalId: current.externalId,
 				isHidden: body.isHidden ?? current.isHidden,
 				isSelected: body.isSelected ?? current.isSelected,
 				originFinancialAccountId:
@@ -422,7 +429,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			);
 			const tagIdsByItem = new Map<string, string[]>();
 			for (const item of items) {
-				await validateItemAccounts({ ...item, type: item.type as TransactionType }, userId);
+				await validateItemAccounts({ ...item, type: item.type as ImportItemType }, userId);
 				if (item.storeName && item.type !== "EXPENSE")
 					throw new HttpException("Loja só pode ser informada em saídas", 400);
 				if (item.storeName) await resolveStore(userId, item.storeName);
@@ -436,6 +443,39 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			await withTransaction(async transaction => {
 				for (const item of items) {
 					const tagIds = tagIdsByItem.get(item.id) ?? [];
+					if (item.type === "YIELD") {
+						const existingYield = await transaction.queryFirst(
+							transaction.db.sql.public.FinancialAccountYield.select("id")
+								.where((fields, functions) =>
+									functions.and(
+										functions.eq(fields.financialAccountId, item.destinationFinancialAccountId!),
+										functions.eq(fields.date, item.date),
+										functions.eq(fields.kind, "MANUAL"),
+									),
+								)
+								.limit(1)
+								.build(),
+						);
+						const yieldValues = { amount: String(item.amount), isExcluded: false, updatedAt: new Date() };
+						if (existingYield)
+							await transaction.executeStatement(
+								transaction.db.sql.public.FinancialAccountYield.update(yieldValues)
+									.where((fields, functions) => functions.eq(fields.id, existingYield.id))
+									.build(),
+							);
+						else
+							await transaction.executeStatement(
+								transaction.db.sql.public.FinancialAccountYield.insert([
+									{
+										...yieldValues,
+										date: item.date,
+										financialAccountId: item.destinationFinancialAccountId!,
+										kind: "MANUAL",
+									},
+								]).build(),
+							);
+						continue;
+					}
 					const importedTransaction = await transaction.queryFirst(
 						transaction.db.sql.public.Transaction.insert([
 							{

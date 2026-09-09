@@ -44,6 +44,7 @@ const transactionTypeLabels = {
 	EXPENSE: "Saída",
 	INCOME: "Entrada",
 	TRANSFER: "Transferência",
+	YIELD: "Rendimento",
 } as const;
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "UTC" });
 

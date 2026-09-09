@@ -779,7 +779,7 @@ namespace public {
     time                Time(3)?
     description         VarChar(1000)?
     storeName           VarChar(200)?
-    type                pg.enum(TransactionType)
+    type                pg.enum(TransactionImportItemType)
     categoryId          VarChar(36)?
     originFinancialAccountId      VarChar(36)?
     destinationFinancialAccountId VarChar(36)?
@@ -908,6 +908,13 @@ namespace public {
 
   native_enum TransactionImportProvider {
     MERCADO_PAGO = "MERCADO_PAGO"
+  }
+
+  native_enum TransactionImportItemType {
+    INCOME = "INCOME"
+    EXPENSE = "EXPENSE"
+    TRANSFER = "TRANSFER"
+    YIELD = "YIELD"
   }
 
   native_enum TransactionImportStatus {

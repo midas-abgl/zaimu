@@ -34,4 +34,14 @@ Gusmão 170962950849 R$ 300,00 R$ 305,79
 			},
 		]);
 	});
+
+	test("classifica rendimentos sem diferenciar maiúsculas e minúsculas", () => {
+		const statement = parseMercadoPagoStatementText(`
+EXTRATO DE CONTA
+Data Descrição ID da operação Valor Saldo
+08-09-2026 RENDIMENTO 1749595240378 R$ 0,49 R$ 18,76
+`);
+
+		expect(statement.transactions[0]).toMatchObject({ description: "RENDIMENTO", type: "YIELD" });
+	});
 });

@@ -182,7 +182,6 @@ export interface Transaction {
 	date: string;
 	time?: string | null;
 	description?: string;
-	externalId?: string | null;
 	isHidden?: boolean;
 	debtSplit?: DebtSplit | null;
 	storeName?: string | null;
@@ -203,7 +202,6 @@ export interface Transaction {
 	salaryOccurrenceDate?: string;
 	subscriptionId?: string;
 	subscriptionOccurrenceDate?: string;
-	tagIds?: string[];
 	tags?: Tag[];
 	originFinancialAccountId?: null | string;
 	originAccountType?: FinancialAccount["type"] | null;
@@ -232,14 +230,14 @@ export interface TransactionImportDuplicate {
 	date: string;
 	description?: string | null;
 	destinationFinancialAccountId?: string | null;
-	externalId?: string | null;
 	isHidden: boolean;
 	originFinancialAccountId?: string | null;
 	source: "IMPORT_ITEM" | "TRANSACTION";
 	sourceImportId: string | null;
 	storeName?: string | null;
+	tagIds?: string[];
 	time?: string | null;
-	type: Transaction["type"];
+	type: Transaction["type"] | "YIELD";
 }
 
 export interface TransactionImportItem {
@@ -253,7 +251,6 @@ export interface TransactionImportItem {
 	destinationFinancialAccountId?: string | null;
 	duplicate: TransactionImportDuplicate | null;
 	duplicateReason: TransactionImportDuplicateReason | null;
-	externalId?: string | null;
 	isHidden: boolean;
 	isSelected: boolean;
 	originFinancialAccountId?: string | null;
@@ -261,7 +258,7 @@ export interface TransactionImportItem {
 	tagIds: string[];
 	tags: Tag[];
 	time?: string | null;
-	type: Transaction["type"];
+	type: Transaction["type"] | "YIELD";
 	updatedAt: string;
 }
 

@@ -2405,7 +2405,6 @@ export const dataService = {
 					| "date"
 					| "description"
 					| "destinationFinancialAccountId"
-					| "externalId"
 					| "isHidden"
 					| "isSelected"
 					| "originFinancialAccountId"
@@ -2427,7 +2426,7 @@ export const dataService = {
 	// ============== TRANSACTIONS ==============
 	transactions: {
 		async create(
-			data: Omit<Transaction, "createdAt" | "debtSplit" | "externalId" | "id"> & {
+			data: Omit<Transaction, "createdAt" | "debtSplit" | "id"> & {
 				debtSplit?: DebtSplitInput;
 				matchDebtEventId?: string;
 			},
@@ -2680,7 +2679,7 @@ export const dataService = {
 
 		async update(
 			id: string,
-			data: Omit<Partial<Transaction>, "debtSplit" | "externalId"> & { debtSplit?: DebtSplitInput | null },
+			data: Omit<Partial<Transaction>, "debtSplit"> & { debtSplit?: DebtSplitInput | null },
 		): Promise<Transaction> {
 			if (isGuestMode()) {
 				const { debtSplit: debtSplitInput, ...transactionChanges } = data;

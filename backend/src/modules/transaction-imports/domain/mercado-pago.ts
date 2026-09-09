@@ -7,7 +7,7 @@ export interface MercadoPagoStatementTransaction {
 	date: string;
 	description: string;
 	externalId: string;
-	type: "EXPENSE" | "INCOME";
+	type: "EXPENSE" | "INCOME" | "YIELD";
 }
 
 export interface MercadoPagoStatement {
@@ -19,6 +19,7 @@ export interface MercadoPagoStatement {
 const datePattern = /(\d{2})-(\d{2})-(\d{4})/;
 const movementPattern =
 	/(\d{2}-\d{2}-\d{4})\s+([\s\S]*?)\s+(\d{8,})\s+R\$\s*(-?[\d.]+,\d{2})\s+R\$\s*(-?[\d.]+,\d{2})/g;
+const yieldDescriptionPattern = /rendimentos?/i;
 
 const toDate = (value: string) => {
 	const match = value.match(datePattern);
@@ -47,13 +48,14 @@ export function parseMercadoPagoStatementText(text: string): MercadoPagoStatemen
 		const signedAmount = parseCurrency(match[4]);
 		const balanceAfter = parseCurrency(match[5]);
 		if (!Number.isFinite(signedAmount) || !Number.isFinite(balanceAfter)) continue;
+		const description = `${leadingDescription} ${match[2]}`.replace(/\s+/g, " ").trim();
 		transactions.push({
 			amount: Math.abs(signedAmount),
 			balanceAfter,
 			date: toDate(match[1]),
-			description: `${leadingDescription} ${match[2]}`.replace(/\s+/g, " ").trim(),
+			description,
 			externalId: match[3],
-			type: signedAmount < 0 ? "EXPENSE" : "INCOME",
+			type: signedAmount < 0 ? "EXPENSE" : yieldDescriptionPattern.test(description) ? "YIELD" : "INCOME",
 		});
 		previousMatchEnd = (match.index ?? 0) + match[0].length;
 	}

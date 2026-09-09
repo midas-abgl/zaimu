@@ -1,4 +1,4 @@
-export type ImportTransactionType = "EXPENSE" | "INCOME" | "TRANSFER";
+export type ImportTransactionType = "EXPENSE" | "INCOME" | "TRANSFER" | "YIELD";
 
 export function matchesTransferCounterpart(
 	item: { type: ImportTransactionType },

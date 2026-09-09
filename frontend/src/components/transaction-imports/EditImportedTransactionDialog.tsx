@@ -10,7 +10,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/Dialog";
-import { FormField } from "@/components/ui/FormField";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { FinancialAccount, TransactionImportItem } from "@/lib/api";
 import {
@@ -24,7 +23,6 @@ type EditableItem = Pick<
 	| "date"
 	| "description"
 	| "destinationFinancialAccountId"
-	| "externalId"
 	| "isHidden"
 	| "originFinancialAccountId"
 	| "storeName"
@@ -38,7 +36,6 @@ const toDraft = (item: TransactionImportItem): EditableItem => ({
 	date: item.date.slice(0, 10),
 	description: item.description ?? "",
 	destinationFinancialAccountId: item.destinationFinancialAccountId ?? null,
-	externalId: item.externalId ?? "",
 	isHidden: item.isHidden,
 	originFinancialAccountId: item.originFinancialAccountId ?? null,
 	storeName: item.storeName ?? "",
@@ -64,19 +61,19 @@ export function EditImportedTransactionDialog({
 }) {
 	const [draft, setDraft] = useState<EditableItem | null>(() => (item ? toDraft(item) : null));
 	const [description, setDescription] = useDebouncedInput(item?.description ?? "", () => undefined);
-	const [externalId, setExternalId] = useDebouncedInput(item?.externalId ?? "", () => undefined);
 	useEffect(() => {
 		if (!item || !open) return;
 		setDraft(toDraft(item));
 		setDescription(item.description ?? "");
-		setExternalId(item.externalId ?? "");
-	}, [item, open, setDescription, setExternalId]);
+	}, [item, open, setDescription]);
 	if (!item || !draft) return null;
 	const balanceAccounts = accounts
 		.filter(account => account.type !== "CREDIT_CARD" && account.type !== "REWARDS")
 		.toSorted(compareFinancialAccountsByOptionLabel);
 	const primaryAccountId =
-		draft.type === "INCOME" ? draft.destinationFinancialAccountId : draft.originFinancialAccountId;
+		draft.type === "INCOME" || draft.type === "YIELD"
+			? draft.destinationFinancialAccountId
+			: draft.originFinancialAccountId;
 
 	return (
 		<Dialog onOpenChange={onOpenChange} open={open}>
@@ -90,6 +87,7 @@ export function EditImportedTransactionDialog({
 						amount={String(draft.amount)}
 						date={draft.date}
 						description={description}
+						includeYield
 						isHidden={draft.isHidden}
 						onAmountChange={amount =>
 							setDraft(current => (current ? { ...current, amount: Number(amount) } : current))
@@ -103,41 +101,32 @@ export function EditImportedTransactionDialog({
 						onTagIdsChange={tagIds => setDraft(current => (current ? { ...current, tagIds } : current))}
 						onTimeChange={time => setDraft(current => (current ? { ...current, time } : current))}
 						onTypeChange={type => {
-							if (type === "YIELD") return;
 							setDraft(current =>
 								current
 									? {
 											...current,
 											destinationFinancialAccountId:
-												type === "INCOME" ? current.destinationFinancialAccountId : null,
-											originFinancialAccountId: type === "INCOME" ? null : current.originFinancialAccountId,
+												type === "INCOME" || type === "YIELD" ? current.destinationFinancialAccountId : null,
+											originFinancialAccountId:
+												type === "INCOME" || type === "YIELD" ? null : current.originFinancialAccountId,
 											type,
 										}
 									: current,
 							);
 						}}
+						showDescription={draft.type !== "YIELD"}
 						showStore={draft.type === "EXPENSE"}
 						storeName={draft.storeName ?? ""}
 						tagIds={draft.tagIds}
 						time={draft.time ?? ""}
 						type={draft.type}
 					/>
-					<FormField
-						autoComplete="off"
-						id="imported-transaction-external-id"
-						label="ID externo"
-						name="externalId"
-						onChange={event => setExternalId(event.currentTarget.value)}
-						placeholder="Ex: 170962950849"
-						type="text"
-						value={externalId}
-					/>
 					<CustomSelect
-						label={draft.type === "INCOME" ? "Conta de destino" : "Conta de origem"}
+						label={draft.type === "INCOME" || draft.type === "YIELD" ? "Conta de destino" : "Conta de origem"}
 						onValueChange={accountId =>
 							setDraft(current =>
 								current
-									? current.type === "INCOME"
+									? current.type === "INCOME" || current.type === "YIELD"
 										? { ...current, destinationFinancialAccountId: accountId }
 										: { ...current, originFinancialAccountId: accountId }
 									: current,
@@ -173,7 +162,7 @@ export function EditImportedTransactionDialog({
 					<Button
 						className="cursor-pointer disabled:cursor-not-allowed"
 						disabled={!draft.amount || !primaryAccountId || pending}
-						onClick={() => onSubmit({ ...draft, description, externalId })}
+						onClick={() => onSubmit({ ...draft, description })}
 					>
 						{pending ? "Salvando…" : "Salvar"}
 					</Button>

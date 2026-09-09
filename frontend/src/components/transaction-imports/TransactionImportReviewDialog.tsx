@@ -43,7 +43,6 @@ function toTransaction(item: TransactionImportItem, accountNames: Map<string, st
 		description: item.description ?? undefined,
 		destinationFinancialAccountId: item.destinationFinancialAccountId,
 		destinationName,
-		externalId: item.externalId,
 		id: item.id,
 		isHidden: item.isHidden,
 		originFinancialAccountId: item.originFinancialAccountId,
@@ -54,7 +53,7 @@ function toTransaction(item: TransactionImportItem, accountNames: Map<string, st
 		tagIds: item.tagIds,
 		tags: item.tags,
 		time: item.time,
-		type: item.type,
+		type: item.type === "YIELD" ? "INCOME" : item.type,
 	};
 }
 
@@ -189,8 +188,13 @@ export function TransactionImportReviewDialog({
 					isSelected: false,
 				});
 		} else {
-			if (duplicate.source === "TRANSACTION") await dataService.transactions.update(duplicate.id, merged);
-			else if (duplicate.sourceImportId)
+			if (duplicate.source === "TRANSACTION") {
+				const transactionData: Partial<Transaction> = {
+					...merged,
+					type: merged.type === "YIELD" ? undefined : merged.type,
+				};
+				await dataService.transactions.update(duplicate.id, transactionData);
+			} else if (duplicate.sourceImportId)
 				await dataService.transactionImports.updateItem(duplicate.sourceImportId, duplicate.id, merged);
 			await updateItem.mutateAsync({ data: { isSelected: false }, item });
 		}
