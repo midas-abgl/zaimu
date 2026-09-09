@@ -143,8 +143,8 @@ export function TransactionListItem({
 				)
 			}
 			metadata={
-				<div className="flex min-w-0 flex-wrap items-center gap-1.5">
-					{metadataPrefix}
+				<div className="min-w-0 space-y-3">
+					{metadataPrefix ? <div>{metadataPrefix}</div> : null}
 					<TransactionBadges
 						accounts={accounts}
 						creditCardPayment={creditCardPayment}
