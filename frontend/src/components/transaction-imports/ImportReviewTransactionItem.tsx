@@ -37,7 +37,7 @@ export function ImportReviewTransactionItem({
 
 	if (collapsed) {
 		return (
-			<div className="flex min-w-0 items-center gap-3 px-4 py-3">
+			<div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3">
 				<div
 					className={`flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted ${amountColor}`}
 				>
@@ -47,25 +47,27 @@ export function ImportReviewTransactionItem({
 					<p className="truncate font-medium text-sm">{getTransactionTitle(transaction)}</p>
 					<span className="text-muted-foreground text-xs">{decision ? "Aprovada" : "Ignorada"}</span>
 				</div>
-				<p className={`shrink-0 font-semibold text-sm ${amountColor}`}>
-					{amountPrefix}
-					{formatCurrency(Number(transaction.amount))}
-				</p>
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<Button
-							aria-expanded={false}
-							aria-label={expandLabel}
-							className="cursor-pointer"
-							onClick={() => onCollapsedChange(false)}
-							size="icon-xs"
-							variant="outline"
-						>
-							<LuChevronDown aria-hidden="true" />
-						</Button>
-					</TooltipTrigger>
-					<TooltipContent>{expandLabel}</TooltipContent>
-				</Tooltip>
+				<div className="flex shrink-0 items-center gap-3">
+					<p className={`font-semibold text-sm ${amountColor}`}>
+						{amountPrefix}
+						{formatCurrency(Number(transaction.amount))}
+					</p>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								aria-expanded={false}
+								aria-label={expandLabel}
+								className="cursor-pointer"
+								onClick={() => onCollapsedChange(false)}
+								size="icon-xs"
+								variant="outline"
+							>
+								<LuChevronDown aria-hidden="true" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>{expandLabel}</TooltipContent>
+					</Tooltip>
+				</div>
 			</div>
 		);
 	}
