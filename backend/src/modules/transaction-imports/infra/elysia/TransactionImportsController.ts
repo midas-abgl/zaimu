@@ -694,11 +694,9 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				);
 				await replaceEntityTags({ entityIds: [duplicate.id], entityType: importItemTagEntityType, tagIds });
 			}
-			await executeStatement(
-				db.sql.public.TransactionImportItem.update({ isSelected: false, updatedAt: new Date() })
-					.where((fields, functions) => functions.eq(fields.id, item.id))
-					.build(),
-			);
+			// A conciliação manual funde este item na transação escolhida. Mantê-lo no lote
+			// faria a detecção apontar a mesma duplicata novamente após atualizar a tela.
+			await withTransaction(transaction => removeImportItem(transaction, item.id));
 			return getImportReturn(userId, transactionImport.id);
 		},
 		{
