@@ -15,7 +15,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { Transaction } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
-import { formatLocalDate } from "@/lib/date";
+import { formatLocalDate, formatLocalTime } from "@/lib/date";
 import { sortTransactionsByMostRecent } from "@/lib/transaction-sort";
 import { EditCreditPurchaseDialog } from "@/routes/credit-cards/components/EditCreditPurchaseDialog";
 import { RefundCreditPurchaseDialog } from "@/routes/credit-cards/components/RefundCreditPurchaseDialog";
@@ -155,6 +155,7 @@ function TransactionsPage() {
 	const renderTransaction = (transaction: Transaction) => {
 		const isStatementPayment =
 			Boolean(transaction.creditCardStatementId) && transaction.source !== "CREDIT_CARD";
+		const transactionTime = formatLocalTime(transaction.time);
 
 		return (
 			<TransactionListItem
@@ -164,6 +165,11 @@ function TransactionsPage() {
 						transaction.id
 				}
 				key={transaction.id}
+				metadataPrefix={
+					transactionTime ? (
+						<span className="text-muted-foreground text-xs">{transactionTime}</span>
+					) : undefined
+				}
 				onDelete={
 					isStatementPayment
 						? undefined
