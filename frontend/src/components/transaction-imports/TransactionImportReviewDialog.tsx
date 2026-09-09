@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { LuCircleAlert, LuFileCheck2, LuLoaderCircle, LuTrash2 } from "react-icons/lu";
 import { Button } from "@/components/ui/Button";
-import { ConfirmActionButton } from "@/components/ui/ConfirmActionButton";
 import {
 	Dialog,
 	DialogContent,
@@ -14,7 +13,6 @@ import {
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 import type { Transaction, TransactionImportItem } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
@@ -70,7 +68,9 @@ export function TransactionImportReviewDialog({
 	const [collapsedDateKeys, setCollapsedDateKeys] = useState<Set<string>>(new Set());
 	const [collapsedItemIds, setCollapsedItemIds] = useState<Set<string>>(new Set());
 	const [decisionsByItemId, setDecisionsByItemId] = useState<Record<string, boolean>>({});
+	const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
 	const [editingItem, setEditingItem] = useState<TransactionImportItem | null>(null);
+	const [duplicateWarningOpen, setDuplicateWarningOpen] = useState(false);
 	const [resolvingItem, setResolvingItem] = useState<TransactionImportItem | null>(null);
 	const decisionsByItemIdRef = useRef<Record<string, boolean>>({});
 	const transactionImport = useQuery({
@@ -85,6 +85,8 @@ export function TransactionImportReviewDialog({
 		setCollapsedDateKeys(new Set());
 		setCollapsedItemIds(new Set());
 		setDecisionsByItemId({});
+		setDiscardConfirmationOpen(false);
+		setDuplicateWarningOpen(false);
 	}, [importId, open]);
 	const invalidate = async () => {
 		await Promise.all([
@@ -108,7 +110,14 @@ export function TransactionImportReviewDialog({
 		},
 	});
 	const approve = useMutation({
-		mutationFn: () => dataService.transactionImports.approve(importId!),
+		mutationFn: async (duplicateItemIds: string[] = []) => {
+			await Promise.all(
+				duplicateItemIds.map(itemId =>
+					dataService.transactionImports.updateItem(importId!, itemId, { isSelected: false }),
+				),
+			);
+			return dataService.transactionImports.approve(importId!);
+		},
 		onError: error => showToast(error.message, "negative"),
 		onSuccess: async result => {
 			await Promise.all([
@@ -137,6 +146,8 @@ export function TransactionImportReviewDialog({
 		]),
 	);
 	const selectedCount = transactionImport.data?.items.filter(item => item.isSelected).length ?? 0;
+	const unresolvedDuplicateItems =
+		transactionImport.data?.items.filter(item => item.isSelected && item.duplicateReason) ?? [];
 	const setDateCollapsed = (date: string, collapsed: boolean) => {
 		setCollapsedDateKeys(current => {
 			const next = new Set(current);
@@ -167,6 +178,13 @@ export function TransactionImportReviewDialog({
 	const decideItem = async (item: TransactionImportItem, isSelected: boolean) => {
 		await updateItem.mutateAsync({ data: { isSelected }, item });
 		markItemReviewed(item, isSelected);
+	};
+	const finishImport = () => {
+		if (unresolvedDuplicateItems.length) {
+			setDuplicateWarningOpen(true);
+			return;
+		}
+		approve.mutate();
 	};
 	const resolveDuplicate = async (
 		item: TransactionImportItem,
@@ -270,40 +288,76 @@ export function TransactionImportReviewDialog({
 						</ScrollArea>
 					) : null}
 					<DialogFooter className="flex-row justify-end">
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<span>
-									<ConfirmActionButton
-										aria-label="Descartar lote"
-										className="cursor-pointer disabled:cursor-not-allowed"
-										confirmation="Descartar todo o lote pendente?"
-										disabled={discard.isPending}
-										onConfirm={() => discard.mutate()}
-										size="icon"
-										variant="outline"
-									>
-										<LuTrash2 />
-									</ConfirmActionButton>
-								</span>
-							</TooltipTrigger>
-							<TooltipContent>Descartar lote</TooltipContent>
-						</Tooltip>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									aria-label={approve.isPending ? "Salvando importação" : "Salvar importação"}
-									className="cursor-pointer disabled:cursor-not-allowed"
-									disabled={!selectedCount || approve.isPending}
-									onClick={() => approve.mutate()}
-									size="icon"
-								>
-									{approve.isPending ? <LuLoaderCircle className="animate-spin" /> : <LuFileCheck2 />}
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent>
-								{approve.isPending ? "Salvando importação" : "Salvar importação"}
-							</TooltipContent>
-						</Tooltip>
+						<Button
+							className="cursor-pointer bg-destructive text-destructive-foreground hover:bg-destructive/80 disabled:cursor-not-allowed"
+							disabled={discard.isPending || approve.isPending}
+							onClick={() => setDiscardConfirmationOpen(true)}
+						>
+							<LuTrash2 /> Descartar lote
+						</Button>
+						<Button
+							className="cursor-pointer disabled:cursor-not-allowed"
+							disabled={approve.isPending || discard.isPending}
+							onClick={finishImport}
+						>
+							{approve.isPending ? <LuLoaderCircle className="animate-spin" /> : <LuFileCheck2 />}
+							{approve.isPending ? "Salvando…" : "Salvar e finalizar"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+			<Dialog onOpenChange={setDuplicateWarningOpen} open={duplicateWarningOpen}>
+				<DialogContent showCloseButton={!approve.isPending}>
+					<DialogHeader>
+						<DialogTitle>Possíveis duplicatas encontradas</DialogTitle>
+						<DialogDescription>
+							Há {unresolvedDuplicateItems.length}{" "}
+							{unresolvedDuplicateItems.length === 1 ? "transação" : "transações"} com possível duplicata. Se
+							continuar,{" "}
+							{unresolvedDuplicateItems.length === 1 ? "ela será ignorada" : "elas serão ignoradas"}.
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button
+							disabled={approve.isPending}
+							onClick={() => setDuplicateWarningOpen(false)}
+							variant="outline"
+						>
+							Voltar
+						</Button>
+						<Button
+							disabled={approve.isPending}
+							onClick={() => approve.mutate(unresolvedDuplicateItems.map(item => item.id))}
+						>
+							{approve.isPending ? <LuLoaderCircle className="animate-spin" /> : <LuFileCheck2 />}
+							Continuar e ignorar
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+			<Dialog onOpenChange={setDiscardConfirmationOpen} open={discardConfirmationOpen}>
+				<DialogContent showCloseButton={!discard.isPending}>
+					<DialogHeader>
+						<DialogTitle>Excluir importação?</DialogTitle>
+						<DialogDescription>
+							Esta ação excluirá todo o lote importado e não poderá ser desfeita.
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button
+							disabled={discard.isPending}
+							onClick={() => setDiscardConfirmationOpen(false)}
+							variant="outline"
+						>
+							Voltar
+						</Button>
+						<Button
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/80"
+							disabled={discard.isPending}
+							onClick={() => discard.mutate()}
+						>
+							<LuTrash2 /> {discard.isPending ? "Excluindo…" : "Excluir importação"}
+						</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>

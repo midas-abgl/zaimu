@@ -1,4 +1,12 @@
-import { LuCheck, LuChevronDown, LuCircleAlert, LuEyeOff, LuLandmark, LuPencil } from "react-icons/lu";
+import {
+	LuCheck,
+	LuChevronDown,
+	LuChevronUp,
+	LuCircleAlert,
+	LuEyeOff,
+	LuLandmark,
+	LuPencil,
+} from "react-icons/lu";
 import { TransactionListItem } from "@/components/transactions";
 import { Button } from "@/components/ui/Button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
@@ -34,6 +42,8 @@ export function ImportReviewTransactionItem({
 	const amountPrefix = transaction.type === "INCOME" ? "+" : transaction.type === "EXPENSE" ? "−" : "";
 	const amountColor = transaction.type === "INCOME" ? "text-emerald-600" : "text-rose-600";
 	const expandLabel = `Expandir ${getTransactionTitle(transaction)}`;
+	const collapseLabel = `Minimizar ${getTransactionTitle(transaction)}`;
+	const toggleDecisionLabel = item.isSelected ? "Descartar" : "Aprovar";
 
 	if (collapsed) {
 		return (
@@ -86,8 +96,19 @@ export function ImportReviewTransactionItem({
 						]
 					: []),
 				{ disabled, icon: <LuPencil />, onClick: onEdit, text: "Editar" },
-				{ disabled, icon: <LuCheck />, onClick: () => onDecision(true), text: "Aprovar" },
-				{ disabled, icon: <LuEyeOff />, onClick: () => onDecision(false), text: "Ignorar" },
+				{
+					disabled,
+					icon: item.isSelected ? <LuEyeOff /> : <LuCheck />,
+					onClick: () => onDecision(!item.isSelected),
+					text: toggleDecisionLabel,
+				},
+				{
+					ariaLabel: collapseLabel,
+					disabled,
+					icon: <LuChevronUp />,
+					onClick: () => onCollapsedChange(true),
+					text: "Minimizar",
+				},
 			]}
 			className={item.isSelected ? undefined : "opacity-55"}
 			forceCompactActions
