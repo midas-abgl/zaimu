@@ -39,6 +39,7 @@ export const db = postgres<Contract>({ contractJson, pg: pool });
 
 type QueryPlan = SqlOrmPlan<unknown>;
 type StatementPlan = Parameters<ReturnType<typeof db.runtime>["execute"]>[0];
+type ExecutorClient = Pick<typeof db, "sql"> & Pick<ReturnType<typeof db.runtime>, "query" | "execute">;
 interface ProjectedPlan {
 	ast?: {
 		projection?: readonly {
@@ -70,29 +71,30 @@ const normalizeNumericColumns = <Row>(plan: QueryPlan, rows: Row[]) => {
 	});
 };
 
-const createExecutor = (client: typeof db) => {
+const createExecutor = (client: ExecutorClient) => {
 	const queryRows = async <Plan extends QueryPlan>(plan: Plan) => {
-		const rows = await client
-			.runtime()
-			.query<ResultType<Plan>>(plan as unknown as SqlOrmPlan<ResultType<Plan>>);
+		const rows = await client.query<ResultType<Plan>>(plan as unknown as SqlOrmPlan<ResultType<Plan>>);
 		return normalizeNumericColumns(plan, rows) as NormalizeDatabaseValue<ResultType<Plan>>[];
 	};
 	return {
 		db: client,
-		executeStatement: (plan: StatementPlan) => client.runtime().execute(plan),
+		executeStatement: (plan: StatementPlan) => client.execute(plan),
 		queryFirst: async <Plan extends QueryPlan>(plan: Plan) => (await queryRows(plan))[0],
 		queryRows,
 	};
 };
 
-const executor = createExecutor(db);
+const runtime = db.runtime();
+const executor = createExecutor({
+	execute: runtime.execute.bind(runtime),
+	query: runtime.query.bind(runtime),
+	sql: db.sql,
+});
 export const { executeStatement, queryFirst, queryRows } = executor;
 export type SqlExecutor = ReturnType<typeof createExecutor>;
 
 export const withTransaction = async <Result>(operation: (transaction: SqlExecutor) => Promise<Result>) =>
-	db.transaction(transaction =>
-		operation(createExecutor(transaction as unknown as typeof db)),
-	) as Promise<Result>;
+	db.transaction(transaction => operation(createExecutor(transaction)));
 
 export const numeric = <Precision extends number, Scale extends number | undefined>(value: number | string) =>
 	String(value) as Numeric<Precision, Scale>;
