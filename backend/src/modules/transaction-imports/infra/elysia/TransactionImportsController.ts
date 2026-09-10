@@ -943,103 +943,63 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			const transactionImport = await getImport(userId, params.id);
 			if (transactionImport.status !== "PENDING")
 				throw new HttpException("Esta importação já foi aprovada", 400);
-			// Itens só entram no livro-caixa pelo aceite individual. Finalizar a revisão
-			// encerra o lote sem importar pendências nem itens já conciliados.
-			const items: ImportItemToApprove[] = [];
+			const items = (
+				await queryRows(
+					db.sql.public.TransactionImportItem.select(
+						"id",
+						"amount",
+						"creditCardStatementId",
+						"date",
+						"description",
+						"destinationFinancialAccountId",
+						"externalId",
+						"isHidden",
+						"isReconciled",
+						"originFinancialAccountId",
+						"storeName",
+						"time",
+						"type",
+					)
+						.where((fields, functions) => functions.eq(fields.transactionImportId, transactionImport.id))
+						.build(),
+				)
+			).map(item => ({ ...item, type: item.type as ImportItemType }));
+			const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, items);
+			const approvableItems = items.filter(item => !duplicates.get(item.id));
 			const tagIdsByItem = new Map<string, string[]>();
-			for (const item of items) {
-				await validateItemAccounts({ ...item, type: item.type as ImportItemType }, userId);
-				if (item.storeName && item.type !== "EXPENSE")
-					throw new HttpException("Loja só pode ser informada em saídas", 400);
-				if (item.storeName) await resolveStore(userId, item.storeName);
-				const tags = await getTagsByEntity(importItemTagEntityType, [item.id]);
-				const tagIds = await assertTagOwnership(
-					(tags.get(item.id) ?? []).map(tag => tag.id),
-					userId,
-				);
-				tagIdsByItem.set(item.id, tagIds);
+			const debtSplitsByItem = new Map<string, Awaited<ReturnType<typeof getDebtSplitInput>>>();
+			for (const item of approvableItems) {
+				tagIdsByItem.set(item.id, await prepareImportItem(item, userId));
+				debtSplitsByItem.set(item.id, await getDebtSplitInput({ transactionImportItemId: item.id }));
 			}
-			await withTransaction(async transaction => {
-				for (const item of items) {
-					const tagIds = tagIdsByItem.get(item.id) ?? [];
-					if (item.type === "YIELD") {
-						const existingYield = await transaction.queryFirst(
-							transaction.db.sql.public.FinancialAccountYield.select("id")
-								.where((fields, functions) =>
-									functions.and(
-										functions.eq(fields.financialAccountId, item.destinationFinancialAccountId!),
-										functions.eq(fields.date, item.date),
-										functions.eq(fields.kind, "MANUAL"),
-									),
-								)
-								.limit(1)
-								.build(),
-						);
-						const yieldValues = {
-							amount: String(item.amount),
-							externalId: item.externalId,
-							isExcluded: false,
-							updatedAt: new Date(),
-						};
-						if (existingYield)
-							await transaction.executeStatement(
-								transaction.db.sql.public.FinancialAccountYield.update(yieldValues)
-									.where((fields, functions) => functions.eq(fields.id, existingYield.id))
-									.build(),
-							);
-						else
-							await transaction.executeStatement(
-								transaction.db.sql.public.FinancialAccountYield.insert([
-									{
-										...yieldValues,
-										date: item.date,
-										financialAccountId: item.destinationFinancialAccountId!,
-										kind: "MANUAL",
-									},
-								]).build(),
-							);
-						continue;
-					}
-					const importedTransaction = await transaction.queryFirst(
-						transaction.db.sql.public.Transaction.insert([
-							{
-								amount: String(item.amount),
-								categoryId: tagIds[0],
-								date: item.date,
-								description: item.description,
-								destinationFinancialAccountId: item.destinationFinancialAccountId,
-								externalId: item.externalId,
-								isHidden: item.isHidden,
-								originFinancialAccountId: item.originFinancialAccountId,
-								storeName: item.storeName,
-								time: item.time,
-								type: item.type as TransactionType,
-							},
-						])
-							.returning("id")
-							.build(),
-					);
-					if (!importedTransaction)
-						throw new HttpException("Não foi possível salvar uma transação importada", 500);
-					if (tagIds.length) {
-						await transaction.executeStatement(
-							transaction.db.sql.public.TagAssignment.insert(
-								tagIds.map(categoryId => ({
-									categoryId,
-									entityId: importedTransaction.id,
-									entityType: "TRANSACTION",
-								})),
-							).build(),
-						);
-					}
+			const importedTransactions = await withTransaction(async transaction => {
+				const results: Array<{ item: ImportItemToApprove; transactionId: string | null }> = [];
+				for (const item of approvableItems) {
+					const transactionId = await persistImportItem(transaction, item, tagIdsByItem.get(item.id) ?? []);
+					await removeImportItem(transaction, item.id);
+					results.push({ item, transactionId });
 				}
 				await transaction.executeStatement(
 					transaction.db.sql.public.TransactionImport.update({ status: "APPROVED", updatedAt: new Date() })
 						.where((fields, functions) => functions.eq(fields.id, transactionImport.id))
 						.build(),
 				);
+				return results;
 			});
-			return { created: 0 };
+			for (const { item, transactionId } of importedTransactions) {
+				const debtSplit = debtSplitsByItem.get(item.id);
+				if (debtSplit && transactionId)
+					await linkTransactionToDebt({
+						amount: item.amount,
+						date: toDateKey(item.date),
+						debtSplit,
+						description: item.description ?? undefined,
+						transactionId,
+						type: item.type as TransactionType,
+						userId,
+					});
+			}
+			return { created: approvableItems.length };
 		},
 		{ params: t.Object({ id: t.String() }) },
 	)
