@@ -277,6 +277,11 @@ export interface TransactionImport {
 	updatedAt: string;
 }
 
+export interface TransactionImportCreateResult {
+	ignoredCount: number;
+	transactionImport: TransactionImport | null;
+}
+
 export interface Tag {
 	id: string;
 	name: string;

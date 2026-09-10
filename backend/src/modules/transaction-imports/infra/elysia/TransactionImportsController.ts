@@ -16,6 +16,7 @@ import {
 	type SqlExecutor,
 	withTransaction,
 } from "~/shared/infra/sql";
+import { filterExistingTransactions } from "../../domain/filter-existing-transactions";
 import { matchesTransferCounterpart } from "../../domain/import-reconciliation";
 import { parseMercadoPagoStatement } from "../../domain/mercado-pago";
 import { TransactionImportItemReconcileDTO, TransactionImportItemUpdateDTO } from "./TransactionImportsDTO";
@@ -439,6 +440,22 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			if (fileBytes.length < 5 || new TextDecoder().decode(fileBytes.slice(0, 5)) !== "%PDF-")
 				throw new HttpException("Envie um PDF válido", 400);
 			const statement = await parseMercadoPagoStatement(fileBytes.buffer);
+			const existingTransactions = await queryRows(
+				db.sql.public.Transaction.select("externalId")
+					.where((fields, functions) =>
+						functions.in(
+							fields.externalId,
+							statement.transactions.map(transaction => transaction.externalId),
+						),
+					)
+					.build(),
+			);
+			const existingExternalIds = new Set(
+				existingTransactions.flatMap(transaction => (transaction.externalId ? [transaction.externalId] : [])),
+			);
+			const transactions = filterExistingTransactions(statement.transactions, existingExternalIds);
+			const ignoredCount = statement.transactions.length - transactions.length;
+			if (transactions.length === 0) return { ignoredCount, transactionImport: null };
 			const transactionImport = await queryFirst(
 				db.sql.public.TransactionImport.insert([
 					{
@@ -456,7 +473,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			if (!transactionImport) throw new HttpException("Não foi possível criar a importação", 500);
 			await executeStatement(
 				db.sql.public.TransactionImportItem.insert(
-					statement.transactions.map(transaction => ({
+					transactions.map(transaction => ({
 						amount: String(transaction.amount),
 						balanceAfter: String(transaction.balanceAfter),
 						date: new Date(transaction.date),
@@ -472,7 +489,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					})),
 				).build(),
 			);
-			return getImportReturn(userId, transactionImport.id);
+			return { ignoredCount, transactionImport: await getImportReturn(userId, transactionImport.id) };
 		},
 		{
 			body: t.Object({

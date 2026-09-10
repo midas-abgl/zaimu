@@ -61,12 +61,21 @@ export function ImportTransactionsDialog({
 			return dataService.transactionImports.create({ file, financialAccountId, provider });
 		},
 		onError: error => showToast(error.message, "negative"),
-		onSuccess: transactionImport => {
+		onSuccess: result => {
 			setFile(null);
 			setProvider("");
 			handleOpenChange(false);
-			onImported(transactionImport.id);
-			showToast("Extrato importado para revisão.", "positive");
+			if (!result.transactionImport) {
+				showToast("Nenhuma transação nova encontrada no extrato.", "info");
+				return;
+			}
+			onImported(result.transactionImport.id);
+			showToast(
+				result.ignoredCount
+					? `${result.ignoredCount} ${result.ignoredCount === 1 ? "transação já importada foi ignorada" : "transações já importadas foram ignoradas"}.`
+					: "Extrato importado para revisão.",
+				"positive",
+			);
 		},
 	});
 	const selectableAccounts =

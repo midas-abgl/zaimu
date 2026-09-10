@@ -31,6 +31,7 @@ import type {
 	Subscription,
 	Transaction,
 	TransactionImport,
+	TransactionImportCreateResult,
 	TransactionImportItem,
 } from "./api";
 import { applyStatementCredits } from "./credit-card";
@@ -2381,13 +2382,16 @@ export const dataService = {
 			file: File;
 			financialAccountId: string;
 			provider: TransactionImport["provider"];
-		}): Promise<TransactionImport> {
+		}): Promise<TransactionImportCreateResult> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
 			const form = new FormData();
 			form.set("file", file);
 			form.set("financialAccountId", financialAccountId);
 			form.set("provider", provider);
-			return fetchWithAuth<TransactionImport>("/transaction-imports", { body: form, method: "POST" });
+			return fetchWithAuth<TransactionImportCreateResult>("/transaction-imports", {
+				body: form,
+				method: "POST",
+			});
 		},
 		async delete(id: string): Promise<void> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");

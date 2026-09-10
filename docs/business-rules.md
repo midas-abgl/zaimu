@@ -6,7 +6,7 @@ A dashboard resume todos os domínios financeiros relevantes: contas monetárias
 
 ## Importação de transações
 
-Importações de extrato permanecem em lote pendente até aprovação explícita. Lotes pendentes, inclusive edições e itens ignorados, persistem para o usuário, mas não entram em saldo, dashboard ou listagem normal de transações. Aprovar materializa apenas os itens selecionados; descartar remove o lote inteiro. A conta de destino é sempre escolhida manualmente, sem inferência de dados do extrato. `externalId` pertence apenas a transações importadas e representa o identificador de operação do provider; transações manuais nunca o recebem. A conciliação alerta, sem excluir automaticamente, quando encontrar mesma conta e `externalId`, ou mesma conta, data, tipo e valor.
+Importações de extrato permanecem em lote pendente até aprovação explícita. Lotes pendentes, inclusive edições e itens ignorados, persistem para o usuário, mas não entram em saldo, dashboard ou listagem normal de transações. Aprovar materializa apenas os itens selecionados; descartar remove o lote inteiro. A conta de destino é sempre escolhida manualmente, sem inferência de dados do extrato. `externalId` pertence apenas a transações importadas e representa o identificador de operação do provider; transações manuais nunca o recebem. No início da importação, movimentações cujo `externalId` já existe em uma transação materializada são ignoradas e não entram no lote de revisão. A conciliação alerta, sem excluir automaticamente, quando encontrar mesma conta, data, tipo e valor.
 
 ## Rateio de dívidas
 
