@@ -6,6 +6,12 @@ import {
 	replaceEntityTags,
 	type TagSummary,
 } from "~/modules/categories/application/tag-assignments";
+import {
+	getDebtSplitInput,
+	getDebtSplitReturn,
+	linkTransactionToDebt,
+	replaceDebtSplit,
+} from "~/modules/debts/application";
 import { resolveStore } from "~/modules/stores/application/resolve-store";
 import { HttpException } from "~/shared/errors";
 import {
@@ -260,19 +266,22 @@ async function getImportReturn(userId: string, importId: string) {
 	]);
 	return {
 		...transactionImport,
-		items: items.map(item => {
-			const { externalId: _, ...visibleItem } = item;
-			const tags = tagsByItem.get(item.id) ?? [];
-			const duplicate = duplicates.get(item.id)?.candidate;
-			const { externalId: __, ...visibleDuplicate } = duplicate ?? {};
-			return {
-				...visibleItem,
-				duplicate: duplicate ? visibleDuplicate : null,
-				duplicateReason: duplicates.get(item.id)?.reason ?? null,
-				tagIds: tags.map(tag => tag.id),
-				tags,
-			};
-		}),
+		items: await Promise.all(
+			items.map(async item => {
+				const { externalId: _, ...visibleItem } = item;
+				const tags = tagsByItem.get(item.id) ?? [];
+				const duplicate = duplicates.get(item.id)?.candidate;
+				const { externalId: __, ...visibleDuplicate } = duplicate ?? {};
+				return {
+					...visibleItem,
+					debtSplit: await getDebtSplitReturn({ transactionImportItemId: item.id }, Number(item.amount)),
+					duplicate: duplicate ? visibleDuplicate : null,
+					duplicateReason: duplicates.get(item.id)?.reason ?? null,
+					tagIds: tags.map(tag => tag.id),
+					tags,
+				};
+			}),
+		),
 	};
 }
 
@@ -362,7 +371,7 @@ async function persistImportItem(transaction: SqlExecutor, item: ImportItemToApp
 					},
 				]).build(),
 			);
-		return;
+		return null;
 	}
 
 	const importedTransaction = await transaction.queryFirst(
@@ -396,6 +405,7 @@ async function persistImportItem(transaction: SqlExecutor, item: ImportItemToApp
 			).build(),
 		);
 	}
+	return importedTransaction.id;
 }
 
 async function removeImportItem(transaction: SqlExecutor, itemId: string) {
@@ -587,6 +597,8 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				time: body.time === undefined ? current.time : body.time,
 				type,
 			};
+			if (body.debtSplit !== undefined && type === "TRANSFER")
+				throw new HttpException("Transferências não podem ser vinculadas a dívidas", 400);
 			await validateItemAccounts(next, userId);
 			if (next.storeName && next.type !== "EXPENSE")
 				throw new HttpException("Loja só pode ser informada em saídas", 400);
@@ -605,6 +617,13 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			);
 			if (tagIds)
 				await replaceEntityTags({ entityIds: [current.id], entityType: importItemTagEntityType, tagIds });
+			if (body.debtSplit !== undefined)
+				await replaceDebtSplit({
+					amount: next.amount,
+					split: body.debtSplit,
+					target: { transactionImportItemId: current.id },
+					userId,
+				});
 			return getImportReturn(userId, transactionImport.id);
 		},
 		{ body: TransactionImportItemUpdateDTO, params: t.Object({ id: t.String(), itemId: t.String() }) },
@@ -646,10 +665,22 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			if (duplicates.get(item.id))
 				throw new HttpException("Resolva a possível duplicata antes de aprovar", 400);
 			const tagIds = await prepareImportItem(importItem, userId);
-			await withTransaction(async transaction => {
-				await persistImportItem(transaction, importItem, tagIds);
+			const debtSplit = await getDebtSplitInput({ transactionImportItemId: importItem.id });
+			const importedTransactionId = await withTransaction(async transaction => {
+				const transactionId = await persistImportItem(transaction, importItem, tagIds);
 				await removeImportItem(transaction, item.id);
+				return transactionId;
 			});
+			if (debtSplit && importedTransactionId)
+				await linkTransactionToDebt({
+					amount: importItem.amount,
+					date: toDateKey(importItem.date),
+					debtSplit,
+					description: importItem.description ?? undefined,
+					transactionId: importedTransactionId,
+					type: importItem.type as TransactionType,
+					userId,
+				});
 			return { created: 1 };
 		},
 		{ params: t.Object({ id: t.String(), itemId: t.String() }) },

@@ -492,6 +492,7 @@ namespace public {
     ownerIncluded      Boolean                 @default(false)
     ownerShares        SmallInt?
     transactionId      VarChar(36)?            @unique(map: "DebtSplit_transactionId_key")
+    transactionImportItemId VarChar(36)?        @unique(map: "DebtSplit_transactionImportItemId_key")
     creditPurchaseId   VarChar(36)?            @unique(map: "DebtSplit_creditPurchaseId_key")
     subscriptionId     VarChar(36)?            @unique(map: "DebtSplit_subscriptionId_key")
     recurringPaymentId VarChar(36)?            @unique(map: "DebtSplit_recurringPaymentId_key")
@@ -499,6 +500,7 @@ namespace public {
     updatedAt          Timestamp(3)            @default(now())
     user               User                    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_userId_fkey", index: false)
     transaction        Transaction?            @relation(fields: [transactionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_transactionId_fkey", index: false)
+    transactionImportItem TransactionImportItem? @relation(fields: [transactionImportItemId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_transactionImportItemId_fkey", index: false)
     creditPurchase     CreditPurchase?         @relation(fields: [creditPurchaseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_creditPurchaseId_fkey", index: false)
     subscription       Subscription?           @relation(fields: [subscriptionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_subscriptionId_fkey", index: false)
     recurringPayment   RecurringPayment?       @relation(fields: [recurringPaymentId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "DebtSplit_recurringPaymentId_fkey", index: false)
@@ -795,6 +797,7 @@ namespace public {
     category            Category?                 @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "TransactionImportItem_categoryId_fkey", index: false)
     originFinancialAccount FinancialAccount?      @relation(name: "TransactionImportItem_originId_fkey", fields: [originFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "TransactionImportItem_originId_fkey", index: false)
     destinationFinancialAccount FinancialAccount? @relation(name: "TransactionImportItem_destinationId_fkey", fields: [destinationFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "TransactionImportItem_destinationId_fkey", index: false)
+    debtSplit           DebtSplit?
 
     @@index([transactionImportId, date], map: "TransactionImportItem_importId_date_idx")
     @@index([externalId], map: "TransactionImportItem_externalId_idx")

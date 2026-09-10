@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { DebtSplitEditor } from "@/components/debts";
 import { TransactionDetailsFields } from "@/components/transactions/TransactionDetailsFields";
 import { Button } from "@/components/ui/Button";
+import { CheckboxField } from "@/components/ui/CheckboxField";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import {
 	Dialog,
@@ -11,29 +13,35 @@ import {
 	DialogTitle,
 } from "@/components/ui/Dialog";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
-import type { FinancialAccount, TransactionImportItem } from "@/lib/api";
+import type { DebtSplitInput, FinancialAccount, TransactionImportItem } from "@/lib/api";
+import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
 import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
 } from "@/lib/financial-account";
 
-type EditableItem = Pick<
-	TransactionImportItem,
-	| "amount"
-	| "date"
-	| "description"
-	| "destinationFinancialAccountId"
-	| "isHidden"
-	| "originFinancialAccountId"
-	| "storeName"
-	| "tagIds"
-	| "time"
-	| "type"
->;
+type EditableItem = Omit<
+	Pick<
+		TransactionImportItem,
+		| "amount"
+		| "date"
+		| "debtSplit"
+		| "description"
+		| "destinationFinancialAccountId"
+		| "isHidden"
+		| "originFinancialAccountId"
+		| "storeName"
+		| "tagIds"
+		| "time"
+		| "type"
+	>,
+	"debtSplit"
+> & { debtSplit: DebtSplitInput | null };
 
 const toDraft = (item: TransactionImportItem): EditableItem => ({
 	amount: item.amount,
 	date: item.date.slice(0, 10),
+	debtSplit: debtSplitToInput(item.debtSplit),
 	description: item.description ?? "",
 	destinationFinancialAccountId: item.destinationFinancialAccountId ?? null,
 	isHidden: item.isHidden,
@@ -60,10 +68,14 @@ export function EditImportedTransactionDialog({
 	pending: boolean;
 }) {
 	const [draft, setDraft] = useState<EditableItem | null>(() => (item ? toDraft(item) : null));
+	const [isDebt, setIsDebt] = useState(Boolean(item?.debtSplit));
+	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => debtSplitToInput(item?.debtSplit));
 	const [description, setDescription] = useDebouncedInput(item?.description ?? "", () => undefined);
 	useEffect(() => {
 		if (!item || !open) return;
 		setDraft(toDraft(item));
+		setIsDebt(Boolean(item.debtSplit));
+		setDebtSplit(debtSplitToInput(item.debtSplit));
 		setDescription(item.description ?? "");
 	}, [item, open, setDescription]);
 	if (!item || !draft) return null;
@@ -101,6 +113,7 @@ export function EditImportedTransactionDialog({
 						onTagIdsChange={tagIds => setDraft(current => (current ? { ...current, tagIds } : current))}
 						onTimeChange={time => setDraft(current => (current ? { ...current, time } : current))}
 						onTypeChange={type => {
+							if (type === "TRANSFER" || type === "YIELD") setIsDebt(false);
 							setDraft(current =>
 								current
 									? {
@@ -121,6 +134,22 @@ export function EditImportedTransactionDialog({
 						time={draft.time ?? ""}
 						type={draft.type}
 					/>
+					{draft.type !== "TRANSFER" && draft.type !== "YIELD" ? (
+						<div className="grid gap-3 rounded-2xl border p-3">
+							<CheckboxField
+								checkboxProps={{
+									checked: isDebt,
+									id: "edit-imported-transaction-is-debt",
+									onCheckedChange: checked => setIsDebt(checked === true),
+								}}
+							>
+								<span>Esta movimentação é de uma dívida</span>
+							</CheckboxField>
+							{isDebt ? (
+								<DebtSplitEditor amount={draft.amount} onChange={setDebtSplit} value={debtSplit} />
+							) : null}
+						</div>
+					) : null}
 					<CustomSelect
 						label={draft.type === "INCOME" || draft.type === "YIELD" ? "Conta de destino" : "Conta de origem"}
 						onValueChange={accountId =>
@@ -161,8 +190,14 @@ export function EditImportedTransactionDialog({
 					</Button>
 					<Button
 						className="cursor-pointer disabled:cursor-not-allowed"
-						disabled={!draft.amount || !primaryAccountId || pending}
-						onClick={() => onSubmit({ ...draft, description })}
+						disabled={
+							!draft.amount ||
+							!primaryAccountId ||
+							(isDebt && !calculateDebtSplit(draft.amount, debtSplit)) ||
+							(draft.type === "TRANSFER" && !draft.destinationFinancialAccountId) ||
+							pending
+						}
+						onClick={() => onSubmit({ ...draft, debtSplit: isDebt ? debtSplit : null, description })}
 					>
 						{pending ? "Salvando…" : "Salvar"}
 					</Button>

@@ -249,6 +249,7 @@ export interface TransactionImportItem {
 	categoryId?: string | null;
 	createdAt: string;
 	date: string;
+	debtSplit?: DebtSplit | null;
 	description?: string | null;
 	destinationFinancialAccountId?: string | null;
 	duplicate: TransactionImportDuplicate | null;

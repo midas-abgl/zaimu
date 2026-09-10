@@ -7,9 +7,15 @@ export type DebtSplitTarget =
 	| { creditPurchaseId: string }
 	| { recurringPaymentId: string }
 	| { subscriptionId: string }
+	| { transactionImportItemId: string }
 	| { transactionId: string };
 
-type TargetField = "creditPurchaseId" | "recurringPaymentId" | "subscriptionId" | "transactionId";
+type TargetField =
+	| "creditPurchaseId"
+	| "recurringPaymentId"
+	| "subscriptionId"
+	| "transactionImportItemId"
+	| "transactionId";
 const targetEntry = (target: DebtSplitTarget) => Object.entries(target)[0] as [TargetField, string];
 
 export function calculateDebtSplitOrThrow(amount: number, split: DebtSplitInput) {
@@ -48,6 +54,7 @@ async function findSplit(target: DebtSplitTarget) {
 			"ownerShares",
 			"userId",
 			"transactionId",
+			"transactionImportItemId",
 			"creditPurchaseId",
 			"subscriptionId",
 			"recurringPaymentId",
@@ -56,6 +63,7 @@ async function findSplit(target: DebtSplitTarget) {
 				if (field === "creditPurchaseId") return functions.eq(fields.creditPurchaseId, id);
 				if (field === "recurringPaymentId") return functions.eq(fields.recurringPaymentId, id);
 				if (field === "subscriptionId") return functions.eq(fields.subscriptionId, id);
+				if (field === "transactionImportItemId") return functions.eq(fields.transactionImportItemId, id);
 				return functions.eq(fields.transactionId, id);
 			})
 			.limit(1)

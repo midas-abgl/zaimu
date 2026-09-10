@@ -2424,20 +2424,24 @@ export const dataService = {
 			importId: string,
 			itemId: string,
 			data: Partial<
-				Pick<
-					TransactionImportItem,
-					| "amount"
-					| "date"
-					| "description"
-					| "destinationFinancialAccountId"
-					| "isHidden"
-					| "isSelected"
-					| "originFinancialAccountId"
-					| "storeName"
-					| "tagIds"
-					| "time"
-					| "type"
-				> & { categoryId?: string | null }
+				Omit<
+					Pick<
+						TransactionImportItem,
+						| "amount"
+						| "date"
+						| "debtSplit"
+						| "description"
+						| "destinationFinancialAccountId"
+						| "isHidden"
+						| "isSelected"
+						| "originFinancialAccountId"
+						| "storeName"
+						| "tagIds"
+						| "time"
+						| "type"
+					>,
+					"debtSplit"
+				> & { categoryId?: string | null; debtSplit?: DebtSplitInput | null }
 			>,
 		): Promise<TransactionImport> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");

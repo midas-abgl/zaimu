@@ -34,6 +34,7 @@ function toTransaction(item: TransactionImportItem, accountNames: Map<string, st
 		amount: item.amount,
 		createdAt: item.createdAt,
 		date: item.date,
+		debtSplit: item.debtSplit,
 		description: item.description ?? undefined,
 		destinationFinancialAccountId: item.destinationFinancialAccountId,
 		destinationName,
