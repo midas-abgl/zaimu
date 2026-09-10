@@ -237,7 +237,14 @@ export function EditImportedTransactionDialog({
 							(draft.type === "TRANSFER" && !draft.destinationFinancialAccountId) ||
 							pending
 						}
-						onClick={() => onSubmit({ ...draft, debtSplit: isDebt ? debtSplit : null, description })}
+						onClick={() =>
+							onSubmit({
+								...draft,
+								debtSplit: isDebt ? debtSplit : null,
+								description,
+								time: draft.time || null,
+							})
+						}
 					>
 						{pending ? "Salvando…" : "Salvar"}
 					</Button>
