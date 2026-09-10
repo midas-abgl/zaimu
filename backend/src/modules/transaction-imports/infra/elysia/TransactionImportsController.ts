@@ -339,7 +339,12 @@ async function persistImportItem(transaction: SqlExecutor, item: ImportItemToApp
 				.limit(1)
 				.build(),
 		);
-		const yieldValues = { amount: String(item.amount), isExcluded: false, updatedAt: new Date() };
+		const yieldValues = {
+			amount: String(item.amount),
+			externalId: item.externalId,
+			isExcluded: false,
+			updatedAt: new Date(),
+		};
 		if (existingYield)
 			await transaction.executeStatement(
 				transaction.db.sql.public.FinancialAccountYield.update(yieldValues)
@@ -440,20 +445,51 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			if (fileBytes.length < 5 || new TextDecoder().decode(fileBytes.slice(0, 5)) !== "%PDF-")
 				throw new HttpException("Envie um PDF válido", 400);
 			const statement = await parseMercadoPagoStatement(fileBytes.buffer);
-			const existingTransactions = await queryRows(
-				db.sql.public.Transaction.select("externalId")
-					.where((fields, functions) =>
-						functions.in(
-							fields.externalId,
-							statement.transactions.map(transaction => transaction.externalId),
-						),
-					)
-					.build(),
-			);
+			const [existingTransactions, existingYields, existingManualYields] = await Promise.all([
+				queryRows(
+					db.sql.public.Transaction.select("externalId")
+						.where((fields, functions) =>
+							functions.in(
+								fields.externalId,
+								statement.transactions.map(transaction => transaction.externalId),
+							),
+						)
+						.build(),
+				),
+				queryRows(
+					db.sql.public.FinancialAccountYield.select("externalId")
+						.where((fields, functions) =>
+							functions.in(
+								fields.externalId,
+								statement.transactions.map(transaction => transaction.externalId),
+							),
+						)
+						.build(),
+				),
+				queryRows(
+					db.sql.public.FinancialAccountYield.select("date")
+						.where((fields, functions) =>
+							functions.and(
+								functions.eq(fields.financialAccountId, body.financialAccountId),
+								functions.eq(fields.kind, "MANUAL"),
+							),
+						)
+						.build(),
+				),
+			]);
 			const existingExternalIds = new Set(
-				existingTransactions.flatMap(transaction => (transaction.externalId ? [transaction.externalId] : [])),
+				[...existingTransactions, ...existingYields].flatMap(transaction =>
+					transaction.externalId ? [transaction.externalId] : [],
+				),
 			);
-			const transactions = filterExistingTransactions(statement.transactions, existingExternalIds);
+			const existingYieldDates = new Set(
+				existingManualYields.map(yieldRecord => toDateKey(yieldRecord.date)),
+			);
+			const transactions = filterExistingTransactions(
+				statement.transactions,
+				existingExternalIds,
+				existingYieldDates,
+			);
 			const ignoredCount = statement.transactions.length - transactions.length;
 			if (transactions.length === 0) return { ignoredCount, transactionImport: null };
 			const transactionImport = await queryFirst(
@@ -770,7 +806,12 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 								.limit(1)
 								.build(),
 						);
-						const yieldValues = { amount: String(item.amount), isExcluded: false, updatedAt: new Date() };
+						const yieldValues = {
+							amount: String(item.amount),
+							externalId: item.externalId,
+							isExcluded: false,
+							updatedAt: new Date(),
+						};
 						if (existingYield)
 							await transaction.executeStatement(
 								transaction.db.sql.public.FinancialAccountYield.update(yieldValues)
