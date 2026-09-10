@@ -43,6 +43,7 @@ const transactionColumns = [
 	"subscriptionOccurrenceDate",
 	"originFinancialAccountId",
 	"destinationFinancialAccountId",
+	"externalId",
 	"createdAt",
 	"updatedAt",
 ] as const;
@@ -163,6 +164,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					destinationName: fn.raw`COALESCE(${f.destination.name}, ${f.destinationInstitution.name})`.returns(
 						"sql/varchar@1",
 					),
+					externalId: f.Transaction.externalId,
 					id: f.Transaction.id,
 					isHidden: f.Transaction.isHidden,
 					originAccountType: f.origin.type,

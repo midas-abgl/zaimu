@@ -210,6 +210,7 @@ export interface Transaction {
 	destinationAccountType?: FinancialAccount["type"] | null;
 	destinationName?: null | string;
 	createdAt: string;
+	externalId?: string | null;
 	creditCardId?: string;
 	creditCardName?: string | null;
 	creditCardStatementId?: string;

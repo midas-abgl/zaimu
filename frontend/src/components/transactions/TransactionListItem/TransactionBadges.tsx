@@ -1,4 +1,12 @@
-import { LuArrowRight, LuCreditCard, LuLandmark, LuReceiptText, LuStore, LuUsersRound } from "react-icons/lu";
+import {
+	LuArrowRight,
+	LuCloudDownload,
+	LuCreditCard,
+	LuLandmark,
+	LuReceiptText,
+	LuStore,
+	LuUsersRound,
+} from "react-icons/lu";
 import { Badge } from "@/components/ui/Badge";
 import type { FinancialAccount, Tag } from "@/lib/api";
 import { formatLocalMonthYear } from "@/lib/date";
@@ -22,12 +30,14 @@ export function TransactionBadges({
 	accounts,
 	creditCardPayment,
 	debtPersonName,
+	isSynced = false,
 	storeName,
 	tags,
 }: {
 	accounts: TransactionBadgeAccount[];
 	creditCardPayment?: { cardName: string; statementDate?: string };
 	debtPersonName?: string;
+	isSynced?: boolean;
 	storeName?: string | null;
 	tags?: Tag[];
 }) {
@@ -91,6 +101,14 @@ export function TransactionBadges({
 						<span className="truncate">
 							<span className="text-muted-foreground">Dívida</span> {debtPersonName}
 						</span>
+					</Badge>
+				</li>
+			) : null}
+			{isSynced ? (
+				<li>
+					<Badge className={transactionAttributeBadgeClass} variant="outline">
+						<LuCloudDownload aria-hidden="true" className="text-emerald-600" />
+						<span>Sincronizada</span>
 					</Badge>
 				</li>
 			) : null}
