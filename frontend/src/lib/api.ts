@@ -230,6 +230,7 @@ export interface TransactionImportDuplicate {
 	createdAt: string;
 	creditCardStatementId?: string | null;
 	date: string;
+	debtSplit?: DebtSplit | null;
 	description?: string | null;
 	destinationFinancialAccountId?: string | null;
 	isHidden: boolean;

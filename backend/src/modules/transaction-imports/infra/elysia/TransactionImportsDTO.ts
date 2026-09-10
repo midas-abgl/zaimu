@@ -27,6 +27,7 @@ export const TransactionImportItemReconcileDTO = t.Object({
 		t.Object({
 			amount: t.Union([t.Literal("duplicate"), t.Literal("imported")]),
 			date: t.Union([t.Literal("duplicate"), t.Literal("imported")]),
+			debtSplit: t.Union([t.Literal("duplicate"), t.Literal("imported")]),
 			description: t.Union([t.Literal("duplicate"), t.Literal("imported")]),
 			destinationFinancialAccountId: t.Union([t.Literal("duplicate"), t.Literal("imported")]),
 			originFinancialAccountId: t.Union([t.Literal("duplicate"), t.Literal("imported")]),

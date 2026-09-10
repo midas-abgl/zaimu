@@ -31,6 +31,7 @@ const importItemTagEntityType = "TRANSACTION_IMPORT_ITEM";
 const reconciliationFields = [
 	"amount",
 	"date",
+	"debtSplit",
 	"description",
 	"destinationFinancialAccountId",
 	"originFinancialAccountId",
@@ -64,6 +65,7 @@ interface DuplicateCandidate {
 	time: string | null;
 	tagIds: string[];
 	tags: TagSummary[];
+	debtSplit?: Awaited<ReturnType<typeof getDebtSplitReturn>>;
 	type: ImportItemType;
 }
 
@@ -200,6 +202,17 @@ async function getPotentialDuplicates(
 				};
 			}),
 	];
+	const candidatesWithDebtSplits = await Promise.all(
+		candidates.map(async candidate => ({
+			...candidate,
+			debtSplit: await getDebtSplitReturn(
+				candidate.source === "TRANSACTION"
+					? { transactionId: candidate.id }
+					: { transactionImportItemId: candidate.id },
+				Number(candidate.amount),
+			),
+		})),
+	);
 	return new Map<string, PotentialDuplicates | null>(
 		items.map(item => {
 			if (item.isReconciled) return [item.id, null] as const;
@@ -210,14 +223,14 @@ async function getPotentialDuplicates(
 				candidate.originFinancialAccountId === financialAccountId ||
 				candidate.destinationFinancialAccountId === financialAccountId;
 			const externalDuplicates = item.externalId
-				? candidates.filter(
+				? candidatesWithDebtSplits.filter(
 						candidate =>
 							candidate.id !== item.id &&
 							isSameAccount(candidate) &&
 							candidate.externalId === item.externalId,
 					)
 				: [];
-			const dateAmountDuplicates = candidates.filter(
+			const dateAmountDuplicates = candidatesWithDebtSplits.filter(
 				candidate =>
 					candidate.id !== item.id &&
 					isSameAccount(candidate) &&
@@ -929,6 +942,18 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					.build(),
 			);
 			await replaceEntityTags({ entityIds: [item.id], entityType: importItemTagEntityType, tagIds });
+			if (body.sources.debtSplit === "duplicate")
+				await replaceDebtSplit({
+					amount: Number(values.amount),
+					split:
+						(await getDebtSplitInput(
+							duplicate.source === "TRANSACTION"
+								? { transactionId: duplicate.id }
+								: { transactionImportItemId: duplicate.id },
+						)) ?? null,
+					target: { transactionImportItemId: item.id },
+					userId,
+				});
 			return getImportReturn(userId, transactionImport.id);
 		},
 		{

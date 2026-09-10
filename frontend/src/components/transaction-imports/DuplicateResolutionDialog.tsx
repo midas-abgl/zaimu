@@ -15,6 +15,7 @@ import { formatLocalTime } from "@/lib/date";
 export type DuplicateField =
 	| "amount"
 	| "date"
+	| "debtSplit"
 	| "description"
 	| "destinationFinancialAccountId"
 	| "isHidden"
@@ -30,6 +31,7 @@ type Source = DuplicateSource;
 const baseFields: Array<{ key: Field; label: string }> = [
 	{ key: "amount", label: "Valor" },
 	{ key: "date", label: "Data" },
+	{ key: "debtSplit", label: "Dívida" },
 	{ key: "time", label: "Horário" },
 	{ key: "description", label: "Descrição" },
 	{ key: "type", label: "Tipo" },
@@ -105,6 +107,12 @@ export function DuplicateResolutionDialog({
 		if (field === "amount")
 			return new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(Number(selected));
 		if (field === "date") return formatDate(selected);
+		if (field === "debtSplit") {
+			const debtSplit = selected as TransactionImportItem["debtSplit"];
+			return debtSplit
+				? debtSplit.participants.map(participant => participant.debtPersonName).join(", ")
+				: "Sem dívida";
+		}
 		if (field === "time") return formatLocalTime(selected ? String(selected) : undefined) ?? "Não informado";
 		if (field === "originFinancialAccountId" || field === "destinationFinancialAccountId")
 			return selected ? (accountNames.get(String(selected)) ?? "Conta removida") : "Não informado";
