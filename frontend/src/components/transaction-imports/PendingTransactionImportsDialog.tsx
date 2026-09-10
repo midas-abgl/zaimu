@@ -45,7 +45,9 @@ export function PendingTransactionImportsDialog({
 									<span className="block truncate font-semibold">{transactionImport.fileName}</span>
 									<span className="flex items-center gap-1.5 text-muted-foreground text-xs">
 										<LuClock3 className="size-3.5" />
-										Importado em {importedAtFormatter.format(new Date(transactionImport.createdAt))}
+										{importedAtFormatter.format(new Date(transactionImport.createdAt))} ·{" "}
+										{transactionImport.items.length}{" "}
+										{transactionImport.items.length === 1 ? "transação restante" : "transações restantes"}
 									</span>
 								</span>
 							</Button>

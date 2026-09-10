@@ -1,12 +1,4 @@
-import {
-	LuBan,
-	LuCheck,
-	LuChevronDown,
-	LuChevronUp,
-	LuCircleAlert,
-	LuLandmark,
-	LuPencil,
-} from "react-icons/lu";
+import { LuCheck, LuChevronDown, LuChevronUp, LuCircleAlert, LuLandmark, LuPencil } from "react-icons/lu";
 import { TransactionListItem } from "@/components/transactions";
 import { Button } from "@/components/ui/Button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
@@ -20,23 +12,19 @@ function formatCurrency(value: number) {
 
 export function ImportReviewTransactionItem({
 	collapsed,
-	decision,
 	disabled,
 	item,
 	onApprove,
 	onCollapsedChange,
-	onDecision,
 	onEdit,
 	onResolveDuplicate,
 	transaction,
 }: {
 	collapsed: boolean;
-	decision?: boolean;
 	disabled: boolean;
 	item: TransactionImportItem;
 	onApprove: () => void;
 	onCollapsedChange: (collapsed: boolean) => void;
-	onDecision: (isSelected: boolean) => void;
 	onEdit: () => void;
 	onResolveDuplicate: () => void;
 	transaction: Transaction;
@@ -45,8 +33,6 @@ export function ImportReviewTransactionItem({
 	const amountColor = transaction.type === "INCOME" ? "text-emerald-600" : "text-rose-600";
 	const expandLabel = `Expandir ${getTransactionTitle(transaction)}`;
 	const collapseLabel = `Minimizar ${getTransactionTitle(transaction)}`;
-	const toggleDecisionLabel = item.isSelected ? "Descartar" : "Aprovar";
-
 	if (collapsed) {
 		return (
 			<div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3">
@@ -57,7 +43,7 @@ export function ImportReviewTransactionItem({
 				</div>
 				<div className="min-w-0 flex-1">
 					<p className="truncate font-medium text-sm">{getTransactionTitle(transaction)}</p>
-					<span className="text-muted-foreground text-xs">{decision ? "Aprovada" : "Ignorada"}</span>
+					<span className="text-muted-foreground text-xs">Pendente de aprovação</span>
 				</div>
 				<div className="flex shrink-0 items-center gap-3">
 					<p className={`font-semibold text-sm ${amountColor}`}>
@@ -97,14 +83,7 @@ export function ImportReviewTransactionItem({
 							},
 						]
 					: []),
-				{ disabled, icon: <LuPencil />, onClick: onEdit, text: "Editar" },
-				{
-					disabled,
-					icon: item.isSelected ? <LuBan /> : <LuCheck />,
-					onClick: () => onDecision(!item.isSelected),
-					text: toggleDecisionLabel,
-				},
-				...(item.isSelected && !item.duplicateReason
+				...(!item.duplicateReason
 					? [
 							{
 								color: "default" as const,
@@ -115,6 +94,7 @@ export function ImportReviewTransactionItem({
 							},
 						]
 					: []),
+				{ disabled, icon: <LuPencil />, onClick: onEdit, text: "Editar" },
 				{
 					ariaLabel: collapseLabel,
 					disabled,
@@ -123,7 +103,6 @@ export function ImportReviewTransactionItem({
 					text: "Minimizar",
 				},
 			]}
-			className={item.isSelected ? undefined : "opacity-55"}
 			forceCompactActions
 			metadataPrefix={
 				<div className="flex flex-wrap items-center gap-1.5">

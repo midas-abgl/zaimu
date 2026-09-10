@@ -686,6 +686,75 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 		{ params: t.Object({ id: t.String(), itemId: t.String() }) },
 	)
 	.post(
+		"/:id/days/:date/approve",
+		async ({ params, request }) => {
+			const userId = await requireUserId(request);
+			const transactionImport = await getImport(userId, params.id);
+			if (transactionImport.status !== "PENDING")
+				throw new HttpException("Esta importação já foi aprovada", 400);
+			const items = await queryRows(
+				db.sql.public.TransactionImportItem.select(
+					"id",
+					"amount",
+					"date",
+					"description",
+					"destinationFinancialAccountId",
+					"externalId",
+					"isHidden",
+					"isReconciled",
+					"originFinancialAccountId",
+					"storeName",
+					"time",
+					"type",
+				)
+					.where((fields, functions) => functions.eq(fields.transactionImportId, transactionImport.id))
+					.build(),
+			);
+			const itemsForDay = items
+				.filter(item => toDateKey(item.date) === params.date)
+				.map(item => ({ ...item, type: item.type as ImportItemType }));
+			const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, itemsForDay);
+			const approvableItems = itemsForDay.filter(item => !item.isReconciled && !duplicates.get(item.id));
+			if (!approvableItems.length)
+				throw new HttpException("Não há transações sem pendências para aprovar neste dia", 400);
+			const tagIdsByItem = new Map<string, string[]>();
+			const debtSplitsByItem = new Map<string, Awaited<ReturnType<typeof getDebtSplitInput>>>();
+			for (const item of approvableItems) {
+				tagIdsByItem.set(item.id, await prepareImportItem(item, userId));
+				debtSplitsByItem.set(item.id, await getDebtSplitInput({ transactionImportItemId: item.id }));
+			}
+			const importedTransactions = await withTransaction(async transaction => {
+				const results: Array<{ item: ImportItemToApprove; transactionId: string | null }> = [];
+				for (const item of approvableItems) {
+					const transactionId = await persistImportItem(transaction, item, tagIdsByItem.get(item.id) ?? []);
+					await removeImportItem(transaction, item.id);
+					results.push({ item, transactionId });
+				}
+				return results;
+			});
+			for (const { item, transactionId } of importedTransactions) {
+				const debtSplit = debtSplitsByItem.get(item.id);
+				if (debtSplit && transactionId)
+					await linkTransactionToDebt({
+						amount: item.amount,
+						date: toDateKey(item.date),
+						debtSplit,
+						description: item.description ?? undefined,
+						transactionId,
+						type: item.type as TransactionType,
+						userId,
+					});
+			}
+			return { created: approvableItems.length };
+		},
+		{
+			params: t.Object({
+				date: t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}$" }),
+				id: t.String(),
+			}),
+		},
+	)
+	.post(
 		"/:id/items/:itemId/reconcile",
 		async ({ body, params, request }) => {
 			const userId = await requireUserId(request);
@@ -785,29 +854,9 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			const transactionImport = await getImport(userId, params.id);
 			if (transactionImport.status !== "PENDING")
 				throw new HttpException("Esta importação já foi aprovada", 400);
-			const items = await queryRows(
-				db.sql.public.TransactionImportItem.select(
-					"id",
-					"amount",
-					"categoryId",
-					"date",
-					"description",
-					"destinationFinancialAccountId",
-					"externalId",
-					"isHidden",
-					"originFinancialAccountId",
-					"storeName",
-					"time",
-					"type",
-				)
-					.where((fields, functions) =>
-						functions.and(
-							functions.eq(fields.transactionImportId, transactionImport.id),
-							functions.eq(fields.isSelected, true),
-						),
-					)
-					.build(),
-			);
+			// Itens só entram no livro-caixa pelo aceite individual. Finalizar a revisão
+			// encerra o lote sem importar pendências nem itens já conciliados.
+			const items: ImportItemToApprove[] = [];
 			const tagIdsByItem = new Map<string, string[]>();
 			for (const item of items) {
 				await validateItemAccounts({ ...item, type: item.type as ImportItemType }, userId);
@@ -901,7 +950,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 						.build(),
 				);
 			});
-			return { created: items.length };
+			return { created: 0 };
 		},
 		{ params: t.Object({ id: t.String() }) },
 	)
