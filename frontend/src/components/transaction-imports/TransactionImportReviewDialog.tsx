@@ -267,7 +267,7 @@ export function TransactionImportReviewDialog({
 											discard.isPending ||
 											approvingItemIds.size > 0 ||
 											approvingDateKeys.size > 0 ||
-											!items.some(item => !item.duplicateReason && !item.isReconciled)
+											!items.some(item => !item.duplicateReason)
 										}
 										approveAllPending={approvingDateKeys.has(date)}
 										collapsed={collapsedDateKeys.has(date)}

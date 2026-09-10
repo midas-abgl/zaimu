@@ -797,7 +797,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				.filter(item => toDateKey(item.date) === params.date)
 				.map(item => ({ ...item, type: item.type as ImportItemType }));
 			const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, itemsForDay);
-			const approvableItems = itemsForDay.filter(item => !item.isReconciled && !duplicates.get(item.id));
+			const approvableItems = itemsForDay.filter(item => !duplicates.get(item.id));
 			if (!approvableItems.length)
 				throw new HttpException("Não há transações sem pendências para aprovar neste dia", 400);
 			const tagIdsByItem = new Map<string, string[]>();
