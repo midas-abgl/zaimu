@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuLandmark } from "react-icons/lu";
 import {
@@ -18,6 +18,7 @@ import {
 	type FinancialAccountYieldEntry,
 	getFinancialAccountDisplayName,
 } from "@/lib/financial-account";
+import { showToast } from "@/stores";
 import { EditFinancialAccountYieldDialog } from "./EditFinancialAccountYieldDialog";
 import { FinancialAccountYieldStatementItem } from "./FinancialAccountYieldStatementItem";
 
@@ -46,6 +47,7 @@ export function FinancialAccountStatementDialog({
 	onOpenChange: (open: boolean) => void;
 	open: boolean;
 }) {
+	const queryClient = useQueryClient();
 	const statement = useQuery({
 		enabled: open,
 		queryFn: () => dataService.transactions.getAll({ financialAccountId: account.id }),
@@ -76,6 +78,42 @@ export function FinancialAccountStatementDialog({
 		...new Set([...Object.keys(groupedTransactions), ...yieldEntries.map(entry => entry.date)]),
 	].toSorted((left, right) => right.localeCompare(left));
 	const displayName = getFinancialAccountDisplayName(account);
+	const refreshStatement = async () => {
+		await Promise.all([
+			queryClient.invalidateQueries({ queryKey: ["accounts"] }),
+			queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+			queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+			queryClient.invalidateQueries({ queryKey: ["financial-account-yields", account.id] }),
+		]);
+	};
+	const removeTransaction = useMutation({
+		mutationFn: (id: string) => dataService.transactions.delete(id),
+		onError: error =>
+			showToast(error instanceof Error ? error.message : "Não foi possível excluir a transação.", "negative"),
+		onSuccess: async () => {
+			await refreshStatement();
+			showToast("Transação excluída.", "positive");
+		},
+	});
+	const removeYield = useMutation({
+		mutationFn: (entry: FinancialAccountYieldEntry) =>
+			entry.kind === "AUTOMATIC"
+				? dataService.accountYields.upsertAutomatic({
+						date: entry.date,
+						financialAccountId: entry.financialAccountId,
+						isExcluded: true,
+					})
+				: dataService.accountYields.delete(entry.id),
+		onError: error =>
+			showToast(
+				error instanceof Error ? error.message : "Não foi possível excluir o rendimento.",
+				"negative",
+			),
+		onSuccess: async () => {
+			await refreshStatement();
+			showToast("Rendimento excluído.", "positive");
+		},
+	});
 	const editTransaction = (transaction: Transaction) => {
 		const isStatementPayment =
 			Boolean(transaction.creditCardStatementId) && transaction.source !== "CREDIT_CARD";
@@ -116,12 +154,17 @@ export function FinancialAccountStatementDialog({
 											.map(entry => (
 												<FinancialAccountYieldStatementItem
 													amount={entry.amount}
+													deleting={removeYield.isPending && removeYield.variables?.id === entry.id}
 													key={`yield-${entry.date}`}
+													onDelete={() => removeYield.mutateAsync(entry)}
 													onEdit={() => setEditingYield(entry)}
 												/>
 											))}
 										{(groupedTransactions[date] ?? []).map(transaction => (
 											<TransactionListItem
+												deleting={
+													removeTransaction.isPending && removeTransaction.variables === transaction.id
+												}
 												key={transaction.id}
 												metadataPrefix={
 													formatLocalTime(transaction.time) ? (
@@ -129,6 +172,11 @@ export function FinancialAccountStatementDialog({
 															{formatLocalTime(transaction.time)}
 														</span>
 													) : undefined
+												}
+												onDelete={
+													transaction.creditCardStatementId
+														? undefined
+														: () => removeTransaction.mutateAsync(transaction.id)
 												}
 												onEdit={() => editTransaction(transaction)}
 												transaction={transaction}
