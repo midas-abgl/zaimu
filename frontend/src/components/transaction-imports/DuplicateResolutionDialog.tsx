@@ -122,7 +122,7 @@ export function DuplicateResolutionDialog({
 				<DialogHeader>
 					<DialogTitle>Resolver duplicata</DialogTitle>
 					<DialogDescription>
-						Selecione a origem de cada dado. O resultado atualizará a transação existente.
+						Selecione a origem de cada dado. O resultado atualizará a transação deste lote.
 					</DialogDescription>
 				</DialogHeader>
 				<ScrollArea className="min-h-0 pr-1">

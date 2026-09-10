@@ -673,40 +673,20 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				),
 				userId,
 			);
-			if (duplicate.source === "TRANSACTION") {
-				await executeStatement(
-					db.sql.public.Transaction.update({
-						...values,
-						amount: String(values.amount),
-						date: new Date(values.date),
-						externalId: item.externalId,
-						type: values.type === "YIELD" ? (duplicate.type as TransactionType) : values.type,
-						updatedAt: new Date(),
-					})
-						.where((fields, functions) => functions.eq(fields.id, duplicate.id))
-						.build(),
-				);
-				await replaceEntityTags({ entityIds: [duplicate.id], entityType: "TRANSACTION", tagIds });
-			} else {
-				await executeStatement(
-					db.sql.public.TransactionImportItem.update({
-						...values,
-						amount: String(values.amount),
-						date: new Date(values.date),
-						externalId: item.externalId,
-						updatedAt: new Date(),
-					})
-						.where((fields, functions) => functions.eq(fields.id, duplicate.id))
-						.build(),
-				);
-				await replaceEntityTags({ entityIds: [duplicate.id], entityType: importItemTagEntityType, tagIds });
-			}
-			// A conciliação manual libera o item para a revisão normal do lote.
+			// A conciliação define a versão que será aprovada do item deste lote. O
+			// candidato só fornece valores para a escolha; nunca deve ser alterado.
 			await executeStatement(
-				db.sql.public.TransactionImportItem.update({ isReconciled: true, updatedAt: new Date() })
+				db.sql.public.TransactionImportItem.update({
+					...values,
+					amount: String(values.amount),
+					date: new Date(values.date),
+					isReconciled: true,
+					updatedAt: new Date(),
+				})
 					.where((fields, functions) => functions.eq(fields.id, item.id))
 					.build(),
 			);
+			await replaceEntityTags({ entityIds: [item.id], entityType: importItemTagEntityType, tagIds });
 			return getImportReturn(userId, transactionImport.id);
 		},
 		{
