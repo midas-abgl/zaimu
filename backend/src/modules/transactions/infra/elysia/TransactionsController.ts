@@ -467,6 +467,35 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 		"/",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
+			let statement: { id: string; paidAmount: string; statementDate: Date; totalAmount: string } | undefined;
+			if (body.creditCardStatementId) {
+				if ((body.type ?? "EXPENSE") !== "EXPENSE") {
+					throw new HttpException("Apenas saídas podem pagar uma fatura", 400);
+				}
+				statement = await queryFirst(
+					db.sql.public.CreditCardStatement.innerJoin(db.sql.public.CreditCard, (fields, functions) =>
+						functions.eq(fields.CreditCardStatement.creditCardId, fields.CreditCard.id),
+					)
+						.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
+							functions.eq(fields.CreditCard.financialAccountId, fields.FinancialAccount.id),
+						)
+						.select(fields => ({
+							id: fields.CreditCardStatement.id,
+							paidAmount: fields.CreditCardStatement.paidAmount,
+							statementDate: fields.CreditCardStatement.statementDate,
+							totalAmount: fields.CreditCardStatement.totalAmount,
+						}))
+						.where((fields, functions) =>
+							functions.and(
+								functions.eq(fields.CreditCardStatement.id, body.creditCardStatementId!),
+								functions.eq(fields.FinancialAccount.userId, userId),
+							),
+						)
+						.limit(1)
+						.build(),
+				);
+				if (!statement) throw new HttpException("Fatura não encontrada", 404);
+			}
 			if (body.recurrenceId) await assertDirectOwnership("RecurringPayment", body.recurrenceId, userId);
 			if (body.salaryId) await assertDirectOwnership("Salary", body.salaryId, userId);
 			if (body.subscriptionId) await assertDirectOwnership("Subscription", body.subscriptionId, userId);
@@ -596,6 +625,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 							{
 								amount: String(body.amount),
 								categoryId: tagIds[0],
+								creditCardStatementId: body.creditCardStatementId,
 								date: new Date(body.date),
 								description: body.description,
 								destinationFinancialAccountId: body.destinationFinancialAccountId,
@@ -626,6 +656,20 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			}
 			if (!transaction) throw new HttpException("Transaction not created", 500);
 			if (wasCreated) {
+				if (statement) {
+					const paidAmount = (toCents(statement.paidAmount) + toCents(body.amount)) / 100;
+					await executeStatement(
+						db.sql.public.CreditCardStatement.update({
+							isPaid:
+								toDateKey(statement.statementDate) <= toDateKey(new Date()) &&
+								toCents(paidAmount) >= toCents(statement.totalAmount),
+							paidAmount: String(paidAmount),
+							updatedAt: new Date(),
+						})
+							.where((fields, functions) => functions.eq(fields.id, statement!.id))
+							.build(),
+					);
+				}
 				await replaceEntityTags({
 					entityIds: [transaction.id],
 					entityType: tagEntityType.transaction,
@@ -661,6 +705,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			body: t.Object({
 				amount: t.Number(),
 				categoryId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
+				creditCardStatementId: t.Optional(t.String({ maxLength: 36, minLength: 1 })),
 				date: t.String(),
 				debtSplit: t.Optional(DebtSplitInputDTO),
 				description: t.Optional(t.String({ maxLength: 1000 })),
@@ -705,107 +750,31 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (!existing) {
 				throw new HttpException("Transaction not found", 404);
 			}
-			if (existing.creditCardStatementId) {
-				if (
-					body.categoryId !== undefined ||
-					body.debtSplit !== undefined ||
-					body.description !== undefined ||
-					body.destinationFinancialAccountId !== undefined ||
-					body.isHidden !== undefined ||
-					body.matchDebtEventId !== undefined ||
-					body.storeName !== undefined ||
-					body.tagIds !== undefined ||
-					body.type !== undefined
-				) {
-					throw new HttpException("Edite apenas valor, data, horário ou conta do pagamento da fatura", 400);
-				}
-				const amount = body.amount ?? Number(existing.amount);
-				if (amount <= 0) throw new HttpException("Informe um valor maior que zero", 400);
-				const originFinancialAccountId = body.originFinancialAccountId ?? existing.originFinancialAccountId;
-				if (!originFinancialAccountId) throw new HttpException("Selecione a conta pagadora", 400);
-
+			if (
+				(existing.creditCardStatementId || body.creditCardStatementId) &&
+				(body.type ?? existing.type) !== "EXPENSE"
+			) {
+				throw new HttpException("A transação vinculada à fatura deve ser uma saída", 400);
+			}
+			if (body.creditCardStatementId) {
 				const statement = await queryFirst(
-					db.sql.public.CreditCardStatement.select("id", "paidAmount", "statementDate", "totalAmount")
-						.where((fields, functions) => functions.eq(fields.id, existing.creditCardStatementId!))
+					db.sql.public.CreditCardStatement.innerJoin(db.sql.public.CreditCard, (fields, functions) =>
+						functions.eq(fields.CreditCardStatement.creditCardId, fields.CreditCard.id),
+					)
+						.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
+							functions.eq(fields.CreditCard.financialAccountId, fields.FinancialAccount.id),
+						)
+						.select("id")
+						.where((fields, functions) =>
+							functions.and(
+								functions.eq(fields.CreditCardStatement.id, body.creditCardStatementId!),
+								functions.eq(fields.FinancialAccount.userId, userId),
+							),
+						)
 						.limit(1)
 						.build(),
 				);
 				if (!statement) throw new HttpException("Fatura não encontrada", 404);
-
-				const paidAmount = (toCents(statement.paidAmount) - toCents(existing.amount) + toCents(amount)) / 100;
-				const isPaid =
-					toDateKey(statement.statementDate) <= toDateKey(new Date()) &&
-					toCents(paidAmount) >= toCents(statement.totalAmount);
-				const paymentHistoryEntries = [
-					...(amount !== Number(existing.amount)
-						? [
-								{
-									field: "amount",
-									newValue: String(amount),
-									oldValue: String(existing.amount),
-									transactionId: existing.id,
-								},
-							]
-						: []),
-					...(body.date && body.date !== existing.date.toISOString().slice(0, 10)
-						? [
-								{
-									field: "date",
-									newValue: body.date,
-									oldValue: existing.date.toISOString().slice(0, 10),
-									transactionId: existing.id,
-								},
-							]
-						: []),
-					...(body.time !== undefined && body.time !== existing.time
-						? [
-								{
-									field: "time",
-									newValue: body.time,
-									oldValue: existing.time,
-									transactionId: existing.id,
-								},
-							]
-						: []),
-					...(originFinancialAccountId !== existing.originFinancialAccountId
-						? [
-								{
-									field: "originFinancialAccountId",
-									newValue: originFinancialAccountId,
-									oldValue: existing.originFinancialAccountId,
-									transactionId: existing.id,
-								},
-							]
-						: []),
-				];
-				const transaction = await queryFirst(
-					db.sql.public.Transaction.update({
-						...(body.amount !== undefined && { amount: String(amount) }),
-						...(body.date && { date: new Date(body.date) }),
-						...(body.time !== undefined && { time: body.time }),
-						...(body.originFinancialAccountId !== undefined && { originFinancialAccountId }),
-						updatedAt: new Date(),
-					} as never)
-						.where((fields, functions) => functions.eq(fields.id, params.id))
-						.returning(...transactionColumns)
-						.build(),
-				);
-				if (!transaction) throw new HttpException("Transação não encontrada", 404);
-				await executeStatement(
-					db.sql.public.CreditCardStatement.update({
-						isPaid,
-						paidAmount: String(paidAmount),
-						updatedAt: new Date(),
-					})
-						.where((fields, functions) => functions.eq(fields.id, statement.id))
-						.build(),
-				);
-				if (paymentHistoryEntries.length > 0) {
-					await executeStatement(
-						db.sql.public.TransactionHistory.insert(paymentHistoryEntries as never).build(),
-					);
-				}
-				return { ...transaction, tagIds: [], tags: [] };
 			}
 			if (body.amount !== undefined && body.amount <= 0) {
 				throw new HttpException("Informe um valor maior que zero", 400);
@@ -876,6 +845,9 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					...(body.storeName !== undefined && { storeName: body.storeName }),
 					...(body.isHidden !== undefined && { isHidden: body.isHidden }),
 					...(body.type && { type: body.type }),
+					...(body.creditCardStatementId !== undefined && {
+						creditCardStatementId: body.creditCardStatementId,
+					}),
 					...(body.originFinancialAccountId !== undefined && {
 						originFinancialAccountId: body.originFinancialAccountId,
 					}),
@@ -890,6 +862,34 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					.build(),
 			);
 			if (!transaction) throw new HttpException("Transaction not found", 404);
+			const previousStatementId = existing.creditCardStatementId;
+			const nextStatementId = transaction.creditCardStatementId;
+			if (previousStatementId || nextStatementId) {
+				const statementIds = [...new Set([previousStatementId, nextStatementId].filter(Boolean))];
+				const statements = await queryRows(
+					db.sql.public.CreditCardStatement.select("id", "paidAmount", "statementDate", "totalAmount")
+						.where((fields, functions) => functions.inArray(fields.id, statementIds))
+						.build(),
+				);
+				for (const statement of statements) {
+					const paidAmount =
+						(toCents(statement.paidAmount) -
+							(statement.id === previousStatementId ? toCents(existing.amount) : 0) +
+							(statement.id === nextStatementId ? toCents(transaction.amount) : 0)) /
+						100;
+					await executeStatement(
+						db.sql.public.CreditCardStatement.update({
+							isPaid:
+								toDateKey(statement.statementDate) <= toDateKey(new Date()) &&
+								toCents(paidAmount) >= toCents(statement.totalAmount),
+							paidAmount: String(Math.max(0, paidAmount)),
+							updatedAt: new Date(),
+						})
+							.where((fields, functions) => functions.eq(fields.id, statement.id))
+							.build(),
+					);
+				}
+			}
 			await syncTransactionDebtEvent({
 				amount: Number(transaction.amount),
 				date: transaction.date.toISOString().slice(0, 10),
@@ -921,6 +921,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			body: t.Object({
 				amount: t.Optional(t.Number()),
 				categoryId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
+				creditCardStatementId: t.Optional(t.Nullable(t.String({ maxLength: 36, minLength: 1 }))),
 				date: t.Optional(t.String()),
 				debtSplit: t.Optional(t.Nullable(DebtSplitInputDTO)),
 				description: t.Optional(t.String({ maxLength: 1000 })),
@@ -955,7 +956,25 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				throw new HttpException("Transaction not found", 404);
 			}
 			if (existing.creditCardStatementId) {
-				throw new HttpException("Pagamentos de fatura não podem ser excluídos", 409);
+				const statement = await queryFirst(
+					db.sql.public.CreditCardStatement.select("id", "paidAmount", "statementDate", "totalAmount")
+						.where((fields, functions) => functions.eq(fields.id, existing.creditCardStatementId!))
+						.limit(1)
+						.build(),
+				);
+				if (!statement) throw new HttpException("Fatura não encontrada", 404);
+				const paidAmount = Math.max(0, (toCents(statement.paidAmount) - toCents(existing.amount)) / 100);
+				await executeStatement(
+					db.sql.public.CreditCardStatement.update({
+						isPaid:
+							toDateKey(statement.statementDate) <= toDateKey(new Date()) &&
+							toCents(paidAmount) >= toCents(statement.totalAmount),
+						paidAmount: String(paidAmount),
+						updatedAt: new Date(),
+					})
+						.where((fields, functions) => functions.eq(fields.id, statement.id))
+						.build(),
+				);
 			}
 
 			await replaceEntityTags({

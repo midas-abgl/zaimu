@@ -2517,6 +2517,23 @@ export const dataService = {
 					tagIds,
 					time: data.time === undefined ? getCurrentLocalTime() : data.time,
 				};
+				if (data.creditCardStatementId) {
+					const storedStatement = await localCreditCardStatements.getById(data.creditCardStatementId);
+					const statement = storedStatement?.data;
+					if (!statement) throw new Error("Fatura não encontrada");
+					const paidAmount = statement.paidAmount + data.amount;
+					await localCreditCardStatements.put(
+						{
+							...statement,
+							balanceAmount: statement.totalAmount - paidAmount,
+							isPaid:
+								statement.statementDate.slice(0, 10) <= new Date().toISOString().slice(0, 10) &&
+								paidAmount >= statement.totalAmount,
+							paidAmount,
+						},
+						statement.id,
+					);
+				}
 				await localTransactions.put(newTransaction, newTransaction.id);
 				return newTransaction;
 			}
@@ -2530,6 +2547,26 @@ export const dataService = {
 
 		async delete(id: string): Promise<void> {
 			if (isGuestMode()) {
+				const existing = await localTransactions.getById(id);
+				if (existing?.data.creditCardStatementId) {
+					const storedStatement = await localCreditCardStatements.getById(
+						existing.data.creditCardStatementId,
+					);
+					const statement = storedStatement?.data;
+					if (!statement) throw new Error("Fatura não encontrada");
+					const paidAmount = Math.max(0, statement.paidAmount - existing.data.amount);
+					await localCreditCardStatements.put(
+						{
+							...statement,
+							balanceAmount: statement.totalAmount - paidAmount,
+							isPaid:
+								statement.statementDate.slice(0, 10) <= new Date().toISOString().slice(0, 10) &&
+								paidAmount >= statement.totalAmount,
+							paidAmount,
+						},
+						statement.id,
+					);
+				}
 				await localTransactions.delete(id);
 				return;
 			}
@@ -2746,10 +2783,12 @@ export const dataService = {
 					};
 					const updated: Transaction = {
 						...existing.data,
+						...transactionChanges,
 						amount,
-						date: data.date ?? existing.data.date,
 						originFinancialAccountId,
-						time: data.time !== undefined ? data.time : existing.data.time,
+						...(debtSplitInput !== undefined && {
+							debtSplit: await hydrateLocalDebtSplit(amount, debtSplitInput),
+						}),
 					};
 					await Promise.all([
 						localCreditCardStatements.put(updatedStatement, updatedStatement.id),

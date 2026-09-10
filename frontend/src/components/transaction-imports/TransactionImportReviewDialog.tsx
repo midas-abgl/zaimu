@@ -33,6 +33,9 @@ function toTransaction(item: TransactionImportItem, accountNames: Map<string, st
 	return {
 		amount: item.amount,
 		createdAt: item.createdAt,
+		creditCardName: item.creditCardName ?? undefined,
+		creditCardStatementDate: item.creditCardStatementDate ?? undefined,
+		creditCardStatementId: item.creditCardStatementId ?? undefined,
 		date: item.date,
 		debtSplit: item.debtSplit,
 		description: item.description ?? undefined,
@@ -206,7 +209,7 @@ export function TransactionImportReviewDialog({
 	};
 	const resolveDuplicate = async (
 		item: TransactionImportItem,
-		duplicate: NonNullable<TransactionImportItem["duplicate"]>,
+		duplicate: TransactionImportItem["duplicates"][number],
 		sources: DuplicateResolutionSources,
 	) => {
 		await dataService.transactionImports.reconcileItem(importId!, item.id, {

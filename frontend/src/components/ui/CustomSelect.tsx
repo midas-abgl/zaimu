@@ -7,6 +7,7 @@ interface Option {
 }
 
 export function CustomSelect({
+	disabled,
 	label,
 	onValueChange,
 	options,
@@ -15,6 +16,7 @@ export function CustomSelect({
 	sortOptions = true,
 	value,
 }: {
+	disabled?: boolean;
 	label: string;
 	onValueChange: (value: string) => void;
 	options: Option[];
@@ -34,7 +36,7 @@ export function CustomSelect({
 			<p className="font-medium text-sm leading-none">
 				{label} {required && <span className="text-destructive">*</span>}
 			</p>
-			<Select onValueChange={onValueChange} value={value}>
+			<Select disabled={disabled} onValueChange={onValueChange} value={value}>
 				<SelectTrigger aria-label={label} className="h-10 w-full cursor-pointer">
 					<SelectValue placeholder={placeholder} />
 				</SelectTrigger>

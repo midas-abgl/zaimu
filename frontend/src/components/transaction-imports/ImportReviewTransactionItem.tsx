@@ -73,7 +73,7 @@ export function ImportReviewTransactionItem({
 	return (
 		<TransactionListItem
 			actionItems={[
-				...(item.duplicate
+				...(item.duplicates.length
 					? [
 							{
 								disabled,

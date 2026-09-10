@@ -10,7 +10,6 @@ import {
 } from "@/components/transaction-imports";
 import {
 	CreateTransactionDialog,
-	EditStatementPaymentDialog,
 	EditTransactionDialog,
 	TransactionListItem,
 } from "@/components/transactions";
@@ -41,7 +40,6 @@ function TransactionsPage() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [isImportOpen, setIsImportOpen] = useState(false);
 	const [reviewingImportId, setReviewingImportId] = useState<string | null>(null);
-	const [editingStatementPayment, setEditingStatementPayment] = useState<Transaction | null>(null);
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 	const [editingPurchase, setEditingPurchase] = useState<Transaction | null>(null);
 	const [refundingPurchase, setRefundingPurchase] = useState<Transaction | null>(null);
@@ -79,6 +77,8 @@ function TransactionsPage() {
 		onSuccess: async () => {
 			await Promise.all([
 				queryClient.invalidateQueries({ queryKey: ["accounts"] }),
+				queryClient.invalidateQueries({ queryKey: ["credit-card-statement"] }),
+				queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
 				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
 				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
 				queryClient.invalidateQueries({ queryKey: ["debts"] }),
@@ -161,8 +161,6 @@ function TransactionsPage() {
 		},
 	});
 	const renderTransaction = (transaction: Transaction) => {
-		const isStatementPayment =
-			Boolean(transaction.creditCardStatementId) && transaction.source !== "CREDIT_CARD";
 		const transactionTime = formatLocalTime(transaction.time);
 
 		return (
@@ -179,18 +177,14 @@ function TransactionsPage() {
 					) : undefined
 				}
 				onDelete={
-					isStatementPayment
-						? undefined
-						: transaction.source === "CREDIT_CARD"
-							? () => removePurchase.mutate(transaction)
-							: () => remove.mutate(transaction.id)
+					transaction.source === "CREDIT_CARD"
+						? () => removePurchase.mutate(transaction)
+						: () => remove.mutate(transaction.id)
 				}
 				onEdit={
-					isStatementPayment
-						? () => setEditingStatementPayment(transaction)
-						: transaction.source === "CREDIT_CARD"
-							? () => setEditingPurchase(transaction)
-							: () => setEditingTransaction(transaction)
+					transaction.source === "CREDIT_CARD"
+						? () => setEditingPurchase(transaction)
+						: () => setEditingTransaction(transaction)
 				}
 				transaction={transaction}
 			/>
@@ -333,11 +327,6 @@ function TransactionsPage() {
 				onOpenChange={open => !open && setEditingTransaction(null)}
 				open={editingTransaction !== null}
 				transaction={editingTransaction}
-			/>
-			<EditStatementPaymentDialog
-				onOpenChange={open => !open && setEditingStatementPayment(null)}
-				open={editingStatementPayment !== null}
-				transaction={editingStatementPayment}
 			/>
 			{editingPurchase?.creditCardId && editingPurchase.installmentAmount !== undefined ? (
 				<EditCreditPurchaseDialog

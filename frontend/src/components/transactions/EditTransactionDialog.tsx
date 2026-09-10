@@ -14,7 +14,9 @@ import {
 } from "@/components/ui/Dialog";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { DebtSplitInput, Transaction } from "@/lib/api";
+import { getCreditCardDisplayName } from "@/lib/credit-card";
 import { dataService } from "@/lib/dataService";
+import { formatLocalMonthYear } from "@/lib/date";
 import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
 import {
 	compareFinancialAccountsByOptionLabel,
@@ -27,6 +29,7 @@ import { TransactionDetailsFields } from "./TransactionDetailsFields";
 function createDraft(transaction: Transaction) {
 	return {
 		amount: String(transaction.amount),
+		creditCardStatementId: transaction.creditCardStatementId ?? "",
 		date: transaction.date.slice(0, 10),
 		destinationFinancialAccountId: transaction.destinationFinancialAccountId ?? "",
 		isHidden: transaction.isHidden ?? false,
@@ -57,6 +60,24 @@ export function EditTransactionDialog({
 		queryFn: () => dataService.accounts.getAll(),
 		queryKey: ["accounts"],
 	});
+	const payableStatementsQuery = useQuery({
+		enabled: open && draft?.type === "EXPENSE",
+		queryFn: async () => {
+			const cards = await dataService.creditCards.getAll();
+			const statements = await Promise.all(
+				cards.map(async card => ({
+					card,
+					statements: await dataService.creditCards.getStatements(card.id, false),
+				})),
+			);
+			return statements.flatMap(({ card, statements }) =>
+				statements
+					.filter(statement => !statement.isPaid && statement.balanceAmount > 0)
+					.map(statement => ({ card, statement })),
+			);
+		},
+		queryKey: ["credit-card-statements", "payable"],
+	});
 
 	useEffect(() => {
 		if (!open || !transaction) return;
@@ -75,6 +96,7 @@ export function EditTransactionDialog({
 			);
 			return dataService.transactions.update(transaction.id, {
 				amount: Number.parseFloat(draft.amount),
+				creditCardStatementId: draft.creditCardStatementId || null,
 				date: draft.date,
 				debtSplit: isDebt ? debtSplit : null,
 				description: description.trim() || undefined,
@@ -91,6 +113,8 @@ export function EditTransactionDialog({
 		onSuccess: async () => {
 			await Promise.all([
 				queryClient.invalidateQueries({ queryKey: ["accounts"] }),
+				queryClient.invalidateQueries({ queryKey: ["credit-card-statement"] }),
+				queryClient.invalidateQueries({ queryKey: ["credit-card-statements"] }),
 				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
 				queryClient.invalidateQueries({ queryKey: ["debts"] }),
 				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
@@ -137,6 +161,7 @@ export function EditTransactionDialog({
 								current
 									? {
 											...current,
+											creditCardStatementId: type === "EXPENSE" ? current.creditCardStatementId : "",
 											destinationFinancialAccountId:
 												type === "INCOME" ? current.destinationFinancialAccountId : "",
 											originFinancialAccountId: type === "INCOME" ? "" : current.originFinancialAccountId,
@@ -151,6 +176,35 @@ export function EditTransactionDialog({
 						time={draft.time}
 						type={draft.type}
 					/>
+					{draft.type === "EXPENSE" ? (
+						<CustomSelect
+							disabled={payableStatementsQuery.isPending}
+							label="Fatura para pagar"
+							onValueChange={creditCardStatementId => {
+								const selected = payableStatementsQuery.data?.find(
+									item => item.statement.id === creditCardStatementId,
+								);
+								setDraft(current =>
+									current
+										? {
+												...current,
+												amount:
+													current.amount || (selected ? selected.statement.balanceAmount.toFixed(2) : ""),
+												creditCardStatementId,
+											}
+										: current,
+								);
+								setIsDebt(false);
+							}}
+							options={(payableStatementsQuery.data ?? []).map(({ card, statement }) => ({
+								label: `${getCreditCardDisplayName(card)} · ${formatLocalMonthYear(statement.statementDate)} · ${new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(statement.balanceAmount)}`,
+								value: statement.id,
+							}))}
+							placeholder="Nenhuma fatura selecionada"
+							sortOptions={false}
+							value={draft.creditCardStatementId}
+						/>
+					) : null}
 					{draft.type !== "TRANSFER" ? (
 						<div className="grid gap-3 rounded-2xl border p-3">
 							<CheckboxField

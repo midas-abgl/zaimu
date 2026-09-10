@@ -1,11 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { LuLandmark } from "react-icons/lu";
-import {
-	EditStatementPaymentDialog,
-	EditTransactionDialog,
-	TransactionListItem,
-} from "@/components/transactions";
+import { EditTransactionDialog, TransactionListItem } from "@/components/transactions";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScrollArea } from "@/components/ui/ScrollArea";
@@ -54,7 +50,6 @@ export function FinancialAccountStatementDialog({
 		queryKey: ["transactions", "financial-account", account.id],
 	});
 	const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-	const [editingStatementPayment, setEditingStatementPayment] = useState<Transaction | null>(null);
 	const [editingYield, setEditingYield] = useState<FinancialAccountYieldEntry | null>(null);
 	const holidays = useQuery({
 		enabled: open,
@@ -114,12 +109,7 @@ export function FinancialAccountStatementDialog({
 			showToast("Rendimento excluído.", "positive");
 		},
 	});
-	const editTransaction = (transaction: Transaction) => {
-		const isStatementPayment =
-			Boolean(transaction.creditCardStatementId) && transaction.source !== "CREDIT_CARD";
-		if (isStatementPayment) setEditingStatementPayment(transaction);
-		else setEditingTransaction(transaction);
-	};
+	const editTransaction = (transaction: Transaction) => setEditingTransaction(transaction);
 
 	return (
 		<Dialog onOpenChange={onOpenChange} open={open}>
@@ -198,11 +188,6 @@ export function FinancialAccountStatementDialog({
 					onOpenChange={nextOpen => !nextOpen && setEditingTransaction(null)}
 					open={editingTransaction !== null}
 					transaction={editingTransaction}
-				/>
-				<EditStatementPaymentDialog
-					onOpenChange={nextOpen => !nextOpen && setEditingStatementPayment(null)}
-					open={editingStatementPayment !== null}
-					transaction={editingStatementPayment}
 				/>
 				<EditFinancialAccountYieldDialog
 					entry={editingYield}

@@ -57,6 +57,15 @@ function formatDate(value: unknown) {
 	return date ? dateFormatter.format(new Date(`${date}T00:00:00Z`)) : "Não informado";
 }
 
+function formatDuplicateCandidate(candidate: TransactionImportDuplicate) {
+	const source = candidate.source === "TRANSACTION" ? "Existente" : "Importada";
+	const description = candidate.description ?? transactionTypeLabels[candidate.type];
+	const amount = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(
+		Number(candidate.amount),
+	);
+	return `${source}: ${description} · ${amount} · ${formatDate(candidate.date)}`;
+}
+
 export function DuplicateResolutionDialog({
 	accountNames,
 	item,
@@ -74,7 +83,9 @@ export function DuplicateResolutionDialog({
 	) => Promise<void>;
 	open: boolean;
 }) {
-	const duplicate = item?.duplicate ?? null;
+	const [selectedDuplicateId, setSelectedDuplicateId] = useState<string | null>(null);
+	const duplicate =
+		item?.duplicates.find(candidate => candidate.id === selectedDuplicateId) ?? item?.duplicates[0] ?? null;
 	const fields = getFields(duplicate?.type);
 	const [sources, setSources] = useState<DuplicateResolutionSources>(
 		() => Object.fromEntries(fields.map(field => [field.key, "imported"])) as Record<Field, Source>,
@@ -82,7 +93,9 @@ export function DuplicateResolutionDialog({
 	const [isSaving, setIsSaving] = useState(false);
 	useEffect(() => {
 		if (open) {
-			setSources(Object.fromEntries(getFields(item?.duplicate?.type).map(field => [field.key, "imported"])));
+			const firstDuplicate = item?.duplicates[0];
+			setSelectedDuplicateId(firstDuplicate?.id ?? null);
+			setSources(Object.fromEntries(getFields(firstDuplicate?.type).map(field => [field.key, "imported"])));
 		}
 	}, [open, item?.id]);
 	if (!item || !duplicate) return null;
@@ -122,11 +135,36 @@ export function DuplicateResolutionDialog({
 				<DialogHeader>
 					<DialogTitle>Resolver duplicata</DialogTitle>
 					<DialogDescription>
-						Selecione a origem de cada dado. O resultado atualizará a transação deste lote.
+						Escolha a duplicata e selecione a origem de cada dado. O resultado atualizará a transação deste
+						lote.
 					</DialogDescription>
 				</DialogHeader>
 				<ScrollArea className="min-h-0 pr-1">
 					<div className="space-y-4 pr-3">
+						{item.duplicates.length > 1 ? (
+							<div className="space-y-2">
+								<p className="font-medium text-sm">Duplicatas encontradas ({item.duplicates.length})</p>
+								<div className="flex flex-wrap gap-2">
+									{item.duplicates.map((candidate, index) => (
+										<Button
+											aria-pressed={candidate.id === duplicate.id}
+											className="cursor-pointer"
+											key={`${candidate.source}-${candidate.id}`}
+											onClick={() => {
+												setSelectedDuplicateId(candidate.id);
+												setSources(
+													Object.fromEntries(getFields(candidate.type).map(field => [field.key, "imported"])),
+												);
+											}}
+											type="button"
+											variant={candidate.id === duplicate.id ? "default" : "outline"}
+										>
+											Duplicata {index + 1}: {formatDuplicateCandidate(candidate)}
+										</Button>
+									))}
+								</div>
+							</div>
+						) : null}
 						<div className="overflow-hidden rounded-2xl border">
 							<div className="grid grid-cols-[7rem_minmax(0,1fr)_minmax(0,1fr)] border-b text-center font-medium text-xs">
 								<span />

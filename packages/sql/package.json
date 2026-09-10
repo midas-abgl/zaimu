@@ -24,7 +24,7 @@
 		"@hyoretsu/configs": "^1.2.37",
 		"@prisma/cli": "8.0.0-rc.7",
 		"@prisma/cli-engine": "0.2.0",
-		"@types/node": "^25.9.5",
+		"@types/node": "^25.9.6",
 		"@types/pg": "8.20.4",
 		"typescript": "^6.0.3"
 	}

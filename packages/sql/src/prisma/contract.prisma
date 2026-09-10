@@ -272,6 +272,7 @@ namespace public {
     updatedAt       Timestamp(3)     @default(now())
     creditPurchases CreditPurchase[]
     payments        Transaction[]
+    importedPayments TransactionImportItem[]
     creditCard      CreditCard       @relation(fields: [creditCardId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "CreditCardStatement_creditCardId_fkey", index: false)
 
     @@index([creditCardId, statementDate], map: "CreditCardStatement_creditCardId_statementDate_key", unique: true)
@@ -785,6 +786,7 @@ namespace public {
     storeName           VarChar(200)?
     type                pg.enum(TransactionImportItemType)
     categoryId          VarChar(36)?
+    creditCardStatementId         VarChar(36)?
     originFinancialAccountId      VarChar(36)?
     destinationFinancialAccountId VarChar(36)?
     isHidden            Boolean                  @default(false)
@@ -795,12 +797,14 @@ namespace public {
     updatedAt           Timestamp(3)             @default(now())
     transactionImport   TransactionImport         @relation(fields: [transactionImportId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionImportItem_importId_fkey", index: false)
     category            Category?                 @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "TransactionImportItem_categoryId_fkey", index: false)
+    creditCardStatement  CreditCardStatement?      @relation(fields: [creditCardStatementId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "TransactionImportItem_creditCardStatementId_fkey", index: false)
     originFinancialAccount FinancialAccount?      @relation(name: "TransactionImportItem_originId_fkey", fields: [originFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "TransactionImportItem_originId_fkey", index: false)
     destinationFinancialAccount FinancialAccount? @relation(name: "TransactionImportItem_destinationId_fkey", fields: [destinationFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "TransactionImportItem_destinationId_fkey", index: false)
     debtSplit           DebtSplit?
 
     @@index([transactionImportId, date], map: "TransactionImportItem_importId_date_idx")
     @@index([externalId], map: "TransactionImportItem_externalId_idx")
+    @@index([creditCardStatementId], map: "TransactionImportItem_creditCardStatementId_idx")
     @@index([originFinancialAccountId], map: "TransactionImportItem_originId_idx")
     @@index([destinationFinancialAccountId], map: "TransactionImportItem_destinationId_idx")
     @@map("TransactionImportItem")

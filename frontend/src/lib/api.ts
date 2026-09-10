@@ -228,6 +228,7 @@ export interface TransactionImportDuplicate {
 	id: string;
 	amount: number;
 	createdAt: string;
+	creditCardStatementId?: string | null;
 	date: string;
 	description?: string | null;
 	destinationFinancialAccountId?: string | null;
@@ -247,12 +248,15 @@ export interface TransactionImportItem {
 	amount: number;
 	balanceAfter?: number | null;
 	categoryId?: string | null;
+	creditCardStatementId?: string | null;
+	creditCardName?: string | null;
+	creditCardStatementDate?: string | null;
 	createdAt: string;
 	date: string;
 	debtSplit?: DebtSplit | null;
 	description?: string | null;
 	destinationFinancialAccountId?: string | null;
-	duplicate: TransactionImportDuplicate | null;
+	duplicates: TransactionImportDuplicate[];
 	duplicateReason: TransactionImportDuplicateReason | null;
 	isHidden: boolean;
 	isReconciled: boolean;

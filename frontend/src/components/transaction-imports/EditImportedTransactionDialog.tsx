@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { DebtSplitEditor } from "@/components/debts";
 import { TransactionDetailsFields } from "@/components/transactions/TransactionDetailsFields";
@@ -14,6 +15,9 @@ import {
 } from "@/components/ui/Dialog";
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { DebtSplitInput, FinancialAccount, TransactionImportItem } from "@/lib/api";
+import { getCreditCardDisplayName } from "@/lib/credit-card";
+import { dataService } from "@/lib/dataService";
+import { formatLocalMonthYear } from "@/lib/date";
 import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
 import {
 	compareFinancialAccountsByOptionLabel,
@@ -24,6 +28,7 @@ type EditableItem = Omit<
 	Pick<
 		TransactionImportItem,
 		| "amount"
+		| "creditCardStatementId"
 		| "date"
 		| "debtSplit"
 		| "description"
@@ -40,6 +45,7 @@ type EditableItem = Omit<
 
 const toDraft = (item: TransactionImportItem): EditableItem => ({
 	amount: item.amount,
+	creditCardStatementId: item.creditCardStatementId ?? null,
 	date: item.date.slice(0, 10),
 	debtSplit: debtSplitToInput(item.debtSplit),
 	description: item.description ?? "",
@@ -71,6 +77,24 @@ export function EditImportedTransactionDialog({
 	const [isDebt, setIsDebt] = useState(Boolean(item?.debtSplit));
 	const [debtSplit, setDebtSplit] = useState<DebtSplitInput>(() => debtSplitToInput(item?.debtSplit));
 	const [description, setDescription] = useDebouncedInput(item?.description ?? "", () => undefined);
+	const payableStatementsQuery = useQuery({
+		enabled: open && draft?.type === "EXPENSE",
+		queryFn: async () => {
+			const cards = await dataService.creditCards.getAll();
+			const statements = await Promise.all(
+				cards.map(async card => ({
+					card,
+					statements: await dataService.creditCards.getStatements(card.id, false),
+				})),
+			);
+			return statements.flatMap(({ card, statements }) =>
+				statements
+					.filter(statement => !statement.isPaid && statement.balanceAmount > 0)
+					.map(statement => ({ card, statement })),
+			);
+		},
+		queryKey: ["credit-card-statements", "payable"],
+	});
 	useEffect(() => {
 		if (!item || !open) return;
 		setDraft(toDraft(item));
@@ -118,6 +142,7 @@ export function EditImportedTransactionDialog({
 								current
 									? {
 											...current,
+											creditCardStatementId: type === "EXPENSE" ? current.creditCardStatementId : null,
 											destinationFinancialAccountId:
 												type === "INCOME" || type === "YIELD" ? current.destinationFinancialAccountId : null,
 											originFinancialAccountId:
@@ -134,7 +159,35 @@ export function EditImportedTransactionDialog({
 						time={draft.time ?? ""}
 						type={draft.type}
 					/>
-					{draft.type !== "TRANSFER" && draft.type !== "YIELD" ? (
+					{draft.type === "EXPENSE" ? (
+						<CustomSelect
+							disabled={payableStatementsQuery.isPending}
+							label="Fatura para pagar"
+							onValueChange={creditCardStatementId => {
+								const selected = payableStatementsQuery.data?.find(
+									item => item.statement.id === creditCardStatementId,
+								);
+								setDraft(current =>
+									current
+										? {
+												...current,
+												amount: current.amount || selected?.statement.balanceAmount || current.amount,
+												creditCardStatementId,
+											}
+										: current,
+								);
+								setIsDebt(false);
+							}}
+							options={(payableStatementsQuery.data ?? []).map(({ card, statement }) => ({
+								label: `${getCreditCardDisplayName(card)} · ${formatLocalMonthYear(statement.statementDate)} · ${new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(statement.balanceAmount)}`,
+								value: statement.id,
+							}))}
+							placeholder="Nenhuma fatura selecionada"
+							sortOptions={false}
+							value={draft.creditCardStatementId ?? ""}
+						/>
+					) : null}
+					{draft.type !== "TRANSFER" && draft.type !== "YIELD" && !draft.creditCardStatementId ? (
 						<div className="grid gap-3 rounded-2xl border p-3">
 							<CheckboxField
 								checkboxProps={{

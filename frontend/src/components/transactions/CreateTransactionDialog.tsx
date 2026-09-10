@@ -127,20 +127,9 @@ export function CreateTransactionDialog({
 					financialAccountId: draft.destinationFinancialAccountId,
 				});
 			}
-			if (selectedStatement) {
-				return dataService.creditCards.payStatement(
-					selectedStatement.card.id,
-					selectedStatement.statement.id,
-					{
-						amount,
-						date: draft.date,
-						financialAccountId: draft.originFinancialAccountId,
-						time: sendWithoutTime ? null : draft.time || undefined,
-					},
-				);
-			}
 			const transaction = await dataService.transactions.create({
 				amount,
+				creditCardStatementId: draft.creditCardStatementId || undefined,
 				date: draft.date,
 				debtSplit: isDebt ? debtSplit : undefined,
 				description: description.trim() || undefined,
@@ -166,7 +155,7 @@ export function CreateTransactionDialog({
 			]);
 			showToast(
 				selectedStatement
-					? "Pagamento da fatura registrado."
+					? "Transação associada à fatura."
 					: draft.type === "YIELD"
 						? "Rendimento registrado."
 						: "Transação registrada.",
@@ -211,16 +200,17 @@ export function CreateTransactionDialog({
 							}));
 						}}
 						sendWithoutTime={sendWithoutTime}
-						showDescription={!selectedStatement && draft.type !== "YIELD"}
-						showStore={draft.type === "EXPENSE" && !selectedStatement}
-						showTags={draft.type !== "TRANSFER" && draft.type !== "YIELD" && !selectedStatement}
+						showDescription={draft.type !== "YIELD"}
+						showStore={draft.type === "EXPENSE"}
+						showTags={draft.type !== "TRANSFER" && draft.type !== "YIELD"}
 						storeName={draft.storeName}
 						tagIds={draft.tagIds}
 						time={draft.time}
 						type={draft.type}
 					/>
-					{draft.type === "EXPENSE" && payableStatementsQuery.data?.length ? (
+					{draft.type === "EXPENSE" ? (
 						<CustomSelect
+							disabled={payableStatementsQuery.isPending}
 							label="Fatura para pagar"
 							onValueChange={creditCardStatementId => {
 								const selectedPayableStatement = payableStatementsQuery.data?.find(
@@ -234,7 +224,7 @@ export function CreateTransactionDialog({
 								}));
 								setIsDebt(false);
 							}}
-							options={payableStatementsQuery.data.map(({ card, statement }) => ({
+							options={(payableStatementsQuery.data ?? []).map(({ card, statement }) => ({
 								label: `${getCreditCardDisplayName(card)} · ${formatLocalMonthYear(statement.statementDate)} · ${new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(statement.balanceAmount)}`,
 								value: statement.id,
 							}))}
