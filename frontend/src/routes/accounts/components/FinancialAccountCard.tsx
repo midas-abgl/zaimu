@@ -62,12 +62,12 @@ export function FinancialAccountCard({
 	return (
 		<article className="group rounded-2xl border bg-card p-5 shadow-card transition hover:-translate-y-0.5 hover:border-primary/30">
 			<div className="flex items-start justify-between gap-4">
-				<div className="flex min-w-0 items-center gap-3">
+				<div className="flex min-w-0 flex-1 items-start gap-3">
 					<span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
 						<Icon className="size-5" />
 					</span>
 					<div className="min-w-0">
-						<h2 className="truncate font-bold text-base">{listName}</h2>
+						<h2 className="break-words font-bold text-base leading-snug">{listName}</h2>
 						{accountHasCustomTitle && (
 							<Badge className="mt-1" variant="secondary">
 								{typeLabel}
@@ -75,7 +75,7 @@ export function FinancialAccountCard({
 						)}
 					</div>
 				</div>
-				<div className="flex gap-2">
+				<div className="flex shrink-0 gap-2">
 					<CreateFinancialAccountDialog
 						account={account}
 						contextual
