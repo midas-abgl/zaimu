@@ -113,7 +113,7 @@ export function FinancialAccountStatementDialog({
 
 	return (
 		<Dialog onOpenChange={onOpenChange} open={open}>
-			<DialogContent className="max-h-[calc(100dvh-2rem)] gap-4 sm:max-w-xl">
+			<DialogContent className="grid max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)] gap-4 overflow-hidden sm:max-w-xl">
 				<DialogHeader>
 					<DialogTitle>Extrato · {displayName}</DialogTitle>
 					<DialogDescription>Movimentações que compõem saldo desta conta.</DialogDescription>
@@ -131,7 +131,7 @@ export function FinancialAccountStatementDialog({
 						title="Não foi possível carregar extrato"
 					/>
 				) : dates.length ? (
-					<ScrollArea className="h-[min(34rem,calc(100dvh-14rem))] pr-3">
+					<ScrollArea className="min-h-0 pr-3">
 						<div className="space-y-5">
 							{dates.map(date => (
 								<section className="space-y-2" key={date}>
