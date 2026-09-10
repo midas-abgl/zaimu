@@ -33,16 +33,28 @@ export function PendingTransactionImportsNotice({ onReview }: { onReview: (impor
 						</p>
 					</div>
 				</div>
-				<Button className="cursor-pointer" onClick={() => setSelectionOpen(true)} variant="outline">
+				<Button
+					className="cursor-pointer"
+					onClick={() => {
+						if (pendingImports.length === 1) {
+							onReview(pendingImports[0].id);
+							return;
+						}
+						setSelectionOpen(true);
+					}}
+					variant="outline"
+				>
 					<LuFileSearch /> Revisar
 				</Button>
 			</section>
-			<PendingTransactionImportsDialog
-				imports={pendingImports}
-				onOpenChange={setSelectionOpen}
-				onReview={onReview}
-				open={selectionOpen}
-			/>
+			{pendingImports.length > 1 && (
+				<PendingTransactionImportsDialog
+					imports={pendingImports}
+					onOpenChange={setSelectionOpen}
+					onReview={onReview}
+					open={selectionOpen}
+				/>
+			)}
 		</>
 	);
 }
