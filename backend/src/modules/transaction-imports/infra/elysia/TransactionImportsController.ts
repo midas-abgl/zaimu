@@ -676,7 +676,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				time: body.time === undefined ? current.time : body.time,
 				type,
 			};
-			if (body.debtSplit !== undefined && type === "TRANSFER")
+			if (body.debtSplit !== undefined && body.debtSplit !== null && type === "TRANSFER")
 				throw new HttpException("Transferências não podem ser vinculadas a dívidas", 400);
 			await validateItemAccounts(next, userId);
 			if (next.creditCardStatementId)
