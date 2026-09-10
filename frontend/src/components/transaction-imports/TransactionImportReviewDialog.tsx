@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import type { Transaction, TransactionImportItem } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
+import { sortTransactionsByMostRecent } from "@/lib/transaction-sort";
 import { showToast } from "@/stores";
 import { DuplicateResolutionDialog, type DuplicateResolutionSources } from "./DuplicateResolutionDialog";
 import { EditImportedTransactionDialog } from "./EditImportedTransactionDialog";
@@ -245,16 +246,15 @@ export function TransactionImportReviewDialog({
 						<ScrollArea className="min-h-0 pr-3">
 							<div className="space-y-5">
 								{Object.entries(
-									transactionImport.data.items.reduce<Record<string, TransactionImportItem[]>>(
-										(groups, item) => {
-											const date = item.date.slice(0, 10);
-											const itemsForDate = groups[date] ?? [];
-											itemsForDate.push(item);
-											groups[date] = itemsForDate;
-											return groups;
-										},
-										{},
-									),
+									sortTransactionsByMostRecent(transactionImport.data.items).reduce<
+										Record<string, TransactionImportItem[]>
+									>((groups, item) => {
+										const date = item.date.slice(0, 10);
+										const itemsForDate = groups[date] ?? [];
+										itemsForDate.push(item);
+										groups[date] = itemsForDate;
+										return groups;
+									}, {}),
 								).map(([date, items]) => (
 									<ImportReviewDateSection
 										collapsed={collapsedDateKeys.has(date)}

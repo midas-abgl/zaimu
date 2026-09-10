@@ -26,4 +26,21 @@ describe("sortTransactionsByMostRecent", () => {
 
 		expect(transactions.map(transaction => transaction.id)).toEqual(["newer", "older"]);
 	});
+
+	test("uses ID to keep transactions with identical dates stable after an item is removed", () => {
+		const transactions = [
+			{ createdAt: "2026-09-08T12:30:00Z", date: "2026-09-08", id: "a", time: null },
+			{ createdAt: "2026-09-08T12:30:00Z", date: "2026-09-08", id: "c", time: null },
+			{ createdAt: "2026-09-08T12:30:00Z", date: "2026-09-08", id: "b", time: null },
+		];
+
+		expect(sortTransactionsByMostRecent(transactions).map(transaction => transaction.id)).toEqual([
+			"c",
+			"b",
+			"a",
+		]);
+		expect(
+			sortTransactionsByMostRecent([transactions[1], transactions[2]]).map(transaction => transaction.id),
+		).toEqual(["c", "b"]);
+	});
 });
