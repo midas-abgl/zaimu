@@ -342,7 +342,10 @@ export function TransactionImportReviewDialog({
 					<DialogFooter>
 						<Button
 							disabled={discard.isPending}
-							onClick={() => setDiscardConfirmationOpen(false)}
+							onClick={() => {
+								setDiscardConfirmationOpen(false);
+								onOpenChange(false);
+							}}
 							variant="outline"
 						>
 							Fechar modal
