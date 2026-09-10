@@ -214,7 +214,6 @@ export function TransactionImportReviewDialog({
 		});
 		setResolvingItem(null);
 		await invalidate();
-		markItemReviewed(item, false);
 		showToast("Duplicata resolvida.", "positive");
 	};
 
