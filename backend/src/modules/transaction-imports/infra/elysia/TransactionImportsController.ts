@@ -357,6 +357,27 @@ async function validateItemAccounts(
 	}
 }
 
+async function assertCreditCardStatementOwnership(creditCardStatementId: string, userId: string) {
+	const statement = await queryFirst(
+		db.sql.public.CreditCardStatement.innerJoin(db.sql.public.CreditCard, (fields, functions) =>
+			functions.eq(fields.CreditCardStatement.creditCardId, fields.CreditCard.id),
+		)
+			.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
+				functions.eq(fields.CreditCard.financialAccountId, fields.FinancialAccount.id),
+			)
+			.select("id")
+			.where((fields, functions) =>
+				functions.and(
+					functions.eq(fields.CreditCardStatement.id, creditCardStatementId),
+					functions.eq(fields.FinancialAccount.userId, userId),
+				),
+			)
+			.limit(1)
+			.build(),
+	);
+	if (!statement) throw new HttpException("Fatura não encontrada", 404);
+}
+
 interface ImportItemToApprove {
 	amount: number;
 	creditCardStatementId: string | null;
@@ -632,7 +653,12 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			const type = (body.type ?? current.type) as ImportItemType;
 			const next = {
 				amount: body.amount ?? Number(current.amount),
-				creditCardStatementId: type === "EXPENSE" ? current.creditCardStatementId : null,
+				creditCardStatementId:
+					type === "EXPENSE"
+						? body.creditCardStatementId === undefined
+							? current.creditCardStatementId
+							: body.creditCardStatementId
+						: null,
 				date: body.date ?? toDateKey(current.date),
 				description: body.description === undefined ? current.description : normalizeText(body.description),
 				destinationFinancialAccountId:
@@ -653,6 +679,8 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			if (body.debtSplit !== undefined && type === "TRANSFER")
 				throw new HttpException("Transferências não podem ser vinculadas a dívidas", 400);
 			await validateItemAccounts(next, userId);
+			if (next.creditCardStatementId)
+				await assertCreditCardStatementOwnership(next.creditCardStatementId, userId);
 			if (next.storeName && next.type !== "EXPENSE")
 				throw new HttpException("Loja só pode ser informada em saídas", 400);
 			if (next.storeName) await resolveStore(userId, next.storeName);

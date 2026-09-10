@@ -16,13 +16,13 @@ import {
 import { useDebouncedInput } from "@/hooks/use-debounced-input";
 import type { DebtSplitInput, FinancialAccount, TransactionImportItem } from "@/lib/api";
 import { getCreditCardDisplayName } from "@/lib/credit-card";
-import { dataService } from "@/lib/dataService";
 import { formatLocalMonthYear } from "@/lib/date";
 import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
 import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
 } from "@/lib/financial-account";
+import { getPayableCreditCardStatements } from "@/lib/payable-credit-card-statements";
 
 type EditableItem = Omit<
 	Pick<
@@ -79,21 +79,8 @@ export function EditImportedTransactionDialog({
 	const [description, setDescription] = useDebouncedInput(item?.description ?? "", () => undefined);
 	const payableStatementsQuery = useQuery({
 		enabled: open && draft?.type === "EXPENSE",
-		queryFn: async () => {
-			const cards = await dataService.creditCards.getAll();
-			const statements = await Promise.all(
-				cards.map(async card => ({
-					card,
-					statements: await dataService.creditCards.getStatements(card.id, false),
-				})),
-			);
-			return statements.flatMap(({ card, statements }) =>
-				statements
-					.filter(statement => !statement.isPaid && statement.balanceAmount > 0)
-					.map(statement => ({ card, statement })),
-			);
-		},
-		queryKey: ["credit-card-statements", "payable"],
+		queryFn: () => getPayableCreditCardStatements(draft?.creditCardStatementId ?? undefined),
+		queryKey: ["credit-card-statements", "payable", draft?.creditCardStatementId],
 	});
 	useEffect(() => {
 		if (!item || !open) return;

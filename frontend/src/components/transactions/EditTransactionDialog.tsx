@@ -22,6 +22,7 @@ import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
 } from "@/lib/financial-account";
+import { getPayableCreditCardStatements } from "@/lib/payable-credit-card-statements";
 import { getUpdatedStoreName } from "@/lib/store-name";
 import { showToast } from "@/stores";
 import { TransactionDetailsFields } from "./TransactionDetailsFields";
@@ -62,21 +63,8 @@ export function EditTransactionDialog({
 	});
 	const payableStatementsQuery = useQuery({
 		enabled: open && draft?.type === "EXPENSE",
-		queryFn: async () => {
-			const cards = await dataService.creditCards.getAll();
-			const statements = await Promise.all(
-				cards.map(async card => ({
-					card,
-					statements: await dataService.creditCards.getStatements(card.id, false),
-				})),
-			);
-			return statements.flatMap(({ card, statements }) =>
-				statements
-					.filter(statement => !statement.isPaid && statement.balanceAmount > 0)
-					.map(statement => ({ card, statement })),
-			);
-		},
-		queryKey: ["credit-card-statements", "payable"],
+		queryFn: () => getPayableCreditCardStatements(draft?.creditCardStatementId),
+		queryKey: ["credit-card-statements", "payable", draft?.creditCardStatementId],
 	});
 
 	useEffect(() => {

@@ -22,6 +22,7 @@ import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
 } from "@/lib/financial-account";
+import { getPayableCreditCardStatements } from "@/lib/payable-credit-card-statements";
 import { showToast } from "@/stores";
 import { TransactionDetailsFields } from "./TransactionDetailsFields";
 
@@ -63,36 +64,7 @@ export function CreateTransactionDialog({
 	const accountsQuery = useQuery({ queryFn: () => dataService.accounts.getAll(), queryKey: ["accounts"] });
 	const payableStatementsQuery = useQuery({
 		enabled: open && draft.type === "EXPENSE",
-		queryFn: async () => {
-			const cards = await dataService.creditCards.getAll();
-			const statements = await Promise.all(
-				cards.map(async card => ({
-					card,
-					statements: await dataService.creditCards.getStatements(card.id, false),
-				})),
-			);
-			return statements
-				.flatMap(({ card, statements }) =>
-					statements
-						.filter(statement => !statement.isPaid && statement.balanceAmount > 0)
-						.map(statement => ({ card, statement })),
-				)
-				.toSorted((left, right) => {
-					const leftDueDate = new Date(left.statement.dueDate);
-					const rightDueDate = new Date(right.statement.dueDate);
-					const monthOrder =
-						leftDueDate.getFullYear() * 12 +
-						leftDueDate.getMonth() -
-						(rightDueDate.getFullYear() * 12 + rightDueDate.getMonth());
-
-					if (monthOrder !== 0) return monthOrder;
-
-					return getCreditCardDisplayName(left.card).localeCompare(
-						getCreditCardDisplayName(right.card),
-						"pt-BR",
-					);
-				});
-		},
+		queryFn: () => getPayableCreditCardStatements(),
 		queryKey: ["credit-card-statements", "payable"],
 	});
 	const balanceAccounts =
