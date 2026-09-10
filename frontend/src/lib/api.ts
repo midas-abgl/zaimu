@@ -253,6 +253,7 @@ export interface TransactionImportItem {
 	duplicate: TransactionImportDuplicate | null;
 	duplicateReason: TransactionImportDuplicateReason | null;
 	isHidden: boolean;
+	isReconciled: boolean;
 	isSelected: boolean;
 	originFinancialAccountId?: string | null;
 	storeName?: string | null;

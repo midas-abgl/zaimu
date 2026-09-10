@@ -784,6 +784,7 @@ namespace public {
     originFinancialAccountId      VarChar(36)?
     destinationFinancialAccountId VarChar(36)?
     isHidden            Boolean                  @default(false)
+    isReconciled        Boolean                  @default(false)
     isSelected          Boolean                  @default(true)
     balanceAfter        Numeric(12, 2)?
     createdAt           Timestamp(3)             @default(now())

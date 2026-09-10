@@ -90,6 +90,7 @@ async function getPotentialDuplicates(
 		destinationFinancialAccountId: string | null;
 		externalId: string | null;
 		id: string;
+		isReconciled?: boolean;
 		originFinancialAccountId: string | null;
 		type: ImportItemType;
 	}>,
@@ -131,6 +132,7 @@ async function getPotentialDuplicates(
 					externalId: fields.TransactionImportItem.externalId,
 					id: fields.TransactionImportItem.id,
 					isHidden: fields.TransactionImportItem.isHidden,
+					isReconciled: fields.TransactionImportItem.isReconciled,
 					originFinancialAccountId: fields.TransactionImportItem.originFinancialAccountId,
 					storeName: fields.TransactionImportItem.storeName,
 					time: fields.TransactionImportItem.time,
@@ -169,20 +171,23 @@ async function getPotentialDuplicates(
 				type: transaction.type as TransactionType,
 			};
 		}),
-		...pendingItems.map(item => {
-			const tags = importItemTags.get(item.id) ?? [];
-			return {
-				...item,
-				source: "IMPORT_ITEM" as const,
-				sourceImportId: item.transactionImportId,
-				tagIds: tags.map(tag => tag.id),
-				tags,
-				type: item.type as ImportItemType,
-			};
-		}),
+		...pendingItems
+			.filter(item => !item.isReconciled)
+			.map(item => {
+				const tags = importItemTags.get(item.id) ?? [];
+				return {
+					...item,
+					source: "IMPORT_ITEM" as const,
+					sourceImportId: item.transactionImportId,
+					tagIds: tags.map(tag => tag.id),
+					tags,
+					type: item.type as ImportItemType,
+				};
+			}),
 	];
 	return new Map(
 		items.map(item => {
+			if (item.isReconciled) return [item.id, null] as const;
 			const isSameAccount = (candidate: {
 				destinationFinancialAccountId: string | null;
 				originFinancialAccountId: string | null;
@@ -230,6 +235,7 @@ async function getImportReturn(userId: string, importId: string) {
 			"destinationFinancialAccountId",
 			"externalId",
 			"isHidden",
+			"isReconciled",
 			"isSelected",
 			"originFinancialAccountId",
 			"storeName",
@@ -566,6 +572,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					"destinationFinancialAccountId",
 					"externalId",
 					"isHidden",
+					"isReconciled",
 					"originFinancialAccountId",
 					"storeName",
 					"time",
@@ -694,9 +701,12 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				);
 				await replaceEntityTags({ entityIds: [duplicate.id], entityType: importItemTagEntityType, tagIds });
 			}
-			// A conciliação manual funde este item na transação escolhida. Mantê-lo no lote
-			// faria a detecção apontar a mesma duplicata novamente após atualizar a tela.
-			await withTransaction(transaction => removeImportItem(transaction, item.id));
+			// A conciliação manual libera o item para a revisão normal do lote.
+			await executeStatement(
+				db.sql.public.TransactionImportItem.update({ isReconciled: true, updatedAt: new Date() })
+					.where((fields, functions) => functions.eq(fields.id, item.id))
+					.build(),
+			);
 			return getImportReturn(userId, transactionImport.id);
 		},
 		{
