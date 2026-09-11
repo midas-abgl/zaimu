@@ -1122,11 +1122,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					await removeImportItem(transaction, item.id);
 					results.push({ item, transactionId });
 				}
-				await transaction.executeStatement(
-					transaction.db.sql.public.TransactionImport.update({ status: "APPROVED", updatedAt: new Date() })
-						.where((fields, functions) => functions.eq(fields.id, transactionImport.id))
-						.build(),
-				);
+				await finalizeImportWhenEmpty(transaction, transactionImport.id);
 				return results;
 			});
 			for (const { item, transactionId } of importedTransactions) {

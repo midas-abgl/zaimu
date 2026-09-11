@@ -110,15 +110,21 @@ export function TransactionImportReviewDialog({
 	const approve = useMutation({
 		mutationFn: () => dataService.transactionImports.approve(importId!),
 		onError: error => showToast(error.message, "negative"),
-		onSuccess: async () => {
+		onSuccess: async result => {
+			const reviewFinished = result.created === remainingItemCount;
 			await Promise.all([
 				invalidate(),
 				queryClient.invalidateQueries({ queryKey: ["accounts"] }),
 				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
 				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
 			]);
-			onOpenChange(false);
-			showToast("Revisão finalizada.", "positive");
+			if (reviewFinished) onOpenChange(false);
+			showToast(
+				reviewFinished
+					? "Revisão finalizada."
+					: `${result.created} ${result.created === 1 ? "transação aprovada" : "transações aprovadas"}. Revise as pendências restantes.`,
+				"positive",
+			);
 		},
 	});
 	const approveItem = useMutation({
