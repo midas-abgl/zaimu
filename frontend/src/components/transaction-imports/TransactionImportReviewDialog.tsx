@@ -135,13 +135,15 @@ export function TransactionImportReviewDialog({
 			});
 		},
 		onSuccess: async () => {
+			const reviewFinished = remainingItemCount === 1;
+			if (reviewFinished) onOpenChange(false);
 			await Promise.all([
 				invalidate(),
 				queryClient.invalidateQueries({ queryKey: ["accounts"] }),
 				queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
 				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
 			]);
-			showToast("Transação aprovada.", "positive");
+			showToast(reviewFinished ? "Revisão finalizada." : "Transação aprovada.", "positive");
 		},
 	});
 	const approveDay = useMutation({
@@ -158,6 +160,8 @@ export function TransactionImportReviewDialog({
 			});
 		},
 		onSuccess: async result => {
+			const reviewFinished = result.created === remainingItemCount;
+			if (reviewFinished) onOpenChange(false);
 			await Promise.all([
 				invalidate(),
 				queryClient.invalidateQueries({ queryKey: ["accounts"] }),
@@ -165,7 +169,9 @@ export function TransactionImportReviewDialog({
 				queryClient.invalidateQueries({ queryKey: ["transactions"] }),
 			]);
 			showToast(
-				`${result.created} ${result.created === 1 ? "transação aprovada" : "transações aprovadas"}.`,
+				reviewFinished
+					? "Revisão finalizada."
+					: `${result.created} ${result.created === 1 ? "transação aprovada" : "transações aprovadas"}.`,
 				"positive",
 			);
 		},
@@ -212,19 +218,26 @@ export function TransactionImportReviewDialog({
 		duplicate: TransactionImportItem["duplicates"][number],
 		sources: DuplicateResolutionSources,
 	) => {
-		await dataService.transactionImports.reconcileItem(importId!, item.id, {
+		const reconciledImport = await dataService.transactionImports.reconcileItem(importId!, item.id, {
 			duplicateId: duplicate.id,
 			duplicateSource: duplicate.source,
 			sources,
 		});
 		setResolvingItem(null);
+		const reviewFinished = reconciledImport.status === "APPROVED";
+		if (reviewFinished) onOpenChange(false);
 		await Promise.all([
 			invalidate(),
 			queryClient.invalidateQueries({ queryKey: ["accounts"] }),
 			queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
 			queryClient.invalidateQueries({ queryKey: ["transactions"] }),
 		]);
-		showToast("Transação existente atualizada.", "positive");
+		showToast(
+			reviewFinished
+				? "Transação existente atualizada. Revisão finalizada."
+				: "Transação existente atualizada.",
+			"positive",
+		);
 	};
 
 	return (

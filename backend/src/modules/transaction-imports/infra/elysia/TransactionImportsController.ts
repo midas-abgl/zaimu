@@ -513,6 +513,21 @@ async function removeImportItem(transaction: SqlExecutor, itemId: string) {
 	);
 }
 
+async function finalizeImportWhenEmpty(transaction: SqlExecutor, importId: string) {
+	const remainingItem = await transaction.queryFirst(
+		transaction.db.sql.public.TransactionImportItem.select("id")
+			.where((fields, functions) => functions.eq(fields.transactionImportId, importId))
+			.limit(1)
+			.build(),
+	);
+	if (remainingItem) return;
+	await transaction.executeStatement(
+		transaction.db.sql.public.TransactionImport.update({ status: "APPROVED", updatedAt: new Date() })
+			.where((fields, functions) => functions.eq(fields.id, importId))
+			.build(),
+	);
+}
+
 export const TransactionImportsController = new Elysia({ prefix: "/transaction-imports" })
 	.get("/", async ({ request }) => {
 		const userId = await requireUserId(request);
@@ -779,6 +794,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			const importedTransactionId = await withTransaction(async transaction => {
 				const transactionId = await persistImportItem(transaction, importItem, tagIds);
 				await removeImportItem(transaction, item.id);
+				await finalizeImportWhenEmpty(transaction, transactionImport.id);
 				return transactionId;
 			});
 			if (debtSplit && importedTransactionId)
@@ -841,6 +857,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					await removeImportItem(transaction, item.id);
 					results.push({ item, transactionId });
 				}
+				await finalizeImportWhenEmpty(transaction, transactionImport.id);
 				return results;
 			});
 			for (const { item, transactionId } of importedTransactions) {
@@ -983,6 +1000,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 							.build(),
 					);
 				await removeImportItem(transaction, item.id);
+				await finalizeImportWhenEmpty(transaction, transactionImport.id);
 			});
 			await replaceEntityTags({
 				entityIds: [targetEntity.entityId],
