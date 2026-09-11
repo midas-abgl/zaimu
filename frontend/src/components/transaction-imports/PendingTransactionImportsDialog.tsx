@@ -40,8 +40,8 @@ export function PendingTransactionImportsDialog({
 								}}
 								variant="outline"
 							>
-								<LuFileSearch className="mt-0.5 size-5 text-amber-700" />
-								<span className="min-w-0 space-y-1">
+								<LuFileSearch className="mt-0.5 size-5 shrink-0 text-amber-700" />
+								<span className="min-w-0 flex-1 space-y-1 overflow-hidden">
 									<span className="block truncate font-semibold">{transactionImport.fileName}</span>
 									<span className="flex items-center gap-1.5 text-muted-foreground text-xs">
 										<LuClock3 className="size-3.5" />
