@@ -27,6 +27,11 @@ export function ItemActions({
 	return (
 		<>
 			{actions.map(action => {
+				const confirmationContent = compact ? (
+					(action.confirmIcon ?? action.icon)
+				) : (
+					<>{action.confirmIcon ?? action.icon} Confirmar</>
+				);
 				const content = (
 					<>
 						{action.icon}
@@ -38,7 +43,7 @@ export function ItemActions({
 						aria-label={action.ariaLabel ?? action.text}
 						className="cursor-pointer disabled:cursor-not-allowed"
 						confirmation={action.confirmation}
-						confirmChildren={action.confirmIcon ?? action.icon}
+						confirmChildren={confirmationContent}
 						disabled={action.disabled}
 						onConfirm={action.onConfirm}
 						size={compact ? "icon-sm" : "sm"}
