@@ -34,11 +34,11 @@ export function StatementFilePicker({
 				type="file"
 			/>
 			<Label
-				className="h-10 cursor-pointer justify-center gap-2 rounded-4xl border bg-input/30 px-3 text-sm transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 hover:bg-input/50"
+				className="h-10 w-full min-w-0 cursor-pointer gap-2 rounded-4xl border bg-input/30 px-3 text-sm transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 hover:bg-input/50"
 				htmlFor={inputId}
 			>
 				<LuFileUp className="shrink-0" />
-				<span aria-live="polite" className="truncate">
+				<span aria-live="polite" className="min-w-0 flex-1 truncate">
 					{file?.name ?? "Selecionar arquivo"}
 				</span>
 			</Label>
