@@ -41,7 +41,7 @@ export function FinancialAccountYieldHolidaysDialog({
 	return (
 		<Dialog onOpenChange={setOpen} open={open}>
 			<DialogTrigger asChild>
-				<Button className="cursor-pointer" variant="outline">
+				<Button className="h-11 cursor-pointer" variant="outline">
 					<LuCalendarDays /> Feriados
 				</Button>
 			</DialogTrigger>
