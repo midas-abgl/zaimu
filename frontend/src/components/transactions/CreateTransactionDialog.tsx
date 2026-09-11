@@ -165,7 +165,9 @@ export function CreateTransactionDialog({
 								...current,
 								creditCardStatementId: type === "EXPENSE" ? current.creditCardStatementId : "",
 								destinationFinancialAccountId:
-									type === "INCOME" || type === "YIELD" ? current.destinationFinancialAccountId : "",
+									type === "INCOME" || type === "YIELD" || type === "TRANSFER"
+										? current.destinationFinancialAccountId
+										: "",
 								originFinancialAccountId:
 									type === "INCOME" || type === "YIELD" ? "" : current.originFinancialAccountId,
 								type,

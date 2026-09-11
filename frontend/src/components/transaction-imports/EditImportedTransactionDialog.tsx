@@ -131,7 +131,9 @@ export function EditImportedTransactionDialog({
 											...current,
 											creditCardStatementId: type === "EXPENSE" ? current.creditCardStatementId : null,
 											destinationFinancialAccountId:
-												type === "INCOME" || type === "YIELD" ? current.destinationFinancialAccountId : null,
+												type === "INCOME" || type === "YIELD" || type === "TRANSFER"
+													? current.destinationFinancialAccountId
+													: null,
 											originFinancialAccountId:
 												type === "INCOME" || type === "YIELD" ? null : current.originFinancialAccountId,
 											type,
