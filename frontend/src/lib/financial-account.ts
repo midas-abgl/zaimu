@@ -395,6 +395,14 @@ export function compareFinancialAccountsByTitle(
 	return displayNameCollator.compare(getFinancialAccountTitle(left), getFinancialAccountTitle(right));
 }
 
+export function getTransactionSourceAccounts(accounts: FinancialAccount[]) {
+	return accounts.filter(
+		account =>
+			account.type !== "CREDIT_CARD" &&
+			(account.type !== "REWARDS" || account.rewardsAccount?.kind === "CASHBACK"),
+	);
+}
+
 export function getFinancialAccountTypeLabel(type: FinancialAccount["type"]) {
 	return financialAccountTypeLabels[type];
 }

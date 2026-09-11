@@ -21,6 +21,7 @@ import { calculateDebtSplit, debtSplitToInput } from "@/lib/debt-split";
 import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
+	getTransactionSourceAccounts,
 } from "@/lib/financial-account";
 import { getPayableCreditCardStatements } from "@/lib/payable-credit-card-statements";
 
@@ -90,9 +91,14 @@ export function EditImportedTransactionDialog({
 		setDescription(item.description ?? "");
 	}, [item, open, setDescription]);
 	if (!item || !draft) return null;
-	const balanceAccounts = accounts
+	const destinationAccounts = accounts
 		.filter(account => account.type !== "CREDIT_CARD" && account.type !== "REWARDS")
 		.toSorted(compareFinancialAccountsByOptionLabel);
+	const sourceAccounts = getTransactionSourceAccounts(accounts).toSorted(
+		compareFinancialAccountsByOptionLabel,
+	);
+	const primaryAccounts =
+		draft.type === "INCOME" || draft.type === "YIELD" ? destinationAccounts : sourceAccounts;
 	const primaryAccountId =
 		draft.type === "INCOME" || draft.type === "YIELD"
 			? draft.destinationFinancialAccountId
@@ -203,7 +209,7 @@ export function EditImportedTransactionDialog({
 									: current,
 							)
 						}
-						options={balanceAccounts.map(account => ({
+						options={primaryAccounts.map(account => ({
 							label: getFinancialAccountOptionLabel(account),
 							value: account.id,
 						}))}
@@ -217,7 +223,7 @@ export function EditImportedTransactionDialog({
 							onValueChange={destinationFinancialAccountId =>
 								setDraft(current => (current ? { ...current, destinationFinancialAccountId } : current))
 							}
-							options={balanceAccounts
+							options={destinationAccounts
 								.filter(account => account.id !== draft.originFinancialAccountId)
 								.map(account => ({ label: getFinancialAccountOptionLabel(account), value: account.id }))}
 							placeholder="Selecione o destino"

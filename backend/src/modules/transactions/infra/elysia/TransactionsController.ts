@@ -549,7 +549,10 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (originFinancialAccountId) {
 				if (inheritedPaymentAccount)
 					await assertDirectOwnership("FinancialAccount", originFinancialAccountId, userId);
-				else await assertBalanceAccountOwnership(originFinancialAccountId, userId);
+				else
+					await assertBalanceAccountOwnership(originFinancialAccountId, userId, {
+						allowCashback: (body.type ?? "EXPENSE") === "EXPENSE" || body.type === "TRANSFER",
+					});
 			}
 			if (body.destinationFinancialAccountId) {
 				await assertBalanceAccountOwnership(body.destinationFinancialAccountId, userId);
@@ -750,10 +753,6 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 		async ({ params, body, request }) => {
 			const userId = await requireUserId(request);
 			await assertTransactionOwnership(params.id, userId);
-			if (body.originFinancialAccountId)
-				await assertBalanceAccountOwnership(body.originFinancialAccountId, userId);
-			if (body.destinationFinancialAccountId)
-				await assertBalanceAccountOwnership(body.destinationFinancialAccountId, userId);
 			const tagIds =
 				body.tagIds !== undefined || body.categoryId !== undefined
 					? await assertTagOwnership(body.tagIds ?? (body.categoryId ? [body.categoryId] : []), userId)
@@ -768,6 +767,13 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			if (!existing) {
 				throw new HttpException("Transaction not found", 404);
 			}
+			if (body.originFinancialAccountId)
+				await assertBalanceAccountOwnership(body.originFinancialAccountId, userId, {
+					allowCashback:
+						(body.type ?? existing.type) === "EXPENSE" || (body.type ?? existing.type) === "TRANSFER",
+				});
+			if (body.destinationFinancialAccountId)
+				await assertBalanceAccountOwnership(body.destinationFinancialAccountId, userId);
 			if (
 				(existing.creditCardStatementId || body.creditCardStatementId) &&
 				(body.type ?? existing.type) !== "EXPENSE"

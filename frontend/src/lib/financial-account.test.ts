@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { FinancialAccount } from "./api";
 import {
 	calculateFinancialAccountBalances,
 	calculateFinancialAccountYieldEntries,
@@ -10,6 +11,7 @@ import {
 	getFinancialAccountOptionLabel,
 	getFinancialAccountSummaryName,
 	getFinancialAccountTitle,
+	getTransactionSourceAccounts,
 } from "./financial-account";
 
 describe("getEffectiveYieldRate", () => {
@@ -84,6 +86,22 @@ describe("getFinancialAccountOptionLabel", () => {
 		expect(getFinancialAccountOptionLabel({ institution: null, name: null, type: "SAVINGS" })).toBe(
 			"Poupança",
 		);
+	});
+});
+
+describe("getTransactionSourceAccounts", () => {
+	test("includes cashback but excludes point and credit-card accounts", () => {
+		const accounts = [
+			{ id: "cashback", rewardsAccount: { kind: "CASHBACK" }, type: "REWARDS" },
+			{ id: "points", rewardsAccount: { kind: "POINTS" }, type: "REWARDS" },
+			{ id: "card", type: "CREDIT_CARD" },
+			{ id: "checking", type: "CHECKING" },
+		] as FinancialAccount[];
+
+		expect(getTransactionSourceAccounts(accounts).map(account => account.id)).toEqual([
+			"cashback",
+			"checking",
+		]);
 	});
 });
 

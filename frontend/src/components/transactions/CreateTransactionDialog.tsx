@@ -21,6 +21,7 @@ import { calculateDebtSplit } from "@/lib/debt-split";
 import {
 	compareFinancialAccountsByOptionLabel,
 	getFinancialAccountOptionLabel,
+	getTransactionSourceAccounts,
 } from "@/lib/financial-account";
 import { getPayableCreditCardStatements } from "@/lib/payable-credit-card-statements";
 import { showToast } from "@/stores";
@@ -67,10 +68,15 @@ export function CreateTransactionDialog({
 		queryFn: () => getPayableCreditCardStatements(),
 		queryKey: ["credit-card-statements", "payable"],
 	});
-	const balanceAccounts =
+	const destinationAccounts =
 		accountsQuery.data
 			?.filter(account => account.type !== "CREDIT_CARD" && account.type !== "REWARDS")
 			.toSorted(compareFinancialAccountsByOptionLabel) ?? [];
+	const sourceAccounts = getTransactionSourceAccounts(accountsQuery.data ?? []).toSorted(
+		compareFinancialAccountsByOptionLabel,
+	);
+	const primaryAccounts =
+		draft.type === "INCOME" || draft.type === "YIELD" ? destinationAccounts : sourceAccounts;
 	const selectedStatement = payableStatementsQuery.data?.find(
 		item => item.statement.id === draft.creditCardStatementId,
 	);
@@ -225,7 +231,7 @@ export function CreateTransactionDialog({
 							) : null}
 						</div>
 					) : null}
-					{balanceAccounts.length > 0 && (
+					{primaryAccounts.length > 0 && (
 						<CustomSelect
 							label={
 								draft.type === "INCOME" || draft.type === "YIELD"
@@ -246,7 +252,7 @@ export function CreateTransactionDialog({
 											},
 								)
 							}
-							options={balanceAccounts.map(account => ({
+							options={primaryAccounts.map(account => ({
 								label: getFinancialAccountOptionLabel(account),
 								value: account.id,
 							}))}
@@ -255,13 +261,13 @@ export function CreateTransactionDialog({
 							value={primaryAccountId}
 						/>
 					)}
-					{draft.type === "TRANSFER" && balanceAccounts.length > 0 && (
+					{draft.type === "TRANSFER" && destinationAccounts.length > 0 && (
 						<CustomSelect
 							label="Conta de destino"
 							onValueChange={destinationFinancialAccountId =>
 								setDraft(current => ({ ...current, destinationFinancialAccountId }))
 							}
-							options={balanceAccounts
+							options={destinationAccounts
 								.filter(account => account.id !== draft.originFinancialAccountId)
 								.map(account => ({ label: getFinancialAccountOptionLabel(account), value: account.id }))}
 							placeholder="Selecione o destino"

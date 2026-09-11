@@ -383,7 +383,7 @@ async function validateItemAccounts(
 		return;
 	}
 	if (!item.originFinancialAccountId) throw new HttpException("Selecione a conta de origem", 400);
-	await assertBalanceAccountOwnership(item.originFinancialAccountId, userId);
+	await assertBalanceAccountOwnership(item.originFinancialAccountId, userId, { allowCashback: true });
 	if (item.type === "TRANSFER") {
 		if (!item.destinationFinancialAccountId) throw new HttpException("Selecione a conta de destino", 400);
 		if (item.destinationFinancialAccountId === item.originFinancialAccountId)
