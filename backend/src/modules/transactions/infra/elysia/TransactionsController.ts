@@ -43,7 +43,6 @@ const transactionColumns = [
 	"subscriptionOccurrenceDate",
 	"originFinancialAccountId",
 	"destinationFinancialAccountId",
-	"externalId",
 	"createdAt",
 	"updatedAt",
 ] as const;
@@ -164,7 +163,6 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					destinationName: fn.raw`COALESCE(${f.destination.name}, ${f.destinationInstitution.name})`.returns(
 						"sql/varchar@1",
 					),
-					externalId: f.Transaction.externalId,
 					id: f.Transaction.id,
 					isHidden: f.Transaction.isHidden,
 					originAccountType: f.origin.type,
@@ -214,10 +212,28 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			}
 
 			const transactions = taggedTransactionIds?.length === 0 ? [] : await queryRows(queryBuilder.build());
-			const tagsByTransaction = await getTagsByEntity(
-				tagEntityType.transaction,
-				transactions.map(transaction => transaction.id),
-			);
+			const [tagsByTransaction, externalReferences] = await Promise.all([
+				getTagsByEntity(
+					tagEntityType.transaction,
+					transactions.map(transaction => transaction.id),
+				),
+				queryRows(
+					db.sql.public.TransactionExternalReference.select("transactionId", "externalId")
+						.where((fields, functions) =>
+							functions.in(
+								fields.transactionId,
+								transactions.map(transaction => transaction.id),
+							),
+						)
+						.build(),
+				),
+			]);
+			const externalIdsByTransaction = new Map<string, string[]>();
+			for (const reference of externalReferences) {
+				const externalIds = externalIdsByTransaction.get(reference.transactionId) ?? [];
+				externalIds.push(reference.externalId);
+				externalIdsByTransaction.set(reference.transactionId, externalIds);
+			}
 			const normalizedTransactions = await Promise.all(
 				transactions.map(async transaction => {
 					const tags = tagsByTransaction.get(transaction.id) ?? [];
@@ -231,6 +247,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 							{ transactionId: transaction.id },
 							Number(transaction.amount),
 						),
+						externalIds: externalIdsByTransaction.get(transaction.id) ?? [],
 						source:
 							transaction.type !== "TRANSFER" &&
 							paymentAccountType === "CREDIT_CARD" &&
@@ -467,7 +484,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 		"/",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
-			let statement: { id: string; paidAmount: string; statementDate: Date; totalAmount: string } | undefined;
+			let statement: { id: string; paidAmount: number; statementDate: Date; totalAmount: number } | undefined;
 			if (body.creditCardStatementId) {
 				if ((body.type ?? "EXPENSE") !== "EXPENSE") {
 					throw new HttpException("Apenas saídas podem pagar uma fatura", 400);
@@ -868,7 +885,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 				const statementIds = [...new Set([previousStatementId, nextStatementId].filter(Boolean))];
 				const statements = await queryRows(
 					db.sql.public.CreditCardStatement.select("id", "paidAmount", "statementDate", "totalAmount")
-						.where((fields, functions) => functions.inArray(fields.id, statementIds))
+						.where((fields, functions) => functions.in(fields.id, statementIds))
 						.build(),
 				);
 				for (const statement of statements) {

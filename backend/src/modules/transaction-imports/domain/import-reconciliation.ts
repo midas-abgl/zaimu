@@ -10,8 +10,14 @@ export function matchesTransferCounterpart(
 	financialAccountId: string,
 ) {
 	return (
-		candidate.type === "TRANSFER" &&
-		((item.type === "INCOME" && candidate.destinationFinancialAccountId === financialAccountId) ||
-			(item.type === "EXPENSE" && candidate.originFinancialAccountId === financialAccountId))
+		(candidate.type === "TRANSFER" &&
+			((item.type === "INCOME" && candidate.destinationFinancialAccountId === financialAccountId) ||
+				(item.type === "EXPENSE" && candidate.originFinancialAccountId === financialAccountId))) ||
+		(item.type === "INCOME" &&
+			candidate.type === "EXPENSE" &&
+			candidate.originFinancialAccountId !== financialAccountId) ||
+		(item.type === "EXPENSE" &&
+			candidate.type === "INCOME" &&
+			candidate.destinationFinancialAccountId !== financialAccountId)
 	);
 }

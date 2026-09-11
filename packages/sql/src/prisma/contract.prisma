@@ -152,6 +152,7 @@ namespace public {
     transactions            Transaction[]                 @relation(name: "Transaction_destinationId_fkey")
     transactionsTransaction Transaction[]                 @relation(name: "Transaction_originId_fkey")
     transactionImports     TransactionImport[]
+    transactionExternalReferences TransactionExternalReference[]
     importedTransactionItemsAsOrigin TransactionImportItem[] @relation(name: "TransactionImportItem_originId_fkey")
     importedTransactionItemsAsDestination TransactionImportItem[] @relation(name: "TransactionImportItem_destinationId_fkey")
 
@@ -720,7 +721,6 @@ namespace public {
     date                          Date
     time                          Time(3)?
     description                   VarChar(1000)?
-    externalId                    VarChar(200)?
     storeName                     VarChar(200)?
     isHidden                      Boolean                  @default(false)
     type                          pg.enum(TransactionType) @default("EXPENSE")
@@ -746,13 +746,28 @@ namespace public {
     recurrence                    RecurringPayment?        @relation(fields: [recurrenceId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_recurrenceId_fkey", index: false)
     salary                        Salary?                  @relation(fields: [salaryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_salaryId_fkey", index: false)
     subscription                  Subscription?            @relation(fields: [subscriptionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_subscriptionId_fkey", index: false)
+    externalReferences            TransactionExternalReference[]
 
     @@index([recurrenceId, recurrenceOccurrenceDate], map: "Transaction_recurrenceId_occurrenceDate_key", unique: true)
     @@index([salaryId, salaryOccurrenceDate], map: "Transaction_salaryId_occurrenceDate_key", unique: true)
     @@index([subscriptionId, subscriptionOccurrenceDate], map: "Transaction_subscriptionId_occurrenceDate_key", unique: true)
     @@index([creditCardStatementId], map: "Transaction_creditCardStatementId_idx")
-    @@index([externalId], map: "Transaction_externalId_idx")
     @@map("Transaction")
+  }
+
+  model TransactionExternalReference {
+    id                 VarChar(36)  @id(map: "TransactionExternalReference_pkey") @default(dbgenerated("cuid2()"))
+    transactionId      VarChar(36)
+    financialAccountId VarChar(36)
+    externalId         VarChar(200)
+    createdAt          Timestamp(3) @default(now())
+    updatedAt          Timestamp(3) @default(now())
+    transaction        Transaction  @relation(fields: [transactionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionExternalReference_transactionId_fkey", index: false)
+    financialAccount   FinancialAccount @relation(fields: [financialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionExternalReference_financialAccountId_fkey", index: false)
+
+    @@index([financialAccountId, externalId], map: "TransactionExternalReference_accountId_externalId_key", unique: true)
+    @@index([transactionId], map: "TransactionExternalReference_transactionId_idx")
+    @@map("TransactionExternalReference")
   }
 
   model TransactionImport {

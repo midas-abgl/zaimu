@@ -57,7 +57,8 @@ interface DuplicateCandidate {
 	date: Date;
 	description: string | null;
 	destinationFinancialAccountId: string | null;
-	externalId: string | null;
+	externalIds: string[];
+	externalId?: string | null;
 	id: string;
 	isHidden: boolean;
 	originFinancialAccountId: string | null;
@@ -100,6 +101,7 @@ async function getImport(userId: string, importId: string) {
 }
 
 async function getPotentialDuplicates(
+	userId: string,
 	financialAccountId: string,
 	items: Array<{
 		amount: number;
@@ -112,6 +114,13 @@ async function getPotentialDuplicates(
 		type: ImportItemType;
 	}>,
 ) {
+	const userFinancialAccountIds = (
+		await queryRows(
+			db.sql.public.FinancialAccount.select("id")
+				.where((fields, functions) => functions.eq(fields.userId, userId))
+				.build(),
+		)
+	).map(account => account.id);
 	const [transactions, pendingItems] = await Promise.all([
 		queryRows(
 			db.sql.public.Transaction.select(
@@ -121,7 +130,6 @@ async function getPotentialDuplicates(
 				"creditCardStatementId",
 				"date",
 				"description",
-				"externalId",
 				"isHidden",
 				"storeName",
 				"time",
@@ -131,8 +139,8 @@ async function getPotentialDuplicates(
 			)
 				.where((fields, functions) =>
 					functions.or(
-						functions.eq(fields.originFinancialAccountId, financialAccountId),
-						functions.eq(fields.destinationFinancialAccountId, financialAccountId),
+						functions.in(fields.originFinancialAccountId, userFinancialAccountIds),
+						functions.in(fields.destinationFinancialAccountId, userFinancialAccountIds),
 					),
 				)
 				.build(),
@@ -168,7 +176,7 @@ async function getPotentialDuplicates(
 		),
 	]);
 
-	const [transactionTags, importItemTags] = await Promise.all([
+	const [transactionTags, importItemTags, externalReferences] = await Promise.all([
 		getTagsByEntity(
 			"TRANSACTION",
 			transactions.map(transaction => transaction.id),
@@ -177,12 +185,29 @@ async function getPotentialDuplicates(
 			importItemTagEntityType,
 			pendingItems.map(item => item.id),
 		),
+		queryRows(
+			db.sql.public.TransactionExternalReference.select("transactionId", "externalId")
+				.where((fields, functions) =>
+					functions.in(
+						fields.transactionId,
+						transactions.map(transaction => transaction.id),
+					),
+				)
+				.build(),
+		),
 	]);
+	const externalIdsByTransaction = new Map<string, string[]>();
+	for (const reference of externalReferences) {
+		const externalIds = externalIdsByTransaction.get(reference.transactionId) ?? [];
+		externalIds.push(reference.externalId);
+		externalIdsByTransaction.set(reference.transactionId, externalIds);
+	}
 	const candidates: DuplicateCandidate[] = [
 		...transactions.map(transaction => {
 			const tags = transactionTags.get(transaction.id) ?? [];
 			return {
 				...transaction,
+				externalIds: externalIdsByTransaction.get(transaction.id) ?? [],
 				source: "TRANSACTION" as const,
 				sourceImportId: null,
 				tagIds: tags.map(tag => tag.id),
@@ -196,6 +221,7 @@ async function getPotentialDuplicates(
 				const tags = importItemTags.get(item.id) ?? [];
 				return {
 					...item,
+					externalIds: item.externalId ? [item.externalId] : [],
 					source: "IMPORT_ITEM" as const,
 					sourceImportId: item.transactionImportId,
 					tagIds: tags.map(tag => tag.id),
@@ -229,14 +255,14 @@ async function getPotentialDuplicates(
 						candidate =>
 							candidate.id !== item.id &&
 							isSameAccount(candidate) &&
-							candidate.externalId === item.externalId,
+							candidate.externalIds.includes(item.externalId!),
 					)
 				: [];
 			const dateAmountDuplicates = candidatesWithDebtSplits.filter(
 				candidate =>
 					candidate.id !== item.id &&
-					isSameAccount(candidate) &&
-					(candidate.type === item.type || matchesTransferCounterpart(item, candidate, financialAccountId)) &&
+					((isSameAccount(candidate) && candidate.type === item.type) ||
+						matchesTransferCounterpart(item, candidate, financialAccountId)) &&
 					Number(candidate.amount) === Number(item.amount) &&
 					toDateKey(candidate.date) === toDateKey(item.date),
 			);
@@ -288,6 +314,7 @@ async function getImportReturn(userId: string, importId: string) {
 			items.map(item => item.id),
 		),
 		getPotentialDuplicates(
+			userId,
 			transactionImport.financialAccountId,
 			items.map(item => ({ ...item, type: item.type as ImportItemType })),
 		),
@@ -340,7 +367,9 @@ async function getImportReturn(userId: string, importId: string) {
 					creditCardStatementDate: creditCardStatement?.statementDate ?? null,
 					debtSplit: await getDebtSplitReturn({ transactionImportItemId: item.id }, Number(item.amount)),
 					duplicateReason: duplicates.get(item.id)?.reason ?? null,
-					duplicates: duplicateCandidates.map(({ externalId: __, ...duplicate }) => duplicate),
+					duplicates: duplicateCandidates.map(
+						({ externalIds: _, externalId: __, ...duplicate }) => duplicate,
+					),
 					tagIds: tags.map(tag => tag.id),
 					tags,
 				};
@@ -420,7 +449,12 @@ async function prepareImportItem(item: ImportItemToApprove, userId: string) {
 	);
 }
 
-async function persistImportItem(transaction: SqlExecutor, item: ImportItemToApprove, tagIds: string[]) {
+async function persistImportItem(
+	transaction: SqlExecutor,
+	item: ImportItemToApprove,
+	tagIds: string[],
+	financialAccountId: string,
+) {
 	if (item.type === "YIELD") {
 		const existingYield = await transaction.queryFirst(
 			transaction.db.sql.public.FinancialAccountYield.select("id")
@@ -469,7 +503,6 @@ async function persistImportItem(transaction: SqlExecutor, item: ImportItemToApp
 				date: item.date,
 				description: item.description,
 				destinationFinancialAccountId: item.destinationFinancialAccountId,
-				externalId: item.externalId,
 				isHidden: item.isHidden,
 				originFinancialAccountId: item.originFinancialAccountId,
 				storeName: item.storeName,
@@ -481,6 +514,16 @@ async function persistImportItem(transaction: SqlExecutor, item: ImportItemToApp
 			.build(),
 	);
 	if (!importedTransaction) throw new HttpException("Não foi possível salvar uma transação importada", 500);
+	if (item.externalId)
+		await transaction.executeStatement(
+			transaction.db.sql.public.TransactionExternalReference.insert([
+				{
+					externalId: item.externalId,
+					financialAccountId,
+					transactionId: importedTransaction.id,
+				},
+			]).build(),
+		);
 	if (tagIds.length) {
 		await transaction.executeStatement(
 			transaction.db.sql.public.TagAssignment.insert(
@@ -562,17 +605,14 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			});
 			const [existingTransactions, existingYields, existingManualYields] = await Promise.all([
 				queryRows(
-					db.sql.public.Transaction.select("externalId")
+					db.sql.public.TransactionExternalReference.select("externalId")
 						.where((fields, functions) =>
 							functions.and(
 								functions.in(
 									fields.externalId,
 									statementTransactions.map(transaction => transaction.externalId),
 								),
-								functions.or(
-									functions.eq(fields.originFinancialAccountId, body.financialAccountId),
-									functions.eq(fields.destinationFinancialAccountId, body.financialAccountId),
-								),
+								functions.eq(fields.financialAccountId, body.financialAccountId),
 							),
 						)
 						.build(),
@@ -786,13 +826,20 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			);
 			if (!item) throw new HttpException("Item da importação não encontrado", 404);
 			const importItem = { ...item, type: item.type as ImportItemType };
-			const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, [importItem]);
+			const duplicates = await getPotentialDuplicates(userId, transactionImport.financialAccountId, [
+				importItem,
+			]);
 			if (duplicates.get(item.id))
 				throw new HttpException("Resolva a possível duplicata antes de aprovar", 400);
 			const tagIds = await prepareImportItem(importItem, userId);
 			const debtSplit = await getDebtSplitInput({ transactionImportItemId: importItem.id });
 			const importedTransactionId = await withTransaction(async transaction => {
-				const transactionId = await persistImportItem(transaction, importItem, tagIds);
+				const transactionId = await persistImportItem(
+					transaction,
+					importItem,
+					tagIds,
+					transactionImport.financialAccountId,
+				);
 				await removeImportItem(transaction, item.id);
 				await finalizeImportWhenEmpty(transaction, transactionImport.id);
 				return transactionId;
@@ -840,7 +887,11 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			const itemsForDay = items
 				.filter(item => toDateKey(item.date) === params.date)
 				.map(item => ({ ...item, type: item.type as ImportItemType }));
-			const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, itemsForDay);
+			const duplicates = await getPotentialDuplicates(
+				userId,
+				transactionImport.financialAccountId,
+				itemsForDay,
+			);
 			const approvableItems = itemsForDay.filter(item => !duplicates.get(item.id));
 			if (!approvableItems.length)
 				throw new HttpException("Não há transações sem pendências para aprovar neste dia", 400);
@@ -853,7 +904,12 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			const importedTransactions = await withTransaction(async transaction => {
 				const results: Array<{ item: ImportItemToApprove; transactionId: string | null }> = [];
 				for (const item of approvableItems) {
-					const transactionId = await persistImportItem(transaction, item, tagIdsByItem.get(item.id) ?? []);
+					const transactionId = await persistImportItem(
+						transaction,
+						item,
+						tagIdsByItem.get(item.id) ?? [],
+						transactionImport.financialAccountId,
+					);
 					await removeImportItem(transaction, item.id);
 					results.push({ item, transactionId });
 				}
@@ -914,7 +970,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					.build(),
 			);
 			if (!item) throw new HttpException("Item da importação não encontrado", 404);
-			const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, [
+			const duplicates = await getPotentialDuplicates(userId, transactionImport.financialAccountId, [
 				{ ...item, type: item.type as ImportItemType },
 			]);
 			const duplicate = duplicates
@@ -984,7 +1040,9 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					amount: String(values.amount),
 					categoryId: tagIds[0] ?? null,
 					date: new Date(values.date),
-					externalId: item.externalId ?? duplicate.externalId,
+					...(duplicate.source === "IMPORT_ITEM" && {
+						externalId: item.externalId ?? duplicate.externalId,
+					}),
 					updatedAt: new Date(),
 				};
 				if (duplicate.source === "TRANSACTION")
@@ -998,6 +1056,16 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 						transaction.db.sql.public.TransactionImportItem.update(updateValues)
 							.where((fields, functions) => functions.eq(fields.id, duplicate.id))
 							.build(),
+					);
+				if (duplicate.source === "TRANSACTION" && item.externalId)
+					await transaction.executeStatement(
+						transaction.db.sql.public.TransactionExternalReference.insert([
+							{
+								externalId: item.externalId,
+								financialAccountId: transactionImport.financialAccountId,
+								transactionId: duplicate.id,
+							},
+						]).build(),
 					);
 				await removeImportItem(transaction, item.id);
 				await finalizeImportWhenEmpty(transaction, transactionImport.id);
@@ -1049,7 +1117,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 						.build(),
 				)
 			).map(item => ({ ...item, type: item.type as ImportItemType }));
-			const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, items);
+			const duplicates = await getPotentialDuplicates(userId, transactionImport.financialAccountId, items);
 			const approvableItems = items.filter(item => !duplicates.get(item.id));
 			const tagIdsByItem = new Map<string, string[]>();
 			const debtSplitsByItem = new Map<string, Awaited<ReturnType<typeof getDebtSplitInput>>>();
@@ -1060,7 +1128,12 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			const importedTransactions = await withTransaction(async transaction => {
 				const results: Array<{ item: ImportItemToApprove; transactionId: string | null }> = [];
 				for (const item of approvableItems) {
-					const transactionId = await persistImportItem(transaction, item, tagIdsByItem.get(item.id) ?? []);
+					const transactionId = await persistImportItem(
+						transaction,
+						item,
+						tagIdsByItem.get(item.id) ?? [],
+						transactionImport.financialAccountId,
+					);
 					await removeImportItem(transaction, item.id);
 					results.push({ item, transactionId });
 				}
