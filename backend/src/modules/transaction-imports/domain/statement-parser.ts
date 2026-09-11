@@ -1,6 +1,6 @@
 import { PDFParse } from "pdf-parse";
 import { HttpException } from "~/shared/errors";
-import { parseGenericStatementText } from "./generic";
+import { parseBancoDoBrasilStatementText } from "./banco-do-brasil";
 import { parseMercadoPagoStatementText } from "./mercado-pago";
 import { parseNubankStatementText } from "./nubank";
 import type { Statement, StatementProvider } from "./statement";
@@ -8,7 +8,7 @@ import type { Statement, StatementProvider } from "./statement";
 const knownParsers: Array<{
 	detect: (text: string) => boolean;
 	parse: (text: string) => Statement;
-	provider: Exclude<StatementProvider, "GENERIC">;
+	provider: StatementProvider;
 }> = [
 	{
 		detect: text => /EXTRATO DE CONTA/iu.test(text) && /ID da operação/iu.test(text),
@@ -20,6 +20,11 @@ const knownParsers: Array<{
 		parse: parseNubankStatementText,
 		provider: "NUBANK",
 	},
+	{
+		detect: text => /Extrato de Conta Corrente/iu.test(text) && /Lançamentos/iu.test(text),
+		parse: parseBancoDoBrasilStatementText,
+		provider: "BANCO_DO_BRASIL",
+	},
 ];
 
 export async function parseStatementPdf(
@@ -30,12 +35,8 @@ export async function parseStatementPdf(
 	try {
 		const { text } = await parser.getText();
 		if (!text.trim()) throw new HttpException("Não foi possível extrair texto do PDF", 400);
-		if (requestedProvider !== "GENERIC") {
-			const provider = knownParsers.find(candidate => candidate.provider === requestedProvider)!;
-			return provider.parse(text);
-		}
-		const known = knownParsers.find(candidate => candidate.detect(text));
-		return known ? known.parse(text) : parseGenericStatementText(text);
+		const provider = knownParsers.find(candidate => candidate.provider === requestedProvider)!;
+		return provider.parse(text);
 	} catch (error) {
 		if (error instanceof HttpException) throw error;
 		throw new HttpException("Não foi possível ler o PDF do extrato", 400);

@@ -22,7 +22,7 @@ import { StatementFilePicker } from "./StatementFilePicker";
 const providerOptions = [
 	{ label: "Mercado Pago", value: "MERCADO_PAGO" },
 	{ label: "Nubank", value: "NUBANK" },
-	{ label: "Genérico", value: "GENERIC" },
+	{ label: "Banco do Brasil", value: "BANCO_DO_BRASIL" },
 ] as const;
 type TransactionImportProvider = (typeof providerOptions)[number]["value"];
 
@@ -89,9 +89,7 @@ export function ImportTransactionsDialog({
 			<DialogContent className="sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Importar transações</DialogTitle>
-					<DialogDescription>
-						Selecione manualmente a conta. Genérico detecta Nubank e Mercado Pago automaticamente.
-					</DialogDescription>
+					<DialogDescription>Selecione manualmente a conta e a instituição do extrato.</DialogDescription>
 				</DialogHeader>
 				<div className="grid gap-4">
 					<CustomSelect

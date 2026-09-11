@@ -920,6 +920,7 @@ namespace public {
     MERCADO_PAGO = "MERCADO_PAGO"
     NUBANK = "NUBANK"
     GENERIC = "GENERIC"
+    BANCO_DO_BRASIL = "BANCO_DO_BRASIL"
   }
 
   native_enum TransactionImportItemType {
