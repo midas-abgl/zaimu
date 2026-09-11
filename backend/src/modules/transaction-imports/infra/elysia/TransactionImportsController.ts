@@ -400,7 +400,7 @@ async function assertCreditCardStatementOwnership(creditCardStatementId: string,
 			.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
 				functions.eq(fields.CreditCard.financialAccountId, fields.FinancialAccount.id),
 			)
-			.select("id")
+			.select(fields => ({ id: fields.CreditCardStatement.id }))
 			.where((fields, functions) =>
 				functions.and(
 					functions.eq(fields.CreditCardStatement.id, creditCardStatementId),
