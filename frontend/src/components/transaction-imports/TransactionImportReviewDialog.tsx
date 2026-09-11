@@ -277,7 +277,7 @@ export function TransactionImportReviewDialog({
 											updateItem.isPending ||
 											approve.isPending ||
 											discard.isPending ||
-											approvingItemIds.size > 0 ||
+											items.some(item => approvingItemIds.has(item.id)) ||
 											approvingDateKeys.size > 0 ||
 											!items.some(item => !item.duplicateReason)
 										}
