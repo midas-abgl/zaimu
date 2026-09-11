@@ -237,7 +237,7 @@ export function TransactionImportReviewDialog({
 	return (
 		<>
 			<Dialog onOpenChange={onOpenChange} open={open}>
-				<DialogContent className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-2xl">
+				<DialogContent className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden sm:max-w-2xl">
 					<DialogHeader>
 						<DialogTitle>Revisar importação</DialogTitle>
 						<DialogDescription>

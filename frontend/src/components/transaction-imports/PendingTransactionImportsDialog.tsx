@@ -23,16 +23,16 @@ export function PendingTransactionImportsDialog({
 	const sortedImports = imports.toSorted((left, right) => right.createdAt.localeCompare(left.createdAt));
 	return (
 		<Dialog onOpenChange={onOpenChange} open={open}>
-			<DialogContent className="grid-rows-[auto_minmax(0,1fr)] sm:max-w-lg">
+			<DialogContent className="grid max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Selecionar lote para revisão</DialogTitle>
 					<DialogDescription>Escolha um lote. Os mais recentes aparecem primeiro.</DialogDescription>
 				</DialogHeader>
-				<ScrollArea className="max-h-[min(24rem,calc(100dvh-15rem))] min-h-0 pr-3">
-					<div className="space-y-2">
+				<ScrollArea className="min-h-0 min-w-0 pr-3">
+					<div className="min-w-0 space-y-2">
 						{sortedImports.map(transactionImport => (
 							<Button
-								className="h-auto w-full cursor-pointer justify-start gap-3 whitespace-normal px-4 py-3 text-left"
+								className="h-auto w-full min-w-0 max-w-full cursor-pointer justify-start gap-3 overflow-hidden whitespace-normal px-4 py-3 text-left"
 								key={transactionImport.id}
 								onClick={() => {
 									onOpenChange(false);
@@ -41,13 +41,15 @@ export function PendingTransactionImportsDialog({
 								variant="outline"
 							>
 								<LuFileSearch className="mt-0.5 size-5 shrink-0 text-amber-700" />
-								<span className="min-w-0 flex-1 space-y-1 overflow-hidden">
+								<span className="w-0 min-w-0 flex-1 space-y-1 overflow-hidden">
 									<span className="block truncate font-semibold">{transactionImport.fileName}</span>
-									<span className="flex items-center gap-1.5 text-muted-foreground text-xs">
+									<span className="flex min-w-0 items-center gap-1.5 text-muted-foreground text-xs">
 										<LuClock3 className="size-3.5" />
-										{importedAtFormatter.format(new Date(transactionImport.createdAt))} ·{" "}
-										{transactionImport.items.length}{" "}
-										{transactionImport.items.length === 1 ? "transação restante" : "transações restantes"}
+										<span className="min-w-0 truncate">
+											{importedAtFormatter.format(new Date(transactionImport.createdAt))} ·{" "}
+											{transactionImport.items.length}{" "}
+											{transactionImport.items.length === 1 ? "transação restante" : "transações restantes"}
+										</span>
 									</span>
 								</span>
 							</Button>
