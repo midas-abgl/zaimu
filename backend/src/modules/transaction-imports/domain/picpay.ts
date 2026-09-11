@@ -21,6 +21,7 @@ const periodPattern = /(\d{1,2}) de ([a-zç]+) de (\d{4})\s+a\s+(\d{1,2}) de ([a
 
 const parseCurrency = (value: string) => Number(value.replaceAll(".", "").replace(",", "."));
 const cleanDescription = (value: string) => value.replaceAll("\t", " ").replace(/\s+/gu, " ").trim();
+const isCardPurchase = (paymentMethod: string | undefined) => /\bcom cartão\b/iu.test(paymentMethod ?? "");
 
 function toDate(day: string, month: string, year: string) {
 	const monthNumber = monthNumbers[month.toLocaleLowerCase("pt-BR")];
@@ -45,6 +46,7 @@ export function parsePicPayStatementText(text: string): Statement {
 		}
 		const movement = line.match(movementPattern);
 		if (!movement || !currentDate) continue;
+		if (isCardPurchase(movement[5])) continue;
 		const amount = parseCurrency(movement[4]);
 		if (!Number.isFinite(amount)) continue;
 		transactions.push({

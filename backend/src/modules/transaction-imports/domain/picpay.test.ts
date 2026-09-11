@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { parsePicPayStatementText } from "./picpay";
 
 describe("parsePicPayStatementText", () => {
-	test("lê datas, horários, valores e detalhes do extrato", () => {
+	test("lê datas, horários, valores e detalhes do extrato e ignora compras no cartão", () => {
 		const statement = parsePicPayStatementText(`
 Período Saldo final do período
 Extrato de conta
@@ -27,13 +27,6 @@ Documento emitido em: PicPay Serviços S/A
 			periodStart: "2026-03-15",
 			provider: "PICPAY",
 			transactions: [
-				{
-					amount: 11.99,
-					date: "2026-09-07",
-					description: "Pagamento realizado Assinatura PicPay Mais Com cartão",
-					time: "06:38",
-					type: "EXPENSE",
-				},
 				{
 					amount: 140.05,
 					date: "2026-07-23",
