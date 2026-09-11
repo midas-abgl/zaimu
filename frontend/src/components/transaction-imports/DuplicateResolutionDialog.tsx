@@ -147,7 +147,7 @@ export function DuplicateResolutionDialog({
 						lote.
 					</DialogDescription>
 				</DialogHeader>
-				<ScrollArea className="min-h-0 pr-1">
+				<ScrollArea className="min-h-0 pr-1" horizontalScrollbar>
 					<div className="space-y-4 pr-3">
 						{item.duplicates.length > 1 ? (
 							<div className="space-y-2">
@@ -173,8 +173,8 @@ export function DuplicateResolutionDialog({
 								</div>
 							</div>
 						) : null}
-						<div className="overflow-hidden rounded-2xl border">
-							<div className="grid grid-cols-[7rem_minmax(0,1fr)_minmax(0,1fr)] border-b text-center font-medium text-xs">
+						<div className="min-w-[38rem] overflow-hidden rounded-2xl border">
+							<div className="grid grid-cols-[7rem_minmax(15rem,1fr)_minmax(15rem,1fr)] border-b text-center font-medium text-xs">
 								<span />
 								<Button
 									aria-pressed={isSourceSelected("imported")}
@@ -197,7 +197,7 @@ export function DuplicateResolutionDialog({
 							</div>
 							{fields.map(field => (
 								<div
-									className="grid grid-cols-[7rem_minmax(0,1fr)_minmax(0,1fr)] border-b last:border-0"
+									className="grid grid-cols-[7rem_minmax(15rem,1fr)_minmax(15rem,1fr)] border-b last:border-0"
 									key={field.key}
 								>
 									<span className="flex items-center px-3 font-medium text-xs">{field.label}</span>
