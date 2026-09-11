@@ -20,9 +20,9 @@ import { showToast } from "@/stores";
 import { StatementFilePicker } from "./StatementFilePicker";
 
 const providerOptions = [
+	{ label: "Banco do Brasil", value: "BANCO_DO_BRASIL" },
 	{ label: "Mercado Pago", value: "MERCADO_PAGO" },
 	{ label: "Nubank", value: "NUBANK" },
-	{ label: "Banco do Brasil", value: "BANCO_DO_BRASIL" },
 ] as const;
 type TransactionImportProvider = (typeof providerOptions)[number]["value"];
 
