@@ -936,6 +936,7 @@ namespace public {
     NUBANK = "NUBANK"
     GENERIC = "GENERIC"
     BANCO_DO_BRASIL = "BANCO_DO_BRASIL"
+    INTER = "INTER"
   }
 
   native_enum TransactionImportItemType {

@@ -1,6 +1,7 @@
 import { PDFParse } from "pdf-parse";
 import { HttpException } from "~/shared/errors";
 import { parseBancoDoBrasilStatementText } from "./banco-do-brasil";
+import { parseInterStatementText } from "./inter";
 import { parseMercadoPagoStatementText } from "./mercado-pago";
 import { parseNubankStatementText } from "./nubank";
 import type { Statement, StatementProvider } from "./statement";
@@ -24,6 +25,11 @@ const knownParsers: Array<{
 		detect: text => /Extrato de Conta Corrente/iu.test(text) && /Lançamentos/iu.test(text),
 		parse: parseBancoDoBrasilStatementText,
 		provider: "BANCO_DO_BRASIL",
+	},
+	{
+		detect: text => /Instituição:\s*Banco Inter/iu.test(text) && /Saldo do dia:/iu.test(text),
+		parse: parseInterStatementText,
+		provider: "INTER",
 	},
 ];
 

@@ -1,4 +1,4 @@
-export type StatementProvider = "MERCADO_PAGO" | "NUBANK" | "BANCO_DO_BRASIL";
+export type StatementProvider = "MERCADO_PAGO" | "NUBANK" | "BANCO_DO_BRASIL" | "INTER";
 export type StatementTransactionType = "EXPENSE" | "INCOME" | "YIELD";
 
 export interface StatementTransaction {

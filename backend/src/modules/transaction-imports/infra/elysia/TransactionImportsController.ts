@@ -687,7 +687,12 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			body: t.Object({
 				file: t.File(),
 				financialAccountId: t.String({ maxLength: 36, minLength: 1 }),
-				provider: t.Union([t.Literal("MERCADO_PAGO"), t.Literal("NUBANK"), t.Literal("BANCO_DO_BRASIL")]),
+				provider: t.Union([
+					t.Literal("MERCADO_PAGO"),
+					t.Literal("NUBANK"),
+					t.Literal("BANCO_DO_BRASIL"),
+					t.Literal("INTER"),
+				]),
 			}),
 		},
 	)

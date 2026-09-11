@@ -21,6 +21,7 @@ import { StatementFilePicker } from "./StatementFilePicker";
 
 const providerOptions = [
 	{ label: "Banco do Brasil", value: "BANCO_DO_BRASIL" },
+	{ label: "Banco Inter", value: "INTER" },
 	{ label: "Mercado Pago", value: "MERCADO_PAGO" },
 	{ label: "Nubank", value: "NUBANK" },
 ] as const;
