@@ -747,6 +747,7 @@ namespace public {
     salary                        Salary?                  @relation(fields: [salaryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_salaryId_fkey", index: false)
     subscription                  Subscription?            @relation(fields: [subscriptionId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Transaction_subscriptionId_fkey", index: false)
     externalReferences            TransactionExternalReference[]
+    reconciledImportItems         TransactionImportItem[] @relation(name: "TransactionImportItem_reconciledTransactionId_fkey")
 
     @@index([recurrenceId, recurrenceOccurrenceDate], map: "Transaction_recurrenceId_occurrenceDate_key", unique: true)
     @@index([salaryId, salaryOccurrenceDate], map: "Transaction_salaryId_occurrenceDate_key", unique: true)
@@ -806,6 +807,8 @@ namespace public {
     destinationFinancialAccountId VarChar(36)?
     isHidden            Boolean                  @default(false)
     isReconciled        Boolean                  @default(false)
+    reconciledTransactionId VarChar(36)?
+    reconciledImportItemId VarChar(36)?
     isSelected          Boolean                  @default(true)
     balanceAfter        Numeric(12, 2)?
     createdAt           Timestamp(3)             @default(now())
@@ -815,6 +818,9 @@ namespace public {
     creditCardStatement  CreditCardStatement?      @relation(fields: [creditCardStatementId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "TransactionImportItem_creditCardStatementId_fkey", index: false)
     originFinancialAccount FinancialAccount?      @relation(name: "TransactionImportItem_originId_fkey", fields: [originFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "TransactionImportItem_originId_fkey", index: false)
     destinationFinancialAccount FinancialAccount? @relation(name: "TransactionImportItem_destinationId_fkey", fields: [destinationFinancialAccountId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "TransactionImportItem_destinationId_fkey", index: false)
+    reconciledTransaction Transaction? @relation(name: "TransactionImportItem_reconciledTransactionId_fkey", fields: [reconciledTransactionId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "TransactionImportItem_reconciledTransactionId_fkey", index: false)
+    reconciledImportItem TransactionImportItem? @relation(name: "TransactionImportItem_reconciledImportItemId_fkey", fields: [reconciledImportItemId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "TransactionImportItem_reconciledImportItemId_fkey", index: false)
+    reconciledByImportItems TransactionImportItem[] @relation(name: "TransactionImportItem_reconciledImportItemId_fkey")
     debtSplit           DebtSplit?
 
     @@index([transactionImportId, date], map: "TransactionImportItem_importId_date_idx")
@@ -822,6 +828,8 @@ namespace public {
     @@index([creditCardStatementId], map: "TransactionImportItem_creditCardStatementId_idx")
     @@index([originFinancialAccountId], map: "TransactionImportItem_originId_idx")
     @@index([destinationFinancialAccountId], map: "TransactionImportItem_destinationId_idx")
+    @@index([reconciledTransactionId], map: "TransactionImportItem_reconciledTransactionId_idx")
+    @@index([reconciledImportItemId], map: "TransactionImportItem_reconciledImportItemId_idx")
     @@map("TransactionImportItem")
   }
 

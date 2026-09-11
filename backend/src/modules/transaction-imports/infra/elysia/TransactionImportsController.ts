@@ -422,10 +422,19 @@ interface ImportItemToApprove {
 	externalId: string | null;
 	id: string;
 	isHidden: boolean;
+	isReconciled: boolean;
 	originFinancialAccountId: string | null;
+	reconciledImportItemId: string | null;
+	reconciledTransactionId: string | null;
 	storeName: string | null;
 	time: string | null;
 	type: ImportItemType;
+}
+
+interface ReconciledImportTarget {
+	debtTarget: { transactionId: string } | { transactionImportItemId: string };
+	entityId: string;
+	entityType: typeof tagEntityType.transaction | typeof importItemTagEntityType;
 }
 
 async function prepareImportItem(item: ImportItemToApprove, userId: string) {
@@ -527,6 +536,81 @@ async function persistImportItem(
 		);
 	}
 	return importedTransaction.id;
+}
+
+async function persistReconciledImportItem(
+	transaction: SqlExecutor,
+	item: ImportItemToApprove,
+	tagIds: string[],
+	financialAccountId: string,
+): Promise<ReconciledImportTarget> {
+	const values = {
+		amount: String(item.amount),
+		categoryId: tagIds[0] ?? null,
+		creditCardStatementId: item.creditCardStatementId,
+		date: item.date,
+		description: item.description,
+		destinationFinancialAccountId: item.destinationFinancialAccountId,
+		isHidden: item.isHidden,
+		originFinancialAccountId: item.originFinancialAccountId,
+		storeName: item.storeName,
+		time: item.time,
+		type: item.type as TransactionType,
+		updatedAt: new Date(),
+	};
+	if (item.reconciledTransactionId) {
+		await transaction.executeStatement(
+			transaction.db.sql.public.Transaction.update(values)
+				.where((fields, functions) => functions.eq(fields.id, item.reconciledTransactionId!))
+				.build(),
+		);
+		if (item.externalId)
+			await transaction.executeStatement(
+				transaction.db.sql.public.TransactionExternalReference.insert([
+					{
+						externalId: item.externalId,
+						financialAccountId,
+						transactionId: item.reconciledTransactionId,
+					},
+				]).build(),
+			);
+		return {
+			debtTarget: { transactionId: item.reconciledTransactionId },
+			entityId: item.reconciledTransactionId,
+			entityType: tagEntityType.transaction,
+		};
+	}
+	if (!item.reconciledImportItemId) throw new HttpException("Registro conciliado sem destino", 400);
+	await transaction.executeStatement(
+		transaction.db.sql.public.TransactionImportItem.update({
+			...values,
+			...(item.externalId && { externalId: item.externalId }),
+		})
+			.where((fields, functions) => functions.eq(fields.id, item.reconciledImportItemId!))
+			.build(),
+	);
+	return {
+		debtTarget: { transactionImportItemId: item.reconciledImportItemId },
+		entityId: item.reconciledImportItemId,
+		entityType: importItemTagEntityType,
+	};
+}
+
+async function assertImportItemIsNotReconciliationTarget(itemId: string) {
+	if ((await getReconciliationTargetIds([itemId])).size)
+		throw new HttpException("Aprove primeiro o item conciliado que atualiza esta transação", 400);
+}
+
+async function getReconciliationTargetIds(itemIds: string[]) {
+	if (!itemIds.length) return new Set<string>();
+	const reconciliations = await queryRows(
+		db.sql.public.TransactionImportItem.select("reconciledImportItemId")
+			.where((fields, functions) => functions.in(fields.reconciledImportItemId, itemIds))
+			.build(),
+	);
+	return new Set(
+		reconciliations.flatMap(item => (item.reconciledImportItemId ? [item.reconciledImportItemId] : [])),
+	);
 }
 
 async function removeImportItem(transaction: SqlExecutor, itemId: string) {
@@ -809,6 +893,8 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					"isHidden",
 					"isReconciled",
 					"originFinancialAccountId",
+					"reconciledImportItemId",
+					"reconciledTransactionId",
 					"storeName",
 					"time",
 					"type",
@@ -823,30 +909,48 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					.build(),
 			);
 			if (!item) throw new HttpException("Item da importação não encontrado", 404);
+			await assertImportItemIsNotReconciliationTarget(item.id);
 			const importItem = { ...item, type: item.type as ImportItemType };
 			const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, [importItem]);
 			if (duplicates.get(item.id))
 				throw new HttpException("Resolva a possível duplicata antes de aprovar", 400);
 			const tagIds = await prepareImportItem(importItem, userId);
 			const debtSplit = await getDebtSplitInput({ transactionImportItemId: importItem.id });
-			const importedTransactionId = await withTransaction(async transaction => {
-				const transactionId = await persistImportItem(
-					transaction,
-					importItem,
-					tagIds,
-					transactionImport.financialAccountId,
-				);
+			const result = await withTransaction(async transaction => {
+				const reconciledTarget = importItem.isReconciled
+					? await persistReconciledImportItem(
+							transaction,
+							importItem,
+							tagIds,
+							transactionImport.financialAccountId,
+						)
+					: null;
+				const transactionId = reconciledTarget
+					? null
+					: await persistImportItem(transaction, importItem, tagIds, transactionImport.financialAccountId);
 				await removeImportItem(transaction, item.id);
 				await finalizeImportWhenEmpty(transaction, transactionImport.id);
-				return transactionId;
+				return { reconciledTarget, transactionId };
 			});
-			if (debtSplit && importedTransactionId)
+			if (result.reconciledTarget) {
+				await replaceEntityTags({
+					entityIds: [result.reconciledTarget.entityId],
+					entityType: result.reconciledTarget.entityType,
+					tagIds,
+				});
+				await replaceDebtSplit({
+					amount: importItem.amount,
+					split: debtSplit ?? null,
+					target: result.reconciledTarget.debtTarget,
+					userId,
+				});
+			} else if (debtSplit && result.transactionId)
 				await linkTransactionToDebt({
 					amount: importItem.amount,
 					date: toDateKey(importItem.date),
 					debtSplit,
 					description: importItem.description ?? undefined,
-					transactionId: importedTransactionId,
+					transactionId: result.transactionId,
 					type: importItem.type as TransactionType,
 					userId,
 				});
@@ -873,6 +977,8 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					"isHidden",
 					"isReconciled",
 					"originFinancialAccountId",
+					"reconciledImportItemId",
+					"reconciledTransactionId",
 					"storeName",
 					"time",
 					"type",
@@ -884,7 +990,10 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				.filter(item => toDateKey(item.date) === params.date)
 				.map(item => ({ ...item, type: item.type as ImportItemType }));
 			const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, itemsForDay);
-			const approvableItems = itemsForDay.filter(item => !duplicates.get(item.id));
+			const reconciliationTargetIds = await getReconciliationTargetIds(itemsForDay.map(item => item.id));
+			const approvableItems = itemsForDay.filter(
+				item => !duplicates.get(item.id) && !reconciliationTargetIds.has(item.id),
+			);
 			if (!approvableItems.length)
 				throw new HttpException("Não há transações sem pendências para aprovar neste dia", 400);
 			const tagIdsByItem = new Map<string, string[]>();
@@ -894,23 +1003,49 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				debtSplitsByItem.set(item.id, await getDebtSplitInput({ transactionImportItemId: item.id }));
 			}
 			const importedTransactions = await withTransaction(async transaction => {
-				const results: Array<{ item: ImportItemToApprove; transactionId: string | null }> = [];
+				const results: Array<{
+					item: ImportItemToApprove;
+					reconciledTarget: ReconciledImportTarget | null;
+					transactionId: string | null;
+				}> = [];
 				for (const item of approvableItems) {
-					const transactionId = await persistImportItem(
-						transaction,
-						item,
-						tagIdsByItem.get(item.id) ?? [],
-						transactionImport.financialAccountId,
-					);
+					const reconciledTarget = item.isReconciled
+						? await persistReconciledImportItem(
+								transaction,
+								item,
+								tagIdsByItem.get(item.id) ?? [],
+								transactionImport.financialAccountId,
+							)
+						: null;
+					const transactionId = reconciledTarget
+						? null
+						: await persistImportItem(
+								transaction,
+								item,
+								tagIdsByItem.get(item.id) ?? [],
+								transactionImport.financialAccountId,
+							);
 					await removeImportItem(transaction, item.id);
-					results.push({ item, transactionId });
+					results.push({ item, reconciledTarget, transactionId });
 				}
 				await finalizeImportWhenEmpty(transaction, transactionImport.id);
 				return results;
 			});
-			for (const { item, transactionId } of importedTransactions) {
+			for (const { item, reconciledTarget, transactionId } of importedTransactions) {
 				const debtSplit = debtSplitsByItem.get(item.id);
-				if (debtSplit && transactionId)
+				if (reconciledTarget) {
+					await replaceEntityTags({
+						entityIds: [reconciledTarget.entityId],
+						entityType: reconciledTarget.entityType,
+						tagIds: tagIdsByItem.get(item.id) ?? [],
+					});
+					await replaceDebtSplit({
+						amount: item.amount,
+						split: debtSplit ?? null,
+						target: reconciledTarget.debtTarget,
+						userId,
+					});
+				} else if (debtSplit && transactionId)
 					await linkTransactionToDebt({
 						amount: item.amount,
 						date: toDateKey(item.date),
@@ -986,7 +1121,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					item.destinationFinancialAccountId,
 					duplicate.destinationFinancialAccountId,
 				),
-				isHidden: duplicate.isHidden,
+				isHidden: item.isHidden,
 				originFinancialAccountId: source(
 					"originFinancialAccountId",
 					item.originFinancialAccountId,
@@ -1010,70 +1145,45 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			);
 			if (values.creditCardStatementId)
 				await assertCreditCardStatementOwnership(values.creditCardStatementId, userId);
-			const importedDebtSplit =
-				body.sources.debtSplit === "imported"
-					? await getDebtSplitInput({ transactionImportItemId: item.id })
-					: undefined;
-			const targetEntity =
+			const duplicateDebtTarget =
 				duplicate.source === "TRANSACTION"
 					? {
-							debtTarget: { transactionId: duplicate.id },
-							entityId: duplicate.id,
-							entityType: tagEntityType.transaction,
+							transactionId: duplicate.id,
 						}
 					: {
-							debtTarget: { transactionImportItemId: duplicate.id },
-							entityId: duplicate.id,
-							entityType: importItemTagEntityType,
+							transactionImportItemId: duplicate.id,
 						};
+			const debtSplit =
+				body.sources.debtSplit === "duplicate"
+					? await getDebtSplitInput(duplicateDebtTarget)
+					: await getDebtSplitInput({ transactionImportItemId: item.id });
 			await withTransaction(async transaction => {
-				const updateValues = {
-					...values,
-					amount: String(values.amount),
-					categoryId: tagIds[0] ?? null,
-					date: new Date(values.date),
-					...(duplicate.source === "IMPORT_ITEM" && {
-						externalId: item.externalId ?? duplicate.externalId,
-					}),
-					updatedAt: new Date(),
-				};
-				if (duplicate.source === "TRANSACTION")
-					await transaction.executeStatement(
-						transaction.db.sql.public.Transaction.update(updateValues as never)
-							.where((fields, functions) => functions.eq(fields.id, duplicate.id))
-							.build(),
-					);
-				else
-					await transaction.executeStatement(
-						transaction.db.sql.public.TransactionImportItem.update(updateValues)
-							.where((fields, functions) => functions.eq(fields.id, duplicate.id))
-							.build(),
-					);
-				if (duplicate.source === "TRANSACTION" && item.externalId)
-					await transaction.executeStatement(
-						transaction.db.sql.public.TransactionExternalReference.insert([
-							{
-								externalId: item.externalId,
-								financialAccountId: transactionImport.financialAccountId,
-								transactionId: duplicate.id,
-							},
-						]).build(),
-					);
-				await removeImportItem(transaction, item.id);
-				await finalizeImportWhenEmpty(transaction, transactionImport.id);
+				await transaction.executeStatement(
+					transaction.db.sql.public.TransactionImportItem.update({
+						...values,
+						amount: String(values.amount),
+						categoryId: tagIds[0] ?? null,
+						date: new Date(values.date),
+						isReconciled: true,
+						reconciledImportItemId: duplicate.source === "IMPORT_ITEM" ? duplicate.id : null,
+						reconciledTransactionId: duplicate.source === "TRANSACTION" ? duplicate.id : null,
+						updatedAt: new Date(),
+					})
+						.where((fields, functions) => functions.eq(fields.id, item.id))
+						.build(),
+				);
 			});
 			await replaceEntityTags({
-				entityIds: [targetEntity.entityId],
-				entityType: targetEntity.entityType,
+				entityIds: [item.id],
+				entityType: importItemTagEntityType,
 				tagIds,
 			});
-			if (body.sources.debtSplit === "imported")
-				await replaceDebtSplit({
-					amount: Number(values.amount),
-					split: importedDebtSplit ?? null,
-					target: targetEntity.debtTarget,
-					userId,
-				});
+			await replaceDebtSplit({
+				amount: Number(values.amount),
+				split: debtSplit ?? null,
+				target: { transactionImportItemId: item.id },
+				userId,
+			});
 			return getImportReturn(userId, transactionImport.id);
 		},
 		{
@@ -1101,6 +1211,8 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 						"isHidden",
 						"isReconciled",
 						"originFinancialAccountId",
+						"reconciledImportItemId",
+						"reconciledTransactionId",
 						"storeName",
 						"time",
 						"type",
@@ -1110,7 +1222,10 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				)
 			).map(item => ({ ...item, type: item.type as ImportItemType }));
 			const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, items);
-			const approvableItems = items.filter(item => !duplicates.get(item.id));
+			const reconciliationTargetIds = await getReconciliationTargetIds(items.map(item => item.id));
+			const approvableItems = items.filter(
+				item => !duplicates.get(item.id) && !reconciliationTargetIds.has(item.id),
+			);
 			const tagIdsByItem = new Map<string, string[]>();
 			const debtSplitsByItem = new Map<string, Awaited<ReturnType<typeof getDebtSplitInput>>>();
 			for (const item of approvableItems) {
@@ -1118,23 +1233,49 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				debtSplitsByItem.set(item.id, await getDebtSplitInput({ transactionImportItemId: item.id }));
 			}
 			const importedTransactions = await withTransaction(async transaction => {
-				const results: Array<{ item: ImportItemToApprove; transactionId: string | null }> = [];
+				const results: Array<{
+					item: ImportItemToApprove;
+					reconciledTarget: ReconciledImportTarget | null;
+					transactionId: string | null;
+				}> = [];
 				for (const item of approvableItems) {
-					const transactionId = await persistImportItem(
-						transaction,
-						item,
-						tagIdsByItem.get(item.id) ?? [],
-						transactionImport.financialAccountId,
-					);
+					const reconciledTarget = item.isReconciled
+						? await persistReconciledImportItem(
+								transaction,
+								item,
+								tagIdsByItem.get(item.id) ?? [],
+								transactionImport.financialAccountId,
+							)
+						: null;
+					const transactionId = reconciledTarget
+						? null
+						: await persistImportItem(
+								transaction,
+								item,
+								tagIdsByItem.get(item.id) ?? [],
+								transactionImport.financialAccountId,
+							);
 					await removeImportItem(transaction, item.id);
-					results.push({ item, transactionId });
+					results.push({ item, reconciledTarget, transactionId });
 				}
 				await finalizeImportWhenEmpty(transaction, transactionImport.id);
 				return results;
 			});
-			for (const { item, transactionId } of importedTransactions) {
+			for (const { item, reconciledTarget, transactionId } of importedTransactions) {
 				const debtSplit = debtSplitsByItem.get(item.id);
-				if (debtSplit && transactionId)
+				if (reconciledTarget) {
+					await replaceEntityTags({
+						entityIds: [reconciledTarget.entityId],
+						entityType: reconciledTarget.entityType,
+						tagIds: tagIdsByItem.get(item.id) ?? [],
+					});
+					await replaceDebtSplit({
+						amount: item.amount,
+						split: debtSplit ?? null,
+						target: reconciledTarget.debtTarget,
+						userId,
+					});
+				} else if (debtSplit && transactionId)
 					await linkTransactionToDebt({
 						amount: item.amount,
 						date: toDateKey(item.date),

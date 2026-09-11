@@ -230,20 +230,8 @@ export function TransactionImportReviewDialog({
 			sources,
 		});
 		setResolvingItem(null);
-		const reviewFinished = reconciledImport.status === "APPROVED";
-		if (reviewFinished) onOpenChange(false);
-		await Promise.all([
-			invalidate(),
-			queryClient.invalidateQueries({ queryKey: ["accounts"] }),
-			queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
-			queryClient.invalidateQueries({ queryKey: ["transactions"] }),
-		]);
-		showToast(
-			reviewFinished
-				? "Transação existente atualizada. Revisão finalizada."
-				: "Transação existente atualizada.",
-			"positive",
-		);
+		await Promise.all([invalidate()]);
+		showToast("Transação importada conciliada. Aprove-a para atualizar o registro existente.", "positive");
 	};
 
 	return (

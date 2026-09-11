@@ -114,6 +114,11 @@ export function ImportReviewTransactionItem({
 							<LuCircleAlert /> Possível duplicata
 						</span>
 					) : null}
+					{item.isReconciled ? (
+						<span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-emerald-700 text-xs">
+							<LuCheck /> Conciliada
+						</span>
+					) : null}
 				</div>
 			}
 			transaction={transaction}
