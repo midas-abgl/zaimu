@@ -205,9 +205,11 @@ export interface Transaction {
 	tags?: Tag[];
 	originFinancialAccountId?: null | string;
 	originAccountType?: FinancialAccount["type"] | null;
+	originAccountRewardsKind?: RewardsAccount["kind"] | null;
 	originName?: null | string;
 	destinationFinancialAccountId?: null | string;
 	destinationAccountType?: FinancialAccount["type"] | null;
+	destinationAccountRewardsKind?: RewardsAccount["kind"] | null;
 	destinationName?: null | string;
 	createdAt: string;
 	externalIds?: string[];

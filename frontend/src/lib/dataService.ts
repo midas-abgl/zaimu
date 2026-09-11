@@ -2675,8 +2675,10 @@ export const dataService = {
 							...item.data,
 							creditCardName: paymentCard?.accountName,
 							creditCardStatementDate: paymentStatement?.statementDate,
+							destinationAccountRewardsKind: destinationAccount?.rewardsAccount?.kind,
 							destinationAccountType: destinationAccount?.type,
 							destinationName,
+							originAccountRewardsKind: originAccount?.rewardsAccount?.kind,
 							originAccountType: originAccount?.type,
 							originName,
 							source:

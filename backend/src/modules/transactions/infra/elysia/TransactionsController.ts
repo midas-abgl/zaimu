@@ -91,6 +91,12 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			const destinationInstitution = db.sql.public.FinancialInstitution.select("id", "name").as(
 				"destinationInstitution",
 			);
+			const originRewards = db.sql.public.RewardsAccount.select("financialAccountId", "kind").as(
+				"originRewards",
+			);
+			const destinationRewards = db.sql.public.RewardsAccount.select("financialAccountId", "kind").as(
+				"destinationRewards",
+			);
 			const paymentStatement = db.sql.public.CreditCardStatement.select(
 				"id",
 				"creditCardId",
@@ -122,11 +128,15 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 			)
 				.outerLeftJoin(origin, (f, fn) => fn.eq(f.Transaction.originFinancialAccountId, f.origin.id))
 				.outerLeftJoin(originInstitution, (f, fn) => fn.eq(f.origin.institutionId, f.originInstitution.id))
+				.outerLeftJoin(originRewards, (f, fn) => fn.eq(f.origin.id, f.originRewards.financialAccountId))
 				.outerLeftJoin(destination, (f, fn) =>
 					fn.eq(f.Transaction.destinationFinancialAccountId, f.destination.id),
 				)
 				.outerLeftJoin(destinationInstitution, (f, fn) =>
 					fn.eq(f.destination.institutionId, f.destinationInstitution.id),
+				)
+				.outerLeftJoin(destinationRewards, (f, fn) =>
+					fn.eq(f.destination.id, f.destinationRewards.financialAccountId),
 				)
 				.outerLeftJoin(paymentStatement, (f, fn) =>
 					fn.eq(f.Transaction.creditCardStatementId, f.paymentStatement.id),
@@ -158,6 +168,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					creditCardStatementId: f.Transaction.creditCardStatementId,
 					date: f.Transaction.date,
 					description: f.Transaction.description,
+					destinationAccountRewardsKind: f.destinationRewards.kind,
 					destinationAccountType: f.destination.type,
 					destinationFinancialAccountId: f.Transaction.destinationFinancialAccountId,
 					destinationName: fn.raw`COALESCE(${f.destination.name}, ${f.destinationInstitution.name})`.returns(
@@ -165,6 +176,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 					),
 					id: f.Transaction.id,
 					isHidden: f.Transaction.isHidden,
+					originAccountRewardsKind: f.originRewards.kind,
 					originAccountType: f.origin.type,
 					originFinancialAccountId: f.Transaction.originFinancialAccountId,
 					originName: fn.raw`COALESCE(${f.origin.name}, ${f.originInstitution.name})`.returns(

@@ -11,6 +11,7 @@ import {
 	getFinancialAccountOptionLabel,
 	getFinancialAccountSummaryName,
 	getFinancialAccountTitle,
+	getTransactionAccountTypeLabel,
 	getTransactionSourceAccounts,
 } from "./financial-account";
 
@@ -102,6 +103,13 @@ describe("getTransactionSourceAccounts", () => {
 			"cashback",
 			"checking",
 		]);
+	});
+});
+
+describe("getTransactionAccountTypeLabel", () => {
+	test("identifies monetary rewards as cashback", () => {
+		expect(getTransactionAccountTypeLabel("REWARDS", "CASHBACK")).toBe("Cashback");
+		expect(getTransactionAccountTypeLabel("REWARDS", "POINTS")).toBe("Pontos / cashback");
 	});
 });
 

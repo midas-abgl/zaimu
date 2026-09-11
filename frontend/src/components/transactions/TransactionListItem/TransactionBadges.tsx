@@ -10,21 +10,16 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import type { FinancialAccount, Tag } from "@/lib/api";
 import { formatLocalMonthYear } from "@/lib/date";
-import { getFinancialAccountTypeLabel } from "@/lib/financial-account";
+import { getTransactionAccountTypeLabel } from "@/lib/financial-account";
 
 export interface TransactionBadgeAccount {
 	id: string;
 	name: string;
+	rewardsKind?: "CASHBACK" | "POINTS";
 	type?: FinancialAccount["type"];
 }
 
 const transactionAttributeBadgeClass = "h-7 max-w-full gap-1.5 px-2.5 font-normal";
-
-function getAccountTypeLabel(type?: FinancialAccount["type"]) {
-	if (type === "CREDIT_CARD") return "Cartão";
-	const label = type ? getFinancialAccountTypeLabel(type) : "Conta";
-	return label === "Conta corrente" ? "Conta" : label;
-}
 
 export function TransactionBadges({
 	accounts,
@@ -55,7 +50,9 @@ export function TransactionBadges({
 							<LuLandmark aria-hidden="true" />
 						)}
 						<span className="min-w-0 truncate">
-							<span className="text-muted-foreground">{getAccountTypeLabel(account.type)}</span>{" "}
+							<span className="text-muted-foreground">
+								{getTransactionAccountTypeLabel(account.type, account.rewardsKind)}
+							</span>{" "}
 							{account.name}
 						</span>
 					</Badge>

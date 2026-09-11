@@ -407,6 +407,16 @@ export function getFinancialAccountTypeLabel(type: FinancialAccount["type"]) {
 	return financialAccountTypeLabels[type];
 }
 
+export function getTransactionAccountTypeLabel(
+	type?: FinancialAccount["type"],
+	rewardsKind?: "CASHBACK" | "POINTS",
+) {
+	if (type === "CREDIT_CARD") return "Cartão";
+	if (type === "REWARDS" && rewardsKind === "CASHBACK") return "Cashback";
+	const label = type ? getFinancialAccountTypeLabel(type) : "Conta";
+	return label === "Conta corrente" ? "Conta" : label;
+}
+
 export function getFinancialAccountCurrencyValue(account: FinancialAccount) {
 	if (account.type === "CREDIT_CARD") return 0;
 	if (account.type !== "REWARDS") return account.balance ?? 0;

@@ -62,11 +62,13 @@ export function TransactionListItem({
 					{
 						id: transaction.originFinancialAccountId || "origin",
 						name: originName || "Conta de origem",
+						rewardsKind: transaction.originAccountRewardsKind ?? undefined,
 						type: transaction.originAccountType ?? undefined,
 					},
 					{
 						id: transaction.destinationFinancialAccountId || "destination",
 						name: destinationName || "Conta de destino",
+						rewardsKind: transaction.destinationAccountRewardsKind ?? undefined,
 						type: transaction.destinationAccountType ?? undefined,
 					},
 				]
@@ -75,6 +77,10 @@ export function TransactionListItem({
 						id:
 							transaction.originFinancialAccountId || transaction.destinationFinancialAccountId || "account",
 						name: (transaction.type === "INCOME" ? destinationName : originName) || "Conta sem nome",
+						rewardsKind:
+							(transaction.type === "INCOME"
+								? transaction.destinationAccountRewardsKind
+								: transaction.originAccountRewardsKind) ?? undefined,
 						type: isCreditCard
 							? "CREDIT_CARD"
 							: ((transaction.type === "INCOME"
