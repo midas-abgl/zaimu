@@ -5,6 +5,7 @@ import {
 	getTagsByEntity,
 	replaceEntityTags,
 	type TagSummary,
+	tagEntityType,
 } from "~/modules/categories/application/tag-assignments";
 import {
 	getDebtSplitInput,
@@ -942,30 +943,57 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				),
 				userId,
 			);
-			// A conciliação define a versão que será aprovada do item deste lote. O
-			// candidato só fornece valores para a escolha; nunca deve ser alterado.
-			await executeStatement(
-				db.sql.public.TransactionImportItem.update({
+			if (values.creditCardStatementId)
+				await assertCreditCardStatementOwnership(values.creditCardStatementId, userId);
+			const importedDebtSplit =
+				body.sources.debtSplit === "imported"
+					? await getDebtSplitInput({ transactionImportItemId: item.id })
+					: undefined;
+			const targetEntity =
+				duplicate.source === "TRANSACTION"
+					? {
+							debtTarget: { transactionId: duplicate.id },
+							entityId: duplicate.id,
+							entityType: tagEntityType.transaction,
+						}
+					: {
+							debtTarget: { transactionImportItemId: duplicate.id },
+							entityId: duplicate.id,
+							entityType: importItemTagEntityType,
+						};
+			await withTransaction(async transaction => {
+				const updateValues = {
 					...values,
 					amount: String(values.amount),
+					categoryId: tagIds[0] ?? null,
 					date: new Date(values.date),
-					isReconciled: true,
+					externalId: item.externalId ?? duplicate.externalId,
 					updatedAt: new Date(),
-				})
-					.where((fields, functions) => functions.eq(fields.id, item.id))
-					.build(),
-			);
-			await replaceEntityTags({ entityIds: [item.id], entityType: importItemTagEntityType, tagIds });
-			if (body.sources.debtSplit === "duplicate")
+				};
+				if (duplicate.source === "TRANSACTION")
+					await transaction.executeStatement(
+						transaction.db.sql.public.Transaction.update(updateValues as never)
+							.where((fields, functions) => functions.eq(fields.id, duplicate.id))
+							.build(),
+					);
+				else
+					await transaction.executeStatement(
+						transaction.db.sql.public.TransactionImportItem.update(updateValues)
+							.where((fields, functions) => functions.eq(fields.id, duplicate.id))
+							.build(),
+					);
+				await removeImportItem(transaction, item.id);
+			});
+			await replaceEntityTags({
+				entityIds: [targetEntity.entityId],
+				entityType: targetEntity.entityType,
+				tagIds,
+			});
+			if (body.sources.debtSplit === "imported")
 				await replaceDebtSplit({
 					amount: Number(values.amount),
-					split:
-						(await getDebtSplitInput(
-							duplicate.source === "TRANSACTION"
-								? { transactionId: duplicate.id }
-								: { transactionImportItemId: duplicate.id },
-						)) ?? null,
-					target: { transactionImportItemId: item.id },
+					split: importedDebtSplit ?? null,
+					target: targetEntity.debtTarget,
 					userId,
 				});
 			return getImportReturn(userId, transactionImport.id);

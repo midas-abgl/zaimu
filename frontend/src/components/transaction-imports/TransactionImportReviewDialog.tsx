@@ -218,8 +218,13 @@ export function TransactionImportReviewDialog({
 			sources,
 		});
 		setResolvingItem(null);
-		await invalidate();
-		showToast("Duplicata resolvida.", "positive");
+		await Promise.all([
+			invalidate(),
+			queryClient.invalidateQueries({ queryKey: ["accounts"] }),
+			queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+			queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+		]);
+		showToast("Transação existente atualizada.", "positive");
 	};
 
 	return (
@@ -230,7 +235,7 @@ export function TransactionImportReviewDialog({
 						<DialogTitle>Revisar importação</DialogTitle>
 						<DialogDescription>
 							{transactionImport.data
-								? `${transactionImport.data.fileName} · ${remainingItemCountLabel}. Apenas transações aprovadas serão importadas; transações não aprovadas ou conciliadas não serão importadas.`
+								? `${transactionImport.data.fileName} · ${remainingItemCountLabel}. Apenas transações aprovadas serão importadas; transações não aprovadas não serão importadas.`
 								: "Carregando transações importadas…"}
 						</DialogDescription>
 					</DialogHeader>
