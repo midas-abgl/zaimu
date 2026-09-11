@@ -24,7 +24,7 @@ import {
 	withTransaction,
 } from "~/shared/infra/sql";
 import { filterExistingTransactions } from "../../domain/filter-existing-transactions";
-import { matchesTransferCounterpart } from "../../domain/import-reconciliation";
+import { matchesDuplicateTransactionShape } from "../../domain/import-reconciliation";
 import { assignStableExternalIds } from "../../domain/statement-identity";
 import { parseStatementPdf } from "../../domain/statement-parser";
 import { TransactionImportItemReconcileDTO, TransactionImportItemUpdateDTO } from "./TransactionImportsDTO";
@@ -254,7 +254,7 @@ async function getPotentialDuplicates(
 				candidate =>
 					candidate.id !== item.id &&
 					isSameAccount(candidate) &&
-					(candidate.type === item.type || matchesTransferCounterpart(item, candidate, financialAccountId)) &&
+					matchesDuplicateTransactionShape(item, candidate, financialAccountId) &&
 					Number(candidate.amount) === Number(item.amount) &&
 					toDateKey(candidate.date) === toDateKey(item.date),
 			);

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { matchesTransferCounterpart } from "./import-reconciliation";
+import { matchesDuplicateTransactionShape, matchesTransferCounterpart } from "./import-reconciliation";
 
 const accountId = "account-a";
 
@@ -32,5 +32,27 @@ describe("matchesTransferCounterpart", () => {
 				accountId,
 			),
 		).toBe(false);
+	});
+});
+
+describe("matchesDuplicateTransactionShape", () => {
+	test("não associa transferências no sentido oposto", () => {
+		expect(
+			matchesDuplicateTransactionShape(
+				{ destinationFinancialAccountId: "account-b", originFinancialAccountId: accountId, type: "TRANSFER" },
+				{ destinationFinancialAccountId: accountId, originFinancialAccountId: "account-b", type: "TRANSFER" },
+				accountId,
+			),
+		).toBe(false);
+	});
+
+	test("associa transferências com mesma origem e destino", () => {
+		expect(
+			matchesDuplicateTransactionShape(
+				{ destinationFinancialAccountId: "account-b", originFinancialAccountId: accountId, type: "TRANSFER" },
+				{ destinationFinancialAccountId: "account-b", originFinancialAccountId: accountId, type: "TRANSFER" },
+				accountId,
+			),
+		).toBe(true);
 	});
 });
