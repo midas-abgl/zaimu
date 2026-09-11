@@ -248,6 +248,7 @@ export const TransactionsController = new Elysia({ prefix: "/transactions" })
 							Number(transaction.amount),
 						),
 						externalIds: externalIdsByTransaction.get(transaction.id) ?? [],
+						isSynced: (externalIdsByTransaction.get(transaction.id)?.length ?? 0) > 0,
 						source:
 							transaction.type !== "TRANSFER" &&
 							paymentAccountType === "CREDIT_CARD" &&

@@ -101,7 +101,6 @@ async function getImport(userId: string, importId: string) {
 }
 
 async function getPotentialDuplicates(
-	userId: string,
 	financialAccountId: string,
 	items: Array<{
 		amount: number;
@@ -114,13 +113,6 @@ async function getPotentialDuplicates(
 		type: ImportItemType;
 	}>,
 ) {
-	const userFinancialAccountIds = (
-		await queryRows(
-			db.sql.public.FinancialAccount.select("id")
-				.where((fields, functions) => functions.eq(fields.userId, userId))
-				.build(),
-		)
-	).map(account => account.id);
 	const [transactions, pendingItems] = await Promise.all([
 		queryRows(
 			db.sql.public.Transaction.select(
@@ -139,8 +131,8 @@ async function getPotentialDuplicates(
 			)
 				.where((fields, functions) =>
 					functions.or(
-						functions.in(fields.originFinancialAccountId, userFinancialAccountIds),
-						functions.in(fields.destinationFinancialAccountId, userFinancialAccountIds),
+						functions.eq(fields.originFinancialAccountId, financialAccountId),
+						functions.eq(fields.destinationFinancialAccountId, financialAccountId),
 					),
 				)
 				.build(),
@@ -261,8 +253,8 @@ async function getPotentialDuplicates(
 			const dateAmountDuplicates = candidatesWithDebtSplits.filter(
 				candidate =>
 					candidate.id !== item.id &&
-					((isSameAccount(candidate) && candidate.type === item.type) ||
-						matchesTransferCounterpart(item, candidate, financialAccountId)) &&
+					isSameAccount(candidate) &&
+					(candidate.type === item.type || matchesTransferCounterpart(item, candidate, financialAccountId)) &&
 					Number(candidate.amount) === Number(item.amount) &&
 					toDateKey(candidate.date) === toDateKey(item.date),
 			);
@@ -314,7 +306,6 @@ async function getImportReturn(userId: string, importId: string) {
 			items.map(item => item.id),
 		),
 		getPotentialDuplicates(
-			userId,
 			transactionImport.financialAccountId,
 			items.map(item => ({ ...item, type: item.type as ImportItemType })),
 		),
@@ -826,9 +817,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			);
 			if (!item) throw new HttpException("Item da importação não encontrado", 404);
 			const importItem = { ...item, type: item.type as ImportItemType };
-			const duplicates = await getPotentialDuplicates(userId, transactionImport.financialAccountId, [
-				importItem,
-			]);
+			const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, [importItem]);
 			if (duplicates.get(item.id))
 				throw new HttpException("Resolva a possível duplicata antes de aprovar", 400);
 			const tagIds = await prepareImportItem(importItem, userId);
@@ -887,11 +876,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			const itemsForDay = items
 				.filter(item => toDateKey(item.date) === params.date)
 				.map(item => ({ ...item, type: item.type as ImportItemType }));
-			const duplicates = await getPotentialDuplicates(
-				userId,
-				transactionImport.financialAccountId,
-				itemsForDay,
-			);
+			const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, itemsForDay);
 			const approvableItems = itemsForDay.filter(item => !duplicates.get(item.id));
 			if (!approvableItems.length)
 				throw new HttpException("Não há transações sem pendências para aprovar neste dia", 400);
@@ -970,7 +955,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					.build(),
 			);
 			if (!item) throw new HttpException("Item da importação não encontrado", 404);
-			const duplicates = await getPotentialDuplicates(userId, transactionImport.financialAccountId, [
+			const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, [
 				{ ...item, type: item.type as ImportItemType },
 			]);
 			const duplicate = duplicates
@@ -1117,7 +1102,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 						.build(),
 				)
 			).map(item => ({ ...item, type: item.type as ImportItemType }));
-			const duplicates = await getPotentialDuplicates(userId, transactionImport.financialAccountId, items);
+			const duplicates = await getPotentialDuplicates(transactionImport.financialAccountId, items);
 			const approvableItems = items.filter(item => !duplicates.get(item.id));
 			const tagIdsByItem = new Map<string, string[]>();
 			const debtSplitsByItem = new Map<string, Awaited<ReturnType<typeof getDebtSplitInput>>>();

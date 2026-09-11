@@ -33,14 +33,4 @@ describe("matchesTransferCounterpart", () => {
 			),
 		).toBe(false);
 	});
-
-	test("associa entrada de outro banco a uma saída importada", () => {
-		expect(
-			matchesTransferCounterpart(
-				{ type: "INCOME" },
-				{ destinationFinancialAccountId: null, originFinancialAccountId: "account-b", type: "EXPENSE" },
-				accountId,
-			),
-		).toBe(true);
-	});
 });

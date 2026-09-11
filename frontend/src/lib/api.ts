@@ -211,6 +211,7 @@ export interface Transaction {
 	destinationName?: null | string;
 	createdAt: string;
 	externalIds?: string[];
+	isSynced?: boolean;
 	creditCardId?: string;
 	creditCardName?: string | null;
 	creditCardStatementId?: string;

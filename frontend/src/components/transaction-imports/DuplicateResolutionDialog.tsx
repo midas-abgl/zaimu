@@ -147,7 +147,7 @@ export function DuplicateResolutionDialog({
 						selecionada.
 					</DialogDescription>
 				</DialogHeader>
-				<ScrollArea className="min-h-0 pr-1" horizontalScrollbar>
+				<ScrollArea className="min-h-0 pr-1">
 					<div className="space-y-4 pr-3">
 						{item.duplicates.length > 1 ? (
 							<div className="space-y-2">
@@ -173,12 +173,12 @@ export function DuplicateResolutionDialog({
 								</div>
 							</div>
 						) : null}
-						<div className="min-w-[38rem] overflow-hidden rounded-2xl border">
-							<div className="grid grid-cols-[7rem_minmax(15rem,1fr)_minmax(15rem,1fr)] border-b text-center font-medium text-xs">
+						<div className="overflow-hidden rounded-2xl border">
+							<div className="grid grid-cols-[4rem_minmax(0,1fr)_minmax(0,1fr)] border-b text-center font-medium text-xs sm:grid-cols-[7rem_minmax(0,1fr)_minmax(0,1fr)]">
 								<span />
 								<Button
 									aria-pressed={isSourceSelected("imported")}
-									className="h-auto min-h-10 w-full rounded-none border-border px-3 py-3 text-xs"
+									className="h-auto min-h-10 w-full cursor-pointer rounded-none border-border px-2 py-3 text-xs sm:px-3"
 									onClick={() => selectAllFrom("imported")}
 									type="button"
 									variant={isSourceSelected("imported") ? "default" : "outline"}
@@ -187,7 +187,7 @@ export function DuplicateResolutionDialog({
 								</Button>
 								<Button
 									aria-pressed={isSourceSelected("duplicate")}
-									className="h-auto min-h-10 w-full rounded-none border-border border-l px-3 py-3 text-xs"
+									className="h-auto min-h-10 w-full cursor-pointer rounded-none border-border border-l px-2 py-3 text-xs sm:px-3"
 									onClick={() => selectAllFrom("duplicate")}
 									type="button"
 									variant={isSourceSelected("duplicate") ? "default" : "outline"}
@@ -197,12 +197,14 @@ export function DuplicateResolutionDialog({
 							</div>
 							{fields.map(field => (
 								<div
-									className="grid grid-cols-[7rem_minmax(15rem,1fr)_minmax(15rem,1fr)] border-b last:border-0"
+									className="grid grid-cols-[4rem_minmax(0,1fr)_minmax(0,1fr)] border-b last:border-0 sm:grid-cols-[7rem_minmax(0,1fr)_minmax(0,1fr)]"
 									key={field.key}
 								>
-									<span className="flex items-center px-3 font-medium text-xs">{field.label}</span>
+									<span className="flex items-center break-words px-2 font-medium text-xs sm:px-3">
+										{field.label}
+									</span>
 									<Button
-										className="h-auto min-h-11 justify-start whitespace-normal rounded-none border-x-0 border-y-0 border-l text-left text-xs"
+										className="h-auto min-h-11 min-w-0 cursor-pointer justify-start whitespace-normal break-words rounded-none border-x-0 border-y-0 border-l px-2 text-left text-xs sm:px-3"
 										onClick={() => setSources(current => ({ ...current, [field.key]: "imported" }))}
 										size="sm"
 										variant={sources[field.key] === "imported" ? "default" : "outline"}
@@ -210,7 +212,7 @@ export function DuplicateResolutionDialog({
 										{value("imported", field.key)}
 									</Button>
 									<Button
-										className="h-auto min-h-11 justify-start whitespace-normal rounded-none border-0 text-left text-xs"
+										className="h-auto min-h-11 min-w-0 cursor-pointer justify-start whitespace-normal break-words rounded-none border-0 px-2 text-left text-xs sm:px-3"
 										onClick={() => setSources(current => ({ ...current, [field.key]: "duplicate" }))}
 										size="sm"
 										variant={sources[field.key] === "duplicate" ? "default" : "outline"}

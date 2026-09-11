@@ -153,7 +153,7 @@ export function TransactionListItem({
 						debtPersonName={transaction.debtSplit?.participants
 							.map(item => `${item.debtPersonName}: ${formatCurrency(item.amount)}`)
 							.join(" · ")}
-						isSynced={Boolean(transaction.externalIds?.length)}
+						isSynced={transaction.isSynced ?? Boolean(transaction.externalIds?.length)}
 						storeName={transaction.storeName}
 						tags={tags}
 					/>
