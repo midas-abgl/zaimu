@@ -918,6 +918,8 @@ namespace public {
 
   native_enum TransactionImportProvider {
     MERCADO_PAGO = "MERCADO_PAGO"
+    NUBANK = "NUBANK"
+    GENERIC = "GENERIC"
   }
 
   native_enum TransactionImportItemType {

@@ -21,7 +21,8 @@ import { StatementFilePicker } from "./StatementFilePicker";
 
 const providerOptions = [
 	{ label: "Mercado Pago", value: "MERCADO_PAGO" },
-	{ disabled: true, label: "Genérico · Em breve", value: "GENERIC" },
+	{ label: "Nubank", value: "NUBANK" },
+	{ label: "Genérico", value: "GENERIC" },
 ] as const;
 type TransactionImportProvider = (typeof providerOptions)[number]["value"];
 
@@ -55,9 +56,9 @@ export function ImportTransactionsDialog({
 	};
 	const createImport = useMutation({
 		mutationFn: () => {
-			if (!file) throw new Error("Selecione um PDF do Mercado Pago.");
+			if (!file) throw new Error("Selecione um PDF de extrato.");
 			if (!financialAccountId) throw new Error("Selecione a conta que receberá as transações.");
-			if (provider !== "MERCADO_PAGO") throw new Error("Selecione a instituição do extrato.");
+			if (!provider) throw new Error("Selecione a instituição do extrato.");
 			return dataService.transactionImports.create({ file, financialAccountId, provider });
 		},
 		onError: error => showToast(error.message, "negative"),
@@ -88,7 +89,9 @@ export function ImportTransactionsDialog({
 			<DialogContent className="sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Importar transações</DialogTitle>
-					<DialogDescription>Selecione manualmente a conta e envie seu extrato.</DialogDescription>
+					<DialogDescription>
+						Selecione manualmente a conta. Genérico detecta Nubank e Mercado Pago automaticamente.
+					</DialogDescription>
 				</DialogHeader>
 				<div className="grid gap-4">
 					<CustomSelect
@@ -119,7 +122,7 @@ export function ImportTransactionsDialog({
 					</Button>
 					<Button
 						className="cursor-pointer disabled:cursor-not-allowed"
-						disabled={!file || !financialAccountId || provider !== "MERCADO_PAGO" || createImport.isPending}
+						disabled={!file || !financialAccountId || !provider || createImport.isPending}
 						onClick={() => createImport.mutate()}
 					>
 						<LuFileUp /> {createImport.isPending ? "Importando…" : "Importar"}

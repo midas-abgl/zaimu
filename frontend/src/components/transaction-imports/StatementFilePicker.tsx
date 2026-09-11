@@ -19,7 +19,7 @@ export function StatementFilePicker({
 		<div className="grid content-start gap-2">
 			<Label htmlFor={inputId}>
 				<span>
-					Extrato do Mercado Pago <RequiredMark />
+					Extrato em PDF <RequiredMark />
 				</span>
 			</Label>
 			<input

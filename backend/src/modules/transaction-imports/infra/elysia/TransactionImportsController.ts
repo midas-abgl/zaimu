@@ -24,7 +24,8 @@ import {
 } from "~/shared/infra/sql";
 import { filterExistingTransactions } from "../../domain/filter-existing-transactions";
 import { matchesTransferCounterpart } from "../../domain/import-reconciliation";
-import { parseMercadoPagoStatement } from "../../domain/mercado-pago";
+import { assignStableExternalIds } from "../../domain/statement-identity";
+import { parseStatementPdf } from "../../domain/statement-parser";
 import { TransactionImportItemReconcileDTO, TransactionImportItemUpdateDTO } from "./TransactionImportsDTO";
 
 const importItemTagEntityType = "TRANSACTION_IMPORT_ITEM";
@@ -531,22 +532,31 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 		"/",
 		async ({ body, request }) => {
 			const userId = await requireUserId(request);
-			if (body.provider !== "MERCADO_PAGO")
-				throw new HttpException("Este provider estará disponível em breve", 400);
 			await assertBalanceAccountOwnership(body.financialAccountId, userId);
 			if (body.file.type !== "application/pdf" && !body.file.name.toLowerCase().endsWith(".pdf"))
 				throw new HttpException("Envie um arquivo PDF", 400);
 			const fileBytes = new Uint8Array(await body.file.arrayBuffer());
 			if (fileBytes.length < 5 || new TextDecoder().decode(fileBytes.slice(0, 5)) !== "%PDF-")
 				throw new HttpException("Envie um PDF válido", 400);
-			const statement = await parseMercadoPagoStatement(fileBytes.buffer);
+			const statement = await parseStatementPdf(fileBytes.buffer, body.provider);
+			const statementTransactions = assignStableExternalIds(statement.transactions, {
+				financialAccountId: body.financialAccountId,
+				provider: statement.provider,
+				userId,
+			});
 			const [existingTransactions, existingYields, existingManualYields] = await Promise.all([
 				queryRows(
 					db.sql.public.Transaction.select("externalId")
 						.where((fields, functions) =>
-							functions.in(
-								fields.externalId,
-								statement.transactions.map(transaction => transaction.externalId),
+							functions.and(
+								functions.in(
+									fields.externalId,
+									statementTransactions.map(transaction => transaction.externalId),
+								),
+								functions.or(
+									functions.eq(fields.originFinancialAccountId, body.financialAccountId),
+									functions.eq(fields.destinationFinancialAccountId, body.financialAccountId),
+								),
 							),
 						)
 						.build(),
@@ -554,9 +564,12 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				queryRows(
 					db.sql.public.FinancialAccountYield.select("externalId")
 						.where((fields, functions) =>
-							functions.in(
-								fields.externalId,
-								statement.transactions.map(transaction => transaction.externalId),
+							functions.and(
+								functions.in(
+									fields.externalId,
+									statementTransactions.map(transaction => transaction.externalId),
+								),
+								functions.eq(fields.financialAccountId, body.financialAccountId),
 							),
 						)
 						.build(),
@@ -581,11 +594,11 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				existingManualYields.map(yieldRecord => toDateKey(yieldRecord.date)),
 			);
 			const transactions = filterExistingTransactions(
-				statement.transactions,
+				statementTransactions,
 				existingExternalIds,
 				existingYieldDates,
 			);
-			const ignoredCount = statement.transactions.length - transactions.length;
+			const ignoredCount = statementTransactions.length - transactions.length;
 			if (transactions.length === 0) return { ignoredCount, transactionImport: null };
 			const transactionImport = await queryFirst(
 				db.sql.public.TransactionImport.insert([
@@ -594,7 +607,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 						financialAccountId: body.financialAccountId,
 						periodEnd: statement.periodEnd ? new Date(statement.periodEnd) : undefined,
 						periodStart: statement.periodStart ? new Date(statement.periodStart) : undefined,
-						provider: "MERCADO_PAGO",
+						provider: statement.provider,
 						userId,
 					},
 				])
@@ -606,7 +619,8 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 				db.sql.public.TransactionImportItem.insert(
 					transactions.map(transaction => ({
 						amount: String(transaction.amount),
-						balanceAfter: String(transaction.balanceAfter),
+						balanceAfter:
+							transaction.balanceAfter === undefined ? undefined : String(transaction.balanceAfter),
 						date: new Date(transaction.date),
 						description: transaction.description,
 						destinationFinancialAccountId:
@@ -616,7 +630,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 						externalId: transaction.externalId,
 						originFinancialAccountId: transaction.type === "EXPENSE" ? body.financialAccountId : undefined,
 						transactionImportId: transactionImport.id,
-						type: transaction.type,
+						type: transaction.type as ImportItemType,
 					})),
 				).build(),
 			);
@@ -626,7 +640,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 			body: t.Object({
 				file: t.File(),
 				financialAccountId: t.String({ maxLength: 36, minLength: 1 }),
-				provider: t.String(),
+				provider: t.Union([t.Literal("MERCADO_PAGO"), t.Literal("NUBANK"), t.Literal("GENERIC")]),
 			}),
 		},
 	)

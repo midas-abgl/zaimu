@@ -278,7 +278,7 @@ export interface TransactionImport {
 	items: TransactionImportItem[];
 	periodEnd?: string | null;
 	periodStart?: string | null;
-	provider: "MERCADO_PAGO";
+	provider: "MERCADO_PAGO" | "NUBANK" | "GENERIC";
 	status: "PENDING" | "APPROVED";
 	createdAt: string;
 	updatedAt: string;

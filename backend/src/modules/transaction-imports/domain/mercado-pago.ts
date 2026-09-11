@@ -1,20 +1,5 @@
-import { PDFParse } from "pdf-parse";
 import { HttpException } from "~/shared/errors";
-
-export interface MercadoPagoStatementTransaction {
-	amount: number;
-	balanceAfter: number;
-	date: string;
-	description: string;
-	externalId: string;
-	type: "EXPENSE" | "INCOME" | "YIELD";
-}
-
-export interface MercadoPagoStatement {
-	periodEnd?: string;
-	periodStart?: string;
-	transactions: MercadoPagoStatementTransaction[];
-}
+import type { Statement } from "./statement";
 
 const datePattern = /(\d{2})-(\d{2})-(\d{4})/;
 const movementPattern =
@@ -29,7 +14,7 @@ const toDate = (value: string) => {
 
 const parseCurrency = (value: string) => Number(value.replaceAll(".", "").replace(",", "."));
 
-export function parseMercadoPagoStatementText(text: string): MercadoPagoStatement {
+export function parseMercadoPagoStatementText(text: string): Statement {
 	if (!text.includes("EXTRATO DE CONTA") || !text.includes("ID da operação")) {
 		throw new HttpException("O arquivo não parece ser um extrato Mercado Pago válido", 400);
 	}
@@ -39,7 +24,7 @@ export function parseMercadoPagoStatementText(text: string): MercadoPagoStatemen
 		.replace(/Data de geração:[\s\S]*?Data\s+Descrição\s+ID da operação\s+Valor\s+Saldo/gu, "")
 		.replace(/(?:\d+\/\d+\s+)?Data\s+Descrição\s+ID da operação\s+Valor\s+Saldo/gu, "")
 		.replace(/--\s+\d+\s+of\s+\d+\s+--/gu, "");
-	const transactions: MercadoPagoStatementTransaction[] = [];
+	const transactions: Statement["transactions"] = [];
 	let previousMatchEnd = 0;
 	for (const match of movementsText.matchAll(movementPattern)) {
 		const leadingDescription = previousMatchEnd
@@ -68,19 +53,7 @@ export function parseMercadoPagoStatementText(text: string): MercadoPagoStatemen
 	return {
 		periodEnd: period ? toDate(period[2]) : undefined,
 		periodStart: period ? toDate(period[1]) : undefined,
+		provider: "MERCADO_PAGO",
 		transactions,
 	};
-}
-
-export async function parseMercadoPagoStatement(data: ArrayBuffer): Promise<MercadoPagoStatement> {
-	const parser = new PDFParse({ data: new Uint8Array(data) });
-	try {
-		const result = await parser.getText();
-		return parseMercadoPagoStatementText(result.text);
-	} catch (error) {
-		if (error instanceof HttpException) throw error;
-		throw new HttpException("Não foi possível ler o PDF do Mercado Pago", 400);
-	} finally {
-		await parser.destroy();
-	}
 }
