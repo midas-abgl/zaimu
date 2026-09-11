@@ -4,6 +4,7 @@ import { parseBancoDoBrasilStatementText } from "./banco-do-brasil";
 import { parseInterStatementText } from "./inter";
 import { parseMercadoPagoStatementText } from "./mercado-pago";
 import { parseNubankStatementText } from "./nubank";
+import { parsePicPayStatementText } from "./picpay";
 import type { Statement, StatementProvider } from "./statement";
 
 const knownParsers: Array<{
@@ -30,6 +31,11 @@ const knownParsers: Array<{
 		detect: text => /Instituição:\s*Banco Inter/iu.test(text) && /Saldo do dia:/iu.test(text),
 		parse: parseInterStatementText,
 		provider: "INTER",
+	},
+	{
+		detect: text => /PicPay Serviços S\/A/iu.test(text) && /Extrato de conta/iu.test(text),
+		parse: parsePicPayStatementText,
+		provider: "PICPAY",
 	},
 ];
 

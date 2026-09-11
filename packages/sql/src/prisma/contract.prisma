@@ -937,6 +937,7 @@ namespace public {
     GENERIC = "GENERIC"
     BANCO_DO_BRASIL = "BANCO_DO_BRASIL"
     INTER = "INTER"
+    PICPAY = "PICPAY"
   }
 
   native_enum TransactionImportItemType {

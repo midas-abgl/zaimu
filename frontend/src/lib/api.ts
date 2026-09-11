@@ -279,7 +279,7 @@ export interface TransactionImport {
 	items: TransactionImportItem[];
 	periodEnd?: string | null;
 	periodStart?: string | null;
-	provider: "MERCADO_PAGO" | "NUBANK" | "BANCO_DO_BRASIL" | "INTER";
+	provider: "MERCADO_PAGO" | "NUBANK" | "BANCO_DO_BRASIL" | "INTER" | "PICPAY";
 	status: "PENDING" | "APPROVED";
 	createdAt: string;
 	updatedAt: string;

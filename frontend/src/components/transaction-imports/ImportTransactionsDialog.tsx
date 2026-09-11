@@ -24,6 +24,7 @@ const providerOptions = [
 	{ label: "Banco Inter", value: "INTER" },
 	{ label: "Mercado Pago", value: "MERCADO_PAGO" },
 	{ label: "Nubank", value: "NUBANK" },
+	{ label: "PicPay", value: "PICPAY" },
 ] as const;
 type TransactionImportProvider = (typeof providerOptions)[number]["value"];
 
