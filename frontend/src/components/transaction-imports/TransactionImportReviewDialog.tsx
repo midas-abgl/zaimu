@@ -13,7 +13,7 @@ import {
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Skeleton } from "@/components/ui/Skeleton";
-import type { Transaction, TransactionImportItem } from "@/lib/api";
+import type { Transaction, TransactionImportItem, TransactionImportTransferSuggestion } from "@/lib/api";
 import { dataService } from "@/lib/dataService";
 import { formatLocalDate } from "@/lib/date";
 import { sortTransactionsByMostRecent } from "@/lib/transaction-sort";
@@ -22,6 +22,7 @@ import { DuplicateResolutionDialog, type DuplicateResolutionSources } from "./Du
 import { EditImportedTransactionDialog } from "./EditImportedTransactionDialog";
 import { ImportReviewDateSection } from "./ImportReviewDateSection";
 import { ImportReviewTransactionItem } from "./ImportReviewTransactionItem";
+import { TransferSuggestionDecisionDialog } from "./TransferSuggestionDecisionDialog";
 
 function toTransaction(item: TransactionImportItem, accountNames: Map<string, string>): Transaction {
 	const originName = item.originFinancialAccountId
@@ -55,6 +56,30 @@ function toTransaction(item: TransactionImportItem, accountNames: Map<string, st
 	};
 }
 
+function toTransferSuggestionTransaction(
+	suggestion: TransactionImportTransferSuggestion,
+	accountNames: Map<string, string>,
+	createdAt: string,
+): Transaction {
+	const type = suggestion.type === "YIELD" ? "INCOME" : suggestion.type;
+	const accountName = accountNames.get(suggestion.financialAccountId) ?? "Conta sem nome";
+	return {
+		amount: suggestion.amount,
+		createdAt,
+		date: suggestion.date,
+		description: suggestion.description ?? undefined,
+		destinationFinancialAccountId: type === "INCOME" ? suggestion.financialAccountId : null,
+		destinationName: type === "INCOME" ? accountName : null,
+		id: suggestion.id,
+		originFinancialAccountId: type === "INCOME" ? null : suggestion.financialAccountId,
+		originName: type === "INCOME" ? null : accountName,
+		source: "FINANCIAL_ACCOUNT",
+		sourceName: accountName,
+		time: suggestion.time,
+		type,
+	};
+}
+
 export function TransactionImportReviewDialog({
 	importId,
 	onOpenChange,
@@ -72,6 +97,10 @@ export function TransactionImportReviewDialog({
 	const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
 	const [editingItem, setEditingItem] = useState<TransactionImportItem | null>(null);
 	const [resolvingItem, setResolvingItem] = useState<TransactionImportItem | null>(null);
+	const [transferSuggestionDecision, setTransferSuggestionDecision] = useState<{
+		item: TransactionImportItem;
+		suggestion: TransactionImportTransferSuggestion;
+	} | null>(null);
 	const transactionImport = useQuery({
 		enabled: open && Boolean(importId),
 		queryFn: () => dataService.transactionImports.get(importId!),
@@ -85,6 +114,7 @@ export function TransactionImportReviewDialog({
 		setApprovingDateKeys(new Set());
 		setApprovingItemIds(new Set());
 		setDiscardConfirmationOpen(false);
+		setTransferSuggestionDecision(null);
 	}, [importId, open]);
 	const invalidate = async () => {
 		await Promise.all([
@@ -105,6 +135,16 @@ export function TransactionImportReviewDialog({
 			setEditingItem(null);
 			await invalidate();
 			showToast("Transação importada atualizada.", "positive");
+		},
+	});
+	const acceptTransferSuggestion = useMutation({
+		mutationFn: ({ counterpartItemId, itemId }: { counterpartItemId: string; itemId: string }) =>
+			dataService.transactionImports.acceptTransferSuggestion(importId!, itemId, counterpartItemId),
+		onError: error => showToast(error.message, "negative"),
+		onSuccess: async result => {
+			await invalidate();
+			if (result.removedImportId === importId) onOpenChange(false);
+			showToast("Movimentos combinados como transferência.", "positive");
 		},
 	});
 	const approve = useMutation({
@@ -190,6 +230,15 @@ export function TransactionImportReviewDialog({
 			setDiscardConfirmationOpen(false);
 			onOpenChange(false);
 			showToast("Importação descartada.", "info");
+		},
+	});
+	const rejectTransferSuggestion = useMutation({
+		mutationFn: ({ counterpartItemId, itemId }: { counterpartItemId: string; itemId: string }) =>
+			dataService.transactionImports.rejectTransferSuggestion(importId!, itemId, counterpartItemId),
+		onError: error => showToast(error.message, "negative"),
+		onSuccess: async () => {
+			await invalidate();
+			showToast("Este par não será sugerido novamente.", "info");
 		},
 	});
 	const accountNames = new Map(
@@ -291,9 +340,14 @@ export function TransactionImportReviewDialog({
 									>
 										{items.map(item => (
 											<ImportReviewTransactionItem
+												accountNames={accountNames}
 												collapsed={collapsedItemIds.has(item.id)}
 												disabled={
-													updateItem.isPending || approvingItemIds.has(item.id) || approvingDateKeys.has(date)
+													updateItem.isPending ||
+													acceptTransferSuggestion.isPending ||
+													rejectTransferSuggestion.isPending ||
+													approvingItemIds.has(item.id) ||
+													approvingDateKeys.has(date)
 												}
 												item={item}
 												key={item.id}
@@ -301,6 +355,9 @@ export function TransactionImportReviewDialog({
 												onCollapsedChange={collapsed => setItemCollapsed(item.id, collapsed)}
 												onEdit={() => setEditingItem(item)}
 												onResolveDuplicate={() => setResolvingItem(item)}
+												onViewTransferSuggestion={suggestion =>
+													setTransferSuggestionDecision({ item, suggestion })
+												}
 												transaction={toTransaction(item, accountNames)}
 											/>
 										))}
@@ -384,6 +441,39 @@ export function TransactionImportReviewDialog({
 				onOpenChange={nextOpen => !nextOpen && setResolvingItem(null)}
 				onResolve={resolveDuplicate}
 				open={resolvingItem !== null}
+			/>
+			<TransferSuggestionDecisionDialog
+				counterpartTransaction={
+					transferSuggestionDecision
+						? toTransferSuggestionTransaction(
+								transferSuggestionDecision.suggestion,
+								accountNames,
+								transferSuggestionDecision.item.createdAt,
+							)
+						: null
+				}
+				currentTransaction={
+					transferSuggestionDecision ? toTransaction(transferSuggestionDecision.item, accountNames) : null
+				}
+				onAccept={() => {
+					if (!transferSuggestionDecision) return;
+					acceptTransferSuggestion.mutate({
+						counterpartItemId: transferSuggestionDecision.suggestion.id,
+						itemId: transferSuggestionDecision.item.id,
+					});
+					setTransferSuggestionDecision(null);
+				}}
+				onOpenChange={nextOpen => !nextOpen && setTransferSuggestionDecision(null)}
+				onReject={() => {
+					if (!transferSuggestionDecision) return;
+					rejectTransferSuggestion.mutate({
+						counterpartItemId: transferSuggestionDecision.suggestion.id,
+						itemId: transferSuggestionDecision.item.id,
+					});
+					setTransferSuggestionDecision(null);
+				}}
+				open={transferSuggestionDecision !== null}
+				pending={acceptTransferSuggestion.isPending || rejectTransferSuggestion.isPending}
 			/>
 		</>
 	);

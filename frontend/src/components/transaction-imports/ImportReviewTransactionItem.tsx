@@ -5,6 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip
 import type { Transaction, TransactionImportItem } from "@/lib/api";
 import { formatLocalTime } from "@/lib/date";
 import { getTransactionTitle } from "@/lib/transaction-title";
+import { TransferSuggestionActions } from "./TransferSuggestionActions";
 
 function formatCurrency(value: number) {
 	return new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(value);
@@ -14,18 +15,22 @@ export function ImportReviewTransactionItem({
 	collapsed,
 	disabled,
 	item,
+	accountNames,
 	onApprove,
 	onCollapsedChange,
 	onEdit,
+	onViewTransferSuggestion,
 	onResolveDuplicate,
 	transaction,
 }: {
+	accountNames: Map<string, string>;
 	collapsed: boolean;
 	disabled: boolean;
 	item: TransactionImportItem;
 	onApprove: () => void;
 	onCollapsedChange: (collapsed: boolean) => void;
 	onEdit: () => void;
+	onViewTransferSuggestion: (suggestion: TransactionImportItem["transferSuggestions"][number]) => void;
 	onResolveDuplicate: () => void;
 	transaction: Transaction;
 }) {
@@ -105,20 +110,28 @@ export function ImportReviewTransactionItem({
 			]}
 			forceCompactActions
 			metadataPrefix={
-				<div className="flex flex-wrap items-center gap-1.5">
-					{formatLocalTime(item.time) ? (
-						<span className="text-muted-foreground text-xs">{formatLocalTime(item.time)}</span>
-					) : null}
-					{item.duplicateReason ? (
-						<span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-amber-700 text-xs">
-							<LuCircleAlert /> Possível duplicata
-						</span>
-					) : null}
-					{item.isReconciled ? (
-						<span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-emerald-700 text-xs">
-							<LuCheck /> Conciliada
-						</span>
-					) : null}
+				<div className="space-y-2">
+					<TransferSuggestionActions
+						accountNames={accountNames}
+						disabled={disabled}
+						onView={onViewTransferSuggestion}
+						suggestions={item.transferSuggestions}
+					/>
+					<div className="flex flex-wrap items-center gap-1.5">
+						{formatLocalTime(item.time) ? (
+							<span className="text-muted-foreground text-xs">{formatLocalTime(item.time)}</span>
+						) : null}
+						{item.duplicateReason ? (
+							<span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-amber-700 text-xs">
+								<LuCircleAlert /> Possível duplicata
+							</span>
+						) : null}
+						{item.isReconciled ? (
+							<span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-emerald-700 text-xs">
+								<LuCheck /> Conciliada
+							</span>
+						) : null}
+					</div>
 				</div>
 			}
 			transaction={transaction}

@@ -2364,6 +2364,13 @@ export const dataService = {
 	},
 
 	transactionImports: {
+		async acceptTransferSuggestion(importId: string, itemId: string, counterpartItemId: string) {
+			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
+			return fetchWithAuth<{ removedImportId: string; success: true }>(
+				`/transaction-imports/${importId}/items/${itemId}/transfer-suggestions/${counterpartItemId}/accept`,
+				{ method: "POST" },
+			);
+		},
 		async approve(id: string): Promise<{ created: number }> {
 			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
 			return fetchWithAuth<{ created: number }>(`/transaction-imports/${id}/approve`, { method: "POST" });
@@ -2425,6 +2432,13 @@ export const dataService = {
 				body: JSON.stringify(data),
 				method: "POST",
 			});
+		},
+		async rejectTransferSuggestion(importId: string, itemId: string, counterpartItemId: string) {
+			if (isGuestMode()) throw new Error("Conecte sua conta para importar extratos.");
+			return fetchWithAuth<{ success: true }>(
+				`/transaction-imports/${importId}/items/${itemId}/transfer-suggestions/${counterpartItemId}/reject`,
+				{ method: "POST" },
+			);
 		},
 		async updateItem(
 			importId: string,

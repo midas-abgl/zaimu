@@ -247,6 +247,16 @@ export interface TransactionImportDuplicate {
 	type: Transaction["type"] | "YIELD";
 }
 
+export interface TransactionImportTransferSuggestion {
+	id: string;
+	amount: number;
+	date: string;
+	description?: string | null;
+	financialAccountId: string;
+	time?: string | null;
+	type: Transaction["type"] | "YIELD";
+}
+
 export interface TransactionImportItem {
 	id: string;
 	amount: number;
@@ -270,6 +280,7 @@ export interface TransactionImportItem {
 	tagIds: string[];
 	tags: Tag[];
 	time?: string | null;
+	transferSuggestions: TransactionImportTransferSuggestion[];
 	type: Transaction["type"] | "YIELD";
 	updatedAt: string;
 }

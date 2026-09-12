@@ -28,6 +28,7 @@ namespace public {
     salaries          Salary[]
     subscriptions     Subscription[]
     transactionImports TransactionImport[]
+    transactionImportTransferSuggestionRejections TransactionImportTransferSuggestionRejection[]
     authAccounts      AuthAccount[]
     sessions          Session[]
 
@@ -155,6 +156,8 @@ namespace public {
     transactionExternalReferences TransactionExternalReference[]
     importedTransactionItemsAsOrigin TransactionImportItem[] @relation(name: "TransactionImportItem_originId_fkey")
     importedTransactionItemsAsDestination TransactionImportItem[] @relation(name: "TransactionImportItem_destinationId_fkey")
+    rejectedOutgoingTransferSuggestions TransactionImportTransferSuggestionRejection[] @relation(name: "TransactionImportTransferSuggestionRejection_outgoingAccountId_fkey")
+    rejectedIncomingTransferSuggestions TransactionImportTransferSuggestionRejection[] @relation(name: "TransactionImportTransferSuggestionRejection_incomingAccountId_fkey")
 
     @@index([institutionId], map: "FinancialAccount_institutionId_idx")
     @@index([userId, institutionId, name, type], map: "FinancialAccount_userId_institutionId_name_type_key", unique: true)
@@ -795,6 +798,7 @@ namespace public {
     id                  VarChar(36)              @id(map: "TransactionImportItem_pkey") @default(dbgenerated("cuid2()"))
     transactionImportId VarChar(36)
     externalId          VarChar(200)?
+    transferCounterpartExternalId VarChar(200)?
     amount              Numeric(12, 2)
     date                Date
     time                Time(3)?
@@ -831,6 +835,23 @@ namespace public {
     @@index([reconciledTransactionId], map: "TransactionImportItem_reconciledTransactionId_idx")
     @@index([reconciledImportItemId], map: "TransactionImportItem_reconciledImportItemId_idx")
     @@map("TransactionImportItem")
+  }
+
+  model TransactionImportTransferSuggestionRejection {
+    id                         VarChar(36)  @id(map: "TransactionImportTransferSuggestionRejection_pkey") @default(dbgenerated("cuid2()"))
+    userId                     VarChar(36)
+    outgoingFinancialAccountId VarChar(36)
+    outgoingExternalId         VarChar(200)
+    incomingFinancialAccountId VarChar(36)
+    incomingExternalId         VarChar(200)
+    createdAt                  Timestamp(3) @default(now())
+    updatedAt                  Timestamp(3) @default(now())
+    user                       User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionImportTransferSuggestionRejection_userId_fkey", index: false)
+    outgoingFinancialAccount   FinancialAccount @relation(name: "TransactionImportTransferSuggestionRejection_outgoingAccountId_fkey", fields: [outgoingFinancialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionImportTransferRejection_outgoing_fkey", index: false)
+    incomingFinancialAccount   FinancialAccount @relation(name: "TransactionImportTransferSuggestionRejection_incomingAccountId_fkey", fields: [incomingFinancialAccountId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "TransactionImportTransferRejection_incoming_fkey", index: false)
+
+    @@index([userId, outgoingFinancialAccountId, outgoingExternalId, incomingFinancialAccountId, incomingExternalId], map: "TransactionImportTransferSuggestionRejection_pair_key", unique: true)
+    @@map("TransactionImportTransferSuggestionRejection")
   }
 
   model TransactionHistory {

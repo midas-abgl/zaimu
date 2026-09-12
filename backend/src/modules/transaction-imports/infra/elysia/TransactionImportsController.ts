@@ -27,6 +27,12 @@ import { filterExistingTransactions } from "../../domain/filter-existing-transac
 import { matchesDuplicateTransactionShape } from "../../domain/import-reconciliation";
 import { assignStableExternalIds } from "../../domain/statement-identity";
 import { parseStatementPdf } from "../../domain/statement-parser";
+import {
+	getTransferSuggestions,
+	type TransferSuggestion,
+	type TransferSuggestionItem,
+	transferSuggestionRejectionKey,
+} from "../../domain/transfer-suggestions";
 import { TransactionImportItemReconcileDTO, TransactionImportItemUpdateDTO } from "./TransactionImportsDTO";
 
 const importItemTagEntityType = "TRANSACTION_IMPORT_ITEM";
@@ -75,6 +81,100 @@ interface DuplicateCandidate {
 interface PotentialDuplicates {
 	candidates: DuplicateCandidate[];
 	reason: "DATE_AMOUNT" | "EXTERNAL_ID";
+}
+
+interface TransferSuggestionCandidate extends TransferSuggestionItem {
+	description: string | null;
+	time: string | null;
+	transactionImportId: string | null;
+}
+
+async function getTransferSuggestionPairs(userId: string, itemIds: string[]) {
+	const [items, candidates, rejections] = await Promise.all([
+		queryRows(
+			db.sql.public.TransactionImportItem.innerJoin(db.sql.public.TransactionImport, (fields, functions) =>
+				functions.eq(fields.TransactionImportItem.transactionImportId, fields.TransactionImport.id),
+			)
+				.select(fields => ({
+					amount: fields.TransactionImportItem.amount,
+					date: fields.TransactionImportItem.date,
+					description: fields.TransactionImportItem.description,
+					externalId: fields.TransactionImportItem.externalId,
+					financialAccountId: fields.TransactionImport.financialAccountId,
+					id: fields.TransactionImportItem.id,
+					isReconciled: fields.TransactionImportItem.isReconciled,
+					time: fields.TransactionImportItem.time,
+					transactionImportId: fields.TransactionImportItem.transactionImportId,
+					transferCounterpartExternalId: fields.TransactionImportItem.transferCounterpartExternalId,
+					type: fields.TransactionImportItem.type,
+				}))
+				.where((fields, functions) =>
+					functions.and(
+						functions.eq(fields.TransactionImport.userId, userId),
+						functions.eq(fields.TransactionImport.status, "PENDING"),
+						functions.in(fields.TransactionImportItem.id, itemIds),
+					),
+				)
+				.build(),
+		),
+		queryRows(
+			db.sql.public.TransactionExternalReference.innerJoin(db.sql.public.Transaction, (fields, functions) =>
+				functions.eq(fields.TransactionExternalReference.transactionId, fields.Transaction.id),
+			)
+				.innerJoin(db.sql.public.FinancialAccount, (fields, functions) =>
+					functions.eq(fields.TransactionExternalReference.financialAccountId, fields.FinancialAccount.id),
+				)
+				.select(fields => ({
+					amount: fields.Transaction.amount,
+					date: fields.Transaction.date,
+					description: fields.Transaction.description,
+					externalId: fields.TransactionExternalReference.externalId,
+					financialAccountId: fields.TransactionExternalReference.financialAccountId,
+					id: fields.Transaction.id,
+					time: fields.Transaction.time,
+					type: fields.Transaction.type,
+				}))
+				.where((fields, functions) =>
+					functions.and(
+						functions.eq(fields.FinancialAccount.userId, userId),
+						functions.eq(fields.Transaction.type, "INCOME"),
+					),
+				)
+				.build(),
+		),
+		queryRows(
+			db.sql.public.TransactionImportTransferSuggestionRejection.select(
+				"incomingExternalId",
+				"incomingFinancialAccountId",
+				"outgoingExternalId",
+				"outgoingFinancialAccountId",
+			)
+				.where((fields, functions) => functions.eq(fields.userId, userId))
+				.build(),
+		),
+	]);
+	const rejectedPairs = new Set(rejections.map(transferSuggestionRejectionKey));
+	const activeItems: TransferSuggestionCandidate[] = items
+		.filter(candidate => !candidate.isReconciled)
+		.map(({ isReconciled: _, ...candidate }) => ({
+			...candidate,
+			amount: Number(candidate.amount),
+			source: "IMPORT_ITEM" as const,
+			type: candidate.type as ImportItemType,
+		}));
+	const materializedCandidates: TransferSuggestionCandidate[] = candidates.map(candidate => ({
+		...candidate,
+		amount: Number(candidate.amount),
+		source: "TRANSACTION" as const,
+		transactionImportId: null,
+		type: candidate.type as TransactionType,
+	}));
+	return new Map<string, TransferSuggestion<TransferSuggestionCandidate>[]>(
+		itemIds.map(itemId => {
+			const item = activeItems.find(candidate => candidate.id === itemId);
+			return [itemId, item ? getTransferSuggestions(item, materializedCandidates, rejectedPairs) : []];
+		}),
+	);
 }
 
 async function getImport(userId: string, importId: string) {
@@ -293,6 +393,7 @@ async function getImportReturn(userId: string, importId: string) {
 			"originFinancialAccountId",
 			"storeName",
 			"time",
+			"transferCounterpartExternalId",
 			"type",
 			"updatedAt",
 		)
@@ -300,7 +401,7 @@ async function getImportReturn(userId: string, importId: string) {
 			.orderBy("date", { direction: "desc" })
 			.build(),
 	);
-	const [tagsByItem, duplicates] = await Promise.all([
+	const [tagsByItem, duplicates, transferSuggestions] = await Promise.all([
 		getTagsByEntity(
 			importItemTagEntityType,
 			items.map(item => item.id),
@@ -308,6 +409,10 @@ async function getImportReturn(userId: string, importId: string) {
 		getPotentialDuplicates(
 			transactionImport.financialAccountId,
 			items.map(item => ({ ...item, type: item.type as ImportItemType })),
+		),
+		getTransferSuggestionPairs(
+			userId,
+			items.map(item => item.id),
 		),
 	]);
 	const creditCardStatementIds = items.flatMap(item =>
@@ -346,7 +451,7 @@ async function getImportReturn(userId: string, importId: string) {
 		...transactionImport,
 		items: await Promise.all(
 			items.map(async item => {
-				const { externalId: _, ...visibleItem } = item;
+				const { externalId: _, transferCounterpartExternalId: __, ...visibleItem } = item;
 				const tags = tagsByItem.get(item.id) ?? [];
 				const duplicateCandidates = duplicates.get(item.id)?.candidates ?? [];
 				const creditCardStatement = item.creditCardStatementId
@@ -363,6 +468,19 @@ async function getImportReturn(userId: string, importId: string) {
 					),
 					tagIds: tags.map(tag => tag.id),
 					tags,
+					transferSuggestions: (duplicateCandidates.length
+						? []
+						: (transferSuggestions.get(item.id) ?? [])
+					).map(pair => {
+						const counterpart = pair.outgoing.id === item.id ? pair.incoming : pair.outgoing;
+						return {
+							amount: Number(counterpart.amount),
+							date: toDateKey(counterpart.date),
+							financialAccountId: counterpart.financialAccountId,
+							id: counterpart.id,
+							type: counterpart.type,
+						};
+					}),
 				};
 			}),
 		),
@@ -428,6 +546,7 @@ interface ImportItemToApprove {
 	reconciledTransactionId: string | null;
 	storeName: string | null;
 	time: string | null;
+	transferCounterpartExternalId: string | null;
 	type: ImportItemType;
 }
 
@@ -520,6 +639,16 @@ async function persistImportItem(
 				{
 					externalId: item.externalId,
 					financialAccountId,
+					transactionId: importedTransaction.id,
+				},
+			]).build(),
+		);
+	if (item.transferCounterpartExternalId)
+		await transaction.executeStatement(
+			transaction.db.sql.public.TransactionExternalReference.insert([
+				{
+					externalId: item.transferCounterpartExternalId,
+					financialAccountId: item.destinationFinancialAccountId!,
 					transactionId: importedTransaction.id,
 				},
 			]).build(),
@@ -798,6 +927,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					"description",
 					"destinationFinancialAccountId",
 					"externalId",
+					"transferCounterpartExternalId",
 					"isHidden",
 					"isSelected",
 					"originFinancialAccountId",
@@ -839,8 +969,16 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 						: body.originFinancialAccountId,
 				storeName: body.storeName === undefined ? current.storeName : normalizeText(body.storeName),
 				time: body.time === undefined ? current.time : body.time,
+				transferCounterpartExternalId: current.transferCounterpartExternalId,
 				type,
 			};
+			if (
+				current.transferCounterpartExternalId &&
+				(body.type !== undefined ||
+					body.destinationFinancialAccountId !== undefined ||
+					body.originFinancialAccountId !== undefined)
+			)
+				throw new HttpException("A transferência combinada não pode mudar de contas ou tipo", 400);
 			if (body.debtSplit !== undefined && body.debtSplit !== null && type === "TRANSFER")
 				throw new HttpException("Transferências não podem ser vinculadas a dívidas", 400);
 			await validateItemAccounts(next, userId);
@@ -875,6 +1013,117 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 		{ body: TransactionImportItemUpdateDTO, params: t.Object({ id: t.String(), itemId: t.String() }) },
 	)
 	.post(
+		"/:id/items/:itemId/transfer-suggestions/:counterpartItemId/accept",
+		async ({ params, request }) => {
+			const userId = await requireUserId(request);
+			const transactionImport = await getImport(userId, params.id);
+			if (transactionImport.status !== "PENDING")
+				throw new HttpException("Esta importação já foi aprovada", 400);
+			const pairs = await getTransferSuggestionPairs(userId, [params.itemId]);
+			const pair = (pairs.get(params.itemId) ?? []).find(
+				candidate =>
+					candidate.outgoing.id === params.counterpartItemId ||
+					candidate.incoming.id === params.counterpartItemId,
+			);
+			const requestedItem = pair?.outgoing.id === params.itemId ? pair.outgoing : pair?.incoming;
+			if (
+				!pair ||
+				!requestedItem ||
+				requestedItem.transactionImportId !== transactionImport.id ||
+				pair.incoming.source !== "TRANSACTION"
+			)
+				throw new HttpException("Sugestão de transferência não encontrada", 404);
+			const debtSplits = await queryRows(
+				db.sql.public.DebtSplit.select("id")
+					.where((fields, functions) =>
+						functions.or(
+							functions.eq(fields.transactionImportItemId, pair.outgoing.id),
+							functions.eq(fields.transactionId, pair.incoming.id),
+						),
+					)
+					.build(),
+			);
+			if (debtSplits.length)
+				throw new HttpException("Remova o rateio de dívida antes de combinar a transferência", 400);
+			await withTransaction(async transaction => {
+				await transaction.executeStatement(
+					transaction.db.sql.public.Transaction.update({
+						categoryId: null,
+						creditCardStatementId: null,
+						destinationFinancialAccountId: pair.incoming.financialAccountId,
+						originFinancialAccountId: pair.outgoing.financialAccountId,
+						storeName: null,
+						type: "TRANSFER",
+						updatedAt: new Date(),
+					})
+						.where((fields, functions) => functions.eq(fields.id, pair.incoming.id))
+						.build(),
+				);
+				await transaction.executeStatement(
+					transaction.db.sql.public.TransactionExternalReference.insert([
+						{
+							externalId: pair.outgoing.externalId!,
+							financialAccountId: pair.outgoing.financialAccountId,
+							transactionId: pair.incoming.id,
+						},
+					]).build(),
+				);
+				await transaction.executeStatement(
+					transaction.db.sql.public.TagAssignment.delete()
+						.where((fields, functions) =>
+							functions.and(
+								functions.eq(fields.entityType, tagEntityType.transaction),
+								functions.eq(fields.entityId, pair.incoming.id),
+							),
+						)
+						.build(),
+				);
+				await removeImportItem(transaction, pair.outgoing.id);
+				await finalizeImportWhenEmpty(transaction, transactionImport.id);
+			});
+			return { removedImportId: transactionImport.id, success: true };
+		},
+		{ params: t.Object({ counterpartItemId: t.String(), id: t.String(), itemId: t.String() }) },
+	)
+	.post(
+		"/:id/items/:itemId/transfer-suggestions/:counterpartItemId/reject",
+		async ({ params, request }) => {
+			const userId = await requireUserId(request);
+			const transactionImport = await getImport(userId, params.id);
+			if (transactionImport.status !== "PENDING")
+				throw new HttpException("Esta importação já foi aprovada", 400);
+			const pairs = await getTransferSuggestionPairs(userId, [params.itemId]);
+			const pair = (pairs.get(params.itemId) ?? []).find(
+				candidate =>
+					candidate.outgoing.id === params.counterpartItemId ||
+					candidate.incoming.id === params.counterpartItemId,
+			);
+			const requestedItem = pair?.outgoing.id === params.itemId ? pair.outgoing : pair?.incoming;
+			if (
+				!pair ||
+				!requestedItem ||
+				requestedItem.transactionImportId !== transactionImport.id ||
+				pair.incoming.source !== "TRANSACTION" ||
+				!pair.outgoing.externalId ||
+				!pair.incoming.externalId
+			)
+				throw new HttpException("Sugestão de transferência não encontrada", 404);
+			await executeStatement(
+				db.sql.public.TransactionImportTransferSuggestionRejection.insert([
+					{
+						incomingExternalId: pair.incoming.externalId,
+						incomingFinancialAccountId: pair.incoming.financialAccountId,
+						outgoingExternalId: pair.outgoing.externalId,
+						outgoingFinancialAccountId: pair.outgoing.financialAccountId,
+						userId,
+					},
+				]).build(),
+			);
+			return { success: true };
+		},
+		{ params: t.Object({ counterpartItemId: t.String(), id: t.String(), itemId: t.String() }) },
+	)
+	.post(
 		"/:id/items/:itemId/approve",
 		async ({ params, request }) => {
 			const userId = await requireUserId(request);
@@ -890,6 +1139,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					"description",
 					"destinationFinancialAccountId",
 					"externalId",
+					"transferCounterpartExternalId",
 					"isHidden",
 					"isReconciled",
 					"originFinancialAccountId",
@@ -974,6 +1224,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 					"description",
 					"destinationFinancialAccountId",
 					"externalId",
+					"transferCounterpartExternalId",
 					"isHidden",
 					"isReconciled",
 					"originFinancialAccountId",
@@ -1208,6 +1459,7 @@ export const TransactionImportsController = new Elysia({ prefix: "/transaction-i
 						"description",
 						"destinationFinancialAccountId",
 						"externalId",
+						"transferCounterpartExternalId",
 						"isHidden",
 						"isReconciled",
 						"originFinancialAccountId",
