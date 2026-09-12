@@ -91,14 +91,17 @@ export function FinancialAccountStatementDialog({
 		},
 	});
 	const removeYield = useMutation({
-		mutationFn: (entry: FinancialAccountYieldEntry) =>
-			entry.kind === "AUTOMATIC"
-				? dataService.accountYields.upsertAutomatic({
-						date: entry.date,
-						financialAccountId: entry.financialAccountId,
-						isExcluded: true,
-					})
-				: dataService.accountYields.delete(entry.id),
+		mutationFn: async (entry: FinancialAccountYieldEntry) => {
+			if (entry.kind === "AUTOMATIC") {
+				await dataService.accountYields.upsertAutomatic({
+					date: entry.date,
+					financialAccountId: entry.financialAccountId,
+					isExcluded: true,
+				});
+				return;
+			}
+			await dataService.accountYields.delete(entry.id);
+		},
 		onError: error =>
 			showToast(
 				error instanceof Error ? error.message : "Não foi possível excluir o rendimento.",
