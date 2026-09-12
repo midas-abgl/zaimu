@@ -2767,10 +2767,14 @@ export const dataService = {
 
 		async update(
 			id: string,
-			data: Omit<Partial<Transaction>, "debtSplit"> & { debtSplit?: DebtSplitInput | null },
+			data: Omit<Partial<Transaction>, "creditCardStatementId" | "debtSplit" | "storeName"> & {
+				creditCardStatementId?: string | null;
+				debtSplit?: DebtSplitInput | null;
+				storeName?: string | null;
+			},
 		): Promise<Transaction> {
 			if (isGuestMode()) {
-				const { debtSplit: debtSplitInput, ...transactionChanges } = data;
+				const { creditCardStatementId, debtSplit: debtSplitInput, ...transactionChanges } = data;
 				const existing = await localTransactions.getById(id);
 				if (!existing) throw new Error("Transação não encontrada");
 				if (existing.data.creditCardStatementId) {
@@ -2802,6 +2806,9 @@ export const dataService = {
 						...transactionChanges,
 						amount,
 						originFinancialAccountId,
+						...(creditCardStatementId !== undefined && {
+							creditCardStatementId: creditCardStatementId ?? undefined,
+						}),
 						...(debtSplitInput !== undefined && {
 							debtSplit: await hydrateLocalDebtSplit(amount, debtSplitInput),
 						}),
@@ -2815,6 +2822,9 @@ export const dataService = {
 				const updated: Transaction = {
 					...existing.data,
 					...transactionChanges,
+					...(creditCardStatementId !== undefined && {
+						creditCardStatementId: creditCardStatementId ?? undefined,
+					}),
 					...(debtSplitInput !== undefined && {
 						debtSplit: await hydrateLocalDebtSplit(data.amount ?? existing.data.amount, debtSplitInput),
 					}),
