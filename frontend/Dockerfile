@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM oven/bun:1.3.12 AS deps
+FROM oven/bun:latest AS deps
 
 WORKDIR /app
 
@@ -16,17 +16,18 @@ FROM deps AS build
 
 WORKDIR /app
 
+ARG NODE_ENV=production
+ENV NODE_ENV=${NODE_ENV}
+
 # Vite inlines VITE_* vars at build time, so they must be present here.
 ARG VITE_API_URL=http://localhost:3333
 ARG VITE_APP_URL=http://localhost:3000
-ARG NODE_ENV=production
 
 ENV VITE_API_URL=${VITE_API_URL}
 ENV VITE_APP_URL=${VITE_APP_URL}
-ENV NODE_ENV=${NODE_ENV}
 
 COPY . .
-RUN bunx turbo -F frontend build
+RUN --mount=type=secret,id=DATABASE_URL DATABASE_URL="$(cat /run/secrets/DATABASE_URL)" bunx turbo -F frontend build
 
 FROM ghcr.io/static-web-server/static-web-server:2 AS runtime
 
